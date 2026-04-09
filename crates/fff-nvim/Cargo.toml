@@ -37,7 +37,6 @@ path = "src/bin/grep_vs_rg.rs"
 
 [[bin]]
 name = "bench_grep_query"
-ppath = "src/bin/bench_grep_query.rs"
 path = "src/bin/bench_grep_query.rs"
 
 [dependencies]
@@ -49,8 +48,10 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 
 # Local crates
-fff = { package = "fff-search", path = "../fff-core" , version = "0.5.1", features = ["mimalloc-collect"] }
-fff-query-parser = { path = "../fff-query-parser" , version = "0.5.2" }
+fff = { package = "fff-search", path = "../fff-core", version = "0.5.1", features = [
+	"mimalloc-collect",
+] }
+fff-query-parser = { path = "../fff-query-parser", version = "0.5.2" }
 
 # External dependencies
 blake3 = "1.8.2"

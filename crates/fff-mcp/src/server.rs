@@ -591,8 +591,17 @@ impl FffServer {
 
         let files = picker.get_files();
         let budget = picker.cache_budget();
-        let result =
-            grep::multi_grep_search(files, &patterns_refs, constraints, &options, budget, None);
+        let overlay_guard = picker.bigram_overlay().map(|o| o.read());
+        let result = grep::multi_grep_search(
+            files,
+            &patterns_refs,
+            constraints,
+            &options,
+            budget,
+            picker.bigram_index(),
+            overlay_guard.as_deref(),
+            None,
+        );
         let file_refs: Vec<&FileItem> = result.files.to_vec();
 
         if result.matches.is_empty() && file_offset == 0 {

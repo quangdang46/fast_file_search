@@ -7,6 +7,7 @@
 
 use crate::{
     BigramFilter, BigramOverlay,
+    bigram_query::regex_to_bigram_query,
     constraints::apply_constraints,
     extract_bigrams,
     sort_buffer::sort_with_buffer,
@@ -924,12 +925,15 @@ impl Sink for AhoCorasickSink<'_> {
 /// searches because Aho-Corasick uses SIMD-accelerated multi-needle matching.
 ///
 /// Returns the same `GrepResult` type as `grep_search`.
+#[allow(clippy::too_many_arguments)]
 pub fn multi_grep_search<'a>(
     files: &'a [FileItem],
     patterns: &[&str],
     constraints: &[fff_query_parser::Constraint<'_>],
     options: &GrepSearchOptions,
     budget: &ContentCacheBudget,
+    bigram_index: Option<&BigramFilter>,
+    bigram_overlay: Option<&BigramOverlay>,
     is_cancelled: Option<&AtomicBool>,
 ) -> GrepResult<'a> {
     let total_files = files.len();
@@ -942,6 +946,51 @@ pub fn multi_grep_search<'a>(
         };
     }
 
+    // Bigram prefiltering: OR the candidate bitsets for each pattern.
+    // A file is a candidate if it matches ANY of the patterns' bigrams.
+    let bigram_candidates = if let Some(idx) = bigram_index
+        && idx.is_ready()
+    {
+        let mut combined: Option<Vec<u64>> = None;
+        for pattern in patterns {
+            if let Some(candidates) = idx.query(pattern.as_bytes()) {
+                combined = Some(match combined {
+                    None => candidates,
+                    Some(mut acc) => {
+                        // OR: file is candidate if it matches any pattern
+                        acc.iter_mut()
+                            .zip(candidates.iter())
+                            .for_each(|(a, b)| *a |= *b);
+                        acc
+                    }
+                });
+            }
+        }
+
+        if let Some(ref mut candidates) = combined
+            && let Some(overlay) = bigram_overlay
+        {
+            // Clear tombstoned files
+            for (r, t) in candidates.iter_mut().zip(overlay.tombstones().iter()) {
+                *r &= !t;
+            }
+            // Add modified files whose bigrams match any pattern
+            for pattern in patterns {
+                let pattern_bigrams = extract_bigrams(pattern.as_bytes());
+                for file_idx in overlay.query_modified(&pattern_bigrams) {
+                    let word = file_idx / 64;
+                    if word < candidates.len() {
+                        candidates[word] |= 1u64 << (file_idx % 64);
+                    }
+                }
+            }
+        }
+
+        combined
+    } else {
+        None
+    };
+
     let (mut files_to_search, mut filtered_file_count) =
         prepare_files_to_search(files, constraints, options);
 
@@ -953,6 +1002,15 @@ pub fn multi_grep_search<'a>(
         let (retry_files, retry_count) = prepare_files_to_search(files, &stripped, options);
         files_to_search = retry_files;
         filtered_file_count = retry_count;
+    }
+
+    // Apply bigram prefilter to the file list
+    if let Some(ref candidates) = bigram_candidates {
+        let base_ptr = files.as_ptr();
+        files_to_search.retain(|f| {
+            let file_idx = unsafe { (*f as *const FileItem).offset_from(base_ptr) as usize };
+            BigramFilter::is_candidate(candidates, file_idx)
+        });
     }
 
     if files_to_search.is_empty() {
@@ -1842,24 +1900,50 @@ pub fn grep_search<'a>(
     let pattern_len = finder_pattern.len() as u32;
 
     // Bigram prefiltering: query the inverted index + merge overlay.
-    let bigram_candidates = if regex.is_none()
-        && let Some(idx) = bigram_index
+    // For PlainText mode: extract bigrams directly from the literal pattern.
+    // For Regex mode: decompose the regex HIR into an AND/OR bigram query tree
+    // and evaluate it against the inverted index (supports alternation, optional
+    // groups, character classes, and sparse-1 bigrams across single-byte wildcards).
+    let bigram_candidates = if let Some(idx) = bigram_index
         && idx.is_ready()
-        && let Some(mut candidates) = idx.query(effective_pattern.as_bytes())
     {
-        if let Some(overlay) = bigram_overlay {
-            let pattern_bigrams = extract_bigrams(effective_pattern.as_bytes());
-            for (r, t) in candidates.iter_mut().zip(overlay.tombstones().iter()) {
-                *r &= !t;
-            }
-            for file_idx in overlay.query_modified(&pattern_bigrams) {
-                let word = file_idx / 64;
-                if word < candidates.len() {
-                    candidates[word] |= 1u64 << (file_idx % 64);
+        let raw_candidates = if regex.is_none() {
+            // PlainText or regex-fallback-to-plain: literal bigram query
+            idx.query(effective_pattern.as_bytes())
+        } else {
+            // Regex mode: decompose pattern into bigram query tree
+            let bq = regex_to_bigram_query(&effective_pattern);
+            if !bq.is_any() { bq.evaluate(idx) } else { None }
+        };
+
+        if let Some(mut candidates) = raw_candidates {
+            if let Some(overlay) = bigram_overlay {
+                // Clear tombstoned (deleted) files from candidates
+                for (r, t) in candidates.iter_mut().zip(overlay.tombstones().iter()) {
+                    *r &= !t;
+                }
+
+                if regex.is_none() {
+                    let pattern_bigrams = extract_bigrams(effective_pattern.as_bytes());
+                    for file_idx in overlay.query_modified(&pattern_bigrams) {
+                        let word = file_idx / 64;
+                        if word < candidates.len() {
+                            candidates[word] |= 1u64 << (file_idx % 64);
+                        }
+                    }
+                } else {
+                    for file_idx in overlay.modified_indices() {
+                        let word = file_idx / 64;
+                        if word < candidates.len() {
+                            candidates[word] |= 1u64 << (file_idx % 64);
+                        }
+                    }
                 }
             }
+            Some(candidates)
+        } else {
+            None
         }
-        Some(candidates)
     } else {
         None
     };
@@ -2226,6 +2310,8 @@ mod tests {
             &options,
             &ContentCacheBudget::unlimited(),
             None,
+            None,
+            None,
         );
 
         // Should find matches from file1 (GrepMode, GrepMatch) and file2 (PlainTextMatcher)
@@ -2264,6 +2350,8 @@ mod tests {
             &options,
             &ContentCacheBudget::unlimited(),
             None,
+            None,
+            None,
         );
         assert_eq!(
             result2.matches.len(),
@@ -2278,6 +2366,8 @@ mod tests {
             &[],
             &options,
             &ContentCacheBudget::unlimited(),
+            None,
+            None,
             None,
         );
         assert_eq!(

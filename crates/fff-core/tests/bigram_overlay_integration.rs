@@ -288,6 +288,80 @@ fn new_file_findable_after_add() {
     }
 }
 
+/// Verify that a file modified after index build is findable via regex grep
+/// through the overlay. This catches a regression where `extract_bigrams` on
+/// the raw regex string (e.g. "NEEDLE.*HERE") produces bogus bigrams containing
+/// `.` and `*`, causing `query_modified` to miss the file.
+#[test]
+fn modified_file_findable_via_regex_overlay() {
+    let tmp = TempDir::new().unwrap();
+    let base = tmp.path();
+
+    fs::write(base.join("alpha.txt"), "hello world\nfoo bar\n").unwrap();
+    fs::write(
+        base.join("beta.txt"),
+        "some other content\nnothing special\n",
+    )
+    .unwrap();
+
+    let shared_picker = SharedPicker::default();
+    let shared_frecency = SharedFrecency::default();
+
+    FilePicker::new_with_shared_state(
+        shared_picker.clone(),
+        shared_frecency.clone(),
+        FilePickerOptions {
+            base_path: base.to_string_lossy().to_string(),
+            warmup_mmap_cache: true,
+            mode: FFFMode::Neovim,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    wait_for_bigram(&shared_picker);
+
+    // Advance mtime past the scan timestamp so the cache is invalidated.
+    std::thread::sleep(Duration::from_millis(1100));
+
+    // Write content that matches the regex "NEEDLE.*HERE" into beta.txt.
+    let modified_path = base.join("beta.txt");
+    fs::write(
+        &modified_path,
+        "some other content\nNEEDLE is right HERE\nnothing special\n",
+    )
+    .unwrap();
+
+    {
+        let mut guard = shared_picker.write().unwrap();
+        let picker = guard.as_mut().unwrap();
+        assert!(picker.on_create_or_modify(&modified_path).is_some());
+    }
+
+    // Regex grep should find the modified file through the overlay.
+    {
+        let guard = shared_picker.read().unwrap();
+        let picker = guard.as_ref().unwrap();
+        let parsed = parse_grep_query("NEEDLE.*HERE");
+        let opts = GrepSearchOptions {
+            mode: GrepMode::Regex,
+            ..grep_opts()
+        };
+        let result = picker.grep(&parsed, &opts);
+        assert!(
+            !result.matches.is_empty(),
+            "Regex grep should find NEEDLE.*HERE in modified file via overlay"
+        );
+        assert!(result.matches[0].line_content.contains("NEEDLE"));
+    }
+
+    if let Ok(mut guard) = shared_picker.write() {
+        if let Some(ref mut picker) = *guard {
+            picker.stop_background_monitor();
+        }
+    }
+}
+
 // ── Helpers ─────────────────────────────────────────────────────────────
 
 fn grep_opts() -> GrepSearchOptions {
