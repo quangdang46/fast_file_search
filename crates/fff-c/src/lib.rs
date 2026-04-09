@@ -390,6 +390,7 @@ pub unsafe extern "C" fn fff_live_grep(
         before_context: before_context as usize,
         after_context: after_context as usize,
         classify_definitions,
+        trim_whitespace: false,
     };
 
     let result = picker.grep(&parsed, &options);
@@ -491,6 +492,7 @@ pub unsafe extern "C" fn fff_multi_grep(
         before_context: before_context as usize,
         after_context: after_context as usize,
         classify_definitions,
+        trim_whitespace: false,
     };
 
     let result = fff::multi_grep_search(

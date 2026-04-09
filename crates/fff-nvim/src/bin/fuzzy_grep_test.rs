@@ -79,6 +79,7 @@ fn run_fuzzy_query(files: &[FileItem], query: &str, label: &str) {
         before_context: 0,
         after_context: 0,
         classify_definitions: false,
+        trim_whitespace: false,
     };
 
     let parsed = parse_grep_query(query);

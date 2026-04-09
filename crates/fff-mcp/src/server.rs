@@ -64,6 +64,7 @@ fn make_grep_options(
             before_context: ctx_lines,
             after_context: after_ctx,
             classify_definitions: true,
+            trim_whitespace: true,
         },
         auto_expand,
     )

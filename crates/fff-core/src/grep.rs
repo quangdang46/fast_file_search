@@ -279,6 +279,35 @@ pub struct GrepMatch {
     pub context_after: Vec<String>,
 }
 
+impl GrepMatch {
+    /// Strip leading whitespace from `line_content` and all context lines,
+    /// adjusting `col` and `match_byte_offsets` so highlights remain correct.
+    pub fn trim_leading_whitespace(&mut self) {
+        let strip_len = self.line_content.len() - self.line_content.trim_start().len();
+        if strip_len > 0 {
+            self.line_content.drain(..strip_len);
+            let off = strip_len as u32;
+            self.col = self.col.saturating_sub(strip_len);
+            for range in &mut self.match_byte_offsets {
+                range.0 = range.0.saturating_sub(off);
+                range.1 = range.1.saturating_sub(off);
+            }
+        }
+        for line in &mut self.context_before {
+            let n = line.len() - line.trim_start().len();
+            if n > 0 {
+                line.drain(..n);
+            }
+        }
+        for line in &mut self.context_after {
+            let n = line.len() - line.trim_start().len();
+            if n > 0 {
+                line.drain(..n);
+            }
+        }
+    }
+}
+
 /// Result of a grep search.
 #[derive(Debug, Clone, Default)]
 pub struct GrepResult<'a> {
@@ -326,6 +355,28 @@ pub struct GrepSearchOptions {
     /// Whether to classify each match as a definition line. Adds ~2% overhead
     /// on large repos; disable for interactive grep where it is not needed.
     pub classify_definitions: bool,
+    /// Strip leading whitespace from matched lines and context lines, adjusting
+    /// highlight byte offsets accordingly. Useful for AI/MCP consumers and UIs
+    /// that don't need indentation. Default: false.
+    pub trim_whitespace: bool,
+}
+
+impl Default for GrepSearchOptions {
+    fn default() -> Self {
+        Self {
+            max_file_size: 10 * 1024 * 1024,
+            max_matches_per_file: 200,
+            smart_case: true,
+            file_offset: 0,
+            page_limit: 50,
+            mode: GrepMode::default(),
+            time_budget_ms: 0,
+            before_context: 0,
+            after_context: 0,
+            classify_definitions: false,
+            trim_whitespace: false,
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -1157,6 +1208,9 @@ where
 
             for mut m in file_matches {
                 m.file_index = file_result_idx;
+                if options.trim_whitespace {
+                    m.trim_leading_whitespace();
+                }
                 all_matches.push(m);
             }
 
@@ -1237,6 +1291,9 @@ fn collect_grep_results<'a>(
 
         for mut m in file_matches {
             m.file_index = file_result_idx;
+            if options.trim_whitespace {
+                m.trim_leading_whitespace();
+            }
             all_matches.push(m);
         }
 
@@ -2158,6 +2215,7 @@ mod tests {
             before_context: 0,
             after_context: 0,
             classify_definitions: false,
+            trim_whitespace: false,
         };
 
         // Test with 3 patterns

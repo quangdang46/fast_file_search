@@ -302,6 +302,7 @@ fn grep_opts() -> GrepSearchOptions {
         before_context: 0,
         after_context: 0,
         classify_definitions: false,
+        trim_whitespace: false,
     }
 }
 

@@ -146,6 +146,7 @@ impl<'a> GrepBench<'a> {
                 before_context: 0,
                 after_context: 0,
                 classify_definitions: false,
+                trim_whitespace: false,
             },
         }
     }
@@ -505,6 +506,7 @@ fn main() {
             before_context: 0,
             after_context: 0,
             classify_definitions: false,
+            trim_whitespace: false,
         };
         let start = Instant::now();
         let result = grep_search(

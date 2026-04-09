@@ -280,6 +280,7 @@ pub fn live_grep(
         smart_case,
         grep_mode,
         time_budget_ms,
+        trim_whitespace,
     ): (
         String,
         Option<usize>,
@@ -289,6 +290,7 @@ pub fn live_grep(
         Option<bool>,
         Option<String>,
         Option<u64>,
+        Option<bool>,
     ),
 ) -> LuaResult<LuaValue> {
     let file_picker_guard = FILE_PICKER.read().into_lua_result()?;
@@ -314,6 +316,7 @@ pub fn live_grep(
         before_context: 0,
         after_context: 0,
         classify_definitions: false,
+        trim_whitespace: trim_whitespace.unwrap_or(false),
     };
 
     let result = picker.grep(&parsed, &options);
