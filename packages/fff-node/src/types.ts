@@ -62,8 +62,6 @@ export interface SearchOptions {
  * A file item in search results
  */
 export interface FileItem {
-  /** Absolute path to the file */
-  path: string;
   /** Path relative to the indexed directory */
   relativePath: string;
   /** File name only */
@@ -267,8 +265,6 @@ export interface GrepOptions {
  * A single grep match with file and line information
  */
 export interface GrepMatch {
-  /** Absolute path to the file */
-  path: string;
   /** Path relative to the indexed directory */
   relativePath: string;
   /** File name only */

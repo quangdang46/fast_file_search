@@ -379,19 +379,12 @@ fn handle_debounced_events(
 
                 let mut files_to_update = Vec::with_capacity(paths_to_add_or_modify.len());
                 for path in &paths_to_add_or_modify {
-                    let result = picker.on_create_or_modify(path);
-                    match result {
-                        Some(file) => {
-                            debug!(
-                                "on_create_or_modify({:?}) -> Some({})",
-                                path,
-                                file.path_str()
-                            );
-                            files_to_update.push(PathBuf::from(file.path_str()));
-                        }
-                        None => {
-                            error!("on_create_or_modify({:?}) -> None (file not added!)", path);
-                        }
+                    let added = picker.on_create_or_modify(path).is_some();
+                    if added {
+                        debug!("on_create_or_modify({:?}) -> Some", path);
+                        files_to_update.push(path.to_path_buf());
+                    } else {
+                        error!("on_create_or_modify({:?}) -> None (file not added!)", path);
                     }
                 }
                 info!(
@@ -628,7 +621,7 @@ fn is_git_file(path: &Path) -> bool {
         .any(|component| component.as_os_str() == ".git")
 }
 
-pub fn is_dotgit_change_affecting_status(changed: &Path, repo: &Option<Repository>) -> bool {
+fn is_dotgit_change_affecting_status(changed: &Path, repo: &Option<Repository>) -> bool {
     let Some(repo) = repo.as_ref() else {
         return false;
     };

@@ -87,8 +87,7 @@ fn test_search_memory_pattern(
             if let Some(ref picker) = *guard {
                 let parser = QueryParser::default();
                 let parsed = parser.parse(&query);
-                let search_result = FilePicker::fuzzy_search(
-                    picker.get_files(),
+                let search_result = picker.fuzzy_search(
                     &parsed,
                     None,
                     FuzzySearchOptions {

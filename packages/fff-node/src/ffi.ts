@@ -381,7 +381,6 @@ export function ffiDestroy(handle: NativeHandle): void {
 // ---------------------------------------------------------------------------
 
 const FFF_FILE_ITEM_STRUCT = {
-  path: DataType.External,
   relative_path: DataType.External,
   file_name: DataType.External,
   git_status: DataType.External,
@@ -394,7 +393,6 @@ const FFF_FILE_ITEM_STRUCT = {
 };
 
 interface FffFileItemRaw {
-  path: JsExternal;
   relative_path: JsExternal;
   file_name: JsExternal;
   git_status: JsExternal;
@@ -461,7 +459,6 @@ interface FffSearchResultRaw {
 
 // FffGrepMatch (144 bytes) — ordered by alignment: ptrs, u64s, u32s, u16, bools
 const FFF_GREP_MATCH_STRUCT = {
-  path: DataType.External,
   relative_path: DataType.External,
   file_name: DataType.External,
   git_status: DataType.External,
@@ -487,7 +484,6 @@ const FFF_GREP_MATCH_STRUCT = {
 };
 
 interface FffGrepMatchRaw {
-  path: JsExternal;
   relative_path: JsExternal;
   file_name: JsExternal;
   git_status: JsExternal;
@@ -550,7 +546,6 @@ interface FffMatchRangeRaw {
 
 function readFileItemFromRaw(raw: FffFileItemRaw): FileItem {
   return {
-    path: readCString(raw.path) ?? "",
     relativePath: readCString(raw.relative_path) ?? "",
     fileName: readCString(raw.file_name) ?? "",
     gitStatus: readCString(raw.git_status) ?? "",
@@ -647,7 +642,6 @@ function readGrepMatchFromRaw(raw: FffGrepMatchRaw): GrepMatch {
   }
 
   const match: GrepMatch = {
-    path: readCString(raw.path) ?? "",
     relativePath: readCString(raw.relative_path) ?? "",
     fileName: readCString(raw.file_name) ?? "",
     gitStatus: readCString(raw.git_status) ?? "",
@@ -1016,6 +1010,13 @@ export function ffiIsScanning(handle: NativeHandle): boolean {
     paramsType: [DataType.External],
     paramsValue: [handle],
   }) as boolean;
+}
+
+/**
+ * Get the base path of the file picker.
+ */
+export function ffiGetBasePath(handle: NativeHandle): Result<string | null> {
+  return callStringResult("fff_get_base_path", [DataType.External], [handle]);
 }
 
 // FffScanProgress struct definition

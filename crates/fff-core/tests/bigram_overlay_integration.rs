@@ -283,7 +283,7 @@ fn new_file_findable_after_add() {
         let overflow = picker.get_overflow_files();
         assert_eq!(overflow.len(), 1, "Should have 1 overflow file");
         assert!(
-            overflow[0].as_path().ends_with("newcomer.txt"),
+            overflow[0].relative_path(picker).ends_with("newcomer.txt"),
             "Overflow file should be newcomer.txt"
         );
     }
@@ -384,6 +384,7 @@ fn grep_opts() -> GrepSearchOptions {
         after_context: 0,
         classify_definitions: false,
         trim_whitespace: false,
+        abort_signal: None,
     }
 }
 

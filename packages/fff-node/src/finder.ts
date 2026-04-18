@@ -12,6 +12,7 @@ import {
   ensureLoaded,
   ffiCreate,
   ffiDestroy,
+  ffiGetBasePath,
   ffiGetHistoricalQuery,
   ffiGetScanProgress,
   ffiHealthCheck,
@@ -311,6 +312,15 @@ export class FileFinder {
   isScanning(): boolean {
     if (this.handle === null) return false;
     return ffiIsScanning(this.handle);
+  }
+
+  /**
+   * Get the base path of the file picker (the root directory being indexed).
+   */
+  getBasePath(): Result<string | null> {
+    const guard = this.ensureAlive();
+    if (!guard.ok) return guard;
+    return ffiGetBasePath(guard.value);
   }
 
   /**

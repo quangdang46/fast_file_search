@@ -630,6 +630,7 @@ fn grep_plain_opts() -> GrepSearchOptions {
         after_context: 0,
         classify_definitions: false,
         trim_whitespace: false,
+        abort_signal: None,
     }
 }
 
@@ -690,8 +691,7 @@ fn extract_stem(name: &str) -> String {
 fn fuzzy_search_paths(picker: &FilePicker, query: &str) -> Vec<String> {
     let parser = QueryParser::default();
     let parsed = parser.parse(query);
-    let result = FilePicker::fuzzy_search(
-        picker.get_files(),
+    let result = picker.fuzzy_search(
         &parsed,
         None,
         FuzzySearchOptions {
@@ -706,7 +706,7 @@ fn fuzzy_search_paths(picker: &FilePicker, query: &str) -> Vec<String> {
     result
         .items
         .iter()
-        .map(|f| f.path_str().to_string())
+        .map(|f| f.relative_path(picker))
         .collect()
 }
 

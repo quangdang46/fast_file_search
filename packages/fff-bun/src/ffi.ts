@@ -118,6 +118,10 @@ const ffiDefinition = {
     args: [FFIType.ptr],
     returns: FFIType.bool,
   },
+  fff_get_base_path: {
+    args: [FFIType.ptr],
+    returns: FFIType.ptr,
+  },
   fff_get_scan_progress: {
     args: [FFIType.ptr],
     returns: FFIType.ptr,
@@ -417,18 +421,17 @@ const SR_LOC_COL = 36; // i32              (4)
 const SR_LOC_END_LINE = 40; // i32           (4)
 const SR_LOC_END_COL = 44; // i32           (4)
 
-// FffFileItem (80 bytes)
-const FI_PATH = 0; // *mut c_char (8)
-const FI_RELPATH = 8; // *mut c_char (8)
-const FI_FNAME = 16; // *mut c_char (8)
-const FI_GIT = 24; // *mut c_char (8)
-const FI_SIZE = 32; // u64         (8)
-const FI_MODIFIED = 40; // u64         (8)
-const FI_ACCESS = 48; // i64         (8)
-const FI_MODFR = 56; // i64         (8)
-const FI_TOTAL_FR = 64; // i64         (8)
-const _FI_BINARY = 72; // bool        (1 + 7 pad)
-const FI_SIZE_OF = 80;
+// FffFileItem (72 bytes)
+const FI_RELPATH = 0; // *mut c_char (8)
+const FI_FNAME = 8; // *mut c_char (8)
+const FI_GIT = 16; // *mut c_char (8)
+const FI_SIZE = 24; // u64         (8)
+const FI_MODIFIED = 32; // u64         (8)
+const FI_ACCESS = 40; // i64         (8)
+const FI_MODFR = 48; // i64         (8)
+const FI_TOTAL_FR = 56; // i64         (8)
+const _FI_BINARY = 64; // bool        (1 + 7 pad)
+const FI_SIZE_OF = 72;
 
 // FffScore (48 bytes)
 const SC_TOTAL = 0; // i32         (4)
@@ -454,7 +457,6 @@ function asPtr(n: number): Pointer {
 function readFileItemStruct(p: number): FileItem {
   const pp = asPtr(p);
   return {
-    path: readCString(read.ptr(pp, FI_PATH)) ?? "",
     relativePath: readCString(read.ptr(pp, FI_RELPATH)) ?? "",
     fileName: readCString(read.ptr(pp, FI_FNAME)) ?? "",
     gitStatus: readCString(read.ptr(pp, FI_GIT)) ?? "",
@@ -553,39 +555,38 @@ function parseSearchResult(resultPtr: Pointer | null): Result<SearchResult> {
 // ---------------------------------------------------------------------------
 
 // Pointers (8 bytes each)
-const GM_PATH = 0;
-const GM_RELPATH = 8;
-const GM_FNAME = 16;
-const GM_GIT = 24;
-const GM_LINE_CONTENT = 32;
-const GM_MATCH_RANGES = 40;
-const GM_CTX_BEFORE = 48;
-const GM_CTX_AFTER = 56;
+const GM_RELPATH = 0;
+const GM_FNAME = 8;
+const GM_GIT = 16;
+const GM_LINE_CONTENT = 24;
+const GM_MATCH_RANGES = 32;
+const GM_CTX_BEFORE = 40;
+const GM_CTX_AFTER = 48;
 
 // 8-byte numeric fields
-const GM_SIZE = 64;
-const GM_MODIFIED = 72;
-const GM_TOTAL_FR = 80;
-const GM_ACCESS_FR = 88;
-const GM_MOD_FR = 96;
-const GM_LINE_NUM = 104;
-const GM_BYTE_OFF = 112;
+const GM_SIZE = 56;
+const GM_MODIFIED = 64;
+const GM_TOTAL_FR = 72;
+const GM_ACCESS_FR = 80;
+const GM_MOD_FR = 88;
+const GM_LINE_NUM = 96;
+const GM_BYTE_OFF = 104;
 
 // 4-byte fields
-const GM_COL = 120;
-const GM_MR_COUNT = 124;
-const GM_CTX_B_COUNT = 128;
-const GM_CTX_A_COUNT = 132;
+const GM_COL = 112;
+const GM_MR_COUNT = 116;
+const GM_CTX_B_COUNT = 120;
+const GM_CTX_A_COUNT = 124;
 
 // 2-byte
-const GM_FUZZY_SCORE = 136;
+const GM_FUZZY_SCORE = 128;
 // 1-byte
-const GM_HAS_FUZZY = 138;
-const GM_IS_BINARY = 139;
-const _GM_IS_DEF = 140;
+const GM_HAS_FUZZY = 130;
+const GM_IS_BINARY = 131;
+const _GM_IS_DEF = 132;
 
-// struct size: pad to 8-byte alignment → 144
-const GM_SIZE_OF = 144;
+// struct size: pad to 8-byte alignment → 136
+const GM_SIZE_OF = 136;
 
 // FffGrepResult
 const GR_ITEMS = 0; // *mut FffGrepMatch (8)
@@ -635,7 +636,6 @@ function readGrepMatchStruct(p: number): GrepMatch {
   const ctxAfterCount = read.u32(pp, GM_CTX_A_COUNT);
 
   const match: GrepMatch = {
-    path: readCString(read.ptr(pp, GM_PATH)) ?? "",
     relativePath: readCString(read.ptr(pp, GM_RELPATH)) ?? "",
     fileName: readCString(read.ptr(pp, GM_FNAME)) ?? "",
     gitStatus: readCString(read.ptr(pp, GM_GIT)) ?? "",
@@ -820,6 +820,15 @@ export function ffiScanFiles(handle: NativeHandle): Result<void> {
 export function ffiIsScanning(handle: NativeHandle): boolean {
   const library = loadLibrary();
   return library.symbols.fff_is_scanning(handle) as boolean;
+}
+
+/**
+ * Get the base path of the file picker.
+ */
+export function ffiGetBasePath(handle: NativeHandle): Result<string | null> {
+  const library = loadLibrary();
+  const resultPtr = library.symbols.fff_get_base_path(handle);
+  return parseStringResult(resultPtr);
 }
 
 // FffScanProgress { scanned_files_count: u64(8), is_scanning: bool(1), is_watcher_ready: bool(1), is_warmup_complete: bool(1) + pad }

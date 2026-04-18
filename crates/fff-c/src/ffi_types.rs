@@ -7,12 +7,9 @@
 use std::ffi::{CString, c_char, c_void};
 use std::ptr;
 
+use fff::file_picker::FilePicker;
 use fff::git::format_git_status;
 use fff::{FileItem, GrepMatch, GrepResult, Location, Score, SearchResult};
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 /// Allocate a heap CString from a `&str`, returning a raw pointer.
 fn cstring_new(s: &str) -> *mut c_char {
@@ -64,7 +61,6 @@ unsafe fn free_cstring_array(arr: *mut *mut c_char, count: u32) {
 /// Free the entire result with `fff_free_search_result`.
 #[repr(C)]
 pub struct FffFileItem {
-    pub path: *mut c_char,
     pub relative_path: *mut c_char,
     pub file_name: *mut c_char,
     pub git_status: *mut c_char,
@@ -76,12 +72,11 @@ pub struct FffFileItem {
     pub is_binary: bool,
 }
 
-impl From<&FileItem> for FffFileItem {
-    fn from(item: &FileItem) -> Self {
+impl FffFileItem {
+    pub fn from_item(item: &FileItem, picker: &FilePicker) -> Self {
         FffFileItem {
-            path: cstring_new(item.path_str()),
-            relative_path: cstring_new(item.relative_path()),
-            file_name: cstring_new(item.file_name()),
+            relative_path: cstring_new(&item.relative_path(picker)),
+            file_name: cstring_new(&item.file_name(picker)),
             git_status: cstring_new(format_git_status(item.git_status)),
             size: item.size,
             modified: item.modified,
@@ -98,9 +93,6 @@ impl FffFileItem {
     /// All string pointers must have been allocated by `CString::into_raw`.
     pub unsafe fn free_strings(&mut self) {
         unsafe {
-            if !self.path.is_null() {
-                drop(CString::from_raw(self.path));
-            }
             if !self.relative_path.is_null() {
                 drop(CString::from_raw(self.relative_path));
             }
@@ -232,8 +224,12 @@ pub struct FffSearchResult {
 
 impl FffSearchResult {
     /// Convert a core `SearchResult` into a heap-allocated `FffSearchResult`.
-    pub fn from_core(result: &SearchResult) -> *mut Self {
-        let items: Vec<FffFileItem> = result.items.iter().map(|i| FffFileItem::from(*i)).collect();
+    pub fn from_core(result: &SearchResult, picker: &FilePicker) -> *mut Self {
+        let items: Vec<FffFileItem> = result
+            .items
+            .iter()
+            .map(|i| FffFileItem::from_item(i, picker))
+            .collect();
         let scores: Vec<FffScore> = result.scores.iter().map(FffScore::from).collect();
         let count = items.len() as u32;
 
@@ -269,7 +265,6 @@ pub struct FffMatchRange {
 #[repr(C)]
 pub struct FffGrepMatch {
     // -- pointers (8 bytes each) --
-    pub path: *mut c_char,
     pub relative_path: *mut c_char,
     pub file_name: *mut c_char,
     pub git_status: *mut c_char,
@@ -299,7 +294,7 @@ pub struct FffGrepMatch {
 }
 
 impl FffGrepMatch {
-    fn from_core_with_file(m: &GrepMatch, file: &FileItem) -> Self {
+    fn from_core_with_file(m: &GrepMatch, file: &FileItem, picker: &FilePicker) -> Self {
         let ranges: Vec<FffMatchRange> = m
             .match_byte_offsets
             .iter()
@@ -314,9 +309,8 @@ impl FffGrepMatch {
         };
 
         FffGrepMatch {
-            path: cstring_new(file.path_str()),
-            relative_path: cstring_new(file.relative_path()),
-            file_name: cstring_new(file.file_name()),
+            relative_path: cstring_new(&file.relative_path(picker)),
+            file_name: cstring_new(&file.file_name(picker)),
             git_status: cstring_new(format_git_status(file.git_status)),
             line_content: cstring_new(&m.line_content),
             match_ranges,
@@ -344,9 +338,6 @@ impl FffGrepMatch {
     /// All pointers must have been allocated by the corresponding `from_core`.
     pub unsafe fn free_fields(&mut self) {
         unsafe {
-            if !self.path.is_null() {
-                drop(CString::from_raw(self.path));
-            }
             if !self.relative_path.is_null() {
                 drop(CString::from_raw(self.relative_path));
             }
@@ -397,13 +388,13 @@ pub struct FffGrepResult {
 
 impl FffGrepResult {
     /// Convert a core `GrepResult` into a heap-allocated `FffGrepResult`.
-    pub fn from_core(result: &GrepResult) -> *mut Self {
+    pub fn from_core(result: &GrepResult, picker: &FilePicker) -> *mut Self {
         let items: Vec<FffGrepMatch> = result
             .matches
             .iter()
             .map(|m| {
                 let file = result.files[m.file_index];
-                FffGrepMatch::from_core_with_file(m, file)
+                FffGrepMatch::from_core_with_file(m, file, picker)
             })
             .collect();
         let (items_ptr, count) = vec_to_raw(items);

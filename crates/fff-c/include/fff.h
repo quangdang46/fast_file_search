@@ -64,7 +64,6 @@ typedef struct FffResult {
  * Free the entire result with `fff_free_search_result`.
  */
 typedef struct FffFileItem {
-  char *path;
   char *relative_path;
   char *file_name;
   char *git_status;
@@ -156,7 +155,6 @@ typedef struct FffMatchRange {
  * `FffGrepResult` with `fff_free_grep_result` to release everything.
  */
 typedef struct FffGrepMatch {
-  char *path;
   char *relative_path;
   char *file_name;
   char *git_status;
@@ -379,6 +377,17 @@ struct FffResult *fff_scan_files(void *fff_handle);
  * `fff_handle` must be a valid instance pointer from `fff_create_instance`.
  */
 bool fff_is_scanning(void *fff_handle);
+
+/**
+ * Get the base path of the file picker.
+ *
+ * Returns an `FffResult` with a heap-allocated C string in the `handle`
+ * field. Free the string with `fff_free_string` after reading it.
+ *
+ * ## Safety
+ * `fff_handle` must be a valid instance pointer from `fff_create_instance`.
+ */
+struct FffResult *fff_get_base_path(void *fff_handle);
 
 /**
  * Get scan progress information.

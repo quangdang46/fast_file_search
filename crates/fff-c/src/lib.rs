@@ -294,8 +294,7 @@ pub unsafe extern "C" fn fff_search(
     let parser = QueryParser::default();
     let parsed = parser.parse(query_str);
 
-    let results = FilePicker::fuzzy_search(
-        picker.get_files(),
+    let results = picker.fuzzy_search(
         &parsed,
         query_tracker_ref,
         FuzzySearchOptions {
@@ -311,7 +310,7 @@ pub unsafe extern "C" fn fff_search(
         },
     );
 
-    let search_result = FffSearchResult::from_core(&results);
+    let search_result = FffSearchResult::from_core(&results, picker);
     FffResult::ok_handle(search_result as *mut c_void)
 }
 
@@ -391,10 +390,11 @@ pub unsafe extern "C" fn fff_live_grep(
         after_context: after_context as usize,
         classify_definitions,
         trim_whitespace: false,
+        abort_signal: None,
     };
 
     let result = picker.grep(&parsed, &options);
-    let grep_result = FffGrepResult::from_core(&result);
+    let grep_result = FffGrepResult::from_core(&result, picker);
     FffResult::ok_handle(grep_result as *mut c_void)
 }
 
@@ -493,20 +493,11 @@ pub unsafe extern "C" fn fff_multi_grep(
         after_context: after_context as usize,
         classify_definitions,
         trim_whitespace: false,
+        abort_signal: None,
     };
 
-    let overlay_guard = picker.bigram_overlay().map(|o| o.read());
-    let result = fff::multi_grep_search(
-        picker.get_files(),
-        &patterns,
-        constraint_refs,
-        &options,
-        picker.cache_budget(),
-        picker.bigram_index(),
-        overlay_guard.as_deref(),
-        None,
-    );
-    let grep_result = FffGrepResult::from_core(&result);
+    let result = picker.multi_grep(&patterns, constraint_refs, &options);
+    let grep_result = FffGrepResult::from_core(&result, picker);
     FffResult::ok_handle(grep_result as *mut c_void)
 }
 
@@ -553,6 +544,33 @@ pub unsafe extern "C" fn fff_is_scanning(fff_handle: *mut c_void) -> bool {
         .ok()
         .and_then(|guard| guard.as_ref().map(|p| p.is_scan_active()))
         .unwrap_or(false)
+}
+
+/// Get the base path of the file picker.
+///
+/// Returns an `FffResult` with a heap-allocated C string in the `handle`
+/// field. Free the string with `fff_free_string` after reading it.
+///
+/// ## Safety
+/// `fff_handle` must be a valid instance pointer from `fff_create_instance`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn fff_get_base_path(fff_handle: *mut c_void) -> *mut FffResult {
+    let inst = match unsafe { instance_ref(fff_handle) } {
+        Ok(i) => i,
+        Err(e) => return e,
+    };
+
+    let guard = match inst.picker.read() {
+        Ok(g) => g,
+        Err(e) => return FffResult::err(&format!("Failed to acquire file picker lock: {}", e)),
+    };
+
+    let picker = match guard.as_ref() {
+        Some(p) => p,
+        None => return FffResult::err("File picker not initialized"),
+    };
+
+    FffResult::ok_string(&picker.base_path().to_string_lossy())
 }
 
 /// Get scan progress information.
