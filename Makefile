@@ -21,7 +21,7 @@ test-rust:
 
 test-lua: test-setup build
 	nvim --headless -u tests/minimal_init.lua \
-		-c "PlenaryBustedFile tests/fff_core_spec.lua" 2>&1
+		-c "PlenaryBustedDirectory tests/ {minimal_init = 'tests/minimal_init.lua'}" 2>&1
 
 test-version: test-setup
 	nvim --headless -u tests/minimal_init.lua \
