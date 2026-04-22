@@ -44,7 +44,7 @@ function grepModeToU8(mode?: string): number {
 }
 
 const ffiDefinition = {
-  fff_create_instance: {
+  fff_create_instance2: {
     args: [
       FFIType.cstring, // base_path
       FFIType.cstring, // frecency_db_path
@@ -54,6 +54,11 @@ const ffiDefinition = {
       FFIType.bool, // enable_content_indexing
       FFIType.bool, // watch
       FFIType.bool, // ai_mode
+      FFIType.cstring, // log_file_path
+      FFIType.cstring, // log_level
+      FFIType.u64, // cache_budget_max_files
+      FFIType.u64, // cache_budget_max_bytes
+      FFIType.u64, // cache_budget_max_file_size
     ],
     returns: FFIType.ptr,
   },
@@ -425,9 +430,14 @@ export function ffiCreate(
   enableContentIndexing: boolean,
   watch: boolean,
   aiMode: boolean,
+  logFilePath: string,
+  logLevel: string,
+  cacheBudgetMaxFiles: bigint,
+  cacheBudgetMaxBytes: bigint,
+  cacheBudgetMaxFileSize: bigint,
 ): Result<NativeHandle> {
   const library = loadLibrary();
-  const resultPtr = library.symbols.fff_create_instance(
+  const resultPtr = library.symbols.fff_create_instance2(
     ptr(encodeString(basePath)),
     ptr(encodeString(frecencyDbPath)),
     ptr(encodeString(historyDbPath)),
@@ -436,6 +446,11 @@ export function ffiCreate(
     enableContentIndexing,
     watch,
     aiMode,
+    ptr(encodeString(logFilePath)),
+    ptr(encodeString(logLevel)),
+    cacheBudgetMaxFiles,
+    cacheBudgetMaxBytes,
+    cacheBudgetMaxFileSize,
   );
 
   if (resultPtr === null) {
