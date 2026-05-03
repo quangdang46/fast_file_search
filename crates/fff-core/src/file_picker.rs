@@ -1286,7 +1286,10 @@ impl FilePicker {
                         dir.update_frecency_if_larger(score);
                     }
                 } else {
-                    error!(?path, "Couldn't update the git status for path");
+                    // Expected on sparse checkouts: git reports a status for
+                    // a path that isn't materialized on disk and therefore
+                    // isn't in the file index. Don't spam the log (#404).
+                    debug!(?path, "Git status for path not in index, skipping");
                 }
                 Ok(())
             })?;
