@@ -291,6 +291,20 @@ pub(crate) fn fuzzy_match_and_score_dirs<'a>(
         }
     };
 
+    // See `score_files` — stored dir paths are platform-native on Windows.
+    #[cfg(windows)]
+    let fuzzy_parts_owned: Option<Vec<String>> = if fuzzy_parts.iter().any(|p| p.contains('/')) {
+        Some(fuzzy_parts.iter().map(|p| p.replace('/', "\\")).collect())
+    } else {
+        None
+    };
+    #[cfg(windows)]
+    let fuzzy_parts_refs: Option<Vec<&str>> = fuzzy_parts_owned
+        .as_ref()
+        .map(|v| v.iter().map(String::as_str).collect());
+    #[cfg(windows)]
+    let fuzzy_parts: &[&str] = fuzzy_parts_refs.as_deref().unwrap_or(fuzzy_parts);
+
     let valid_parts: Vec<&str> = fuzzy_parts
         .iter()
         .copied()
@@ -491,11 +505,31 @@ fn match_and_score_in_arena<'a>(
         }
     };
 
+    // On Windows, stored relative paths use the native `\\` separator while
+    // users type `/`. Translate so frizbee sees the same bytes it would on
+    // a path stored by the walker.
+    #[cfg(windows)]
+    let fuzzy_parts_owned: Option<Vec<String>> = if fuzzy_parts.iter().any(|p| p.contains('/')) {
+        Some(fuzzy_parts.iter().map(|p| p.replace('/', "\\")).collect())
+    } else {
+        None
+    };
+    #[cfg(windows)]
+    let fuzzy_parts_refs: Option<Vec<&str>> = fuzzy_parts_owned
+        .as_ref()
+        .map(|v| v.iter().map(String::as_str).collect());
+    #[cfg(windows)]
+    let fuzzy_parts: &[&str] = fuzzy_parts_refs.as_deref().unwrap_or(fuzzy_parts);
+
     debug_assert!(!fuzzy_parts.is_empty());
     let has_uppercase = fuzzy_parts
         .iter()
         .any(|p| p.chars().any(|c| c.is_uppercase()));
-    let query_contains_path_separator = fuzzy_parts.iter().any(|p| p.contains(MAIN_SEPARATOR));
+    // Users type `/` regardless of platform. Checking the OS separator alone
+    // would miss forward-slash queries on Windows.
+    let query_contains_path_separator = fuzzy_parts
+        .iter()
+        .any(|p| p.contains('/') || p.contains(MAIN_SEPARATOR));
 
     let options = neo_frizbee::Config {
         max_typos: Some(context.max_typos),
