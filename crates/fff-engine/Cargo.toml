@@ -1,0 +1,22 @@
+[package]
+name = "fff-engine"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Unified scanner, query dispatch, ranking and memory-budget enforcement for scry."
+
+[dependencies]
+fff-search = { path = "../fff-core" }
+fff-symbol = { workspace = true }
+fff-budget = { workspace = true }
+fff-grep = { workspace = true }
+ahash = { workspace = true }
+dashmap = { workspace = true }
+ignore = { workspace = true }
+memchr = { workspace = true }
+parking_lot = { workspace = true }
+rayon = { workspace = true }
+serde = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
