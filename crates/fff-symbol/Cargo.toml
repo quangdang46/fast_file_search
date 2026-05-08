@@ -30,3 +30,12 @@ tree-sitter-elixir = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+criterion = { workspace = true }
+
+[[bench]]
+name = "bloom_bench"
+harness = false
+
+[[bench]]
+name = "symbol_bench"
+harness = false

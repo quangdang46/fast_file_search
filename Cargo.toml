@@ -83,6 +83,9 @@ clap = { version = "4", features = ["derive"] }
 anyhow = "1"
 tempfile = "3"
 
+# Benchmarking
+criterion = { version = "0.5", default-features = false, features = ["plotters", "cargo_bench_support"] }
+
 [profile.release]
 opt-level = 3
 lto = "fat"
