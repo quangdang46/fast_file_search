@@ -34,9 +34,7 @@ end
 
 --- Re-run the unified scan, refreshing all caches in place.
 --- @return boolean ok
-function M.rebuild()
-  return load_rust().scry_rebuild()
-end
+function M.rebuild() return load_rust().scry_rebuild() end
 
 --- Auto-classify and dispatch a free-form query.
 --- @param query string
