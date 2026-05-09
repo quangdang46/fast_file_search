@@ -16,7 +16,13 @@ zlob = ["fff/zlob"]
 [dependencies]
 fff = { package = "fff-search", path = "../fff-core", default-features = false , version = "0.7.2" }
 fff-query-parser = { path = "../fff-query-parser", default-features = false , version = "0.7.2" }
+fff-engine = { workspace = true }
+fff-budget = { workspace = true }
+fff-symbol = { workspace = true }
+ignore = { workspace = true }
 mimalloc = { workspace = true }
+once_cell = { workspace = true }
+parking_lot = { workspace = true }
 rmcp = { version = "1.1.0", features = ["server", "transport-io"] }
 schemars = "1.0"
 serde = { version = "1.0", features = ["derive"] }

@@ -9,6 +9,7 @@
 mod cursor;
 mod healthcheck;
 mod output;
+mod scry;
 mod server;
 mod update_check;
 

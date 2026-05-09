@@ -21,6 +21,8 @@ mod hex_dump;
 mod log;
 mod lua_types;
 mod path_shortening;
+#[cfg(feature = "scry")]
+mod scry_bindings;
 
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
@@ -869,6 +871,28 @@ fn create_exports(lua: &Lua) -> LuaResult<LuaTable> {
     exports.set("shorten_path", lua.create_function(shorten_path)?)?;
     exports.set("hex_dump", lua.create_function(hex_dump::hex_dump)?)?;
     exports.set("parse_grep_query", lua.create_function(parse_grep_query)?)?;
+
+    // Additive `scry_*` exports — wrapper around `fff-engine`. Only compiled
+    // in when the `scry` feature is enabled (off by default to keep
+    // `fff_nvim.dll` byte-for-byte identical to the pre-scry release).
+    #[cfg(feature = "scry")]
+    {
+        exports.set("scry_init", lua.create_function(scry_bindings::scry_init)?)?;
+        exports.set(
+            "scry_rebuild",
+            lua.create_function(scry_bindings::scry_rebuild)?,
+        )?;
+        exports.set(
+            "scry_dispatch",
+            lua.create_function(scry_bindings::scry_dispatch)?,
+        )?;
+        exports.set(
+            "scry_symbol",
+            lua.create_function(scry_bindings::scry_symbol)?,
+        )?;
+        exports.set("scry_grep", lua.create_function(scry_bindings::scry_grep)?)?;
+        exports.set("scry_read", lua.create_function(scry_bindings::scry_read)?)?;
+    }
 
     Ok(exports)
 }

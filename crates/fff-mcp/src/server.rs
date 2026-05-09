@@ -10,6 +10,9 @@ use std::sync::{Arc, Mutex};
 
 use crate::cursor::CursorStore;
 use crate::output::{GrepFormatter, OutputMode, file_suffix};
+use crate::scry::{
+    self, ScryCallParams, ScryDispatchParams, ScryEngineHolder, ScryReadParams, ScrySymbolParams,
+};
 use fff::grep::{GrepMode, GrepSearchOptions, has_regex_metacharacters};
 use fff::types::{FileItem, PaginationArgs};
 use fff::{FuzzySearchOptions, QueryParser, SharedFilePicker, SharedFrecency};
@@ -186,6 +189,7 @@ pub struct FffServer {
     frecency: SharedFrecency,
     cursor_store: Arc<Mutex<CursorStore>>,
     update_notice_sent: Arc<AtomicBool>,
+    scry_engine: Arc<ScryEngineHolder>,
     tool_router: ToolRouter<Self>,
 }
 
@@ -196,8 +200,20 @@ impl FffServer {
             frecency,
             cursor_store: Arc::new(Mutex::new(CursorStore::new())),
             update_notice_sent: Arc::new(AtomicBool::new(false)),
+            scry_engine: Arc::new(ScryEngineHolder::new()),
             tool_router: Self::tool_router(),
         }
+    }
+
+    /// Resolve the repository root from the picker's base path.
+    fn picker_base_path(&self) -> Result<std::path::PathBuf, ErrorData> {
+        let guard = self.picker.read().map_err(|e| {
+            ErrorData::internal_error(format!("Failed to acquire picker lock: {e}"), None)
+        })?;
+        let picker = guard
+            .as_ref()
+            .ok_or_else(|| ErrorData::internal_error("File picker not initialized", None))?;
+        Ok(picker.base_path().to_path_buf())
     }
 
     #[allow(dead_code)]
@@ -559,6 +575,133 @@ impl FffServer {
         let mut result = self.multi_grep_inner(params)?;
         self.maybe_append_update_notice(&mut result);
         Ok(result)
+    }
+
+    #[tool(
+        name = "scry_dispatch",
+        description = "Auto-classify a free-form query (file path, glob, identifier, or concept phrase) and route it through the scry engine. Use when you don't know whether the input is a file, a symbol, or a content query."
+    )]
+    fn scry_dispatch(
+        &self,
+        Parameters(params): Parameters<ScryDispatchParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let root = self.picker_base_path()?;
+        let max_tokens = normalize_max_results(params.max_tokens, 25_000) as u64;
+        let _max_results = normalize_max_results(params.max_results, 50);
+        let engine = self.scry_engine.get_or_build(&root, max_tokens);
+        let result = engine.dispatch(&params.query, &root);
+        let text = scry::format_dispatch(&result);
+        Ok(CallToolResult::success(vec![Content::text(text)]))
+    }
+
+    #[tool(
+        name = "scry_symbol",
+        description = "Look up a symbol definition by exact name (or by prefix when the name ends with '*'). Backed by the scry tree-sitter symbol index over 16 languages."
+    )]
+    fn scry_symbol(
+        &self,
+        Parameters(params): Parameters<ScrySymbolParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let root = self.picker_base_path()?;
+        let max_results = normalize_max_results(params.max_results, 50);
+        let engine = self.scry_engine.get_or_build(&root, 25_000);
+        let name = params.name.trim();
+        let text = if let Some(prefix) = name.strip_suffix('*') {
+            let mut hits = engine.handles.symbols.lookup_prefix(prefix);
+            hits.truncate(max_results);
+            if hits.is_empty() {
+                format!("[no symbols starting with '{prefix}']\n")
+            } else {
+                let mut out = String::new();
+                for (sym, loc) in hits {
+                    out.push_str(&format!(
+                        "{sym}\t{}:{} [{}]\n",
+                        loc.path.display(),
+                        loc.line,
+                        loc.kind
+                    ));
+                }
+                out
+            }
+        } else {
+            let mut hits = engine.handles.symbols.lookup_exact(name);
+            hits.truncate(max_results);
+            scry::format_symbol_hits(&hits, name)
+        };
+        Ok(CallToolResult::success(vec![Content::text(text)]))
+    }
+
+    #[tool(
+        name = "scry_callers",
+        description = "Find all call sites of `name` in the workspace, narrowed by the bigram + bloom pre-filter stack and confirmed with a literal text scan. Excludes definition lines."
+    )]
+    fn scry_callers(
+        &self,
+        Parameters(params): Parameters<ScryCallParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let root = self.picker_base_path()?;
+        let max_results = normalize_max_results(params.max_results, 100);
+        let engine = self.scry_engine.get_or_build(&root, 25_000);
+        let hits = scry::find_call_sites(&engine, &root, &params.name, max_results);
+        let text = scry::format_call_hits(&hits, "callers");
+        Ok(CallToolResult::success(vec![Content::text(text)]))
+    }
+
+    #[tool(
+        name = "scry_callees",
+        description = "Find all symbols referenced inside the body of `name` (i.e. the symbols `name` calls). Definitions are scanned via the symbol index; tokens that resolve to known definitions are emitted."
+    )]
+    fn scry_callees(
+        &self,
+        Parameters(params): Parameters<ScryCallParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let root = self.picker_base_path()?;
+        let max_results = normalize_max_results(params.max_results, 100);
+        let engine = self.scry_engine.get_or_build(&root, 25_000);
+        let hits = scry::find_callee_sites(&engine, &root, &params.name, max_results);
+        let text = scry::format_call_hits(&hits, "callees");
+        Ok(CallToolResult::success(vec![Content::text(text)]))
+    }
+
+    #[tool(
+        name = "scry_read",
+        description = "Read a file with token-budget-aware truncation. The body is filtered (none / minimal / aggressive), then clipped to fit `maxTokens` (default 25000). The footer '[truncated to budget]' is preserved when the budget runs out."
+    )]
+    fn scry_read(
+        &self,
+        Parameters(params): Parameters<ScryReadParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let root = self.picker_base_path()?;
+        let max_tokens = normalize_max_results(params.max_tokens, 25_000) as u64;
+        let level = scry::parse_filter_level(params.filter.as_deref());
+        let engine = self.scry_engine.get_or_build(&root, max_tokens);
+
+        let path_part = params
+            .path
+            .rsplit_once(':')
+            .filter(|(_, line)| line.chars().all(|c| c.is_ascii_digit()) && !line.is_empty())
+            .map(|(p, _)| p)
+            .unwrap_or(&params.path);
+
+        let path = std::path::Path::new(path_part);
+        let abs_path = if path.is_absolute() {
+            path.to_path_buf()
+        } else {
+            root.join(path)
+        };
+
+        let cfg = fff_engine::EngineConfig {
+            filter_level: level,
+            total_token_budget: max_tokens,
+            ..fff_engine::EngineConfig::default()
+        };
+        let local_engine = fff_engine::Engine::new(cfg);
+        let _ = engine; // shared engine is the index source; we instantiate a
+        // throwaway engine for the configured filter level since EngineConfig
+        // is not currently mutable on the live shared instance.
+        let res = local_engine.read(&abs_path);
+        let text = format!("[file: {}]\n{}", res.path.display(), res.body,);
+        Ok(CallToolResult::success(vec![Content::text(text)]))
     }
 }
 

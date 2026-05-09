@@ -1,0 +1,51 @@
+name: bench-track
+
+# Run the criterion benches over the new scry crates and upload the
+# `target/criterion` directory as a workflow artifact. No external service
+# (e.g. bencher.dev) is required — engineers diff artifacts manually.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Sunday at 02:00 UTC.
+    - cron: "0 2 * * 0"
+
+env:
+  CARGO_TERM_COLOR: always
+  MACOSX_DEPLOYMENT_TARGET: "13"
+
+jobs:
+  bench:
+    name: cargo bench (scry crates)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Zig
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.16.0
+
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1.15.4
+        with:
+          cache: true
+          cache-on-failure: true
+          cache-key: "v1-rust-bench-track"
+
+      - name: Run benches
+        run: |
+          cargo bench \
+            -p fff-symbol \
+            -p fff-budget \
+            -p fff-engine
+
+      - name: Upload criterion artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: criterion-report-${{ github.run_id }}
+          path: target/criterion
+          if-no-files-found: warn
+          retention-days: 30

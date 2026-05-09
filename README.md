@@ -8,6 +8,8 @@ Typo-resistant path and content search, frecency-ranked file access, a backgroun
 
 Originally started as [Neovim plugin](#neovim-plugin) people loved, but it turned out that plenty of AI harnesses and code editors need the same thing: accurate, fast file search as a library. That is what fff is.
 
+A second, complementary engine called **scry** sits on top of the same core: a unified single-pass scanner that builds a symbol index, a bloom filter cache, and an outline cache in one walk, then exposes them through a sub-CLI (`scry symbol/callers/callees/read/...`), 5 extra MCP tools, an opt-in Lua module, and an opt-in C ABI. Skip to [the scry section](#scry-engine) for the details.
+
 ---
 
 Pick what you are interested in:
@@ -56,9 +58,156 @@ For any file search or grep in the current git-indexed directory, use fff tools.
 
 Source: [`crates/fff-mcp/`](./crates/fff-mcp/).
 
+#### Optional scry tools
+
+When the MCP server is built (always, no feature flag) it also registers 5 additional tools backed by the [scry engine](#scry-engine). They are off the hot path — the existing `find_files` / `grep` / `multi_grep` are unchanged — but they let an agent ask code-aware questions instead of just file-name questions:
+
+| Tool             | What it answers                                                                                                                            |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `scry_dispatch`  | Auto-classify a free-form query (`Repository`, `find_in_dir`, `git status`, …) and route it to the right backend.                          |
+| `scry_symbol`    | Exact + prefix lookup over the symbol index built by the unified scanner (tree-sitter powered).                                            |
+| `scry_callers`   | Find call sites of a symbol. Bloom-filter narrowed candidates → literal-text confirm pass.                                                 |
+| `scry_callees`   | Symbols that the body of a definition references.                                                                                          |
+| `scry_read`      | Token-budget aware file read. Maps `--budget N` to `N × ~85% body × 4 bytes/token` and applies a comment/whitespace filter when requested. |
+
+The first call lazily builds the engine (`Engine::new` + `engine.index()`) under a `OnceCell<Arc<Engine>>` + double-checked `Mutex<()>`; every subsequent call reuses the warm caches.
+
 </details>
 
 The MCP server gives any agent a file search tool that is faster and more token-efficient than the built-in one.
+
+<details id="scry-engine">
+<summary>
+<h2>scry — code-aware sub-CLI and engine</h2>
+</summary>
+
+`scry` is the second binary shipped by this repo (alongside `fff` and the MCP server). It exposes the same Rust core that powers the MCP `scry_*` tools, but as a normal CLI you can call from a shell script or a CI step.
+
+### Architecture
+
+```
+                ┌─────────────────────────────────────────────────────┐
+                │  Consumers                                          │
+                │  ──────────────────────────────────────────────     │
+                │  scry CLI │ scry mcp │ fff.scry (Lua) │ fff_scry_*  │
+                │  (fff-cli)  (fff-mcp)   (fff-nvim,opt)  (fff-c,opt) │
+                └───────────────────────┬─────────────────────────────┘
+                                        │
+                                        ▼
+                ┌─────────────────────────────────────────────────────┐
+                │  fff-engine — Engine                                │
+                │    OnceCell<Arc<Engine>> + Mutex<()> warm caches    │
+                │    dispatch · classify · ranking · prefilter        │
+                └─────────┬───────────────────┬───────────────┬───────┘
+                          │                   │               │
+                          ▼                   ▼               ▼
+                ┌──────────────┐    ┌────────────────┐    ┌──────────┐
+                │ fff-symbol   │    │ fff-budget     │    │ fff-core │
+                │  scanner     │    │  tokens, filter│    │  (existing
+                │  bigram +    │    │  truncate w/   │    │  fuzzy / │
+                │  bloom cache │    │  preserved     │    │  grep /  │
+                │  outline     │    │  header+footer │    │  walker) │
+                └──────────────┘    └────────────────┘    └──────────┘
+                                ▲
+                                │ single-pass UnifiedScanner walks
+                                │ the repo once, populates all caches
+```
+
+Read top to bottom: every consumer calls into the same `Engine`. The engine ties three single-purpose crates together (`fff-symbol`, `fff-budget`, `fff-core`) and runs `UnifiedScanner` once at index time to populate the caches all four lookup paths read from. Lua + C surfaces are opt-in (off by default, see [Optional `fff.scry` Lua module](#optional-fff-scry-lua-module) and [Optional scry FFI (`fff_scry_*`)](#optional-scry-ffi-fff_scry_)).
+
+### What it does
+
+A single pass over the repo (`scry index`) builds three caches at once:
+
+- **Symbol index** — tree-sitter AST scan of every supported file, recording every definition with `kind` (function, struct, class, …), `path`, and `line`.
+- **Bloom filter cache** — per-file 64-bit bloom of every identifier in the file. Used as the first stage of a 2-stage `PreFilterStack` (bigram → bloom → literal-text confirm) so symbol/caller/callee queries don't have to walk every file.
+- **Outline cache** — comment/header/footer-aware byte slice for every file, used by `scry read --budget` and by the agent-facing token-budget reader.
+
+Once the index is warm, every subcommand reuses it. There is no second walk.
+
+### Query path
+
+The 2-stage `PreFilterStack` is what makes `scry symbol`, `scry callers`, and `scry callees` cheap on large repos:
+
+```
+   query: "UnifiedScanner"
+        │
+        ▼
+   ┌─────────────────────────────────────────────┐
+   │ Stage 1 — Bigram filter                     │
+   │   skip files whose 2-gram set does not      │
+   │   include every bigram of the query         │
+   └────────────────────┬────────────────────────┘
+                        ▼
+   ┌─────────────────────────────────────────────┐
+   │ Stage 2 — Bloom filter (per file)           │
+   │   skip files whose 64-bit bloom does not    │
+   │   carry the identifier hash                 │
+   └────────────────────┬────────────────────────┘
+                        ▼
+   ┌─────────────────────────────────────────────┐
+   │ Stage 3 — Confirm                           │
+   │   exact `String::contains` on surviving     │
+   │   files, lookup line in symbol index        │
+   └────────────────────┬────────────────────────┘
+                        ▼
+   ┌─────────────────────────────────────────────┐
+   │ Ranking                                     │
+   │   definition > usage, comment match         │
+   │   demoted, kind-aware tie-break             │
+   └─────────────────────────────────────────────┘
+```
+
+Stages 1 and 2 are pure metadata lookups; the expensive `String::contains` only ever runs on the survivors. On the fff repo (3.3k symbols across 229 files) a typical `scry callers` query inspects fewer than 30 files.
+
+### Sub-commands
+
+```
+scry find      | Find files by name (replaces `find`, `fd`).
+scry glob      | Match files by glob (replaces `glob`, shell `**`).
+scry grep      | Search file contents (replaces `grep`, `rg`).
+scry read      | Read a file with token-budget aware truncation (replaces `cat`).
+scry symbol    | Look up symbol definitions (NEW, tree-sitter powered).
+scry callers   | List call sites of a symbol (NEW).
+scry callees   | List symbols referenced in a symbol body (NEW).
+scry dispatch  | Auto-classify a free-form query and route it.
+scry index     | Build / refresh the on-disk indexes (Bigram, Bloom, Symbol, Outline).
+scry mcp       | Run as MCP server over stdio (replaces agent built-ins Grep/Glob/Read).
+```
+
+The novel pieces are **`symbol`**, **`callers`**, **`callees`**, **`read --budget`**, and **`dispatch`**. The rest are convenience wrappers over the existing fff-search core.
+
+### Token-budgeted read
+
+The killer feature for AI harnesses. `scry read path --budget 5000 --filter minimal`:
+
+1. Converts the budget: `tokens × 0.85 × 4 bytes/token` ≈ `17_000` bytes.
+2. Loads the file, applies the requested `--filter` level (`none`, `minimal`, `aggressive`) to drop comments / whitespace while preserving doc-comments and the file header.
+3. Truncates from the body, **always preserving** the first ~5 lines (header) and a `[truncated to budget]\n` footer so the agent knows the output was clipped.
+
+The classifier and apply-preserving-footer logic live in [`crates/fff-budget/`](./crates/fff-budget/); the symbol scanner is in [`crates/fff-symbol/`](./crates/fff-symbol/); the unified `Engine` that ties them together is in [`crates/fff-engine/`](./crates/fff-engine/).
+
+### Build and run
+
+`scry` is part of the default workspace build:
+
+```bash
+make build                      # builds fff, scry, MCP server, fff_nvim, fff_c
+./target/release/scry index     # one-time warm-up, ~200 ms on a 10k-file repo
+./target/release/scry symbol UnifiedScanner
+./target/release/scry callers UnifiedScanner
+./target/release/scry read crates/fff-engine/src/lib.rs --budget 5000 --filter minimal
+./target/release/scry dispatch 'where is the user controller'
+./target/release/scry mcp       # JSON-RPC over stdio with the 5 scry_* tools
+```
+
+Output format defaults to plain text; pass `--format json` for machine-readable output.
+
+Source: [`crates/fff-cli/`](./crates/fff-cli/), [`crates/fff-engine/`](./crates/fff-engine/), [`crates/fff-symbol/`](./crates/fff-symbol/), [`crates/fff-budget/`](./crates/fff-budget/).
+
+</details>
+
+`scry` is the code-aware companion to fff: same core, three new caches (symbol / bloom / outline), an extra sub-CLI, and an opt-in Lua/C surface for the same engine.
 
 <details id="pi-extension">
 <summary>
@@ -326,6 +475,31 @@ Run `:FFFScan` to force a rescan.
 - `:FFFHealth` verifies picker init, optional dependencies, and DB connectivity.
 - `:FFFOpenLog` opens the log file.
 
+### Optional `fff.scry` Lua module
+
+The Neovim cdylib (`fff_nvim`) ships with an **opt-in** `scry` Cargo feature that exposes the [scry engine](#scry-engine) directly to Lua. The default build does not include it — `make build` produces a binary symbol-identical to the pre-scry release. To enable it:
+
+```bash
+cargo build --release -p fff-nvim --features scry
+```
+
+Once enabled, the wrapper at [`lua/fff/scry.lua`](./lua/fff/scry.lua) gives you:
+
+```lua
+local scry = require('fff.scry')
+scry.init(vim.fn.getcwd())                                    -- one-time index
+for _, hit in ipairs(scry.symbol('FilePicker')) do
+  print(hit.path, hit.line, hit.kind)
+end
+local res = scry.read('lua/fff/main.lua', 5000, 'minimal')    -- token-budget read
+print(scry.dispatch('UnifiedScanner'))                        -- auto-classify
+scry.rebuild()                                                -- refresh caches
+```
+
+If the loaded `fff_nvim` cdylib was built without `--features scry`, the module raises a clear error explaining how to rebuild. Inputs are validated with `vim.validate()`.
+
+The existing fff.nvim picker API (`require('fff').find_files()`, etc.) is **unchanged** in either build mode.
+
 </details>
 
 The best file search picker for neovim. Period. Faster and more intuitive queries, frecency ranking, definition classification and much more.
@@ -468,6 +642,32 @@ int main(void) {
 - Payloads (search results, grep results, scan progress) have their own dedicated free functions listed in the header.
 - C strings returned in the `handle` field (e.g. from `fff_get_base_path`) are freed with `fff_free_string`.
 
+### Optional scry FFI (`fff_scry_*`)
+
+The C library has an opt-in `scry` Cargo feature that adds a second, code-aware surface backed by the [scry engine](#scry-engine). The default build excludes it — pre-scry consumers see a byte-identical ABI:
+
+```bash
+cargo build --release -p fff-c --features scry
+cc my_app.c -DFFF_SCRY -lfff_c -o my_app
+```
+
+When `FFF_SCRY` is defined, `fff.h` exposes 7 extra functions:
+
+```c
+struct FffScryEngine *fff_scry_engine_new(const char *root, uint64_t total_token_budget);
+int32_t                fff_scry_engine_rebuild(struct FffScryEngine *engine);
+void                   fff_scry_engine_free(struct FffScryEngine *engine);
+
+struct FffScryResponse *fff_scry_dispatch(struct FffScryEngine *engine, const char *query);
+struct FffScryResponse *fff_scry_symbol  (struct FffScryEngine *engine, const char *name);
+struct FffScryResponse *fff_scry_read    (struct FffScryEngine *engine, const char *path,
+                                          uint64_t budget, const char *filter);
+
+void                   fff_free_scry_response(struct FffScryResponse *response);
+```
+
+`FffScryResponse` carries a JSON payload + length + status code. Callers free it with `fff_free_scry_response`. The new types and functions are wrapped in `#if defined(FFF_SCRY)` in [`crates/fff-c/include/fff.h`](./crates/fff-c/include/fff.h), so the default include surface is unchanged when the feature is off.
+
 Source: [`crates/fff-c/`](./crates/fff-c/).
 
 </details>
@@ -536,14 +736,36 @@ If you are running one grep from a terminal, `rg` is still the right tool. If yo
 
 ## Repository layout
 
+**Core (file search):**
+
 - `crates/fff-search`, `crates/fff-grep`, `crates/fff-query-parser` - Rust core.
 - `crates/fff-c` - C FFI used by every language binding.
 - `crates/fff-nvim` - Lua/mlua bindings for the Neovim plugin.
 - `crates/fff-mcp` - MCP server binary.
+
+**scry engine (code-aware layer):**
+
+- `crates/fff-symbol` - tree-sitter symbol scanner + bigram / bloom filter caches.
+- `crates/fff-budget` - token-budget reader, comment/whitespace filter levels, header/footer-preserving truncation.
+- `crates/fff-engine` - unified scanner that builds the symbol / bloom / outline caches in one pass + dispatch / classify / ranking helpers.
+- `crates/fff-cli` - the `scry` binary. Subcommands: `find`, `glob`, `grep`, `read`, `symbol`, `callers`, `callees`, `dispatch`, `index`, `mcp`.
+
+**Language SDKs and editor integration:**
+
 - `packages/fff-node` - Node.js SDK (`@ff-labs/fff-node`).
 - `packages/fff-bun` - Bun SDK (`@ff-labs/fff-node`).
 - `packages/pi-fff` - pi extension (`@ff-labs/pi-fff`).
-- `lua/` - Neovim-side plugin code.
+- `lua/` - Neovim-side plugin code (`lua/fff/scry.lua` is the optional scry wrapper).
+
+## Benchmark infrastructure
+
+The scry layer ships criterion benchmarks for every cache. Three CI workflows track them:
+
+- **`bench-smoke`** (every PR, in `.github/workflows/rust.yml`) - `cargo bench --no-run -p fff-symbol -p fff-budget -p fff-engine`. Compile-only; catches API breakage in the bench targets without paying for full runs.
+- **`bench-track`** (`.github/workflows/bench-track.yml`) - `workflow_dispatch` + weekly cron (Sunday 02:00 UTC). Runs the full criterion suite end-to-end and uploads `target/criterion` as a 30-day artifact.
+- **`flamegraph`** (`.github/workflows/flamegraph.yml`) - `workflow_dispatch` only. Profiles a configurable bench (defaults to `dispatch_bench` in `fff-engine`) under `cargo flamegraph` and uploads the SVG.
+
+The bench binaries themselves live under `crates/fff-{symbol,budget,engine}/benches/` (`bloom`, `symbol`, `filter`, `truncate`, `dispatch`, …).
 
 ## Contributing
 

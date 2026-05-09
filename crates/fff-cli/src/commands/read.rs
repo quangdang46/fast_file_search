@@ -14,11 +14,14 @@ pub struct Args {
     /// File path to read; may be of the form `path:line` to highlight a span.
     pub target: String,
 
-    /// Token budget for the output (default: 25000).
+    /// Token budget for the output (default 25000).
+    /// Effective byte cap = tokens × ~85% body × 4 bytes/token. The remaining
+    /// ~15% is reserved for the response envelope and the truncation footer.
     #[arg(long)]
     pub budget: Option<u64>,
 
-    /// Filter intensity: none, minimal, aggressive.
+    /// Filter intensity: `none` keeps the file as-is, `minimal` (default)
+    /// strips full-line comments, `aggressive` collapses impl/class bodies.
     #[arg(long, default_value = "minimal")]
     pub filter: String,
 }
