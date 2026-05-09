@@ -1,0 +1,41 @@
+[package]
+name = "fff-symbol"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Symbol indexing, bloom filters, and tree-sitter outline extraction for scry."
+
+[dependencies]
+dashmap = { workspace = true }
+ignore = { workspace = true }
+memchr = { workspace = true }
+rayon = { workspace = true }
+serde = { workspace = true }
+tree-sitter = { workspace = true }
+tree-sitter-rust = { workspace = true }
+tree-sitter-javascript = { workspace = true }
+tree-sitter-typescript = { workspace = true }
+tree-sitter-python = { workspace = true }
+tree-sitter-go = { workspace = true }
+tree-sitter-java = { workspace = true }
+tree-sitter-c = { workspace = true }
+tree-sitter-cpp = { workspace = true }
+tree-sitter-ruby = { workspace = true }
+tree-sitter-php = { workspace = true }
+tree-sitter-scala = { workspace = true }
+tree-sitter-c-sharp = { workspace = true }
+tree-sitter-swift = { workspace = true }
+tree-sitter-kotlin-ng = { workspace = true }
+tree-sitter-elixir = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+criterion = { workspace = true }
+
+[[bench]]
+name = "bloom_bench"
+harness = false
+
+[[bench]]
+name = "symbol_bench"
+harness = false

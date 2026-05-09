@@ -6,12 +6,19 @@ members = [
   "crates/fff-nvim",
   "crates/fff-query-parser",
   "crates/fff-grep",
+  "crates/fff-symbol",
+  "crates/fff-budget",
+  "crates/fff-engine",
+  "crates/fff-cli",
 ]
 resolver = "2"
 
 [workspace.dependencies]
 fff-grep = { version = "0.7.2", path = "crates/fff-grep" }
 fff-query-parser = { version = "0.7.2", path = "crates/fff-query-parser", default-features = false }
+fff-symbol = { version = "0.1.0", path = "crates/fff-symbol" }
+fff-budget = { version = "0.1.0", path = "crates/fff-budget" }
+fff-engine = { version = "0.1.0", path = "crates/fff-engine" }
 
 # Shared dependencies
 ahash = "0.8"
@@ -46,6 +53,38 @@ regex-syntax = "0.8"
 smallvec = { version = "1.13", features = ["const_generics", "union"] }
 thiserror = "2.0.10"
 tracing = "0.1"
+
+# Tree-sitter (AST symbol extraction)
+tree-sitter = "0.25"
+tree-sitter-rust = "0.24"
+tree-sitter-javascript = "0.23"
+tree-sitter-typescript = "0.23"
+tree-sitter-python = "0.23"
+tree-sitter-go = "0.23"
+tree-sitter-java = "0.23"
+tree-sitter-c = "0.24"
+tree-sitter-cpp = "0.23"
+tree-sitter-ruby = "0.23"
+tree-sitter-php = "0.24"
+tree-sitter-scala = "0.24"
+tree-sitter-c-sharp = "0.23"
+tree-sitter-swift = "0.7"
+tree-sitter-kotlin-ng = "1.1"
+tree-sitter-elixir = "0.3"
+
+# Concurrent map / hashing / SIMD scan
+dashmap = "6"
+memchr = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# CLI / subcommand parsing
+clap = { version = "4", features = ["derive"] }
+anyhow = "1"
+tempfile = "3"
+
+# Benchmarking
+criterion = { version = "0.5", default-features = false, features = ["plotters", "cargo_bench_support"] }
 
 [profile.release]
 opt-level = 3
