@@ -347,11 +347,14 @@ typedef struct FffMixedSearchResult {
   struct FffLocation location;
 } FffMixedSearchResult;
 
+#if defined(FFF_SCRY)
 typedef struct FffScryEngine {
   struct Arc_Engine inner;
   PathBuf root;
 } FffScryEngine;
+#endif
 
+#if defined(FFF_SCRY)
 typedef struct FffScryResponse {
   /**
    * 0 on success; non-zero error code.
@@ -366,6 +369,7 @@ typedef struct FffScryResponse {
    */
   uintptr_t payload_len;
 } FffScryResponse;
+#endif
 
 /**
  * Create a new file finder instance (legacy signature).
@@ -1236,6 +1240,7 @@ uint32_t fff_grep_result_get_next_file_offset(const struct FffGrepResult *r);
  */
 const char *fff_grep_result_get_regex_fallback_error(const struct FffGrepResult *r);
 
+#if defined(FFF_SCRY)
 /**
  * Build a new scry engine and run the unified scan over `root`.
  *
@@ -1243,7 +1248,9 @@ const char *fff_grep_result_get_regex_fallback_error(const struct FffGrepResult 
  * `root` must be a NUL-terminated UTF-8 string.
  */
 struct FffScryEngine *fff_scry_engine_new(const char *root, uint64_t total_token_budget);
+#endif
 
+#if defined(FFF_SCRY)
 /**
  * Re-run the unified scan over the engine's root, refreshing all caches.
  *
@@ -1251,7 +1258,9 @@ struct FffScryEngine *fff_scry_engine_new(const char *root, uint64_t total_token
  * `engine` must be a valid pointer from `fff_scry_engine_new`.
  */
 int32_t fff_scry_engine_rebuild(struct FffScryEngine *engine);
+#endif
 
+#if defined(FFF_SCRY)
 /**
  * Free a `FffScryEngine`.
  *
@@ -1259,7 +1268,9 @@ int32_t fff_scry_engine_rebuild(struct FffScryEngine *engine);
  * `engine` must be a valid pointer from `fff_scry_engine_new`.
  */
 void fff_scry_engine_free(struct FffScryEngine *engine);
+#endif
 
+#if defined(FFF_SCRY)
 /**
  * Free a `FffScryResponse`.
  *
@@ -1268,7 +1279,9 @@ void fff_scry_engine_free(struct FffScryEngine *engine);
  * returns `*mut FffScryResponse`.
  */
 void fff_free_scry_response(struct FffScryResponse *response);
+#endif
 
+#if defined(FFF_SCRY)
 /**
  * Dispatch a free-form query through the scry engine. Result is JSON.
  *
@@ -1276,7 +1289,9 @@ void fff_free_scry_response(struct FffScryResponse *response);
  * `engine` must be a valid pointer; `query` must be a NUL-terminated UTF-8 string.
  */
 struct FffScryResponse *fff_scry_dispatch(struct FffScryEngine *engine, const char *query);
+#endif
 
+#if defined(FFF_SCRY)
 /**
  * Look up a symbol by exact name or by prefix (suffix `*`). Result is JSON.
  *
@@ -1285,7 +1300,9 @@ struct FffScryResponse *fff_scry_dispatch(struct FffScryEngine *engine, const ch
  * `fff_scry_dispatch`.
  */
 struct FffScryResponse *fff_scry_symbol(struct FffScryEngine *engine, const char *name);
+#endif
 
+#if defined(FFF_SCRY)
 /**
  * Read a file with token-budget aware truncation. Result is JSON
  * `{ path, body }`.
@@ -1298,5 +1315,6 @@ struct FffScryResponse *fff_scry_read(struct FffScryEngine *engine,
                                       const char *path,
                                       uint64_t budget,
                                       const char *filter);
+#endif
 
 #endif  /* FFF_C_H */

@@ -26,3 +26,6 @@ include = [
 
 [fn]
 sort_by = "None"
+
+[defines]
+"feature = scry" = "FFF_SCRY"

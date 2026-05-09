@@ -11,6 +11,10 @@ crate-type = ["cdylib"]
 [features]
 default = []
 zlob = ["fff/zlob"]
+# Optional scry FFI: pulls fff-engine + fff-symbol + fff-budget (and the
+# tree-sitter language stack). Off by default to keep the existing C ABI
+# byte-for-byte identical to the pre-scry release.
+scry = ["dep:fff-engine", "dep:fff-symbol", "dep:fff-budget"]
 
 [dependencies]
 mimalloc.workspace = true
@@ -19,8 +23,8 @@ git2.workspace = true
 
 fff = { package = "fff-search", path = "../fff-core" , version = "0.7.2" }
 fff-query-parser = { path = "../fff-query-parser" , version = "0.7.2" }
-fff-engine = { workspace = true }
-fff-budget = { workspace = true }
-fff-symbol = { workspace = true }
+fff-engine = { workspace = true, optional = true }
+fff-budget = { workspace = true, optional = true }
+fff-symbol = { workspace = true, optional = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

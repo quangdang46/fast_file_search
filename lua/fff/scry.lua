@@ -17,6 +17,13 @@ local rust = nil
 local function load_rust()
   if rust then return rust end
   rust = require('fff.rust')
+  if type(rust.scry_init) ~= 'function' then
+    error(
+      'fff.scry: this build of fff_nvim was compiled without the `scry` Cargo '
+        .. "feature. Rebuild with `cargo build --release --features 'scry'` "
+        .. 'to enable the scry_* exports.'
+    )
+  end
   return rust
 end
 

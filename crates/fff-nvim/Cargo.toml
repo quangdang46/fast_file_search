@@ -10,6 +10,10 @@ crate-type = ["cdylib", "rlib"]
 [features]
 default = []
 zlob = ["fff/zlob"]
+# Optional scry layer: pulls fff-engine + fff-symbol + fff-budget (and the
+# tree-sitter language stack) into fff_nvim.dll. Off by default to keep the
+# default cdylib byte-for-byte identical to the pre-scry release.
+scry = ["dep:fff-engine", "dep:fff-symbol", "dep:fff-budget"]
 
 [[bin]]
 name = "test_watcher"
@@ -68,9 +72,9 @@ fff = { package = "fff-search", path = "../fff-core", version = "0.7.2", feature
 	"mimalloc-collect",
 ] }
 fff-query-parser = { path = "../fff-query-parser", version = "0.7.2" }
-fff-engine = { workspace = true }
-fff-symbol = { workspace = true }
-fff-budget = { workspace = true }
+fff-engine = { workspace = true, optional = true }
+fff-symbol = { workspace = true, optional = true }
+fff-budget = { workspace = true, optional = true }
 
 # External dependencies
 blake3 = "1.8.2"

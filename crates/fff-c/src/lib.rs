@@ -30,7 +30,9 @@ use fff::shared::SharedQueryTracker;
 
 mod accessors;
 mod ffi_types;
+#[cfg(feature = "scry")]
 mod scry_ffi;
+#[cfg(feature = "scry")]
 pub use scry_ffi::*;
 
 use fff::file_picker::FilePicker;
