@@ -30,6 +30,8 @@ use fff::shared::SharedQueryTracker;
 
 mod accessors;
 mod ffi_types;
+mod scry_ffi;
+pub use scry_ffi::*;
 
 use fff::file_picker::FilePicker;
 use fff::frecency::FrecencyTracker;

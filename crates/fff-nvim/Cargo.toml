@@ -68,6 +68,9 @@ fff = { package = "fff-search", path = "../fff-core", version = "0.7.2", feature
 	"mimalloc-collect",
 ] }
 fff-query-parser = { path = "../fff-query-parser", version = "0.7.2" }
+fff-engine = { workspace = true }
+fff-symbol = { workspace = true }
+fff-budget = { workspace = true }
 
 # External dependencies
 blake3 = "1.8.2"

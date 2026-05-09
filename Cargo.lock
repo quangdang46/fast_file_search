@@ -665,8 +665,11 @@ dependencies = [
 name = "fff-c"
 version = "0.7.2"
 dependencies = [
+ "fff-budget",
+ "fff-engine",
  "fff-query-parser",
  "fff-search",
+ "fff-symbol",
  "git2",
  "mimalloc",
  "serde",
@@ -722,10 +725,16 @@ name = "fff-mcp"
 version = "0.7.2"
 dependencies = [
  "clap",
+ "fff-budget",
+ "fff-engine",
  "fff-query-parser",
  "fff-search",
+ "fff-symbol",
  "git2",
+ "ignore",
  "mimalloc",
+ "once_cell",
+ "parking_lot",
  "rmcp",
  "schemars",
  "serde",
@@ -758,9 +767,12 @@ dependencies = [
  "criterion",
  "ctrlc",
  "dirs",
+ "fff-budget",
+ "fff-engine",
  "fff-notify-debouncer-full",
  "fff-query-parser",
  "fff-search",
+ "fff-symbol",
  "git2",
  "glidesort",
  "heed",

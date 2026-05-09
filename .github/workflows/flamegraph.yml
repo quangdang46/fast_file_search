@@ -1,0 +1,80 @@
+name: flamegraph
+
+# Manually-triggered profiling workflow. Builds the dispatch bench in release
+# mode, runs it under perf via `cargo flamegraph`, and uploads the resulting
+# SVG. This is intentionally not on every PR — flamegraph runs are slow and
+# only useful when investigating a specific regression.
+
+on:
+  workflow_dispatch:
+    inputs:
+      bench:
+        description: "Bench to profile (defaults to dispatch_bench)"
+        required: false
+        default: dispatch_bench
+      crate:
+        description: "Crate the bench lives in"
+        required: false
+        default: fff-engine
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  flamegraph:
+    name: cargo flamegraph
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Zig
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.16.0
+
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1.15.4
+        with:
+          cache: true
+          cache-on-failure: true
+          cache-key: "v1-rust-flamegraph"
+
+      - name: Install perf and dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            linux-tools-common \
+            linux-tools-generic \
+            "linux-tools-$(uname -r)" || true
+
+      - name: Install cargo-flamegraph
+        run: cargo install --locked flamegraph
+
+      - name: Allow perf without root
+        run: |
+          echo 0 | sudo tee /proc/sys/kernel/perf_event_paranoid
+          echo 0 | sudo tee /proc/sys/kernel/kptr_restrict
+
+      - name: Run flamegraph
+        env:
+          BENCH: ${{ github.event.inputs.bench }}
+          CRATE: ${{ github.event.inputs.crate }}
+        run: |
+          set -x
+          cargo flamegraph --release \
+            -p "${CRATE:-fff-engine}" \
+            --bench "${BENCH:-dispatch_bench}" \
+            -o flamegraph.svg \
+            -- --bench
+
+      - name: Upload flamegraph SVG
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flamegraph-${{ github.run_id }}
+          path: flamegraph.svg
+          if-no-files-found: warn
+          retention-days: 30

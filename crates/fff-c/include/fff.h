@@ -9,6 +9,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+typedef struct Arc_Engine Arc_Engine;
+
 /**
  * Result envelope returned by all `fff_*` functions.
  *
@@ -345,6 +347,26 @@ typedef struct FffMixedSearchResult {
   struct FffLocation location;
 } FffMixedSearchResult;
 
+typedef struct FffScryEngine {
+  struct Arc_Engine inner;
+  PathBuf root;
+} FffScryEngine;
+
+typedef struct FffScryResponse {
+  /**
+   * 0 on success; non-zero error code.
+   */
+  int32_t code;
+  /**
+   * Owned UTF-8 NUL-terminated payload. Always non-null on success.
+   */
+  char *payload;
+  /**
+   * Length of `payload` in bytes (excluding NUL).
+   */
+  uintptr_t payload_len;
+} FffScryResponse;
+
 /**
  * Create a new file finder instance (legacy signature).
  *
@@ -379,6 +401,10 @@ struct FffResult *fff_create_instance(const char *base_path,
  * * `frecency_db_path`            – frecency LMDB database path (NULL/empty to skip)
  * * `history_db_path`             – query history LMDB database path (NULL/empty to skip)
  * * `use_unsafe_no_lock`          – **deprecated, ignored.** Previously enabled
+ *   `MDB_NOLOCK|MDB_NOSYNC|MDB_NOMETASYNC` for LMDB; benchmarks showed no
+ *   measurable win under realistic contention, so the flag is now a no-op.
+ *   The parameter remains in the signature for ABI compatibility and will be
+ *   removed in a future release.
  * * `enable_mmap_cache`           – pre-populate mmap caches after the initial scan
  * * `enable_content_indexing`     – build content index after the initial scan
  * * `watch`                       – start a background file-system watcher for live updates
@@ -1209,5 +1235,68 @@ uint32_t fff_grep_result_get_next_file_offset(const struct FffGrepResult *r);
  * `r` must be a valid `FffGrepResult` pointer or null.
  */
 const char *fff_grep_result_get_regex_fallback_error(const struct FffGrepResult *r);
+
+/**
+ * Build a new scry engine and run the unified scan over `root`.
+ *
+ * ## Safety
+ * `root` must be a NUL-terminated UTF-8 string.
+ */
+struct FffScryEngine *fff_scry_engine_new(const char *root, uint64_t total_token_budget);
+
+/**
+ * Re-run the unified scan over the engine's root, refreshing all caches.
+ *
+ * ## Safety
+ * `engine` must be a valid pointer from `fff_scry_engine_new`.
+ */
+int32_t fff_scry_engine_rebuild(struct FffScryEngine *engine);
+
+/**
+ * Free a `FffScryEngine`.
+ *
+ * ## Safety
+ * `engine` must be a valid pointer from `fff_scry_engine_new`.
+ */
+void fff_scry_engine_free(struct FffScryEngine *engine);
+
+/**
+ * Free a `FffScryResponse`.
+ *
+ * ## Safety
+ * `response` must be a valid pointer returned by any `fff_scry_*` call that
+ * returns `*mut FffScryResponse`.
+ */
+void fff_free_scry_response(struct FffScryResponse *response);
+
+/**
+ * Dispatch a free-form query through the scry engine. Result is JSON.
+ *
+ * ## Safety
+ * `engine` must be a valid pointer; `query` must be a NUL-terminated UTF-8 string.
+ */
+struct FffScryResponse *fff_scry_dispatch(struct FffScryEngine *engine, const char *query);
+
+/**
+ * Look up a symbol by exact name or by prefix (suffix `*`). Result is JSON.
+ *
+ * ## Safety
+ * `engine` and `name` must satisfy the same constraints as
+ * `fff_scry_dispatch`.
+ */
+struct FffScryResponse *fff_scry_symbol(struct FffScryEngine *engine, const char *name);
+
+/**
+ * Read a file with token-budget aware truncation. Result is JSON
+ * `{ path, body }`.
+ *
+ * ## Safety
+ * `engine`, `path`, and `filter` (when non-null) must satisfy the same
+ * constraints as `fff_scry_dispatch`.
+ */
+struct FffScryResponse *fff_scry_read(struct FffScryEngine *engine,
+                                      const char *path,
+                                      uint64_t budget,
+                                      const char *filter);
 
 #endif  /* FFF_C_H */
