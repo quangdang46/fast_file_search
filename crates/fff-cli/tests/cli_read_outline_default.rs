@@ -50,14 +50,24 @@ fn read_with_no_flags_emits_agent_outline_for_code_files() {
         .args(["read", "sample.rs"])
         .output()
         .expect("run scry read");
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let stdout = String::from_utf8(out.stdout).expect("utf8");
 
     // Header line: `# <path> (<lines> lines, ~<tokens> tokens) [outline]`.
-    assert!(stdout.starts_with("# sample.rs ("), "missing header line:\n{stdout}");
+    assert!(
+        stdout.starts_with("# sample.rs ("),
+        "missing header line:\n{stdout}"
+    );
     assert!(stdout.contains("[outline]"), "missing [outline] tag");
     // Bundled imports row.
-    assert!(stdout.contains("imports: std, anyhow"), "missing bundled imports:\n{stdout}");
+    assert!(
+        stdout.contains("imports: std, anyhow"),
+        "missing bundled imports:\n{stdout}"
+    );
     // Definitions present.
     assert!(stdout.contains("struct Foo"));
     assert!(stdout.contains("function entrypoint"));
@@ -77,7 +87,11 @@ fn read_with_full_flag_returns_raw_body() {
         .args(["read", "sample.rs", "--full"])
         .output()
         .expect("run scry read --full");
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let stdout = String::from_utf8(out.stdout).expect("utf8");
 
     // Raw body must include source lines.
@@ -98,12 +112,19 @@ fn read_with_line_suffix_drills_into_section() {
         .args(["read", "sample.rs:18"])
         .output()
         .expect("run scry read sample.rs:18");
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let stdout = String::from_utf8(out.stdout).expect("utf8");
 
     // Section banner is emitted; the body of the function we land on is
     // included; only the `entrypoint` body is rendered.
-    assert!(stdout.starts_with("// "), "expected section banner:\n{stdout}");
+    assert!(
+        stdout.starts_with("// "),
+        "expected section banner:\n{stdout}"
+    );
     assert!(stdout.contains("pub fn entrypoint() -> Result<()>"));
     assert!(stdout.contains("Foo::new()"));
     assert!(!stdout.contains("pub struct Foo"));
@@ -119,10 +140,17 @@ fn outline_default_style_is_agent() {
         .args(["outline", "sample.rs"])
         .output()
         .expect("run scry outline");
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let stdout = String::from_utf8(out.stdout).expect("utf8");
 
-    assert!(stdout.starts_with("# sample.rs ("), "default outline style should be agent:\n{stdout}");
+    assert!(
+        stdout.starts_with("# sample.rs ("),
+        "default outline style should be agent:\n{stdout}"
+    );
     assert!(stdout.contains("> Next: drill into a symbol"));
 }
 

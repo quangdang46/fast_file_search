@@ -72,12 +72,7 @@ fn range_token(e: &OutlineEntry) -> String {
     format!("[{}-{}]", e.start_line, e.end_line)
 }
 
-fn push_agent_entry(
-    out: &mut String,
-    e: &OutlineEntry,
-    depth: usize,
-    range_width: usize,
-) {
+fn push_agent_entry(out: &mut String, e: &OutlineEntry, depth: usize, range_width: usize) {
     let indent = "  ".repeat(depth);
     let range = range_token(e);
     let visible = indent.len() + range.len();
@@ -109,11 +104,7 @@ fn push_agent_entry(
 
 /// Bundle leading consecutive imports into a single line: `[A-B] imports: a, b(2), c`.
 /// Returns the number of entries consumed.
-fn render_imports_bundle(
-    entries: &[OutlineEntry],
-    out: &mut String,
-    range_width: usize,
-) -> usize {
+fn render_imports_bundle(entries: &[OutlineEntry], out: &mut String, range_width: usize) -> usize {
     let count = entries
         .iter()
         .take_while(|e| matches!(e.kind, OutlineKind::Import))
@@ -187,10 +178,7 @@ fn parse_import_source(sig: &str) -> Option<String> {
 
     // Rust `use a::b::c;` — group by crate root.
     if let Some(rest) = s.strip_prefix("use ") {
-        let head = rest
-            .split(['{', ';', ' '])
-            .next()
-            .unwrap_or(rest);
+        let head = rest.split(['{', ';', ' ']).next().unwrap_or(rest);
         let root = head.split("::").next().unwrap_or(head);
         if !root.is_empty() {
             return Some(root.to_string());
@@ -344,7 +332,9 @@ fn kind_label(k: OutlineKind) -> &'static str {
 
 #[cfg(test)]
 mod tests {
-    use super::{agent, kind_label, markdown, parse_import_source, structured, tabular, AgentHeader};
+    use super::{
+        agent, kind_label, markdown, parse_import_source, structured, tabular, AgentHeader,
+    };
     use fff_symbol::types::{OutlineEntry, OutlineKind};
 
     fn entry(kind: OutlineKind, name: &str, start: u32, end: u32) -> OutlineEntry {
@@ -560,8 +550,12 @@ mod tests {
             },
         );
         // Children rendered with two-space indent prefix.
-        assert!(out.lines().any(|l| l.starts_with("  [") && l.contains("function a")));
-        assert!(out.lines().any(|l| l.starts_with("  [") && l.contains("function b")));
+        assert!(out
+            .lines()
+            .any(|l| l.starts_with("  [") && l.contains("function a")));
+        assert!(out
+            .lines()
+            .any(|l| l.starts_with("  [") && l.contains("function b")));
     }
 
     #[test]
@@ -597,10 +591,7 @@ mod tests {
             parse_import_source("from collections import OrderedDict"),
             Some("collections".into())
         );
-        assert_eq!(
-            parse_import_source("import os"),
-            Some("os".into())
-        );
+        assert_eq!(parse_import_source("import os"), Some("os".into()));
     }
 
     #[test]

@@ -131,8 +131,8 @@ pub fn render_agent(path: &Path, display_path: &str) -> Result<String> {
         FileType::Code(l) => l,
         _ => return Err(anyhow!("not a code file: {}", path.display())),
     };
-    let content =
-        std::fs::read_to_string(path).map_err(|e| anyhow!("failed to read {}: {e}", path.display()))?;
+    let content = std::fs::read_to_string(path)
+        .map_err(|e| anyhow!("failed to read {}: {e}", path.display()))?;
     let entries = get_outline_entries(&content, lang);
     let total_lines = content.lines().count() as u64;
     let total_tokens = estimate_tokens(content.len() as u64);
