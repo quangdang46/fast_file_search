@@ -8,6 +8,8 @@ pub mod glob;
 pub mod grep;
 pub mod index;
 pub mod mcp;
+pub mod outline;
+pub(crate) mod outline_format;
 pub(crate) mod pagination;
 pub mod read;
 pub mod symbol;

@@ -48,6 +48,9 @@ pub enum Command {
     /// Read a file with token-budget aware truncation (replaces `cat`).
     Read(commands::read::Args),
 
+    /// Render a file's structural outline (functions, classes, …).
+    Outline(commands::outline::Args),
+
     /// Look up symbol definitions (NEW; tree-sitter AST powered).
     Symbol(commands::symbol::Args),
 
@@ -79,6 +82,7 @@ impl Cli {
             Command::Glob(a) => commands::glob::run(a, &root, self.format),
             Command::Grep(a) => commands::grep::run(a, &root, self.format),
             Command::Read(a) => commands::read::run(a, &root, self.format),
+            Command::Outline(a) => commands::outline::run(a, &root, self.format),
             Command::Symbol(a) => commands::symbol::run(a, &root, self.format),
             Command::Callers(a) => commands::callers::run(a, &root, self.format),
             Command::Callees(a) => commands::callees::run(a, &root, self.format),
