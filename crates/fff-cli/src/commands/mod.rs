@@ -6,6 +6,7 @@ pub(crate) mod facets;
 pub mod find;
 pub mod glob;
 pub mod grep;
+pub mod guide;
 pub mod index;
 pub mod mcp;
 pub mod outline;

@@ -52,7 +52,16 @@
         commonArgs = {
           pname = cargoToml.package.name;
           version = cargoToml.package.version;
-          src = craneLib.cleanCargoSource ./.;
+          # cleanCargoSource strips non-rust files; we need to keep the
+          # AGENT_GUIDE.md asset that fff-cli pulls in via include_str!.
+          src = pkgs.lib.cleanSourceWith {
+            src = ./.;
+            filter =
+              path: type:
+              (pkgs.lib.hasInfix "/crates/fff-cli/assets/" path)
+              || (craneLib.filterCargoSources path type);
+            name = "source";
+          };
           strictDeps = true;
 
           nativeBuildInputs = [ pkgs.pkg-config pkgs.perl zig pkgs.llvmPackages.libclang.lib ];

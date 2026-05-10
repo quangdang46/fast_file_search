@@ -74,6 +74,9 @@ pub enum Command {
 
     /// Run as MCP server over stdio (replaces agent built-ins Grep/Glob/Read).
     Mcp(commands::mcp::Args),
+
+    /// Print the embedded agent guide.
+    Guide(commands::guide::Args),
 }
 
 impl Cli {
@@ -97,6 +100,7 @@ impl Cli {
             Command::Index(a) => commands::index::run(a, &root, self.format),
             Command::Overview(a) => commands::overview::run(a, &root, self.format),
             Command::Mcp(a) => commands::mcp::run(a, &root),
+            Command::Guide(a) => commands::guide::run(a, &root, self.format),
         }
     }
 }
