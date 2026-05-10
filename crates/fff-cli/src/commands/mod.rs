@@ -1,6 +1,8 @@
 pub mod callees;
 pub mod callers;
+pub(crate) mod dedup;
 pub mod dispatch;
+pub(crate) mod facets;
 pub mod find;
 pub mod glob;
 pub mod grep;
