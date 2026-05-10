@@ -63,6 +63,9 @@ pub enum Command {
     /// List sibling symbols (peers in the same parent scope).
     Siblings(commands::siblings::Args),
 
+    /// Show a file's imports + the workspace files that depend on it.
+    Deps(commands::deps::Args),
+
     /// Auto-classify a free-form query and route it to the right backend.
     Dispatch(commands::dispatch::Args),
 
@@ -96,6 +99,7 @@ impl Cli {
             Command::Callers(a) => commands::callers::run(a, &root, self.format),
             Command::Callees(a) => commands::callees::run(a, &root, self.format),
             Command::Siblings(a) => commands::siblings::run(a, &root, self.format),
+            Command::Deps(a) => commands::deps::run(a, &root, self.format),
             Command::Dispatch(a) => commands::dispatch::run(a, &root, self.format),
             Command::Index(a) => commands::index::run(a, &root, self.format),
             Command::Overview(a) => commands::overview::run(a, &root, self.format),
