@@ -14,6 +14,7 @@ use fff_symbol::lang::detect_file_type;
 use fff_symbol::types::{FileType, OutlineEntry};
 
 use crate::cli::OutputFormat;
+use crate::commands::outline as outline_cmd;
 
 #[derive(Debug, Parser)]
 pub struct Args {
@@ -36,8 +37,8 @@ pub struct Args {
     #[arg(long, default_value_t = false, conflicts_with = "full")]
     pub section: bool,
 
-    /// Force whole-file mode even if `path:line` was given. Default if no
-    /// flag is set, but lets you pin behaviour explicitly.
+    /// Force whole-file mode and return raw contents. Without this flag the
+    /// scry default is the agent-style outline.
     #[arg(long, default_value_t = false)]
     pub full: bool,
 }
@@ -74,14 +75,37 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         root.join(path_part)
     };
 
-    if args.section {
+    // Routing:
+    //   --section or `path:N`  → structural section read.
+    //   --full                  → whole-file body (legacy default).
+    //   no flags, no `:N`       → outline (B0 default for the scry layer).
+    if args.section || (line.is_some() && !args.full) {
         let line =
             line.ok_or_else(|| anyhow!("--section requires the target to be in `path:line` form"))?;
         let payload = read_section(&path, line, level, budget)?;
         return super::emit(format, &payload, section_text);
     }
 
-    // --full or default: whole-file read via the engine.
+    if !args.full {
+        // Outline default (only for code files; non-code falls through to
+        // full-body read so things like Markdown / JSON still emit content).
+        if matches!(detect_file_type(&path), FileType::Code(_)) {
+            let body = outline_cmd::render_agent(&path, path_part)?;
+            let kept_bytes = body.len();
+            let payload = ReadOutput {
+                path: path.to_string_lossy().to_string(),
+                mode: "outline",
+                body,
+                kept_bytes,
+                footer_bytes: 0,
+                line: None,
+                section: None,
+            };
+            return super::emit(format, &payload, |p| p.body.clone());
+        }
+    }
+
+    // --full or non-code target: whole-file read via the engine.
     let cfg = EngineConfig {
         filter_level: level,
         total_token_budget: budget,
