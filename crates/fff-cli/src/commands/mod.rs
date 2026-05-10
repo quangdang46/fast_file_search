@@ -7,6 +7,7 @@ pub mod find;
 pub mod glob;
 pub mod grep;
 pub mod index;
+pub mod map;
 pub mod mcp;
 pub mod outline;
 pub(crate) mod outline_format;
