@@ -47,8 +47,19 @@ Content search across the project. Powered by `ripgrep` semantics for
 gitignore handling.
 
 ### `read <target>`
-Read a file, optionally with a `path:line` suffix to highlight a
-span. Output is truncated to a token budget.
+Read a file. Default emits the **agent-style outline** (header +
+section list + footer hint) so agents can plan a follow-up drill
+without pulling the full body. Pass `--full` for raw contents, or
+use `path:line` / `--section` to drill straight into a structural
+section.
+
+Routing:
+* `read <path>` — outline default (code files only; non-code files
+  fall through to full body).
+* `read <path>:<N>` — structural section read at line `N`.
+* `read <path> --section` (combined with `path:N`) — same as above but
+  errors out if the line isn't supplied, useful in scripts.
+* `read <path> --full` — whole file body (legacy default).
 
 * `--budget <N>` — total token budget (default 25000). Effective byte
   cap ≈ `tokens × 0.85 × 4`; the remaining ≈15% is reserved for the
@@ -61,10 +72,12 @@ span. Output is truncated to a token budget.
 Tree-sitter outline of a single file: top-level functions, classes,
 structs, imports, and their immediate children where applicable.
 
-* `--style tabular|markdown|structured` — text rendering. `tabular`
-  (default) is fixed-width columns; `markdown` is nested bullets with
-  backticked names and signatures; `structured` is an ASCII tree
-  (`├─` / `└─`).
+* `--style agent|tabular|markdown|structured` — text rendering.
+  `agent` (default) is the dense, agent-friendly form: header line
+  with file totals, `[A-B]` left column, bundled-imports row, indented
+  signatures, and a `> Next:` drill hint. `tabular` is fixed-width
+  columns (KIND/NAME/LINES/SIGNATURE); `markdown` is nested bullets;
+  `structured` is an ASCII tree (`├─` / `└─`).
 * JSON output (`--format json`) is independent of `--style` and emits
   the entry tree directly with `kind`, `name`, `start_line`,
   `end_line`, `signature`, `children`.
