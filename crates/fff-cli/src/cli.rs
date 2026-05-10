@@ -66,6 +66,9 @@ pub enum Command {
     /// Build / refresh the on-disk indexes (Bigram, Bloom, Symbol, Outline).
     Index(commands::index::Args),
 
+    /// High-signal summary of the workspace (languages, top symbols, …).
+    Overview(commands::overview::Args),
+
     /// Run as MCP server over stdio (replaces agent built-ins Grep/Glob/Read).
     Mcp(commands::mcp::Args),
 }
@@ -88,6 +91,7 @@ impl Cli {
             Command::Callees(a) => commands::callees::run(a, &root, self.format),
             Command::Dispatch(a) => commands::dispatch::run(a, &root, self.format),
             Command::Index(a) => commands::index::run(a, &root, self.format),
+            Command::Overview(a) => commands::overview::run(a, &root, self.format),
             Command::Mcp(a) => commands::mcp::run(a, &root),
         }
     }

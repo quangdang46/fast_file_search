@@ -10,6 +10,7 @@ pub mod index;
 pub mod mcp;
 pub mod outline;
 pub(crate) mod outline_format;
+pub mod overview;
 pub(crate) mod pagination;
 pub mod read;
 pub mod symbol;
