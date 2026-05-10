@@ -20,7 +20,7 @@ All sub-commands accept these.
 
 ## Pagination
 
-Listing sub-commands (`find`, `symbol`, `callers`, `callees`,
+Listing sub-commands (`find`, `symbol`, `callers`, `callees`, `refs`,
 `siblings`) take:
 
 * `--limit <N>` — max items in this page (defaults differ per command;
@@ -101,6 +101,15 @@ Identifiers referenced inside the body of `<name>`, then resolved
 back to definitions via the symbol index. Hits with the same
 `(name, path, line)` triple are de-duplicated even when they came
 from multiple definition bodies of `<name>`.
+
+### `refs <name>`
+Definitions plus single-hop usages of `<name>` in one response.
+Definitions come from the symbol index (full list, no pagination);
+usages reuse the `callers --hops 1` text-confirm pass and are paged
+via `--limit` / `--offset`. JSON shape:
+`{ name, definitions, usages, total_usages, offset, has_more }`.
+Each usage carries `enclosing` when it can be resolved via the
+outline cache.
 
 ### `siblings <name>`
 Other symbols defined at the same scope as `<name>` — peer methods of
