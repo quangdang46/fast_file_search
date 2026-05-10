@@ -8,6 +8,7 @@ use fff_engine::Engine;
 use fff_symbol::symbol_index::SymbolLocation;
 
 use crate::cli::OutputFormat;
+use crate::commands::facets::Facets;
 use crate::commands::pagination::{footer, Page};
 
 #[derive(Debug, Parser)]
@@ -31,6 +32,7 @@ struct SymbolOutput {
     total: usize,
     offset: usize,
     has_more: bool,
+    facets: Facets,
 }
 
 #[derive(Debug, Serialize)]
@@ -76,6 +78,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
             .collect()
     };
 
+    let facets = Facets::from_kinds(all_hits.iter().map(|h| h.kind.as_str()));
     let page = Page::paginate(all_hits, args.offset, args.limit);
     let payload = SymbolOutput {
         query: args.name,
@@ -83,6 +86,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         offset: page.offset,
         has_more: page.has_more,
         hits: page.items,
+        facets,
     };
     super::emit(format, &payload, |p| {
         let mut out = String::new();
@@ -96,6 +100,15 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
             out.push_str("[no symbols found]\n");
         } else {
             out.push_str(&footer(p.total, p.offset, p.hits.len(), p.has_more));
+            if !p.facets.by_kind.is_empty() {
+                let parts: Vec<String> = p
+                    .facets
+                    .by_kind
+                    .iter()
+                    .map(|(k, n)| format!("{k}: {n}"))
+                    .collect();
+                out.push_str(&format!("by kind: {}\n", parts.join(", ")));
+            }
         }
         out
     })

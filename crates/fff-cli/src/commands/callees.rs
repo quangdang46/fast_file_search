@@ -11,6 +11,7 @@ use fff_engine::Engine;
 use fff_symbol::bloom::extract_identifiers;
 
 use crate::cli::OutputFormat;
+use crate::commands::dedup::dedup_by;
 use crate::commands::pagination::{footer, Page};
 
 #[derive(Debug, Parser)]
@@ -80,6 +81,10 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         }
     }
 
+    // Multiple definition sites of the same target symbol can produce the same
+    // (name, path, line) triple from different bodies; collapse them so each
+    // unique callee is reported once.
+    let hits = dedup_by(hits, |h| (h.name.clone(), h.path.clone(), h.line));
     let page = Page::paginate(hits, args.offset, args.limit);
     let payload = CalleesOutput {
         name: args.name,
