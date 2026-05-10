@@ -1,6 +1,7 @@
 pub mod callees;
 pub(crate) mod callees_resolve;
 pub mod callers;
+pub(crate) mod callers_bfs;
 pub(crate) mod dedup;
 pub mod dispatch;
 pub(crate) mod facets;
