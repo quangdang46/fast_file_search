@@ -12,6 +12,7 @@ pub mod glob;
 pub mod grep;
 pub mod guide;
 pub mod index;
+pub mod map;
 pub mod mcp;
 pub mod outline;
 pub(crate) mod outline_format;

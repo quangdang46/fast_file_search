@@ -72,6 +72,9 @@ pub enum Command {
     /// Build / refresh the on-disk indexes (Bigram, Bloom, Symbol, Outline).
     Index(commands::index::Args),
 
+    /// Render the workspace as a tree annotated with file count and tokens.
+    Map(commands::map::Args),
+
     /// High-signal summary of the workspace (languages, top symbols, …).
     Overview(commands::overview::Args),
 
@@ -102,6 +105,7 @@ impl Cli {
             Command::Deps(a) => commands::deps::run(a, &root, self.format),
             Command::Dispatch(a) => commands::dispatch::run(a, &root, self.format),
             Command::Index(a) => commands::index::run(a, &root, self.format),
+            Command::Map(a) => commands::map::run(a, &root, self.format),
             Command::Overview(a) => commands::overview::run(a, &root, self.format),
             Command::Mcp(a) => commands::mcp::run(a, &root),
             Command::Guide(a) => commands::guide::run(a, &root, self.format),
