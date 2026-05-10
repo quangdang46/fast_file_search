@@ -13,15 +13,20 @@ use serde::Serialize;
 use fff_engine::{Engine, PreFilterStack};
 
 use crate::cli::OutputFormat;
+use crate::commands::pagination::{footer, Page};
 
 #[derive(Debug, Parser)]
 pub struct Args {
     /// Symbol name to find call sites for.
     pub name: String,
 
-    /// Maximum total hits returned.
+    /// Maximum hits returned in this page.
     #[arg(long, default_value_t = 100)]
     pub limit: usize,
+
+    /// Skip this many hits before starting the page.
+    #[arg(long, default_value_t = 0)]
+    pub offset: usize,
 }
 
 #[derive(Debug, Serialize)]
@@ -35,6 +40,9 @@ struct CallerHit {
 struct CallersOutput {
     name: String,
     hits: Vec<CallerHit>,
+    total: usize,
+    offset: usize,
+    has_more: bool,
 }
 
 pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
@@ -104,26 +112,26 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
                 line: lineno,
                 text: line.to_string(),
             });
-            if hits.len() >= args.limit {
-                break;
-            }
-        }
-        if hits.len() >= args.limit {
-            break;
         }
     }
 
+    let page = Page::paginate(hits, args.offset, args.limit);
     let payload = CallersOutput {
         name: args.name,
-        hits,
+        total: page.total,
+        offset: page.offset,
+        has_more: page.has_more,
+        hits: page.items,
     };
     super::emit(format, &payload, |p| {
         let mut out = String::new();
         for h in &p.hits {
             out.push_str(&format!("{}:{}: {}\n", h.path, h.line, h.text));
         }
-        if p.hits.is_empty() {
+        if p.total == 0 {
             out.push_str("[no callers found]\n");
+        } else {
+            out.push_str(&footer(p.total, p.offset, p.hits.len(), p.has_more));
         }
         out
     })
