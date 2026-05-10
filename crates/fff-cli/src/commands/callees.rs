@@ -11,15 +11,20 @@ use fff_engine::Engine;
 use fff_symbol::bloom::extract_identifiers;
 
 use crate::cli::OutputFormat;
+use crate::commands::pagination::{footer, Page};
 
 #[derive(Debug, Parser)]
 pub struct Args {
     /// Symbol whose body should be inspected.
     pub name: String,
 
-    /// Maximum number of callees returned.
+    /// Maximum callees returned in this page.
     #[arg(long, default_value_t = 100)]
     pub limit: usize,
+
+    /// Skip this many callees before starting the page.
+    #[arg(long, default_value_t = 0)]
+    pub offset: usize,
 }
 
 #[derive(Debug, Serialize)]
@@ -33,6 +38,9 @@ struct CalleeHit {
 struct CalleesOutput {
     name: String,
     hits: Vec<CalleeHit>,
+    total: usize,
+    offset: usize,
+    has_more: bool,
 }
 
 pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
@@ -62,34 +70,33 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
             if ident == args.name {
                 continue;
             }
-            let locs = engine.handles.symbols.lookup_exact(ident);
-            for loc in locs {
+            for loc in engine.handles.symbols.lookup_exact(ident) {
                 hits.push(CalleeHit {
                     name: ident.to_string(),
                     path: loc.path.to_string_lossy().to_string(),
                     line: loc.line,
                 });
-                if hits.len() >= args.limit {
-                    break;
-                }
-            }
-            if hits.len() >= args.limit {
-                break;
             }
         }
     }
 
+    let page = Page::paginate(hits, args.offset, args.limit);
     let payload = CalleesOutput {
         name: args.name,
-        hits,
+        total: page.total,
+        offset: page.offset,
+        has_more: page.has_more,
+        hits: page.items,
     };
     super::emit(format, &payload, |p| {
         let mut out = String::new();
         for h in &p.hits {
             out.push_str(&format!("{} @ {}:{}\n", h.name, h.path, h.line));
         }
-        if p.hits.is_empty() {
+        if p.total == 0 {
             out.push_str("[no callees found]\n");
+        } else {
+            out.push_str(&footer(p.total, p.offset, p.hits.len(), p.has_more));
         }
         out
     })

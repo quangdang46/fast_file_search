@@ -6,6 +6,7 @@ pub mod glob;
 pub mod grep;
 pub mod index;
 pub mod mcp;
+pub(crate) mod pagination;
 pub mod read;
 pub mod symbol;
 
