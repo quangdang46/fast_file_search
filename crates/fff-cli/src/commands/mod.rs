@@ -21,6 +21,7 @@ pub(crate) mod outline_format;
 pub mod overview;
 pub(crate) mod pagination;
 pub mod read;
+pub mod refs;
 pub mod siblings;
 pub mod symbol;
 

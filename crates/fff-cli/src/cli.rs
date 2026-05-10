@@ -60,6 +60,9 @@ pub enum Command {
     /// List callees referenced inside a symbol body (NEW).
     Callees(commands::callees::Args),
 
+    /// List definitions and usages of a symbol in one shot (NEW).
+    Refs(commands::refs::Args),
+
     /// List sibling symbols (peers in the same parent scope).
     Siblings(commands::siblings::Args),
 
@@ -101,6 +104,7 @@ impl Cli {
             Command::Symbol(a) => commands::symbol::run(a, &root, self.format),
             Command::Callers(a) => commands::callers::run(a, &root, self.format),
             Command::Callees(a) => commands::callees::run(a, &root, self.format),
+            Command::Refs(a) => commands::refs::run(a, &root, self.format),
             Command::Siblings(a) => commands::siblings::run(a, &root, self.format),
             Command::Deps(a) => commands::deps::run(a, &root, self.format),
             Command::Dispatch(a) => commands::dispatch::run(a, &root, self.format),
