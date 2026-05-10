@@ -96,6 +96,13 @@ impl SymbolIndex {
         out
     }
 
+    /// Unique symbol names currently in the index, in arbitrary order. Useful
+    /// for callers that want a flat name list (e.g. fuzzy / typo fallback)
+    /// without paying the per-location duplication of `lookup_prefix("")`.
+    pub fn names(&self) -> Vec<String> {
+        self.map.iter().map(|e| e.key().clone()).collect()
+    }
+
     /// Substring search across all known symbol names.
     pub fn lookup_substring(&self, needle: &str) -> Vec<(String, SymbolLocation)> {
         let mut out = Vec::new();

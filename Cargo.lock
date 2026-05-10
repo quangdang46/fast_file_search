@@ -688,6 +688,7 @@ dependencies = [
  "fff-search",
  "fff-symbol",
  "ignore",
+ "neo_frizbee",
  "serde",
  "serde_json",
  "tempfile",
