@@ -12,6 +12,7 @@ pub mod outline;
 pub(crate) mod outline_format;
 pub(crate) mod pagination;
 pub mod read;
+pub mod siblings;
 pub mod symbol;
 
 use std::path::Path;
