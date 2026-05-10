@@ -14,6 +14,7 @@ fff-search = { path = "../fff-core" }
 fff-engine = { workspace = true }
 fff-symbol = { workspace = true }
 fff-budget = { workspace = true }
+tree-sitter = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true }
 ignore = { workspace = true }

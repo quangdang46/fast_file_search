@@ -8,9 +8,11 @@ use clap::Parser;
 use serde::Serialize;
 
 use fff_engine::Engine;
-use fff_symbol::bloom::extract_identifiers;
+use fff_symbol::lang::detect_file_type;
+use fff_symbol::types::FileType;
 
 use crate::cli::OutputFormat;
+use crate::commands::callees_resolve::collect_callees;
 use crate::commands::dedup::dedup_by;
 use crate::commands::pagination::{footer, Page};
 
@@ -52,28 +54,23 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     let mut hits: Vec<CalleeHit> = Vec::new();
 
     for def in &definitions {
+        let lang = match detect_file_type(&def.path) {
+            FileType::Code(l) => l,
+            _ => continue,
+        };
         let Ok(content) = std::fs::read_to_string(&def.path) else {
             continue;
         };
-        let lines: Vec<&str> = content.lines().collect();
-        let start = (def.line.saturating_sub(1)) as usize;
-        let end = (def.end_line as usize).min(lines.len());
-        if start >= end {
+        let Some(names) = collect_callees(&content, lang, def.line, def.end_line) else {
             continue;
-        }
-        let body = lines[start..end].join("\n");
-
-        let mut seen = std::collections::HashSet::new();
-        for ident in extract_identifiers(&body) {
-            if !seen.insert(ident.to_string()) {
-                continue;
-            }
+        };
+        for ident in names {
             if ident == args.name {
                 continue;
             }
-            for loc in engine.handles.symbols.lookup_exact(ident) {
+            for loc in engine.handles.symbols.lookup_exact(&ident) {
                 hits.push(CalleeHit {
-                    name: ident.to_string(),
+                    name: ident.clone(),
                     path: loc.path.to_string_lossy().to_string(),
                     line: loc.line,
                 });

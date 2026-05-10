@@ -1,4 +1,5 @@
 pub mod callees;
+pub(crate) mod callees_resolve;
 pub mod callers;
 pub(crate) mod dedup;
 pub mod dispatch;
