@@ -164,6 +164,25 @@ Each hit carries `parent` (`"<file>"` for top-level, otherwise the
 enclosing definition's name) and `target_path`/`target_line` so
 multiple definition sites of the same name remain disambiguated.
 
+### `map`
+Workspace tree annotated with file counts and rough token estimates
+per directory. Honors `.gitignore` (via `ignore::WalkBuilder`) so the
+tree matches what `find` / `grep` already see.
+
+* `--depth <N>` — render at most N directory levels (default 3); beyond
+  the limit, directories collapse to a single summary line and JSON
+  marks them with `truncated: true`.
+* `--max-file-bytes <N>` — cap the per-file size used for the token
+  estimate (default 1 MiB); raw byte counts still reflect on-disk size.
+* `--bytes-per-token <N>` — chars-per-token conversion (default 4).
+* `--symbols <N>` — annotate each file leaf with its top-N symbols by
+  weight (tree-sitter definitions, sorted weight DESC then line ASC).
+  `0` (default) keeps the output byte-identical. JSON adds a `symbols:
+  [{ name, kind, line, weight }]` array under each file node and omits
+  the field on directories and on files without symbols; text output
+  adds indented `• name (kind, L<line>, w=<weight>)` bullets directly
+  under the file's tree line.
+
 ### `dispatch <query>`
 Free-form classifier that routes a query to the right backend
 (`symbol`, `symbol_glob`, `file_path`, `glob`, or content fallback).
