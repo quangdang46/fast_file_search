@@ -449,21 +449,30 @@ mod tests {
         match maybe_resolve_bare(td.path(), "dup.rs", &initial) {
             BareResolve::Ambiguous(v) => {
                 assert_eq!(v.len(), 2);
-                // shortest path first
-                assert!(v[0].ends_with("z/dup.rs"));
-                assert!(v[1].ends_with("a/b/c/dup.rs"));
+                // shortest path first (length ordering is OS-agnostic).
+                assert!(v[0].len() < v[1].len());
+                assert!(Path::new(&v[0]).ends_with(Path::new("z/dup.rs")));
+                assert!(Path::new(&v[1]).ends_with(Path::new("a/b/c/dup.rs")));
             }
             _ => panic!("expected Ambiguous"),
         }
     }
 
+    // Case-insensitive fallback only meaningfully exercises when the literal
+    // path doesn't resolve, which requires a case-sensitive filesystem. macOS
+    // (APFS) and Windows (NTFS) default to case-insensitive: `initial.exists()`
+    // already returns true and the auto-pick branch correctly short-circuits
+    // to `Skip`, so we gate the fallback assertion to Linux only.
+    #[cfg(target_os = "linux")]
     #[test]
     fn bare_resolve_case_insensitive_fallback_when_exact_zero() {
         let td = tempfile::tempdir().unwrap();
         std::fs::write(td.path().join("README.md"), "# hi").unwrap();
         let initial = td.path().join("readme.md");
         match maybe_resolve_bare(td.path(), "readme.md", &initial) {
-            BareResolve::Found(p) => assert!(p.ends_with("README.md")),
+            BareResolve::Found(p) => {
+                assert_eq!(p.file_name().and_then(|n| n.to_str()), Some("README.md"));
+            }
             _ => panic!("expected case-insensitive match"),
         }
     }
