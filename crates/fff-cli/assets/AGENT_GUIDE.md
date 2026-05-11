@@ -61,6 +61,14 @@ Routing:
   errors out if the line isn't supplied, useful in scripts.
 * `read <path> --full` — whole file body (legacy default).
 
+Bare-filename auto-pick: when the literal path doesn't resolve and
+`<target>` has no separator, `read` searches the workspace by file
+basename (exact case first, then case-insensitive). Exactly one match
+→ drills into it and surfaces the chosen path in `resolved_from`.
+More than one match → emits a `mode: "candidates"` envelope listing
+the top 5 paths (shortest first) so the caller can disambiguate. No
+match → today's "not found" error.
+
 * `--budget <N>` — total token budget (default 25000). Effective byte
   cap ≈ `tokens × 0.85 × 4`; the remaining ≈15% is reserved for the
   envelope and truncation footer.
