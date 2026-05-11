@@ -95,6 +95,14 @@ Look up a symbol definition by name. Tree-sitter AST-driven, not
 substring. Trailing `*` is treated as a prefix glob: `symbol Foo*`
 matches every name starting with `Foo`.
 
+Comma-separated names emit one group per symbol: `symbol "a,b,c"`
+returns a `{ query, groups: [...], total_groups }` envelope where each
+group is the regular single-symbol envelope. Single-name calls are
+byte-identical to before. Duplicate names are dropped (first-wins) and
+whitespace around each entry is trimmed. With `--expand`, the token
+budget is split across the visible hits in *all* groups (each hit gets
+the same per-hit floor), so multi-symbol queries don't over-allocate.
+
 JSON response includes a `facets` field: `{ total, by_kind }` counted
 on the *full* candidate set (i.e. unaffected by `--offset` /
 `--limit`). Text output appends a `by kind: function: 12, struct: 3`
