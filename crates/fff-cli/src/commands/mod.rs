@@ -11,6 +11,7 @@ pub mod dispatch;
 pub(crate) mod expand;
 pub(crate) mod facets;
 pub mod find;
+pub mod flow;
 pub mod glob;
 pub mod grep;
 pub mod guide;
