@@ -82,4 +82,45 @@ function M.read(target, budget, filter)
   return load_rust().scry_read(target, budget, filter)
 end
 
+--- Find definitions + single-hop usages of a symbol in one shot.
+--- Shells out to the scry CLI; returns the raw JSON payload as a string.
+--- @param name string Symbol name.
+--- @param limit integer|nil Maximum usages (default 100).
+--- @param offset integer|nil Pagination offset for usages (default 0).
+--- @return string json
+function M.refs(name, limit, offset)
+  vim.validate({
+    name = { name, 'string' },
+    limit = { limit, 'number', true },
+    offset = { offset, 'number', true },
+  })
+  return load_rust().scry_refs(name, limit, offset)
+end
+
+--- Drill-down envelope per definition (def + body + callees + callers).
+--- Returns the raw CLI JSON payload as a string.
+--- @param name string Symbol name.
+--- @param opts table|nil `{ limit, offset, callees_top, callers_top, budget }`.
+--- @return string json
+function M.flow(name, opts)
+  vim.validate({
+    name = { name, 'string' },
+    opts = { opts, 'table', true },
+  })
+  return load_rust().scry_flow(name, opts)
+end
+
+--- Rank workspace files by how much they'd be affected if `name` changed.
+--- Score = direct*3 + imports*2 + transitive*1. Returns the raw CLI JSON.
+--- @param name string Symbol name.
+--- @param opts table|nil `{ limit, offset, hops, hub_guard }`.
+--- @return string json
+function M.impact(name, opts)
+  vim.validate({
+    name = { name, 'string' },
+    opts = { opts, 'table', true },
+  })
+  return load_rust().scry_impact(name, opts)
+end
+
 return M

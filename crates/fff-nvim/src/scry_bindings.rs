@@ -193,6 +193,90 @@ pub fn scry_grep(lua: &Lua, pattern: String) -> LuaResult<LuaTable> {
     Ok(arr)
 }
 
+// Invoke the scry CLI (current_exe) and return stdout as a string. Used by
+// the additive `scry_refs` / `scry_flow` / `scry_impact` Lua exports — those
+// reimplementations would be too heavy here, so we shell out to the same
+// binary that loaded this `fff_nvim` module.
+fn run_scry_subprocess(subcommand: &str, root: &Path, args: &[String]) -> mlua::Result<String> {
+    let exe = std::env::current_exe().map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
+    let mut cmd = std::process::Command::new(exe);
+    cmd.arg("--root")
+        .arg(root)
+        .arg("--format")
+        .arg("json")
+        .arg(subcommand);
+    for a in args {
+        cmd.arg(a);
+    }
+    let out = cmd
+        .output()
+        .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
+    if !out.status.success() {
+        return Err(mlua::Error::RuntimeError(format!(
+            "scry {subcommand} exited {}: {}",
+            out.status,
+            String::from_utf8_lossy(&out.stderr)
+        )));
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).into_owned())
+}
+
+pub fn scry_refs(
+    _: &Lua,
+    (name, limit, offset): (String, Option<u64>, Option<u64>),
+) -> LuaResult<String> {
+    let state = ensure_state()?;
+    let mut args = vec![name];
+    if let Some(n) = limit {
+        args.push("--limit".into());
+        args.push(n.to_string());
+    }
+    if let Some(n) = offset {
+        args.push("--offset".into());
+        args.push(n.to_string());
+    }
+    run_scry_subprocess("refs", &state.root, &args)
+}
+
+pub fn scry_flow(_: &Lua, (name, opts): (String, Option<LuaTable>)) -> LuaResult<String> {
+    let state = ensure_state()?;
+    let mut args = vec![name];
+    if let Some(t) = opts {
+        for (flag, key) in [
+            ("--limit", "limit"),
+            ("--offset", "offset"),
+            ("--callees-top", "callees_top"),
+            ("--callers-top", "callers_top"),
+            ("--budget", "budget"),
+        ] {
+            if let Ok(v) = t.get::<u64>(key) {
+                args.push(flag.into());
+                args.push(v.to_string());
+            }
+        }
+    }
+    run_scry_subprocess("flow", &state.root, &args)
+}
+
+pub fn scry_impact(_: &Lua, (name, opts): (String, Option<LuaTable>)) -> LuaResult<String> {
+    let state = ensure_state()?;
+    let mut args = vec![name];
+    if let Some(t) = opts {
+        for (flag, key) in [
+            ("--limit", "limit"),
+            ("--offset", "offset"),
+            ("--hops", "hops"),
+            ("--hub-guard", "hub_guard"),
+        ] {
+            if let Ok(v) = t.get::<u64>(key) {
+                args.push(flag.into());
+                args.push(v.to_string());
+            }
+        }
+    }
+    run_scry_subprocess("impact", &state.root, &args)
+}
+
 pub fn scry_read(
     lua: &Lua,
     (target, budget, filter): (String, Option<u64>, Option<String>),

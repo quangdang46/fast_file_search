@@ -1317,4 +1317,54 @@ struct FffScryResponse *fff_scry_read(struct FffScryEngine *engine,
                                       const char *filter);
 #endif
 
+#if defined(FFF_SCRY)
+/**
+ * Run `scry refs <name>` against the engine's root and return the CLI's JSON
+ * payload (`definitions[]`, `usages[]`, pagination). `limit`/`offset` of 0
+ * mean "use the CLI default".
+ *
+ * ## Safety
+ * `engine` must be a valid pointer; `name` must be a NUL-terminated UTF-8 string.
+ */
+struct FffScryResponse *fff_scry_refs(struct FffScryEngine *engine,
+                                      const char *name,
+                                      uint64_t limit,
+                                      uint64_t offset);
+#endif
+
+#if defined(FFF_SCRY)
+/**
+ * Run `scry flow <name>` against the engine's root and return the CLI's
+ * `FlowOutput` JSON. Each numeric arg of 0 means "use the CLI default".
+ *
+ * ## Safety
+ * `engine` must be a valid pointer; `name` must be a NUL-terminated UTF-8 string.
+ */
+struct FffScryResponse *fff_scry_flow(struct FffScryEngine *engine,
+                                      const char *name,
+                                      uint64_t limit,
+                                      uint64_t offset,
+                                      uint64_t callees_top,
+                                      uint64_t callers_top,
+                                      uint64_t budget);
+#endif
+
+#if defined(FFF_SCRY)
+/**
+ * Run `scry impact <name>` against the engine's root and return the CLI's
+ * `ImpactOutput` JSON (ranked `results[]`). `hops` is clamped to [1,3]; 0
+ * means default (3). `limit`/`offset`/`hub_guard` of 0 mean "use the CLI
+ * default".
+ *
+ * ## Safety
+ * `engine` must be a valid pointer; `name` must be a NUL-terminated UTF-8 string.
+ */
+struct FffScryResponse *fff_scry_impact(struct FffScryEngine *engine,
+                                        const char *name,
+                                        uint64_t limit,
+                                        uint64_t offset,
+                                        uint32_t hops,
+                                        uint64_t hub_guard);
+#endif
+
 #endif  /* FFF_C_H */

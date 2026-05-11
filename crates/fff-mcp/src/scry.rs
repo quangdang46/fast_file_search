@@ -48,6 +48,52 @@ pub struct ScryCallParams {
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct ScryRefsParams {
+    /// Symbol name to find definitions + single-hop usages for.
+    pub name: String,
+    /// Maximum usages returned (default 100). Definitions are always full.
+    #[serde(rename = "maxResults")]
+    pub max_results: Option<f64>,
+    /// Skip this many usages before starting the page (default 0).
+    pub offset: Option<f64>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct ScryFlowParams {
+    /// Symbol name to drill down on.
+    pub name: String,
+    /// Maximum cards returned (default 10). One card per definition.
+    #[serde(rename = "maxResults")]
+    pub max_results: Option<f64>,
+    /// Skip this many cards before starting the page (default 0).
+    pub offset: Option<f64>,
+    /// Maximum callees listed per card (default 5).
+    #[serde(rename = "calleesTop")]
+    pub callees_top: Option<f64>,
+    /// Maximum callers listed per card (default 5).
+    #[serde(rename = "callersTop")]
+    pub callers_top: Option<f64>,
+    /// Token budget for body excerpts (default 10000).
+    pub budget: Option<f64>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct ScryImpactParams {
+    /// Symbol name to score impact for.
+    pub name: String,
+    /// Maximum rows returned (default 20).
+    #[serde(rename = "maxResults")]
+    pub max_results: Option<f64>,
+    /// Skip this many rows before starting the page (default 0).
+    pub offset: Option<f64>,
+    /// BFS depth for the transitive signal (default 3, capped at 3).
+    pub hops: Option<f64>,
+    /// Hub-guard threshold mirroring `scry callers` (default 50).
+    #[serde(rename = "hubGuard")]
+    pub hub_guard: Option<f64>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct ScryReadParams {
     /// Path to read, relative to the repository root or absolute.
     /// `path:line` is accepted; the line marker is currently informational.
@@ -304,5 +350,96 @@ pub fn format_dispatch(result: &DispatchResult) -> String {
             "[concept] '{}' — fall back to scry_grep for content search\n",
             classified.raw,
         ),
+    }
+}
+
+// Invoke `scry <subcommand>` against `root` and return stdout. The MCP server
+// runs inside the scry binary, so `current_exe()` is the scry binary itself.
+// Used by the additive `scry_refs` / `scry_flow` / `scry_impact` tools that
+// were too heavy to reimplement directly on top of the shared engine.
+pub fn run_scry_subprocess(
+    subcommand: &str,
+    root: &Path,
+    args: &[String],
+) -> std::io::Result<String> {
+    let exe = std::env::current_exe()?;
+    let mut cmd = std::process::Command::new(exe);
+    cmd.arg("--root")
+        .arg(root)
+        .arg("--format")
+        .arg("json")
+        .arg(subcommand);
+    for a in args {
+        cmd.arg(a);
+    }
+    let out = cmd.output()?;
+    if !out.status.success() {
+        return Err(std::io::Error::other(format!(
+            "scry {subcommand} exited {}: {}",
+            out.status,
+            String::from_utf8_lossy(&out.stderr)
+        )));
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).into_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn scry_refs_params_parse_minimal() {
+        let p: ScryRefsParams = serde_json::from_value(json!({ "name": "foo" })).unwrap();
+        assert_eq!(p.name, "foo");
+        assert!(p.max_results.is_none());
+        assert!(p.offset.is_none());
+    }
+
+    #[test]
+    fn scry_refs_params_parse_full() {
+        let p: ScryRefsParams =
+            serde_json::from_value(json!({ "name": "foo", "maxResults": 25, "offset": 50 }))
+                .unwrap();
+        assert_eq!(p.max_results, Some(25.0));
+        assert_eq!(p.offset, Some(50.0));
+    }
+
+    #[test]
+    fn scry_flow_params_parse_full() {
+        let p: ScryFlowParams = serde_json::from_value(json!({
+            "name": "bar",
+            "maxResults": 3,
+            "offset": 1,
+            "calleesTop": 7,
+            "callersTop": 8,
+            "budget": 5000,
+        }))
+        .unwrap();
+        assert_eq!(p.name, "bar");
+        assert_eq!(p.callees_top, Some(7.0));
+        assert_eq!(p.callers_top, Some(8.0));
+        assert_eq!(p.budget, Some(5000.0));
+    }
+
+    #[test]
+    fn scry_impact_params_parse_full() {
+        let p: ScryImpactParams = serde_json::from_value(json!({
+            "name": "baz",
+            "maxResults": 10,
+            "offset": 0,
+            "hops": 2,
+            "hubGuard": 30,
+        }))
+        .unwrap();
+        assert_eq!(p.name, "baz");
+        assert_eq!(p.hops, Some(2.0));
+        assert_eq!(p.hub_guard, Some(30.0));
+    }
+
+    #[test]
+    fn scry_refs_params_rejects_missing_name() {
+        let r: Result<ScryRefsParams, _> = serde_json::from_value(json!({ "maxResults": 1 }));
+        assert!(r.is_err());
     }
 }

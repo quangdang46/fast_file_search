@@ -295,3 +295,151 @@ pub unsafe extern "C" fn fff_scry_read(
     });
     make_response(json.to_string())
 }
+
+// Shell out to the scry CLI binary (current_exe) and produce a response from
+// stdout. Used by the additive `fff_scry_refs` / `_flow` / `_impact` exports.
+// Returns `make_error` on subprocess failure so the FFI shape is uniform.
+fn run_scry_subprocess(subcommand: &str, root: &Path, args: &[String]) -> *mut FffScryResponse {
+    let exe = match std::env::current_exe() {
+        Ok(p) => p,
+        Err(e) => return make_error(&format!("current_exe failed: {e}")),
+    };
+    let mut cmd = std::process::Command::new(exe);
+    cmd.arg("--root")
+        .arg(root)
+        .arg("--format")
+        .arg("json")
+        .arg(subcommand);
+    for a in args {
+        cmd.arg(a);
+    }
+    match cmd.output() {
+        Ok(out) if out.status.success() => {
+            make_response(String::from_utf8_lossy(&out.stdout).into_owned())
+        }
+        Ok(out) => make_error(&format!(
+            "scry {subcommand} exited {}: {}",
+            out.status,
+            String::from_utf8_lossy(&out.stderr)
+        )),
+        Err(e) => make_error(&format!("spawn scry {subcommand} failed: {e}")),
+    }
+}
+
+/// Run `scry refs <name>` against the engine's root. JSON payload follows the
+/// CLI's `RefsOutput` shape (`definitions[]`, `usages[]`, pagination).
+///
+/// ## Safety
+/// `engine` must be a valid pointer; `name` must be a NUL-terminated UTF-8 string.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn fff_scry_refs(
+    engine: *mut FffScryEngine,
+    name: *const c_char,
+    limit: u64,
+    offset: u64,
+) -> *mut FffScryResponse {
+    if engine.is_null() {
+        return make_error("engine is null");
+    }
+    let Some(n) = (unsafe { cstr_to_str(name) }) else {
+        return make_error("name is null or non-UTF-8");
+    };
+    let e = unsafe { &*engine };
+    let mut args = vec![n.to_owned()];
+    if limit > 0 {
+        args.push("--limit".into());
+        args.push(limit.to_string());
+    }
+    if offset > 0 {
+        args.push("--offset".into());
+        args.push(offset.to_string());
+    }
+    run_scry_subprocess("refs", &e.root, &args)
+}
+
+/// Run `scry flow <name>` against the engine's root. JSON payload follows the
+/// CLI's `FlowOutput` shape (one card per definition).
+///
+/// ## Safety
+/// `engine` must be a valid pointer; `name` must be a NUL-terminated UTF-8 string.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn fff_scry_flow(
+    engine: *mut FffScryEngine,
+    name: *const c_char,
+    limit: u64,
+    offset: u64,
+    callees_top: u64,
+    callers_top: u64,
+    budget: u64,
+) -> *mut FffScryResponse {
+    if engine.is_null() {
+        return make_error("engine is null");
+    }
+    let Some(n) = (unsafe { cstr_to_str(name) }) else {
+        return make_error("name is null or non-UTF-8");
+    };
+    let e = unsafe { &*engine };
+    let mut args = vec![n.to_owned()];
+    if limit > 0 {
+        args.push("--limit".into());
+        args.push(limit.to_string());
+    }
+    if offset > 0 {
+        args.push("--offset".into());
+        args.push(offset.to_string());
+    }
+    if callees_top > 0 {
+        args.push("--callees-top".into());
+        args.push(callees_top.to_string());
+    }
+    if callers_top > 0 {
+        args.push("--callers-top".into());
+        args.push(callers_top.to_string());
+    }
+    if budget > 0 {
+        args.push("--budget".into());
+        args.push(budget.to_string());
+    }
+    run_scry_subprocess("flow", &e.root, &args)
+}
+
+/// Run `scry impact <name>` against the engine's root. JSON payload follows
+/// the CLI's `ImpactOutput` shape (ranked `results[]`).
+///
+/// ## Safety
+/// `engine` must be a valid pointer; `name` must be a NUL-terminated UTF-8 string.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn fff_scry_impact(
+    engine: *mut FffScryEngine,
+    name: *const c_char,
+    limit: u64,
+    offset: u64,
+    hops: u32,
+    hub_guard: u64,
+) -> *mut FffScryResponse {
+    if engine.is_null() {
+        return make_error("engine is null");
+    }
+    let Some(n) = (unsafe { cstr_to_str(name) }) else {
+        return make_error("name is null or non-UTF-8");
+    };
+    let e = unsafe { &*engine };
+    let mut args = vec![n.to_owned()];
+    if limit > 0 {
+        args.push("--limit".into());
+        args.push(limit.to_string());
+    }
+    if offset > 0 {
+        args.push("--offset".into());
+        args.push(offset.to_string());
+    }
+    if hops > 0 {
+        args.push("--hops".into());
+        args.push(hops.clamp(1, 3).to_string());
+    }
+    if hub_guard > 0 {
+        args.push("--hub-guard".into());
+        args.push(hub_guard.to_string());
+    }
+    run_scry_subprocess("impact", &e.root, &args)
+}
