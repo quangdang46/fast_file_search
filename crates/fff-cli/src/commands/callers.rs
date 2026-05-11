@@ -1,11 +1,12 @@
 //! `scry callers <symbol>` — find call sites for `symbol`. With `--hops > 1`
 //! the search becomes a BFS over the caller graph.
 
+use std::collections::HashMap;
 use std::path::Path;
 use std::time::SystemTime;
 
 use anyhow::Result;
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use serde::Serialize;
 
 use fff_engine::{Engine, PreFilterStack};
@@ -13,7 +14,7 @@ use fff_symbol::lang::detect_file_type;
 use fff_symbol::types::FileType;
 
 use crate::cli::OutputFormat;
-use crate::commands::callers_bfs::{run_bfs, BfsConfig, CandidateFile};
+use crate::commands::callers_bfs::{enclosing_symbol, run_bfs, BfsConfig, CandidateFile};
 use crate::commands::pagination::{footer, Page};
 
 #[derive(Debug, Parser)]
@@ -38,6 +39,20 @@ pub struct Args {
     /// the BFS up.
     #[arg(long, default_value_t = 50)]
     pub hub_guard: usize,
+
+    /// Aggregate hits into a frequency table. `caller` groups by the
+    /// enclosing symbol (function/method/scope); `file` groups by the
+    /// containing path; `none` (default) skips aggregation and keeps the
+    /// output byte-identical.
+    #[arg(long, value_enum, default_value_t = CountBy::None)]
+    pub count_by: CountBy,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum CountBy {
+    None,
+    Caller,
+    File,
 }
 
 #[derive(Debug, Serialize)]
@@ -60,6 +75,14 @@ struct CallersOutput {
     total: usize,
     offset: usize,
     has_more: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    aggregations: Option<Vec<Aggregation>>,
+}
+
+#[derive(Debug, Serialize, PartialEq, Eq)]
+pub(crate) struct Aggregation {
+    pub key: String,
+    pub count: usize,
 }
 
 pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
@@ -86,7 +109,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         })
         .collect();
 
-    let hits = if args.hops <= 1 {
+    let mut hits = if args.hops <= 1 {
         single_hop(&engine, &args.name, &candidates)
     } else {
         run_bfs(
@@ -100,6 +123,11 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         )
     };
 
+    if args.count_by == CountBy::Caller {
+        populate_enclosing(&engine, &mut hits, &candidates);
+    }
+    let aggregations = aggregate(&hits, args.count_by);
+
     let page = Page::paginate(hits, args.offset, args.limit);
     let payload = CallersOutput {
         name: args.name.clone(),
@@ -109,8 +137,64 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         offset: page.offset,
         has_more: page.has_more,
         hits: page.items,
+        aggregations,
     };
     super::emit(format, &payload, render_text)
+}
+
+/// Compute frequency table for `hits` keyed by either enclosing symbol or
+/// file path. Returns `None` when `mode == None` so callers can skip emitting
+/// the field entirely (byte-identical default behaviour).
+pub(crate) fn aggregate(hits: &[CallerHit], mode: CountBy) -> Option<Vec<Aggregation>> {
+    if mode == CountBy::None {
+        return None;
+    }
+    let mut counts: HashMap<String, usize> = HashMap::new();
+    for h in hits {
+        let key = match mode {
+            CountBy::Caller => h
+                .enclosing
+                .clone()
+                .unwrap_or_else(|| "<unknown>".to_string()),
+            CountBy::File => h.path.clone(),
+            CountBy::None => unreachable!(),
+        };
+        *counts.entry(key).or_default() += 1;
+    }
+    let mut rows: Vec<Aggregation> = counts
+        .into_iter()
+        .map(|(key, count)| Aggregation { key, count })
+        .collect();
+    rows.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.key.cmp(&b.key)));
+    Some(rows)
+}
+
+/// Fill `enclosing` for hits that don't have it yet (single-hop path leaves
+/// it `None`). Uses the outline cache like the BFS path does.
+fn populate_enclosing(engine: &Engine, hits: &mut [CallerHit], candidates: &[CandidateFile]) {
+    let by_path: HashMap<&str, &CandidateFile> = candidates
+        .iter()
+        .map(|c| (c.path.to_str().unwrap_or(""), c))
+        .collect();
+    let mut outline_cache: HashMap<String, Vec<fff_symbol::types::OutlineEntry>> = HashMap::new();
+    for h in hits.iter_mut() {
+        if h.enclosing.is_some() {
+            continue;
+        }
+        let Some(cf) = by_path.get(h.path.as_str()) else {
+            continue;
+        };
+        let Some(lang) = cf.lang else {
+            continue;
+        };
+        let outline = outline_cache.entry(h.path.clone()).or_insert_with(|| {
+            engine
+                .handles
+                .outlines
+                .get_or_compute(&cf.path, cf.mtime, &cf.content, lang)
+        });
+        h.enclosing = enclosing_symbol(outline, h.line);
+    }
 }
 
 fn single_hop(engine: &Engine, name: &str, candidates: &[CandidateFile]) -> Vec<CallerHit> {
@@ -185,5 +269,136 @@ fn render_text(p: &CallersOutput) -> String {
     } else {
         out.push_str(&footer(p.total, p.offset, p.hits.len(), p.has_more));
     }
+    if let Some(aggs) = p.aggregations.as_ref() {
+        out.push_str(&render_aggregations(aggs));
+    }
     out
+}
+
+fn render_aggregations(aggs: &[Aggregation]) -> String {
+    let mut out = String::new();
+    out.push_str("\nAggregated:\n");
+    for a in aggs {
+        out.push_str(&format!("  {:>5}  {}\n", a.count, a.key));
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn hit(path: &str, enclosing: Option<&str>) -> CallerHit {
+        CallerHit {
+            path: path.to_string(),
+            line: 1,
+            text: String::new(),
+            depth: 1,
+            target: "x".to_string(),
+            enclosing: enclosing.map(|s| s.to_string()),
+        }
+    }
+
+    #[test]
+    fn aggregate_none_returns_none() {
+        let hits = vec![hit("a", Some("foo"))];
+        assert!(aggregate(&hits, CountBy::None).is_none());
+    }
+
+    #[test]
+    fn aggregate_by_file_groups_by_path() {
+        let hits = vec![
+            hit("src/a.rs", Some("foo")),
+            hit("src/a.rs", Some("bar")),
+            hit("src/b.rs", Some("baz")),
+        ];
+        let aggs = aggregate(&hits, CountBy::File).unwrap();
+        assert_eq!(aggs.len(), 2);
+        assert_eq!(
+            aggs[0],
+            Aggregation {
+                key: "src/a.rs".into(),
+                count: 2
+            }
+        );
+        assert_eq!(
+            aggs[1],
+            Aggregation {
+                key: "src/b.rs".into(),
+                count: 1
+            }
+        );
+    }
+
+    #[test]
+    fn aggregate_by_caller_groups_by_enclosing() {
+        let hits = vec![
+            hit("src/a.rs", Some("foo")),
+            hit("src/a.rs", Some("bar")),
+            hit("src/b.rs", Some("baz")),
+        ];
+        let aggs = aggregate(&hits, CountBy::Caller).unwrap();
+        assert_eq!(aggs.len(), 3);
+        // Counts all 1, sorted alphabetically as tie-break.
+        assert_eq!(aggs[0].key, "bar");
+        assert_eq!(aggs[1].key, "baz");
+        assert_eq!(aggs[2].key, "foo");
+    }
+
+    #[test]
+    fn aggregate_by_caller_falls_back_for_unknown() {
+        let hits = vec![hit("src/a.rs", None), hit("src/a.rs", None)];
+        let aggs = aggregate(&hits, CountBy::Caller).unwrap();
+        assert_eq!(aggs.len(), 1);
+        assert_eq!(
+            aggs[0],
+            Aggregation {
+                key: "<unknown>".into(),
+                count: 2
+            }
+        );
+    }
+
+    #[test]
+    fn render_text_omits_section_when_none() {
+        let payload = CallersOutput {
+            name: "x".into(),
+            hops: 1,
+            hub_guard: 50,
+            hits: vec![CallerHit {
+                path: "a".into(),
+                line: 1,
+                text: "x".into(),
+                depth: 1,
+                target: "x".into(),
+                enclosing: None,
+            }],
+            total: 1,
+            offset: 0,
+            has_more: false,
+            aggregations: None,
+        };
+        let s = render_text(&payload);
+        assert!(!s.contains("Aggregated"));
+    }
+
+    #[test]
+    fn render_text_emits_section_when_present() {
+        let payload = CallersOutput {
+            name: "x".into(),
+            hops: 1,
+            hub_guard: 50,
+            hits: vec![],
+            total: 0,
+            offset: 0,
+            has_more: false,
+            aggregations: Some(vec![Aggregation {
+                key: "foo".into(),
+                count: 2,
+            }]),
+        };
+        let s = render_text(&payload);
+        assert!(s.contains("Aggregated:"));
+        assert!(s.contains("foo"));
+    }
 }
