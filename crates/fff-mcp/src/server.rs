@@ -11,7 +11,8 @@ use std::sync::{Arc, Mutex};
 use crate::cursor::CursorStore;
 use crate::output::{GrepFormatter, OutputMode, file_suffix};
 use crate::scry::{
-    self, ScryCallParams, ScryDispatchParams, ScryEngineHolder, ScryReadParams, ScrySymbolParams,
+    self, ScryCallParams, ScryDispatchParams, ScryEngineHolder, ScryFlowParams, ScryImpactParams,
+    ScryReadParams, ScryRefsParams, ScrySymbolParams,
 };
 use fff::grep::{GrepMode, GrepSearchOptions, has_regex_metacharacters};
 use fff::types::{FileItem, PaginationArgs};
@@ -701,6 +702,93 @@ impl FffServer {
         // is not currently mutable on the live shared instance.
         let res = local_engine.read(&abs_path);
         let text = format!("[file: {}]\n{}", res.path.display(), res.body,);
+        Ok(CallToolResult::success(vec![Content::text(text)]))
+    }
+
+    #[tool(
+        name = "scry_refs",
+        description = "List all definitions of `name` plus single-hop usages in one shot. Returns JSON with `definitions[]`, `usages[]`, and pagination metadata. Mirrors `scry refs` from the CLI."
+    )]
+    fn scry_refs(
+        &self,
+        Parameters(params): Parameters<ScryRefsParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let root = self.picker_base_path()?;
+        let limit = normalize_max_results(params.max_results, 100);
+        let offset = params.offset.map(|v| v.round() as usize).unwrap_or(0);
+        let args = vec![
+            params.name,
+            "--limit".into(),
+            limit.to_string(),
+            "--offset".into(),
+            offset.to_string(),
+        ];
+        let text = scry::run_scry_subprocess("refs", &root, &args)
+            .map_err(|e| ErrorData::internal_error(format!("scry refs failed: {e}"), None))?;
+        Ok(CallToolResult::success(vec![Content::text(text)]))
+    }
+
+    #[tool(
+        name = "scry_flow",
+        description = "Drill-down envelope per definition: def metadata + body excerpt + top-N callees + top-N callers. Returns JSON cards with pagination. Mirrors `scry flow` from the CLI."
+    )]
+    fn scry_flow(
+        &self,
+        Parameters(params): Parameters<ScryFlowParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let root = self.picker_base_path()?;
+        let limit = normalize_max_results(params.max_results, 10);
+        let offset = params.offset.map(|v| v.round() as usize).unwrap_or(0);
+        let callees_top = normalize_max_results(params.callees_top, 5);
+        let callers_top = normalize_max_results(params.callers_top, 5);
+        let budget = params.budget.map(|v| v.round() as u64).unwrap_or(10_000);
+        let args = vec![
+            params.name,
+            "--limit".into(),
+            limit.to_string(),
+            "--offset".into(),
+            offset.to_string(),
+            "--callees-top".into(),
+            callees_top.to_string(),
+            "--callers-top".into(),
+            callers_top.to_string(),
+            "--budget".into(),
+            budget.to_string(),
+        ];
+        let text = scry::run_scry_subprocess("flow", &root, &args)
+            .map_err(|e| ErrorData::internal_error(format!("scry flow failed: {e}"), None))?;
+        Ok(CallToolResult::success(vec![Content::text(text)]))
+    }
+
+    #[tool(
+        name = "scry_impact",
+        description = "Rank workspace files by how much they'd be affected if `name` changed. Score = direct*3 + imports*2 + transitive*1. Returns JSON `results[]` sorted by score desc."
+    )]
+    fn scry_impact(
+        &self,
+        Parameters(params): Parameters<ScryImpactParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let root = self.picker_base_path()?;
+        let limit = normalize_max_results(params.max_results, 20);
+        let offset = params.offset.map(|v| v.round() as usize).unwrap_or(0);
+        let hops = params
+            .hops
+            .map(|v| v.round().clamp(1.0, 3.0) as u32)
+            .unwrap_or(3);
+        let hub_guard = normalize_max_results(params.hub_guard, 50);
+        let args = vec![
+            params.name,
+            "--limit".into(),
+            limit.to_string(),
+            "--offset".into(),
+            offset.to_string(),
+            "--hops".into(),
+            hops.to_string(),
+            "--hub-guard".into(),
+            hub_guard.to_string(),
+        ];
+        let text = scry::run_scry_subprocess("impact", &root, &args)
+            .map_err(|e| ErrorData::internal_error(format!("scry impact failed: {e}"), None))?;
         Ok(CallToolResult::success(vec![Content::text(text)]))
     }
 }
