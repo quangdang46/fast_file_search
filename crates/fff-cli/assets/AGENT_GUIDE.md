@@ -112,6 +112,16 @@ line under the pagination footer.
 Find lines that reference `<name>` outside its own definition site.
 Bloom-narrowed first, then confirmed with a literal-text pass.
 
+* `--hops N` — multi-hop BFS over the caller graph (default 1, max 5).
+* `--hub-guard N` — stop propagating from any single name that produces
+  more than N hits in one hop (default 50). Hits still surface.
+* `--count-by none|caller|file` — post-BFS frequency table. `caller`
+  groups by the enclosing function/scope, `file` groups by the
+  containing path. JSON gains an `aggregations: [{ key, count }]` field
+  (omitted when `none`, so the default output is byte-identical); text
+  output appends an `Aggregated:` section with `count  key` rows
+  sorted desc, ties alphabetical.
+
 ### `callees <name>`
 Identifiers referenced inside the body of `<name>`, then resolved
 back to definitions via the symbol index. Hits with the same
