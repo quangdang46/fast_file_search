@@ -102,6 +102,14 @@ back to definitions via the symbol index. Hits with the same
 `(name, path, line)` triple are de-duplicated even when they came
 from multiple definition bodies of `<name>`.
 
+* `--depth N` — walk the callee graph N hops (default 1, max 5).
+  When `N > 1` each hit carries `depth` and `from` (the enclosing
+  symbol whose body produced it). Default `--depth 1` keeps the
+  output byte-identical to before.
+* `--hub-guard N` — stop propagating from any single name that
+  produces more than N hits in one hop (default 50). The hits still
+  surface; only further expansion from that name is skipped.
+
 ### `refs <name>`
 Definitions plus single-hop usages of `<name>` in one response.
 Definitions come from the symbol index (full list, no pagination);
