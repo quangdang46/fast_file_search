@@ -21,7 +21,7 @@ All sub-commands accept these.
 ## Pagination
 
 Listing sub-commands (`find`, `symbol`, `callers`, `callees`, `refs`,
-`siblings`) take:
+`flow`, `siblings`) take:
 
 * `--limit <N>` — max items in this page (defaults differ per command;
   typically 50–100).
@@ -118,6 +118,23 @@ via `--limit` / `--offset`. JSON shape:
 `{ name, definitions, usages, total_usages, offset, has_more }`.
 Each usage carries `enclosing` when it can be resolved via the
 outline cache.
+
+### `flow <name>`
+Drill-down envelope per definition. For each definition site of
+`<name>` emits one "card" containing: def metadata, header (signature
+line), budget-capped body excerpt, top-N direct callees (resolved to
+their defs), and top-N single-hop callers. JSON shape:
+`{ name, cards: [{ def, header, body, body_start_line, body_end_line,
+kept_bytes, footer_bytes, callees, total_callees, callers,
+total_callers }], total_cards, offset, has_more }`. Pagination applies
+to cards via `--limit` / `--offset`; sub-lists are clamped per card.
+
+* `--callees-top N` — max callees listed per card (default 5).
+* `--callers-top N` — max callers listed per card (default 5).
+* `--budget N` — total body byte budget split across visible cards,
+  256-byte floor per card (default 10000).
+* `--no-did-you-mean` — disable fuzzy/case/prefix suggestions when
+  no definitions are found (on by default).
 
 ### `siblings <name>`
 Other symbols defined at the same scope as `<name>` — peer methods of
