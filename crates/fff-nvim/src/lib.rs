@@ -892,6 +892,12 @@ fn create_exports(lua: &Lua) -> LuaResult<LuaTable> {
         )?;
         exports.set("scry_grep", lua.create_function(scry_bindings::scry_grep)?)?;
         exports.set("scry_read", lua.create_function(scry_bindings::scry_read)?)?;
+        exports.set("scry_refs", lua.create_function(scry_bindings::scry_refs)?)?;
+        exports.set("scry_flow", lua.create_function(scry_bindings::scry_flow)?)?;
+        exports.set(
+            "scry_impact",
+            lua.create_function(scry_bindings::scry_impact)?,
+        )?;
     }
 
     Ok(exports)

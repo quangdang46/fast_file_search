@@ -202,6 +202,25 @@ tree matches what `find` / `grep` already see.
   adds indented `• name (kind, L<line>, w=<weight>)` bullets directly
   under the file's tree line.
 
+### `impact <symbol>`
+Rank workspace files by how much each one would be affected if
+`<symbol>` changed. Combines three signals per file:
+
+* `direct_callers` (single-hop call sites) — weight 3
+* `reverse_imports` (imports resolving to `<symbol>`'s defn file) — weight 2
+* `transitive_callers` (BFS depth 2+3 hits) — weight 1
+
+Score = `direct*3 + imports*2 + transitive`. Output is a ranked
+`results: [{ path, score, reasons[] }]` list sorted by score desc, ties
+alphabetical. `reasons` only lists non-zero terms.
+
+* `--hops <1|2|3>` — BFS depth for the transitive signal (default 3).
+  `1` disables transitive entirely. Capped at 3.
+* `--hub-guard <N>` — stop propagating from any single name that
+  produces more than N hits in one hop (default 50). Mirrors
+  `scry callers --hub-guard`.
+* `--limit N` / `--offset N` — pagination (defaults 20/0).
+
 ### `dispatch <query>`
 Free-form classifier that routes a query to the right backend
 (`symbol`, `symbol_glob`, `file_path`, `glob`, or content fallback).
@@ -215,8 +234,39 @@ Run as an MCP (Model Context Protocol) server over stdio. Replaces
 agent built-ins like Grep / Glob / Read while still exposing the same
 sub-commands above.
 
+The MCP server also exposes `scry_refs`, `scry_flow`, and `scry_impact`
+tools that shell out to this CLI (`scry refs|flow|impact ... --format
+json`) under the hood. The JSON payload is the same one documented above
+for each sub-command. Parameter names follow the MCP camelCase
+convention: `maxResults`, `calleesTop`, `callersTop`, `hubGuard`.
+
 ### `guide`
 Print this document.
+
+## Lua / C bindings for scry tools
+
+The same `refs` / `flow` / `impact` sub-commands are also reachable from
+the Neovim plugin and the C FFI behind the additive `scry` features:
+
+* **Lua** (`require('fff.scry')`, built with `--features scry`):
+    * `scry.refs(name, limit?, offset?)`
+    * `scry.flow(name, { limit, offset, callees_top, callers_top, budget })`
+    * `scry.impact(name, { limit, offset, hops, hub_guard })`
+  Each returns the raw JSON payload as a string (so callers can decode
+  it with `vim.json.decode` on demand).
+
+* **C ABI** (`fff_scry_*` exports, guarded by `FFF_SCRY`):
+    * `fff_scry_refs(engine, name, limit, offset)`
+    * `fff_scry_flow(engine, name, limit, offset, callees_top, callers_top, budget)`
+    * `fff_scry_impact(engine, name, limit, offset, hops, hub_guard)`
+  Returns the same `FffScryResponse` envelope as `fff_scry_dispatch`;
+  free it with `fff_free_scry_response`.
+
+Implementation note: the wrappers spawn `scry` as a subprocess via
+`std::env::current_exe()`, so the loading binary must itself be the
+`scry` CLI (the MCP server runs as `scry mcp`, the Neovim plugin loads
+this crate from the scry binary, etc.). The default builds keep the
+exports off; enable with the `scry` Cargo feature.
 
 ## Conventions and tips
 
