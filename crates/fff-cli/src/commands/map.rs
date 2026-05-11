@@ -1,11 +1,12 @@
 //! `scry map` — render the workspace as a tree annotated with file count and
 //! estimated token weight at each directory.
 
-use std::collections::BTreeMap;
-use std::path::Path;
+use std::collections::{BTreeMap, HashMap};
+use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use clap::Parser;
+use fff_engine::Engine;
 use ignore::WalkBuilder;
 use serde::Serialize;
 
@@ -28,6 +29,12 @@ pub struct Args {
     /// + code mixed corpora).
     #[arg(long, default_value_t = 4)]
     pub bytes_per_token: u64,
+
+    /// Annotate each file leaf with its top-N symbols by weight (functions,
+    /// classes, etc., sorted weight DESC then line ASC). 0 (default) keeps
+    /// the output byte-identical to before.
+    #[arg(long, default_value_t = 0)]
+    pub symbols: usize,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -42,6 +49,16 @@ pub struct MapNode {
     /// True when children were elided because we hit `--depth`.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub truncated: bool,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub symbols: Vec<SymbolEntry>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct SymbolEntry {
+    pub name: String,
+    pub kind: String,
+    pub line: u32,
+    pub weight: u16,
 }
 
 #[derive(Debug, Serialize)]
@@ -56,7 +73,12 @@ struct MapOutput {
 pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     let root = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
     let bytes_per_token = args.bytes_per_token.max(1);
-    let tree = build_tree(&root, &args, bytes_per_token);
+    let by_path = if args.symbols > 0 {
+        build_symbols_by_path(&root, args.symbols)
+    } else {
+        HashMap::new()
+    };
+    let tree = build_tree(&root, &args, bytes_per_token, &by_path);
     let payload = MapOutput {
         root: root.to_string_lossy().to_string(),
         total_files: tree.file_count,
@@ -67,7 +89,37 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     super::emit(format, &payload, render_text)
 }
 
-fn build_tree(root: &Path, args: &Args, bytes_per_token: u64) -> MapNode {
+fn build_symbols_by_path(root: &Path, top_n: usize) -> HashMap<PathBuf, Vec<SymbolEntry>> {
+    let engine = Engine::default();
+    engine.index(root);
+
+    let mut by_path: HashMap<PathBuf, Vec<SymbolEntry>> = HashMap::new();
+    for (name, loc) in engine.handles.symbols.lookup_prefix("") {
+        by_path
+            .entry(loc.path.clone())
+            .or_default()
+            .push(SymbolEntry {
+                name,
+                kind: loc.kind,
+                line: loc.line,
+                weight: loc.weight,
+            });
+    }
+
+    for syms in by_path.values_mut() {
+        // Weight DESC, then line ASC for stability within a weight band.
+        syms.sort_by(|a, b| b.weight.cmp(&a.weight).then(a.line.cmp(&b.line)));
+        syms.truncate(top_n);
+    }
+    by_path
+}
+
+fn build_tree(
+    root: &Path,
+    args: &Args,
+    bytes_per_token: u64,
+    by_path: &HashMap<PathBuf, Vec<SymbolEntry>>,
+) -> MapNode {
     let mut by_dir: BTreeMap<std::path::PathBuf, DirAcc> = BTreeMap::new();
     by_dir.insert(root.to_path_buf(), DirAcc::default());
 
@@ -98,12 +150,14 @@ fn build_tree(root: &Path, args: &Args, bytes_per_token: u64) -> MapNode {
             .file_name()
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_default();
+        let symbols = by_path.get(path).cloned().unwrap_or_default();
 
         let acc = by_dir.entry(parent).or_default();
         acc.files.push(FileEntry {
             name,
             bytes: size,
             est_tokens: tokens,
+            symbols,
         });
     }
 
@@ -120,6 +174,7 @@ struct FileEntry {
     name: String,
     bytes: u64,
     est_tokens: u64,
+    symbols: Vec<SymbolEntry>,
 }
 
 fn fold_tree(
@@ -150,6 +205,7 @@ fn fold_tree(
             file_count: 1,
             children: Vec::new(),
             truncated: false,
+            symbols: f.symbols.clone(),
         });
     }
 
@@ -188,6 +244,7 @@ fn fold_tree(
         file_count: total_files,
         children,
         truncated,
+        symbols: Vec::new(),
     }
 }
 
@@ -229,6 +286,17 @@ fn render_node(node: &MapNode, prefix: &str, is_last: bool, out: &mut String) {
         )
     };
     out.push_str(&format!("{prefix}{connector}{suffix}\n"));
+
+    if !node.is_dir && !node.symbols.is_empty() {
+        let extension = if is_last { "    " } else { "│   " };
+        let sym_prefix = format!("{prefix}{extension}");
+        for s in &node.symbols {
+            out.push_str(&format!(
+                "{sym_prefix}  • {} ({}, L{}, w={})\n",
+                s.name, s.kind, s.line, s.weight
+            ));
+        }
+    }
 
     if node.truncated {
         return;
@@ -276,6 +344,15 @@ mod tests {
         fs::write(path, body).expect("write");
     }
 
+    fn default_args() -> Args {
+        Args {
+            depth: 5,
+            max_file_bytes: 1_048_576,
+            bytes_per_token: 4,
+            symbols: 0,
+        }
+    }
+
     #[test]
     fn map_aggregates_bytes_and_tokens_by_directory() {
         let dir = tempfile::tempdir().expect("tmp");
@@ -284,12 +361,9 @@ mod tests {
         write(&root.join("a/b/bar.rs"), "fn bar() {}\nfn baz() {}\n");
         write(&root.join("c/qux.rs"), "fn qux() {}\n");
 
-        let args = Args {
-            depth: 5,
-            max_file_bytes: 1_048_576,
-            bytes_per_token: 4,
-        };
-        let tree = build_tree(root, &args, 4);
+        let args = default_args();
+        let by_path = HashMap::new();
+        let tree = build_tree(root, &args, 4, &by_path);
 
         assert!(tree.is_dir);
         assert_eq!(tree.file_count, 3);
@@ -308,12 +382,9 @@ mod tests {
         write(&root.join("z_dir/inside.rs"), "x");
         write(&root.join("a_file.rs"), "x");
 
-        let args = Args {
-            depth: 5,
-            max_file_bytes: 1_048_576,
-            bytes_per_token: 4,
-        };
-        let tree = build_tree(root, &args, 4);
+        let args = default_args();
+        let by_path = HashMap::new();
+        let tree = build_tree(root, &args, 4, &by_path);
         assert!(tree.children.len() >= 2);
         assert!(tree.children[0].is_dir);
         assert!(!tree.children[1].is_dir);
@@ -327,10 +398,10 @@ mod tests {
 
         let args = Args {
             depth: 1,
-            max_file_bytes: 1_048_576,
-            bytes_per_token: 4,
+            ..default_args()
         };
-        let tree = build_tree(root, &args, 4);
+        let by_path = HashMap::new();
+        let tree = build_tree(root, &args, 4, &by_path);
         let a = tree
             .children
             .iter()
@@ -349,11 +420,11 @@ mod tests {
         write(&root.join("big.rs"), &big);
 
         let args = Args {
-            depth: 5,
             max_file_bytes: 1024,
-            bytes_per_token: 4,
+            ..default_args()
         };
-        let tree = build_tree(root, &args, 4);
+        let by_path = HashMap::new();
+        let tree = build_tree(root, &args, 4, &by_path);
         let big_node = tree
             .children
             .iter()
@@ -363,5 +434,83 @@ mod tests {
         assert_eq!(big_node.est_tokens, 256);
         // But the raw byte count reflects the real on-disk size.
         assert_eq!(big_node.bytes, 8192);
+    }
+
+    fn sym(name: &str, kind: &str, line: u32, weight: u16) -> SymbolEntry {
+        SymbolEntry {
+            name: name.to_string(),
+            kind: kind.to_string(),
+            line,
+            weight,
+        }
+    }
+
+    #[test]
+    fn symbols_attached_to_file_leaves_via_canonical_path() {
+        let dir = tempfile::tempdir().expect("tmp");
+        let root = dir.path().canonicalize().unwrap();
+        write(&root.join("a/foo.rs"), "fn foo() {}\n");
+        let mut by_path: HashMap<PathBuf, Vec<SymbolEntry>> = HashMap::new();
+        by_path.insert(
+            root.join("a/foo.rs"),
+            vec![sym("foo", "function_item", 1, 100)],
+        );
+        let args = default_args();
+
+        let tree = build_tree(&root, &args, 4, &by_path);
+        let a = tree.children.iter().find(|c| c.name == "a").unwrap();
+        let foo = a.children.iter().find(|c| c.name == "foo.rs").unwrap();
+        assert_eq!(foo.symbols.len(), 1);
+        assert_eq!(foo.symbols[0].name, "foo");
+        // Dirs never carry the per-file symbol list.
+        assert!(a.symbols.is_empty());
+    }
+
+    #[test]
+    fn symbols_default_off_keeps_file_node_empty() {
+        let dir = tempfile::tempdir().expect("tmp");
+        let root = dir.path().canonicalize().unwrap();
+        write(&root.join("x.rs"), "fn x() {}\n");
+        let args = default_args();
+        // run() skips building by_path when args.symbols == 0; mirror that here.
+        let by_path = HashMap::new();
+        let tree = build_tree(&root, &args, 4, &by_path);
+        let x = tree.children.iter().find(|c| c.name == "x.rs").unwrap();
+        assert!(x.symbols.is_empty());
+    }
+
+    #[test]
+    fn build_symbols_by_path_sorts_weight_desc_then_line_and_truncates() {
+        let dir = tempfile::tempdir().expect("tmp");
+        let root = dir.path().canonicalize().unwrap();
+        write(
+            &root.join("a.rs"),
+            // weight order (rust): struct_item (110) > function_item (100) >
+            // const_item (60). Two functions test the line-ASC tiebreak.
+            "struct S {}\nfn alpha() {}\nfn beta() {}\nconst C: u32 = 0;\n",
+        );
+        let by_path = build_symbols_by_path(&root, 2);
+        let entries = by_path.get(&root.join("a.rs")).expect("file present");
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].name, "S"); // heaviest first
+        assert_eq!(entries[1].name, "alpha"); // lower line wins the tiebreak
+    }
+
+    #[test]
+    fn render_node_prints_symbol_bullets_only_for_files() {
+        let mut out = String::new();
+        let foo = MapNode {
+            name: "foo.rs".into(),
+            is_dir: false,
+            bytes: 10,
+            est_tokens: 3,
+            file_count: 1,
+            children: Vec::new(),
+            truncated: false,
+            symbols: vec![sym("foo", "function_item", 1, 100)],
+        };
+        render_node(&foo, "", true, &mut out);
+        assert!(out.contains("foo.rs"));
+        assert!(out.contains("• foo (function_item, L1, w=100)"));
     }
 }
