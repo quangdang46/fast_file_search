@@ -72,6 +72,9 @@ pub enum Command {
     /// Show a file's imports + the workspace files that depend on it.
     Deps(commands::deps::Args),
 
+    /// Rank files by how much they'd be affected if a symbol changed (NEW).
+    Impact(commands::impact::Args),
+
     /// Auto-classify a free-form query and route it to the right backend.
     Dispatch(commands::dispatch::Args),
 
@@ -111,6 +114,7 @@ impl Cli {
             Command::Flow(a) => commands::flow::run(a, &root, self.format),
             Command::Siblings(a) => commands::siblings::run(a, &root, self.format),
             Command::Deps(a) => commands::deps::run(a, &root, self.format),
+            Command::Impact(a) => commands::impact::run(a, &root, self.format),
             Command::Dispatch(a) => commands::dispatch::run(a, &root, self.format),
             Command::Index(a) => commands::index::run(a, &root, self.format),
             Command::Map(a) => commands::map::run(a, &root, self.format),

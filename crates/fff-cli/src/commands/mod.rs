@@ -15,6 +15,7 @@ pub mod flow;
 pub mod glob;
 pub mod grep;
 pub mod guide;
+pub mod impact;
 pub mod index;
 pub mod map;
 pub mod mcp;

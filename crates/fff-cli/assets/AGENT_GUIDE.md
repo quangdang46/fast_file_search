@@ -202,6 +202,25 @@ tree matches what `find` / `grep` already see.
   adds indented `• name (kind, L<line>, w=<weight>)` bullets directly
   under the file's tree line.
 
+### `impact <symbol>`
+Rank workspace files by how much each one would be affected if
+`<symbol>` changed. Combines three signals per file:
+
+* `direct_callers` (single-hop call sites) — weight 3
+* `reverse_imports` (imports resolving to `<symbol>`'s defn file) — weight 2
+* `transitive_callers` (BFS depth 2+3 hits) — weight 1
+
+Score = `direct*3 + imports*2 + transitive`. Output is a ranked
+`results: [{ path, score, reasons[] }]` list sorted by score desc, ties
+alphabetical. `reasons` only lists non-zero terms.
+
+* `--hops <1|2|3>` — BFS depth for the transitive signal (default 3).
+  `1` disables transitive entirely. Capped at 3.
+* `--hub-guard <N>` — stop propagating from any single name that
+  produces more than N hits in one hop (default 50). Mirrors
+  `scry callers --hub-guard`.
+* `--limit N` / `--offset N` — pagination (defaults 20/0).
+
 ### `dispatch <query>`
 Free-form classifier that routes a query to the right backend
 (`symbol`, `symbol_glob`, `file_path`, `glob`, or content fallback).
