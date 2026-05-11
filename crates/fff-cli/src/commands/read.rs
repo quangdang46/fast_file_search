@@ -54,6 +54,16 @@ struct ReadOutput {
     line: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     section: Option<SectionMeta>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    resolved_from: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct ReadCandidates {
+    needle: String,
+    mode: &'static str,
+    candidates: Vec<String>,
+    total: usize,
 }
 
 #[derive(Debug, Serialize)]
@@ -69,10 +79,28 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     let budget = args.budget.unwrap_or(25_000);
 
     let (path_part, line) = parse_target(&args.target);
-    let path = if Path::new(path_part).is_absolute() {
+    let initial_path = if Path::new(path_part).is_absolute() {
         PathBuf::from(path_part)
     } else {
         root.join(path_part)
+    };
+
+    // Bare-filename auto-pick: when the literal path doesn't resolve and the
+    // target has no separator, search the workspace by basename. Exactly one
+    // exact hit → drill into it; more than one → emit a candidates list so
+    // the caller can disambiguate.
+    let (path, resolved_from) = match maybe_resolve_bare(root, path_part, &initial_path) {
+        BareResolve::Found(p) => (p, Some(path_part.to_string())),
+        BareResolve::Ambiguous(candidates) => {
+            let payload = ReadCandidates {
+                needle: path_part.to_string(),
+                mode: "candidates",
+                total: candidates.len(),
+                candidates: candidates.into_iter().take(5).collect(),
+            };
+            return super::emit(format, &payload, candidates_text);
+        }
+        BareResolve::Skip => (initial_path, None),
     };
 
     // Routing:
@@ -82,7 +110,8 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     if args.section || (line.is_some() && !args.full) {
         let line =
             line.ok_or_else(|| anyhow!("--section requires the target to be in `path:line` form"))?;
-        let payload = read_section(&path, line, level, budget)?;
+        let mut payload = read_section(&path, line, level, budget)?;
+        payload.resolved_from = resolved_from;
         return super::emit(format, &payload, section_text);
     }
 
@@ -100,6 +129,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
                 footer_bytes: 0,
                 line: None,
                 section: None,
+                resolved_from,
             };
             return super::emit(format, &payload, |p| p.body.clone());
         }
@@ -122,6 +152,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         footer_bytes: res.outcome.footer_bytes,
         line,
         section: None,
+        resolved_from,
     };
     super::emit(format, &payload, |p| {
         let mut out = String::new();
@@ -207,7 +238,88 @@ fn read_section(path: &Path, line: u32, level: FilterLevel, budget: u64) -> Resu
             start_line: entry.start_line,
             end_line: entry.end_line,
         }),
+        resolved_from: None,
     })
+}
+
+enum BareResolve {
+    Found(PathBuf),
+    Ambiguous(Vec<String>),
+    Skip,
+}
+
+// Trigger only when target has no path separator and the literal path does
+// not resolve. Exact-case basename match preferred; fall back to
+// case-insensitive only when exact-case yields zero.
+fn maybe_resolve_bare(root: &Path, target: &str, initial: &Path) -> BareResolve {
+    if target.contains('/') || target.contains('\\') {
+        return BareResolve::Skip;
+    }
+    if initial.exists() {
+        return BareResolve::Skip;
+    }
+    if target.is_empty() {
+        return BareResolve::Skip;
+    }
+    let files = super::walk_files(root);
+    let mut exact: Vec<PathBuf> = files
+        .iter()
+        .filter(|p| p.file_name().and_then(|n| n.to_str()) == Some(target))
+        .cloned()
+        .collect();
+    if exact.is_empty() {
+        let lower = target.to_lowercase();
+        exact = files
+            .iter()
+            .filter(|p| {
+                p.file_name()
+                    .and_then(|n| n.to_str())
+                    .map(|n| n.to_lowercase() == lower)
+                    .unwrap_or(false)
+            })
+            .cloned()
+            .collect();
+    }
+    match exact.len() {
+        0 => BareResolve::Skip,
+        1 => BareResolve::Found(exact.remove(0)),
+        _ => {
+            // Deterministic ordering for ambiguous matches: shortest path
+            // (likely the closest to root) first, then alphabetical.
+            exact.sort_by(|a, b| {
+                a.as_os_str()
+                    .len()
+                    .cmp(&b.as_os_str().len())
+                    .then_with(|| a.cmp(b))
+            });
+            BareResolve::Ambiguous(
+                exact
+                    .into_iter()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .collect(),
+            )
+        }
+    }
+}
+
+fn candidates_text(p: &ReadCandidates) -> String {
+    let mut out = String::new();
+    out.push_str(&format!(
+        "ambiguous: `{}` matches {} files; pass one as the full path or pin with `path:line`.\n",
+        p.needle, p.total
+    ));
+    for c in &p.candidates {
+        out.push_str("  ");
+        out.push_str(c);
+        out.push('\n');
+    }
+    if p.total > p.candidates.len() {
+        out.push_str(&format!(
+            "  … {} more not shown\n",
+            p.total - p.candidates.len()
+        ));
+    }
+    out
 }
 
 fn deepest_containing(entries: &[OutlineEntry], line: u32) -> Option<OutlineEntry> {
@@ -293,6 +405,90 @@ mod tests {
             children,
             doc: None,
         }
+    }
+
+    #[test]
+    fn bare_resolve_skips_when_target_has_separator() {
+        let td = tempfile::tempdir().unwrap();
+        let initial = td.path().join("dir/foo.rs");
+        let r = maybe_resolve_bare(td.path(), "dir/foo.rs", &initial);
+        assert!(matches!(r, BareResolve::Skip));
+    }
+
+    #[test]
+    fn bare_resolve_skips_when_initial_exists() {
+        let td = tempfile::tempdir().unwrap();
+        std::fs::write(td.path().join("foo.rs"), "// hi").unwrap();
+        let initial = td.path().join("foo.rs");
+        let r = maybe_resolve_bare(td.path(), "foo.rs", &initial);
+        assert!(matches!(r, BareResolve::Skip));
+    }
+
+    #[test]
+    fn bare_resolve_single_exact_match_returns_found() {
+        let td = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(td.path().join("src")).unwrap();
+        std::fs::write(td.path().join("src/uniq.rs"), "fn x() {}").unwrap();
+        let initial = td.path().join("uniq.rs");
+        match maybe_resolve_bare(td.path(), "uniq.rs", &initial) {
+            BareResolve::Found(p) => {
+                assert!(p.ends_with("src/uniq.rs"));
+            }
+            _ => panic!("expected Found"),
+        }
+    }
+
+    #[test]
+    fn bare_resolve_multi_match_returns_ambiguous_sorted_shortest_first() {
+        let td = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(td.path().join("a/b/c")).unwrap();
+        std::fs::create_dir_all(td.path().join("z")).unwrap();
+        std::fs::write(td.path().join("a/b/c/dup.rs"), "fn x() {}").unwrap();
+        std::fs::write(td.path().join("z/dup.rs"), "fn x() {}").unwrap();
+        let initial = td.path().join("dup.rs");
+        match maybe_resolve_bare(td.path(), "dup.rs", &initial) {
+            BareResolve::Ambiguous(v) => {
+                assert_eq!(v.len(), 2);
+                // shortest path first
+                assert!(v[0].ends_with("z/dup.rs"));
+                assert!(v[1].ends_with("a/b/c/dup.rs"));
+            }
+            _ => panic!("expected Ambiguous"),
+        }
+    }
+
+    #[test]
+    fn bare_resolve_case_insensitive_fallback_when_exact_zero() {
+        let td = tempfile::tempdir().unwrap();
+        std::fs::write(td.path().join("README.md"), "# hi").unwrap();
+        let initial = td.path().join("readme.md");
+        match maybe_resolve_bare(td.path(), "readme.md", &initial) {
+            BareResolve::Found(p) => assert!(p.ends_with("README.md")),
+            _ => panic!("expected case-insensitive match"),
+        }
+    }
+
+    #[test]
+    fn bare_resolve_skip_when_no_matches() {
+        let td = tempfile::tempdir().unwrap();
+        let initial = td.path().join("missing.rs");
+        let r = maybe_resolve_bare(td.path(), "missing.rs", &initial);
+        assert!(matches!(r, BareResolve::Skip));
+    }
+
+    #[test]
+    fn candidates_text_lists_paths_and_caps_at_five() {
+        let p = ReadCandidates {
+            needle: "x".into(),
+            mode: "candidates",
+            total: 7,
+            candidates: (0..5).map(|i| format!("a/{i}.rs")).collect(),
+        };
+        let s = candidates_text(&p);
+        assert!(s.contains("ambiguous: `x` matches 7 files"));
+        assert!(s.contains("a/0.rs"));
+        assert!(s.contains("a/4.rs"));
+        assert!(s.contains("2 more not shown"));
     }
 
     #[test]
