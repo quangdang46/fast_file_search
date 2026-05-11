@@ -13,8 +13,8 @@
 //! (e.g. trait methods) is searched once per hop regardless of definition
 //! count.
 
-use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
+use std::collections::{BTreeSet, HashMap, HashSet};
+use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 use fff_engine::{Engine, PreFilterStack};
@@ -25,6 +25,57 @@ use crate::commands::callers::CallerHit;
 pub struct BfsConfig {
     pub max_hops: u32,
     pub hub_guard: usize,
+}
+
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct BfsTelemetry {
+    pub suspicious_hops: Vec<SuspiciousHop>,
+    pub auto_hubs_promoted: Vec<AutoHub>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct SuspiciousHop {
+    pub depth: u32,
+    pub name: String,
+    pub roots: Vec<String>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct AutoHub {
+    pub depth: u32,
+    pub name: String,
+    pub count: usize,
+}
+
+pub struct BfsResult {
+    pub hits: Vec<CallerHit>,
+    pub telemetry: BfsTelemetry,
+}
+
+// First two components of the relative path of `path` rooted at `root`, joined
+// with `/`. Falls back to the leftmost component(s) of the absolute path when
+// `path` is not actually rooted at `root` (e.g. resolved via canonicalize).
+pub(crate) fn package_root(path: &Path, root: &Path) -> String {
+    let rel = path.strip_prefix(root).unwrap_or(path);
+    let mut comps = rel.components();
+    let mut buf = PathBuf::new();
+    if let Some(c) = comps.next() {
+        buf.push(c.as_os_str());
+    }
+    if let Some(c) = comps.next() {
+        // If the second component is the actual file basename, keep only the
+        // first directory level — a file at `<root>/src/a.rs` reports `src`,
+        // not `src/a.rs`.
+        if comps.next().is_some() {
+            buf.push(c.as_os_str());
+        }
+    }
+    let s = buf.to_string_lossy().replace('\\', "/");
+    if s.is_empty() {
+        rel.to_string_lossy().replace('\\', "/")
+    } else {
+        s
+    }
 }
 
 pub struct CandidateFile {
@@ -39,12 +90,14 @@ pub fn run_bfs(
     initial: &str,
     candidates: &[CandidateFile],
     cfg: BfsConfig,
-) -> Vec<CallerHit> {
+    root: &Path,
+) -> BfsResult {
     let stack = PreFilterStack::new(engine.handles.bloom.clone());
     let mut visited: HashSet<String> = HashSet::new();
     visited.insert(initial.to_string());
     let mut frontier: Vec<String> = vec![initial.to_string()];
     let mut all_hits: Vec<CallerHit> = Vec::new();
+    let mut telemetry = BfsTelemetry::default();
 
     let confirm_input: Vec<(PathBuf, SystemTime, String)> = candidates
         .iter()
@@ -67,6 +120,11 @@ pub fn run_bfs(
                 .iter()
                 .map(|d| d.path.to_string_lossy().to_string())
                 .collect();
+            let mut def_roots: BTreeSet<String> = definitions
+                .iter()
+                .map(|d| package_root(&d.path, root))
+                .collect();
+            def_roots.remove("");
 
             let survivors = stack.confirm_symbol(&confirm_input, name);
             let survivor_set: HashSet<&std::path::Path> =
@@ -129,6 +187,19 @@ pub fn run_bfs(
                 for e in enclosings_this_name {
                     next_set.insert(e);
                 }
+            } else {
+                telemetry.auto_hubs_promoted.push(AutoHub {
+                    depth,
+                    name: name.clone(),
+                    count: hits_for_name,
+                });
+            }
+            if def_roots.len() >= 2 {
+                telemetry.suspicious_hops.push(SuspiciousHop {
+                    depth,
+                    name: name.clone(),
+                    roots: def_roots.into_iter().collect(),
+                });
             }
         }
 
@@ -139,7 +210,20 @@ pub fn run_bfs(
         frontier = next_set.into_iter().collect();
     }
 
-    all_hits
+    telemetry
+        .suspicious_hops
+        .sort_by(|a, b| a.depth.cmp(&b.depth).then_with(|| a.name.cmp(&b.name)));
+    telemetry.auto_hubs_promoted.sort_by(|a, b| {
+        a.depth
+            .cmp(&b.depth)
+            .then_with(|| b.count.cmp(&a.count))
+            .then_with(|| a.name.cmp(&b.name))
+    });
+
+    BfsResult {
+        hits: all_hits,
+        telemetry,
+    }
 }
 
 pub fn enclosing_symbol(entries: &[OutlineEntry], line: u32) -> Option<String> {
@@ -162,6 +246,29 @@ pub fn enclosing_symbol(entries: &[OutlineEntry], line: u32) -> Option<String> {
 mod tests {
     use super::*;
     use fff_symbol::types::OutlineKind;
+
+    #[test]
+    fn package_root_keeps_top_two_dirs_for_nested_files() {
+        let root = Path::new("/repo");
+        let p = Path::new("/repo/crates/fff-cli/src/main.rs");
+        assert_eq!(package_root(p, root), "crates/fff-cli");
+    }
+
+    #[test]
+    fn package_root_keeps_single_dir_for_shallow_files() {
+        let root = Path::new("/repo");
+        let p = Path::new("/repo/src/a.rs");
+        assert_eq!(package_root(p, root), "src");
+    }
+
+    #[test]
+    fn package_root_handles_paths_outside_root() {
+        let root = Path::new("/elsewhere");
+        let p = Path::new("/repo/src/a/foo.rs");
+        // Falls back to first two leading components of the absolute path.
+        let got = package_root(p, root);
+        assert!(got.ends_with("repo") || got.ends_with("src"));
+    }
 
     fn entry(
         kind: OutlineKind,
