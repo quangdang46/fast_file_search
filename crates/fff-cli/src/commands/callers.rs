@@ -14,7 +14,9 @@ use fff_symbol::lang::detect_file_type;
 use fff_symbol::types::FileType;
 
 use crate::cli::OutputFormat;
-use crate::commands::callers_bfs::{enclosing_symbol, run_bfs, BfsConfig, CandidateFile};
+use crate::commands::callers_bfs::{
+    enclosing_symbol, run_bfs, AutoHub, BfsConfig, BfsTelemetry, CandidateFile, SuspiciousHop,
+};
 use crate::commands::pagination::{footer, Page};
 
 #[derive(Debug, Parser)]
@@ -77,6 +79,44 @@ struct CallersOutput {
     has_more: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     aggregations: Option<Vec<Aggregation>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    suspicious_hops: Vec<SuspiciousHopOut>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    auto_hubs_promoted: Vec<AutoHubOut>,
+}
+
+#[derive(Debug, Serialize, PartialEq, Eq)]
+pub(crate) struct SuspiciousHopOut {
+    pub depth: u32,
+    pub name: String,
+    pub roots: Vec<String>,
+}
+
+#[derive(Debug, Serialize, PartialEq, Eq)]
+pub(crate) struct AutoHubOut {
+    pub depth: u32,
+    pub name: String,
+    pub count: usize,
+}
+
+impl From<SuspiciousHop> for SuspiciousHopOut {
+    fn from(s: SuspiciousHop) -> Self {
+        Self {
+            depth: s.depth,
+            name: s.name,
+            roots: s.roots,
+        }
+    }
+}
+
+impl From<AutoHub> for AutoHubOut {
+    fn from(a: AutoHub) -> Self {
+        Self {
+            depth: a.depth,
+            name: a.name,
+            count: a.count,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
@@ -109,10 +149,13 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         })
         .collect();
 
-    let mut hits = if args.hops <= 1 {
-        single_hop(&engine, &args.name, &candidates)
+    let (mut hits, telemetry) = if args.hops <= 1 {
+        (
+            single_hop(&engine, &args.name, &candidates),
+            BfsTelemetry::default(),
+        )
     } else {
-        run_bfs(
+        let r = run_bfs(
             &engine,
             &args.name,
             &candidates,
@@ -120,7 +163,9 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
                 max_hops: args.hops,
                 hub_guard: args.hub_guard,
             },
-        )
+            root,
+        );
+        (r.hits, r.telemetry)
     };
 
     if args.count_by == CountBy::Caller {
@@ -138,6 +183,16 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         has_more: page.has_more,
         hits: page.items,
         aggregations,
+        suspicious_hops: telemetry
+            .suspicious_hops
+            .into_iter()
+            .map(SuspiciousHopOut::from)
+            .collect(),
+        auto_hubs_promoted: telemetry
+            .auto_hubs_promoted
+            .into_iter()
+            .map(AutoHubOut::from)
+            .collect(),
     };
     super::emit(format, &payload, render_text)
 }
@@ -272,6 +327,23 @@ fn render_text(p: &CallersOutput) -> String {
     if let Some(aggs) = p.aggregations.as_ref() {
         out.push_str(&render_aggregations(aggs));
     }
+    if !p.suspicious_hops.is_empty() {
+        out.push_str("\nSuspicious hops (name defined in multiple roots):\n");
+        for s in &p.suspicious_hops {
+            out.push_str(&format!(
+                "  [d{}] {}  roots: {}\n",
+                s.depth,
+                s.name,
+                s.roots.join(", ")
+            ));
+        }
+    }
+    if !p.auto_hubs_promoted.is_empty() {
+        out.push_str("\nAuto hub-guard promotions (propagation stopped):\n");
+        for a in &p.auto_hubs_promoted {
+            out.push_str(&format!("  [d{}] {}  hits: {}\n", a.depth, a.name, a.count));
+        }
+    }
     out
 }
 
@@ -377,6 +449,8 @@ mod tests {
             offset: 0,
             has_more: false,
             aggregations: None,
+            suspicious_hops: Vec::new(),
+            auto_hubs_promoted: Vec::new(),
         };
         let s = render_text(&payload);
         assert!(!s.contains("Aggregated"));
@@ -396,6 +470,8 @@ mod tests {
                 key: "foo".into(),
                 count: 2,
             }]),
+            suspicious_hops: Vec::new(),
+            auto_hubs_promoted: Vec::new(),
         };
         let s = render_text(&payload);
         assert!(s.contains("Aggregated:"));

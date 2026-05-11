@@ -121,6 +121,15 @@ Bloom-narrowed first, then confirmed with a literal-text pass.
   (omitted when `none`, so the default output is byte-identical); text
   output appends an `Aggregated:` section with `count  key` rows
   sorted desc, ties alphabetical.
+* With `--hops > 1` the JSON payload may also expose two diagnostics
+  lists, omitted when empty so single-hop output stays byte-identical:
+  * `suspicious_hops: [{ depth, name, roots[] }]` — a name resolves to
+    definitions in 2+ distinct package roots at the same hop (typical
+    smell: trait method clash, re-exported helper).
+  * `auto_hubs_promoted: [{ depth, name, count }]` — hub-guard kicked in
+    for `name` at `depth` and propagation was stopped (hits still surface).
+  Text output appends `Suspicious hops:` / `Auto hub-guard promotions:`
+  sections only when these lists are non-empty.
 
 ### `callees <name>`
 Identifiers referenced inside the body of `<name>`, then resolved
