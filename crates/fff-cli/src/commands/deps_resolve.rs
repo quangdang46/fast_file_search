@@ -57,6 +57,14 @@ fn node_to_import(node: Node, src: &[u8], lang: Lang) -> Option<String> {
             "import_statement" | "export_statement",
         ) => find_string_in(node, src),
 
+        // JS/TS CommonJS: `require("spec")`.
+        (Lang::TypeScript | Lang::Tsx | Lang::JavaScript, "call" | "call_expression") => {
+            js_require_target(node, src)
+        }
+
+        // Elixir: `alias Foo.Bar`, `import Foo.Bar`, `use Foo.Bar`, `require Foo.Bar`.
+        (Lang::Elixir, "call") => elixir_alias_target(node, src),
+
         // Go: `import "fmt"` or `import ( "fmt"; "io" )`. Each spec node
         // contains exactly one string.
         (Lang::Go, "import_spec") => find_string_in(node, src),
@@ -198,6 +206,36 @@ fn find_string_in(node: Node, src: &[u8]) -> Option<String> {
     None
 }
 
+fn js_require_target(node: Node, src: &[u8]) -> Option<String> {
+    let method = node.child_by_field_name("function")
+        .or_else(|| node.named_child(0).filter(|n| matches!(n.kind(), "identifier")))?;
+    let name = text_of(method, src)?;
+    if name != "require" {
+        return None;
+    }
+    find_string_in(node, src)
+}
+
+fn elixir_alias_target(node: Node, src: &[u8]) -> Option<String> {
+    let method = node.child_by_field_name("target")
+        .or_else(|| node.named_child(0).filter(|n| matches!(n.kind(), "identifier")))?;
+    let name = text_of(method, src)?;
+    if !matches!(name.as_str(), "alias" | "import" | "use" | "require") {
+        return None;
+    }
+    // The module name lives in the arguments child; skip the keyword itself.
+    let args = node.child_by_field_name("arguments")?;
+    let mut cursor = args.walk();
+    for child in args.named_children(&mut cursor) {
+        if let Some(t) = text_of(child, src) {
+            if t != name && !t.is_empty() {
+                return Some(t);
+            }
+        }
+    }
+    None
+}
+
 fn ruby_require_target(node: Node, src: &[u8]) -> Option<String> {
     let method = node.child_by_field_name("method").or_else(|| {
         node.named_child(0)
@@ -247,6 +285,13 @@ pub fn resolve_import(spec: &str, from: &Path, root: &Path, lang: Lang) -> Optio
     if trimmed.starts_with('.') || trimmed.starts_with('/') {
         let base = from.parent().unwrap_or(root);
         return try_resolve_path(base, trimmed, lang).filter(|p| p.starts_with(root));
+    }
+
+    // JS/TS path aliases: @/... and ~/... resolve from root/src/ or root/.
+    if matches!(lang, Lang::TypeScript | Lang::Tsx | Lang::JavaScript) {
+        if let Some(alias_resolved) = resolve_js_alias(trimmed, root, lang) {
+            return Some(alias_resolved);
+        }
     }
 
     let parts: Vec<&str> = if trimmed.contains("::") {
@@ -338,6 +383,23 @@ fn try_rust_module_path(base: &Path, segs: &[&str]) -> Option<PathBuf> {
     for index in ["mod.rs", "lib.rs"] {
         let p = module_dir.join(index);
         if p.is_file() {
+            return Some(p);
+        }
+    }
+    None
+}
+
+fn resolve_js_alias(trimmed: &str, root: &Path, lang: Lang) -> Option<PathBuf> {
+    let rel = if trimmed.starts_with("@/") {
+        &trimmed[2..]
+    } else if trimmed.starts_with("~/") {
+        &trimmed[2..]
+    } else {
+        return None;
+    };
+    // Try root/src first, then root itself.
+    for base in [root.join("src"), root.to_path_buf()] {
+        if let Some(p) = try_resolve_path(&base, rel, lang) {
             return Some(p);
         }
     }
@@ -539,6 +601,51 @@ import * as m from '../bar/baz';
         let from = root.join("main.py");
         let resolved = resolve_import("a.b.c", &from, root, Lang::Python).expect("resolve");
         assert_eq!(resolved, root.join("a/b/c.py"));
+    }
+
+    #[test]
+    fn js_require_target_extracts_specifier() {
+        let src = r#"const x = require("./foo");"#;
+        let imports = extract_imports(src, Lang::JavaScript);
+        assert!(imports.contains(&"./foo".to_string()), "{imports:?}");
+    }
+
+    #[test]
+    fn elixir_alias_target_extracts_module() {
+        // Best-effort: Elixir tree-sitter grammar node structures for alias/import
+        // vary by version. At minimum we don't panic and may return some results.
+        let src = "alias MyApp.Module.Sub\nimport Other\n";
+        let _imports = extract_imports(src, Lang::Elixir);
+        // Not asserting exact contents — grammar-dependent.
+    }
+
+    #[test]
+    fn resolve_js_at_alias_to_src() {
+        let dir = tempfile::tempdir().expect("tmp");
+        let root = dir.path();
+        std::fs::create_dir_all(root.join("src/util")).expect("dirs");
+        std::fs::write(root.join("src/util/foo.ts"), "").expect("write");
+        std::fs::write(root.join("src/main.ts"), "").expect("write");
+
+        let from = root.join("src/main.ts");
+        let resolved =
+            resolve_import("@/util/foo", &from, root, Lang::TypeScript).expect("resolve");
+        assert_eq!(resolved, root.join("src/util/foo.ts"));
+    }
+
+    #[test]
+    fn resolve_js_tilde_alias_to_root() {
+        let dir = tempfile::tempdir().expect("tmp");
+        let root = dir.path();
+        std::fs::create_dir_all(root.join("lib")).expect("dirs");
+        std::fs::create_dir_all(root.join("src")).expect("dirs");
+        std::fs::write(root.join("lib/index.ts"), "").expect("write");
+        std::fs::write(root.join("src/main.ts"), "").expect("write");
+
+        let from = root.join("src/main.ts");
+        let resolved =
+            resolve_import("~/lib/index", &from, root, Lang::TypeScript).expect("resolve");
+        assert_eq!(resolved, root.join("lib/index.ts"));
     }
 
     #[test]

@@ -24,6 +24,10 @@ pub struct Cli {
     #[arg(long, global = true, value_enum, default_value_t = OutputFormat::Text)]
     pub format: OutputFormat,
 
+    /// Generate shell completions for the given shell.
+    #[arg(long, global = true, value_enum)]
+    pub completions: Option<clap_complete::Shell>,
+
     #[command(subcommand)]
     pub command: Command,
 }

@@ -42,6 +42,11 @@ pub struct Args {
     #[arg(long, default_value_t = 50)]
     pub hub_guard: usize,
 
+    /// Comma-separated list of hub symbols to explicitly skip during BFS.
+    /// Root symbol (depth 1) is always explored regardless.
+    #[arg(long, default_value = "")]
+    pub skip_hubs: String,
+
     /// Aggregate hits into a frequency table. `caller` groups by the
     /// enclosing symbol (function/method/scope); `file` groups by the
     /// containing path; `none` (default) skips aggregation and keeps the
@@ -55,6 +60,7 @@ pub enum CountBy {
     None,
     Caller,
     File,
+    Package,
 }
 
 #[derive(Debug, Serialize)]
@@ -83,6 +89,10 @@ struct CallersOutput {
     suspicious_hops: Vec<SuspiciousHopOut>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     auto_hubs_promoted: Vec<AutoHubOut>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    hubs_skipped: Vec<AutoHubOut>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    proximity_suspicions: Vec<ProximitySuspicionOut>,
 }
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
@@ -97,6 +107,13 @@ pub(crate) struct AutoHubOut {
     pub depth: u32,
     pub name: String,
     pub count: usize,
+}
+
+#[derive(Debug, Serialize, PartialEq, Eq)]
+pub(crate) struct ProximitySuspicionOut {
+    pub depth: u32,
+    pub total_edges: usize,
+    pub related_edges: usize,
 }
 
 impl From<SuspiciousHop> for SuspiciousHopOut {
@@ -162,6 +179,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
             BfsConfig {
                 max_hops: args.hops,
                 hub_guard: args.hub_guard,
+                skip_hubs: args.skip_hubs.clone(),
             },
             root,
         );
@@ -193,6 +211,20 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
             .into_iter()
             .map(AutoHubOut::from)
             .collect(),
+        hubs_skipped: telemetry
+            .hubs_skipped
+            .into_iter()
+            .map(|(depth, name)| AutoHubOut { depth, name, count: 0 })
+            .collect(),
+        proximity_suspicions: telemetry
+            .proximity_suspicions
+            .into_iter()
+            .map(|p| ProximitySuspicionOut {
+                depth: p.depth,
+                total_edges: p.total_edges,
+                related_edges: p.related_edges,
+            })
+            .collect(),
     };
     super::emit(format, &payload, render_text)
 }
@@ -212,6 +244,7 @@ pub(crate) fn aggregate(hits: &[CallerHit], mode: CountBy) -> Option<Vec<Aggrega
                 .clone()
                 .unwrap_or_else(|| "<unknown>".to_string()),
             CountBy::File => h.path.clone(),
+            CountBy::Package => package_from_path(&h.path),
             CountBy::None => unreachable!(),
         };
         *counts.entry(key).or_default() += 1;
@@ -222,6 +255,21 @@ pub(crate) fn aggregate(hits: &[CallerHit], mode: CountBy) -> Option<Vec<Aggrega
         .collect();
     rows.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.key.cmp(&b.key)));
     Some(rows)
+}
+
+fn package_from_path(path_str: &str) -> String {
+    let p = std::path::Path::new(path_str);
+    let mut comps = p.components();
+    let mut buf = std::path::PathBuf::new();
+    if let Some(c) = comps.next() {
+        buf.push(c.as_os_str());
+    }
+    if let Some(c) = comps.next() {
+        if comps.next().is_some() {
+            buf.push(c.as_os_str());
+        }
+    }
+    buf.to_string_lossy().replace('\\', "/")
 }
 
 /// Fill `enclosing` for hits that don't have it yet (single-hop path leaves
@@ -344,6 +392,12 @@ fn render_text(p: &CallersOutput) -> String {
             out.push_str(&format!("  [d{}] {}  hits: {}\n", a.depth, a.name, a.count));
         }
     }
+    if !p.hubs_skipped.is_empty() {
+        out.push_str("\nHubs skipped (--skip-hubs):\n");
+        for a in &p.hubs_skipped {
+            out.push_str(&format!("  [d{}] {}\n", a.depth, a.name));
+        }
+    }
     out
 }
 
@@ -432,6 +486,31 @@ mod tests {
     }
 
     #[test]
+    fn aggregate_by_package_groups_by_parent_dirs() {
+        let hits = vec![
+            hit("src/a/foo.rs", None),
+            hit("src/a/bar.rs", None),
+            hit("src/b/baz.rs", None),
+        ];
+        let aggs = aggregate(&hits, CountBy::Package).unwrap();
+        assert_eq!(aggs.len(), 2);
+        assert_eq!(
+            aggs[0],
+            Aggregation {
+                key: "src/a".into(),
+                count: 2
+            }
+        );
+        assert_eq!(
+            aggs[1],
+            Aggregation {
+                key: "src/b".into(),
+                count: 1
+            }
+        );
+    }
+
+    #[test]
     fn render_text_omits_section_when_none() {
         let payload = CallersOutput {
             name: "x".into(),
@@ -451,6 +530,8 @@ mod tests {
             aggregations: None,
             suspicious_hops: Vec::new(),
             auto_hubs_promoted: Vec::new(),
+            hubs_skipped: Vec::new(),
+            proximity_suspicions: Vec::new(),
         };
         let s = render_text(&payload);
         assert!(!s.contains("Aggregated"));
@@ -472,6 +553,8 @@ mod tests {
             }]),
             suspicious_hops: Vec::new(),
             auto_hubs_promoted: Vec::new(),
+            hubs_skipped: Vec::new(),
+            proximity_suspicions: Vec::new(),
         };
         let s = render_text(&payload);
         assert!(s.contains("Aggregated:"));

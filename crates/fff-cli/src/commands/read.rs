@@ -10,6 +10,7 @@ use fff_budget::{
     FilterStrategy, MinimalFilter, NoFilter, TruncationOutcome,
 };
 use fff_engine::{Engine, EngineConfig};
+use fff_symbol::detection;
 use fff_symbol::lang::detect_file_type;
 use fff_symbol::types::{FileType, OutlineEntry};
 
@@ -41,6 +42,10 @@ pub struct Args {
     /// scry default is the agent-style outline.
     #[arg(long, default_value_t = false)]
     pub full: bool,
+
+    /// Return only function/class signatures (no bodies).
+    #[arg(long, default_value_t = false, conflicts_with = "full")]
+    pub signatures: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -56,6 +61,8 @@ struct ReadOutput {
     section: Option<SectionMeta>,
     #[serde(skip_serializing_if = "Option::is_none")]
     resolved_from: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    view: Option<&'static str>,
 }
 
 #[derive(Debug, Serialize)]
@@ -103,6 +110,11 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         BareResolve::Skip => (initial_path, None),
     };
 
+    // Generated-file guard: auto-switch to outline with a note unless user
+    // explicitly asked for --full.
+    let generated = is_generated_file(&path);
+    let force_outline = generated && !args.full;
+
     // Routing:
     //   --section or `path:N`  → structural section read.
     //   --full                  → whole-file body (legacy default).
@@ -115,11 +127,14 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         return super::emit(format, &payload, section_text);
     }
 
-    if !args.full {
+    if !args.full || force_outline {
         // Outline default (only for code files; non-code falls through to
         // full-body read so things like Markdown / JSON still emit content).
         if matches!(detect_file_type(&path), FileType::Code(_)) {
-            let body = outline_cmd::render_agent(&path, path_part)?;
+            let mut body = outline_cmd::render_agent(&path, path_part)?;
+            if generated {
+                body.insert_str(0, "[generated file]\n");
+            }
             let kept_bytes = body.len();
             let payload = ReadOutput {
                 path: path.to_string_lossy().to_string(),
@@ -130,6 +145,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
                 line: None,
                 section: None,
                 resolved_from,
+                view: None,
             };
             return super::emit(format, &payload, |p| p.body.clone());
         }
@@ -144,15 +160,21 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     let engine = Engine::new(cfg);
     let res = engine.read(&path);
 
+    let mut body = res.body.clone();
+    if generated {
+        body.insert_str(0, "[generated file]\n");
+    }
+
     let payload = ReadOutput {
         path: res.path.to_string_lossy().to_string(),
         mode: "full",
-        body: res.body.clone(),
+        body,
         kept_bytes: res.outcome.kept_bytes,
         footer_bytes: res.outcome.footer_bytes,
         line,
         section: None,
         resolved_from,
+        view: None,
     };
     super::emit(format, &payload, |p| {
         let mut out = String::new();
@@ -162,6 +184,17 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         out.push_str(&p.body);
         out
     })
+}
+
+fn is_generated_file(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|n| n.to_str())
+        .map(|n| detection::is_generated_by_name(n))
+        .unwrap_or(false)
+        || std::fs::read(path)
+            .ok()
+            .map(|b| detection::is_generated_by_content(&b))
+            .unwrap_or(false)
 }
 
 fn filter_level(s: &str) -> FilterLevel {
@@ -239,6 +272,7 @@ fn read_section(path: &Path, line: u32, level: FilterLevel, budget: u64) -> Resu
             end_line: entry.end_line,
         }),
         resolved_from: None,
+        view: None,
     })
 }
 
@@ -246,6 +280,47 @@ enum BareResolve {
     Found(PathBuf),
     Ambiguous(Vec<String>),
     Skip,
+}
+
+const NON_PROD_SEGMENTS: &[&str] = &[
+    "test", "tests", "__tests__", "spec", "specs",
+    "vendor", "node_modules", "dist", "build", "target", ".git",
+    "coverage", "tmp", "temp",
+];
+
+fn pick_primary(candidates: &[PathBuf], root: &Path) -> Option<PathBuf> {
+    fn score(p: &Path, root: &Path) -> i32 {
+        let rel = p.strip_prefix(root).unwrap_or(p);
+        let depth = rel.components().count() as i32;
+        let mut score = 0i32;
+        let rel_str = rel.to_string_lossy();
+        for bad in NON_PROD_SEGMENTS {
+            if rel_str.contains(bad) {
+                score -= 50;
+            }
+        }
+        if rel_str.starts_with("src/") || rel_str.starts_with("lib/") {
+            score += 20;
+        }
+        score += (10 - depth).max(0);
+        score
+    }
+    if candidates.len() < 2 {
+        return candidates.first().cloned();
+    }
+    let mut scored: Vec<(i32, &PathBuf)> = candidates
+        .iter()
+        .map(|p| (score(p, root), p))
+        .collect();
+    scored.sort_by(|a, b| b.0.cmp(&a.0));
+    let best = scored[0];
+    if scored.len() > 1 {
+        let gap = best.0 - scored[1].0;
+        if gap < 10 {
+            return None;
+        }
+    }
+    Some(best.1.clone())
 }
 
 // Trigger only when target has no path separator and the literal path does
@@ -292,6 +367,10 @@ fn maybe_resolve_bare(root: &Path, target: &str, initial: &Path) -> BareResolve 
                     .cmp(&b.as_os_str().len())
                     .then_with(|| a.cmp(b))
             });
+            // Try primary pick heuristic before falling back to ambiguous list.
+            if let Some(primary) = pick_primary(&exact, root) {
+                return BareResolve::Found(primary);
+            }
             BareResolve::Ambiguous(
                 exact
                     .into_iter()
@@ -547,5 +626,26 @@ mod tests {
     fn slice_lines_clamps_when_end_exceeds_file() {
         let content = "L1\nL2\n";
         assert_eq!(slice_lines(content, 1, 99), "L1\nL2\n");
+    }
+
+    #[test]
+    fn generated_file_detects_by_name() {
+        let td = tempfile::tempdir().unwrap();
+        std::fs::write(td.path().join("bundle.min.js"), "// some code").unwrap();
+        assert!(is_generated_file(&td.path().join("bundle.min.js")));
+    }
+
+    #[test]
+    fn generated_file_detects_by_content() {
+        let td = tempfile::tempdir().unwrap();
+        std::fs::write(td.path().join("foo.rs"), "// @generated by tool\nfn x() {}").unwrap();
+        assert!(is_generated_file(&td.path().join("foo.rs")));
+    }
+
+    #[test]
+    fn generated_file_skips_non_generated() {
+        let td = tempfile::tempdir().unwrap();
+        std::fs::write(td.path().join("main.rs"), "fn main() {}").unwrap();
+        assert!(!is_generated_file(&td.path().join("main.rs")));
     }
 }

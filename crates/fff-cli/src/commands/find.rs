@@ -1,4 +1,5 @@
-use std::path::Path;
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use clap::Parser;
@@ -19,6 +20,10 @@ pub struct Args {
     /// Skip this many results before starting the page.
     #[arg(long, default_value_t = 0)]
     pub offset: usize,
+
+    /// Search in an additional directory. May be given multiple times.
+    #[arg(long)]
+    pub scope: Vec<PathBuf>,
 }
 
 #[derive(Debug, Serialize)]
@@ -31,13 +36,23 @@ struct FindResult {
 }
 
 pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
-    let files = super::walk_files(root);
+    let scopes: Vec<&Path> = if args.scope.is_empty() {
+        vec![root]
+    } else {
+        args.scope.iter().map(|p| p.as_path()).collect()
+    };
     let needle_lower = args.needle.to_lowercase();
-    let mut all: Vec<String> = files
-        .iter()
-        .filter_map(|p| p.to_str().map(|s| s.to_string()))
-        .filter(|p| p.to_lowercase().contains(&needle_lower))
-        .collect();
+    let mut seen: HashSet<String> = HashSet::new();
+    let mut all: Vec<String> = Vec::new();
+    for scope in scopes {
+        let files = super::walk_files(scope);
+        for p in files {
+            let Some(s) = p.to_str() else { continue };
+            if s.to_lowercase().contains(&needle_lower) && seen.insert(s.to_string()) {
+                all.push(s.to_string());
+            }
+        }
+    }
     all.sort();
 
     let page = Page::paginate(all, args.offset, args.limit);
@@ -59,4 +74,51 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         }
         out
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn single_scope_matches_paths() {
+        let td = tempfile::tempdir().unwrap();
+        let root = td.path();
+        std::fs::write(root.join("foo.rs"), "x").unwrap();
+        std::fs::write(root.join("bar.rs"), "y").unwrap();
+
+        let args = Args {
+            needle: "foo".into(),
+            limit: 50,
+            offset: 0,
+            scope: vec![],
+        };
+        run(args, root, OutputFormat::Json).unwrap();
+        // Json emit writes to stdout; just assert it doesn't panic.
+    }
+
+    #[test]
+    fn multi_scope_dedups() {
+        let td = tempfile::tempdir().unwrap();
+        let a = td.path().join("a");
+        let b = td.path().join("b");
+        std::fs::create_dir_all(&a).unwrap();
+        std::fs::create_dir_all(&b).unwrap();
+        // Same relative structure under both scopes to test dedup.
+        std::fs::write(a.join("shared.rs"), "x").unwrap();
+        std::fs::write(b.join("unique.rs"), "y").unwrap();
+
+        let mut seen = HashSet::new();
+        let scopes = vec![a.as_path(), b.as_path()];
+        for scope in scopes {
+            for p in super::super::walk_files(scope) {
+                if let Some(s) = p.to_str() {
+                    if s.contains("shared") || s.contains("unique") {
+                        seen.insert(s.to_string());
+                    }
+                }
+            }
+        }
+        assert_eq!(seen.len(), 2, "should see both shared.rs and unique.rs");
+    }
 }

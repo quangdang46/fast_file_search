@@ -14,6 +14,8 @@ use fff_symbol::types::FileType;
 
 use crate::cli::OutputFormat;
 use crate::commands::callees_bfs::{run_bfs, BfsConfig, CalleeHit as BfsCalleeHit};
+use crate::commands::callees_detail::{extract_call_sites, CallSite};
+use crate::commands::callees_format::format_call_site;
 use crate::commands::callees_resolve::collect_callees;
 use crate::commands::dedup::dedup_by;
 use crate::commands::pagination::{footer, Page};
@@ -39,6 +41,10 @@ pub struct Args {
     /// in one hop. Prevents popular helpers from blowing up the BFS.
     #[arg(long, default_value_t = 50)]
     pub hub_guard: usize,
+
+    /// Show detailed call sites: arguments, assignment context, return tracking.
+    #[arg(long, default_value_t = false)]
+    pub detailed: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -50,6 +56,32 @@ struct CalleeHit {
     depth: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     from: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    sites: Option<Vec<CallSiteDto>>,
+}
+
+#[derive(Debug, Serialize)]
+struct CallSiteDto {
+    line: u32,
+    callee: String,
+    call_text: String,
+    args: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    return_var: Option<String>,
+    is_return: bool,
+}
+
+impl From<&CallSite> for CallSiteDto {
+    fn from(s: &CallSite) -> Self {
+        Self {
+            line: s.line,
+            callee: s.callee.clone(),
+            call_text: s.call_text.clone(),
+            args: s.args.clone(),
+            return_var: s.return_var.clone(),
+            is_return: s.is_return,
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -70,7 +102,11 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     engine.index(root);
 
     let hits = if args.depth <= 1 {
-        single_hop(&engine, &args.name)
+        if args.detailed {
+            single_hop_detailed(&engine, &args.name)
+        } else {
+            single_hop(&engine, &args.name)
+        }
     } else {
         let bfs_hits = run_bfs(
             &engine,
@@ -88,6 +124,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
                 line: h.line,
                 depth: Some(h.depth),
                 from: Some(h.from),
+                sites: None,
             })
             .collect()
     };
@@ -135,6 +172,60 @@ fn single_hop(engine: &Engine, name: &str) -> Vec<CalleeHit> {
                     line: loc.line,
                     depth: None,
                     from: None,
+                    sites: None,
+                });
+            }
+        }
+    }
+    hits
+}
+
+fn single_hop_detailed(engine: &Engine, name: &str) -> Vec<CalleeHit> {
+    let definitions = engine.handles.symbols.lookup_exact(name);
+    // Collect all known symbol names for call-site extraction.
+    let known: std::collections::HashSet<String> =
+        engine.handles.symbols.names().into_iter().collect();
+    let mut hits: Vec<CalleeHit> = Vec::new();
+    for def in &definitions {
+        let lang = match detect_file_type(&def.path) {
+            FileType::Code(l) => l,
+            _ => continue,
+        };
+        let Ok(content) = std::fs::read_to_string(&def.path) else {
+            continue;
+        };
+        let sites = extract_call_sites(&content, lang, def.line, def.end_line, &known);
+        // Group by callee to create one hit per callee with its sites.
+        let mut by_callee: std::collections::HashMap<String, Vec<&CallSite>> =
+            std::collections::HashMap::new();
+        for site in &sites {
+            by_callee.entry(site.callee.clone()).or_default().push(site);
+        }
+        for (callee, callee_sites) in by_callee {
+            if callee == name {
+                continue;
+            }
+            // Take the first occurrence's location.
+            let first = callee_sites[0];
+            for loc in engine.handles.symbols.lookup_exact(&callee) {
+                hits.push(CalleeHit {
+                    name: callee.clone(),
+                    path: loc.path.to_string_lossy().to_string(),
+                    line: loc.line,
+                    depth: None,
+                    from: None,
+                    sites: Some(callee_sites.iter().map(|s| CallSiteDto::from(*s)).collect()),
+                });
+            }
+            // Also add a hit even if no symbol location exists.
+            if engine.handles.symbols.lookup_exact(&callee).is_empty() {
+                hits.push(CalleeHit {
+                    name: callee.clone(),
+                    path: def.path.to_string_lossy().to_string(),
+                    line: first.line,
+                    depth: None,
+                    from: None,
+                    sites: Some(callee_sites.iter().map(|s| CallSiteDto::from(*s)).collect()),
                 });
             }
         }
@@ -145,18 +236,21 @@ fn single_hop(engine: &Engine, name: &str) -> Vec<CalleeHit> {
 fn render_text(p: &CalleesOutput) -> String {
     let mut out = String::new();
     let multi_hop = p.depth.is_some();
-    if multi_hop {
-        for h in &p.hits {
+    for h in &p.hits {
+        if multi_hop {
             let d = h.depth.unwrap_or(1);
             let from = h.from.as_deref().unwrap_or("?");
             out.push_str(&format!(
                 "[d{}] {} @ {}:{}  (called from {})\n",
                 d, h.name, h.path, h.line, from
             ));
-        }
-    } else {
-        for h in &p.hits {
+        } else {
             out.push_str(&format!("{} @ {}:{}\n", h.name, h.path, h.line));
+        }
+        if let Some(ref sites) = h.sites {
+            for s in sites {
+                out.push_str(&format!("  {}\n", s.call_text));
+            }
         }
     }
     if p.total == 0 {

@@ -21,6 +21,7 @@ fff-budget = { version = "0.1.0", path = "crates/fff-budget" }
 fff-engine = { version = "0.1.0", path = "crates/fff-engine" }
 
 # Shared dependencies
+aho-corasick = "1"
 ahash = "0.8"
 bindet = "0.3"
 blake3 = "1.8.2"

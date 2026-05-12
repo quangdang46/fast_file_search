@@ -25,12 +25,15 @@ use crate::commands::callers::CallerHit;
 pub struct BfsConfig {
     pub max_hops: u32,
     pub hub_guard: usize,
+    pub skip_hubs: String,
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct BfsTelemetry {
     pub suspicious_hops: Vec<SuspiciousHop>,
     pub auto_hubs_promoted: Vec<AutoHub>,
+    pub hubs_skipped: Vec<(u32, String)>,
+    pub proximity_suspicions: Vec<ProximitySuspicion>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -38,6 +41,13 @@ pub struct SuspiciousHop {
     pub depth: u32,
     pub name: String,
     pub roots: Vec<String>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct ProximitySuspicion {
+    pub depth: u32,
+    pub total_edges: usize,
+    pub related_edges: usize,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -105,6 +115,16 @@ pub fn run_bfs(
         .collect();
 
     let max_hops = cfg.max_hops.clamp(1, 5);
+    let user_hubs: HashSet<String> = if cfg.skip_hubs.is_empty() {
+        HashSet::new()
+    } else {
+        cfg.skip_hubs
+            .split(',')
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(String::from)
+            .collect()
+    };
 
     for depth in 1..=max_hops {
         if frontier.is_empty() {
@@ -115,6 +135,11 @@ pub fn run_bfs(
         let mut hub_for_name: HashMap<String, usize> = HashMap::new();
 
         for name in &frontier {
+            // Explicit user hub skip: root symbol always explored regardless.
+            if depth > 1 && user_hubs.contains(name) {
+                telemetry.hubs_skipped.push((depth, name.clone()));
+                continue;
+            }
             let definitions = engine.handles.symbols.lookup_exact(name);
             let definition_paths: HashSet<String> = definitions
                 .iter()
@@ -219,11 +244,67 @@ pub fn run_bfs(
             .then_with(|| b.count.cmp(&a.count))
             .then_with(|| a.name.cmp(&b.name))
     });
+    telemetry.hubs_skipped.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
+    telemetry.proximity_suspicions = compute_proximity_suspicions(&all_hits);
 
     BfsResult {
         hits: all_hits,
         telemetry,
     }
+}
+
+/// Compute directory-proximity suspicion: for each depth >= 2 with >= 50 hits,
+/// check what fraction of hits share a parent directory with the previous depth's
+/// hits. Flag when < 20% are related (cross-package collision).
+pub fn compute_proximity_suspicions(hits: &[CallerHit]) -> Vec<ProximitySuspicion> {
+    use std::collections::{BTreeMap, HashSet};
+
+    let mut by_depth: BTreeMap<u32, Vec<&CallerHit>> = BTreeMap::new();
+    for h in hits {
+        by_depth.entry(h.depth).or_default().push(h);
+    }
+
+    let mut out = Vec::new();
+    for (&depth, list) in &by_depth {
+        if depth < 2 {
+            continue;
+        }
+        let total = list.len();
+        if total < 50 {
+            continue;
+        }
+        let prev = match by_depth.get(&(depth - 1)) {
+            Some(p) if !p.is_empty() => p,
+            _ => continue,
+        };
+        let prev_dirs: HashSet<&Path> = prev
+            .iter()
+            .filter_map(|h| {
+                let p = Path::new(&h.path);
+                p.parent()
+            })
+            .collect();
+        if prev_dirs.is_empty() {
+            continue;
+        }
+        let related = list
+            .iter()
+            .filter(|h| {
+                Path::new(&h.path)
+                    .parent()
+                    .is_some_and(|p| prev_dirs.contains(p))
+            })
+            .count();
+        // related / total < 1/5  -->  related * 5 < total * 1
+        if related * 5 < total {
+            out.push(ProximitySuspicion {
+                depth,
+                total_edges: total,
+                related_edges: related,
+            });
+        }
+    }
+    out
 }
 
 pub fn enclosing_symbol(entries: &[OutlineEntry], line: u32) -> Option<String> {
