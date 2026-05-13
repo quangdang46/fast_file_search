@@ -2,9 +2,9 @@
 
 use std::collections::HashSet;
 
+use fff_symbol::batch::scan_bytes;
 use fff_symbol::types::Lang;
 
-/// One call site inside a function body.
 #[derive(Debug, Clone)]
 pub struct CallSite {
     pub line: u32,
@@ -15,18 +15,98 @@ pub struct CallSite {
     pub is_return: bool,
 }
 
-/// Extract detailed call-site info from source lines. Only includes calls to
-/// symbols in `known_symbols`. Operates on text matching (no AST).
+// Language-specific keywords that precede a definition (skip these matches).
+fn def_keywords(lang: Lang) -> &'static [&'static str] {
+    match lang {
+        Lang::Rust => &["fn"],
+        Lang::Python => &["def"],
+        Lang::Go | Lang::Swift => &["func"],
+        Lang::JavaScript | Lang::TypeScript | Lang::Tsx => &["function"],
+        Lang::Ruby | Lang::Elixir => &["def"],
+        Lang::Java | Lang::Scala | Lang::CSharp | Lang::Kotlin | Lang::C | Lang::Cpp => &[],
+        Lang::Php => &["function"],
+        _ => &[],
+    }
+}
+
+fn is_word_boundary(c: Option<char>) -> bool {
+    match c {
+        None => true,
+        Some(c) => !c.is_alphanumeric() && c != '_' && c != '$',
+    }
+}
+
+fn preceded_by_keyword(before: &str, keywords: &[&'static str]) -> bool {
+    let trimmed = before.trim_end();
+    for kw in keywords {
+        if trimmed == *kw {
+            return true;
+        }
+        if let Some(rest) = trimmed.strip_suffix(kw) {
+            if rest
+                .chars()
+                .last()
+                .is_none_or(|c| !c.is_alphanumeric() && c != '_')
+            {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+// Pre-filter candidate symbols using aho-corasick over the line range bytes;
+// only those symbols are then scanned line-by-line.
+fn candidate_symbols<'a>(
+    content: &str,
+    start_line: u32,
+    end_line: u32,
+    known_symbols: &'a HashSet<String>,
+) -> Vec<&'a str> {
+    if known_symbols.is_empty() {
+        return Vec::new();
+    }
+    let mut slice_start = 0usize;
+    let mut slice_end = content.len();
+    let mut current_line: u32 = 1;
+    let mut started = false;
+    for (i, c) in content.char_indices() {
+        if !started && current_line == start_line {
+            slice_start = i;
+            started = true;
+        }
+        if started && current_line == end_line.saturating_add(1) {
+            slice_end = i;
+            break;
+        }
+        if c == '\n' {
+            current_line += 1;
+        }
+    }
+    let names: Vec<&str> = known_symbols.iter().map(String::as_str).collect();
+    let mut hits = scan_bytes(&names, &content.as_bytes()[slice_start..slice_end]);
+    hits.sort();
+    hits.dedup();
+    // Re-bind each hit to the HashSet's own String so the returned slice lives
+    // as long as `known_symbols`, not the local `names` Vec.
+    hits.into_iter()
+        .filter_map(|h| known_symbols.get(h).map(String::as_str))
+        .collect()
+}
+
 pub fn extract_call_sites(
     content: &str,
-    _lang: Lang,
+    lang: Lang,
     start_line: u32,
     end_line: u32,
     known_symbols: &HashSet<String>,
 ) -> Vec<CallSite> {
     let mut sites = Vec::new();
-    let start = start_line.saturating_sub(1) as usize;
-    let end = end_line as usize;
+    let candidates = candidate_symbols(content, start_line, end_line, known_symbols);
+    if candidates.is_empty() {
+        return sites;
+    }
+    let kws = def_keywords(lang);
 
     for (i, line) in content.lines().enumerate() {
         let lineno = (i + 1) as u32;
@@ -37,20 +117,32 @@ pub fn extract_call_sites(
         if trimmed.is_empty() || trimmed.starts_with("//") || trimmed.starts_with('#') {
             continue;
         }
-        for sym in known_symbols {
-            if !line.contains(sym.as_str()) {
+        for sym in &candidates {
+            if !line.contains(sym) {
                 continue;
             }
-            // Check for call pattern: `sym(` or `sym (` (but not `fn sym`)
-            if let Some(pos) = line.find(sym.as_str()) {
+            let mut search_from = 0usize;
+            while let Some(rel) = line[search_from..].find(sym) {
+                let pos = search_from + rel;
+                search_from = pos + sym.len();
+
+                // Word boundary: char before must not be ident-continuation.
+                let prev_ch = line[..pos].chars().last();
+                if !is_word_boundary(prev_ch) {
+                    continue;
+                }
                 let after = &line[pos + sym.len()..];
+                // The char after the symbol must also be a word boundary (then
+                // optionally followed by `(`).
+                let after_first = after.chars().next();
+                if !is_word_boundary(after_first) {
+                    continue;
+                }
                 let after_trimmed = after.trim_start();
                 if !after_trimmed.starts_with('(') {
                     continue;
                 }
-                // Skip if preceded by fn/def/func/function
-                let before = &line[..pos].trim_end();
-                if before.ends_with("fn") || before.ends_with("def") || before.ends_with("func") || before.ends_with("function") {
+                if preceded_by_keyword(&line[..pos], kws) {
                     continue;
                 }
 
@@ -60,7 +152,7 @@ pub fn extract_call_sites(
 
                 sites.push(CallSite {
                     line: lineno,
-                    callee: sym.clone(),
+                    callee: sym.to_string(),
                     call_text: trimmed.to_string(),
                     args,
                     return_var,
@@ -69,10 +161,21 @@ pub fn extract_call_sites(
             }
         }
     }
-    // Dedup by (line, callee).
     sites.sort_by(|a, b| a.line.cmp(&b.line).then_with(|| a.callee.cmp(&b.callee)));
     sites.dedup_by(|a, b| a.line == b.line && a.callee == b.callee);
     sites
+}
+
+// Truncate a &str at byte index `cap`, respecting UTF-8 char boundaries.
+fn truncate_utf8(s: &str, cap: usize) -> &str {
+    if s.len() <= cap {
+        return s;
+    }
+    let mut end = cap;
+    while end > 0 && !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    &s[..end]
 }
 
 fn extract_args(s: &str) -> Vec<String> {
@@ -107,7 +210,7 @@ fn extract_args(s: &str) -> Vec<String> {
         .map(|a| {
             let t = a.trim();
             if t.len() > 40 {
-                format!("{}...", &t[..37])
+                format!("{}...", truncate_utf8(t, 37))
             } else {
                 t.to_string()
             }
@@ -131,11 +234,7 @@ fn extract_assignment_before(line: &str, pos: usize) -> Option<String> {
     // Plain `x = sym(`
     if let Some(eq_pos) = before.rfind('=') {
         let name = before[..eq_pos].trim();
-        if !name.is_empty()
-            && !name.contains(' ')
-            && !name.starts_with("//")
-            && name.len() < 60
-        {
+        if !name.is_empty() && !name.contains(' ') && !name.starts_with("//") && name.len() < 60 {
             return Some(name.to_string());
         }
     }

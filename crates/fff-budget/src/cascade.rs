@@ -4,11 +4,10 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    smart_truncate, AggressiveFilter, BudgetSplit, FilterLevel, FilterStrategy,
-    MinimalFilter, NoFilter, TruncationOutcome,
+    smart_truncate, AggressiveFilter, BudgetSplit, FilterLevel, FilterStrategy, MinimalFilter,
+    NoFilter, TruncationOutcome,
 };
 
-/// Which fidelity level was ultimately returned.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ViewMode {
     Full,
@@ -16,18 +15,25 @@ pub enum ViewMode {
     Signatures,
 }
 
-/// Result of a cascade read.
+// Abstract outline node so cascade can render `fff_symbol::types::OutlineEntry`
+// (or any other outline representation) without depending on fff-symbol.
+pub trait OutlineLike {
+    fn name(&self) -> &str;
+    fn signature(&self) -> Option<&str>;
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn OutlineLike));
+}
+
 pub struct CascadeResult {
     pub mode: ViewMode,
     pub body: String,
     pub outcome: TruncationOutcome,
 }
 
-/// Try `content` first; if it exceeds `budget`, fall back to outline; if still
-/// too large, fall back to signatures-only; last resort: truncate.
+// Try full content first; if it exceeds `budget`, fall back to outline; if still
+// too large, fall back to signatures-only; last resort: truncate.
 pub fn cascade_read(
     content: &str,
-    outline: &[OutlineEntry],
+    outline: &[&dyn OutlineLike],
     level: FilterLevel,
     split: BudgetSplit,
 ) -> CascadeResult {
@@ -72,12 +78,15 @@ pub fn cascade_read(
     let (body, outcome) = if sig_text.len() <= body_budget_bytes {
         let kept = sig_text.len();
         let kept_lines = sig_text.lines().count();
-        (sig_text, TruncationOutcome {
-            kept_lines,
-            dropped_lines: 0,
-            kept_bytes: kept,
-            footer_bytes: 0,
-        })
+        (
+            sig_text,
+            TruncationOutcome {
+                kept_lines,
+                dropped_lines: 0,
+                kept_bytes: kept,
+                footer_bytes: 0,
+            },
+        )
     } else {
         // 4. Truncate signatures as last resort.
         smart_truncate(&sig_text, body_budget_bytes)
@@ -99,56 +108,71 @@ fn apply_filter(content: &str, level: FilterLevel) -> String {
     filter.apply(content)
 }
 
-fn render_outline(entries: &[OutlineEntry]) -> String {
+fn render_outline(entries: &[&dyn OutlineLike]) -> String {
     let mut out = String::new();
     for e in entries {
-        render_entry(&mut out, e, 0);
+        render_entry(&mut out, *e, 0);
     }
     out
 }
 
-fn render_entry(out: &mut String, e: &OutlineEntry, depth: usize) {
+fn render_entry(out: &mut String, e: &dyn OutlineLike, depth: usize) {
     let indent = "  ".repeat(depth);
-    if let Some(ref sig) = e.signature {
-        out.push_str(&format!("{}{} {}\n", indent, e.name, sig));
+    if let Some(sig) = e.signature() {
+        out.push_str(&format!("{}{} {}\n", indent, e.name(), sig));
     } else {
-        out.push_str(&format!("{}{}\n", indent, e.name));
+        out.push_str(&format!("{}{}\n", indent, e.name()));
     }
-    for c in &e.children {
-        render_entry(out, c, depth + 1);
-    }
+    e.for_each_child(&mut |c| render_entry(out, c, depth + 1));
 }
 
-fn render_signatures(entries: &[OutlineEntry]) -> String {
+pub fn render_signatures(entries: &[&dyn OutlineLike]) -> String {
     let mut out = String::new();
     for e in entries {
-        if let Some(ref sig) = e.signature {
-            out.push_str(&format!("{} {}\n", e.name, sig));
+        if let Some(sig) = e.signature() {
+            out.push_str(&format!("{} {}\n", e.name(), sig));
         } else {
-            out.push_str(&format!("{}\n", e.name));
+            out.push_str(&format!("{}\n", e.name()));
         }
     }
     out
-}
-
-/// Minimal outline entry used by the cascade (mirrors fff_symbol::OutlineEntry).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct OutlineEntry {
-    pub name: String,
-    pub signature: Option<String>,
-    pub children: Vec<OutlineEntry>,
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn entry(name: &str, sig: Option<&str>, children: Vec<OutlineEntry>) -> OutlineEntry {
-        OutlineEntry {
+    #[derive(Debug, Clone)]
+    struct TestEntry {
+        name: String,
+        signature: Option<String>,
+        children: Vec<TestEntry>,
+    }
+
+    impl OutlineLike for TestEntry {
+        fn name(&self) -> &str {
+            &self.name
+        }
+        fn signature(&self) -> Option<&str> {
+            self.signature.as_deref()
+        }
+        fn for_each_child(&self, f: &mut dyn FnMut(&dyn OutlineLike)) {
+            for c in &self.children {
+                f(c);
+            }
+        }
+    }
+
+    fn entry(name: &str, sig: Option<&str>, children: Vec<TestEntry>) -> TestEntry {
+        TestEntry {
             name: name.to_string(),
             signature: sig.map(|s| s.to_string()),
             children,
         }
+    }
+
+    fn as_refs<O: OutlineLike>(entries: &[O]) -> Vec<&dyn OutlineLike> {
+        entries.iter().map(|e| e as &dyn OutlineLike).collect()
     }
 
     #[test]
@@ -156,19 +180,22 @@ mod tests {
         let content = "fn main() {}\n";
         let outline = vec![entry("main", Some("fn main()"), vec![])];
         let split = BudgetSplit::default_for(1000);
-        let r = cascade_read(content, &outline, FilterLevel::None, split);
+        let r = cascade_read(content, &as_refs(&outline), FilterLevel::None, split);
         assert_eq!(r.mode, ViewMode::Full);
         assert!(r.body.contains("main"));
     }
 
     #[test]
     fn falls_back_to_outline_when_full_too_long() {
-        let content = "fn main() {\n  // lots of lines\n}\n";
-        // One giant line to force budget overflow.
+        // One giant line to force budget overflow on full but fit outline.
         let big = format!("fn main() {{ {} }}\n", "x ".repeat(5000));
-        let outline = vec![entry("main", Some("fn main()"), vec![])];
-        let split = BudgetSplit::custom(10, 2, 5, 2); // tiny budget
-        let r = cascade_read(&big, &outline, FilterLevel::None, split);
+        let outline = vec![
+            entry("main", Some("fn main()"), vec![]),
+            entry("helper", Some("fn helper()"), vec![]),
+        ];
+        // body=10% of 1000 → 100 tokens × 4 = 400 bytes; big is ~10k, outline is ~30B.
+        let split = BudgetSplit::custom(1000, 2, 10, 2);
+        let r = cascade_read(&big, &as_refs(&outline), FilterLevel::None, split);
         assert_eq!(r.mode, ViewMode::Outline);
         assert!(r.body.contains("main"));
     }
@@ -178,11 +205,18 @@ mod tests {
         let big = (0..200)
             .map(|i| format!("fn f{i}() {{}}\n"))
             .collect::<String>();
-        let outline: Vec<OutlineEntry> = (0..200)
-            .map(|i| entry(&format!("f{i}"), Some(&format!("fn f{i}()")), vec![]))
+        let outline: Vec<TestEntry> = (0..200)
+            .map(|i| {
+                entry(
+                    &format!("f{i}"),
+                    Some(&format!("fn f{i}()")),
+                    vec![entry("child", Some("// nested"), vec![])],
+                )
+            })
             .collect();
+        // Tiny body so neither full nor outline (which has children) fits.
         let split = BudgetSplit::custom(10, 2, 5, 2);
-        let r = cascade_read(&big, &outline, FilterLevel::None, split);
+        let r = cascade_read(&big, &as_refs(&outline), FilterLevel::None, split);
         assert_eq!(r.mode, ViewMode::Signatures);
     }
 }

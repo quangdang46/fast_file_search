@@ -207,8 +207,10 @@ fn find_string_in(node: Node, src: &[u8]) -> Option<String> {
 }
 
 fn js_require_target(node: Node, src: &[u8]) -> Option<String> {
-    let method = node.child_by_field_name("function")
-        .or_else(|| node.named_child(0).filter(|n| matches!(n.kind(), "identifier")))?;
+    let method = node.child_by_field_name("function").or_else(|| {
+        node.named_child(0)
+            .filter(|n| matches!(n.kind(), "identifier"))
+    })?;
     let name = text_of(method, src)?;
     if name != "require" {
         return None;
@@ -217,8 +219,10 @@ fn js_require_target(node: Node, src: &[u8]) -> Option<String> {
 }
 
 fn elixir_alias_target(node: Node, src: &[u8]) -> Option<String> {
-    let method = node.child_by_field_name("target")
-        .or_else(|| node.named_child(0).filter(|n| matches!(n.kind(), "identifier")))?;
+    let method = node.child_by_field_name("target").or_else(|| {
+        node.named_child(0)
+            .filter(|n| matches!(n.kind(), "identifier"))
+    })?;
     let name = text_of(method, src)?;
     if !matches!(name.as_str(), "alias" | "import" | "use" | "require") {
         return None;
@@ -390,13 +394,9 @@ fn try_rust_module_path(base: &Path, segs: &[&str]) -> Option<PathBuf> {
 }
 
 fn resolve_js_alias(trimmed: &str, root: &Path, lang: Lang) -> Option<PathBuf> {
-    let rel = if trimmed.starts_with("@/") {
-        &trimmed[2..]
-    } else if trimmed.starts_with("~/") {
-        &trimmed[2..]
-    } else {
-        return None;
-    };
+    let rel = trimmed
+        .strip_prefix("@/")
+        .or_else(|| trimmed.strip_prefix("~/"))?;
     // Try root/src first, then root itself.
     for base in [root.join("src"), root.to_path_buf()] {
         if let Some(p) = try_resolve_path(&base, rel, lang) {
@@ -608,6 +608,26 @@ import * as m from '../bar/baz';
         let src = r#"const x = require("./foo");"#;
         let imports = extract_imports(src, Lang::JavaScript);
         assert!(imports.contains(&"./foo".to_string()), "{imports:?}");
+    }
+
+    #[test]
+    fn js_require_target_handles_destructuring() {
+        let src = r#"const { a, b: c } = require("./mod");
+const [x, y] = require("./arr");
+"#;
+        let imports = extract_imports(src, Lang::JavaScript);
+        assert!(imports.contains(&"./mod".to_string()), "{imports:?}");
+        assert!(imports.contains(&"./arr".to_string()), "{imports:?}");
+    }
+
+    #[test]
+    fn js_require_target_ignores_non_require_calls() {
+        let src = r#"const x = somethingElse("./not-a-require");
+fn require_like("./also-not");
+"#;
+        let imports = extract_imports(src, Lang::JavaScript);
+        assert!(!imports.contains(&"./not-a-require".to_string()));
+        assert!(!imports.contains(&"./also-not".to_string()));
     }
 
     #[test]

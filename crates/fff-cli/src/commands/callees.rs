@@ -19,6 +19,7 @@ use crate::commands::callees_format::format_call_site;
 use crate::commands::callees_resolve::collect_callees;
 use crate::commands::dedup::dedup_by;
 use crate::commands::pagination::{footer, Page};
+use crate::commands::session::Session;
 
 #[derive(Debug, Parser)]
 pub struct Args {
@@ -182,9 +183,9 @@ fn single_hop(engine: &Engine, name: &str) -> Vec<CalleeHit> {
 
 fn single_hop_detailed(engine: &Engine, name: &str) -> Vec<CalleeHit> {
     let definitions = engine.handles.symbols.lookup_exact(name);
-    // Collect all known symbol names for call-site extraction.
     let known: std::collections::HashSet<String> =
         engine.handles.symbols.names().into_iter().collect();
+    let session = Session::new();
     let mut hits: Vec<CalleeHit> = Vec::new();
     for def in &definitions {
         let lang = match detect_file_type(&def.path) {
@@ -195,7 +196,6 @@ fn single_hop_detailed(engine: &Engine, name: &str) -> Vec<CalleeHit> {
             continue;
         };
         let sites = extract_call_sites(&content, lang, def.line, def.end_line, &known);
-        // Group by callee to create one hit per callee with its sites.
         let mut by_callee: std::collections::HashMap<String, Vec<&CallSite>> =
             std::collections::HashMap::new();
         for site in &sites {
@@ -205,29 +205,26 @@ fn single_hop_detailed(engine: &Engine, name: &str) -> Vec<CalleeHit> {
             if callee == name {
                 continue;
             }
-            // Take the first occurrence's location.
             let first = callee_sites[0];
-            for loc in engine.handles.symbols.lookup_exact(&callee) {
-                hits.push(CalleeHit {
-                    name: callee.clone(),
-                    path: loc.path.to_string_lossy().to_string(),
-                    line: loc.line,
-                    depth: None,
-                    from: None,
-                    sites: Some(callee_sites.iter().map(|s| CallSiteDto::from(*s)).collect()),
-                });
+            let locations = engine.handles.symbols.lookup_exact(&callee);
+            // Emit exactly one hit per callee. Resolved location is the first
+            // definition if any, otherwise the call site itself.
+            let (target_path, target_line) = locations
+                .first()
+                .map(|l| (l.path.to_string_lossy().to_string(), l.line))
+                .unwrap_or_else(|| (def.path.to_string_lossy().to_string(), first.line));
+            if session.is_expanded(Path::new(&target_path), target_line) {
+                continue;
             }
-            // Also add a hit even if no symbol location exists.
-            if engine.handles.symbols.lookup_exact(&callee).is_empty() {
-                hits.push(CalleeHit {
-                    name: callee.clone(),
-                    path: def.path.to_string_lossy().to_string(),
-                    line: first.line,
-                    depth: None,
-                    from: None,
-                    sites: Some(callee_sites.iter().map(|s| CallSiteDto::from(*s)).collect()),
-                });
-            }
+            session.record_expand(Path::new(&target_path), target_line);
+            hits.push(CalleeHit {
+                name: callee,
+                path: target_path,
+                line: target_line,
+                depth: None,
+                from: None,
+                sites: Some(callee_sites.iter().map(|s| CallSiteDto::from(*s)).collect()),
+            });
         }
     }
     hits
@@ -249,7 +246,17 @@ fn render_text(p: &CalleesOutput) -> String {
         }
         if let Some(ref sites) = h.sites {
             for s in sites {
-                out.push_str(&format!("  {}\n", s.call_text));
+                let cs = CallSite {
+                    line: s.line,
+                    callee: s.callee.clone(),
+                    call_text: s.call_text.clone(),
+                    args: s.args.clone(),
+                    return_var: s.return_var.clone(),
+                    is_return: s.is_return,
+                };
+                out.push_str("  ");
+                out.push_str(&format_call_site(&cs));
+                out.push('\n');
             }
         }
     }

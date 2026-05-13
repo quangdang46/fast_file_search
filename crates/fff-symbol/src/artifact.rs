@@ -79,12 +79,14 @@ pub fn is_artifact_js_ts_file(path: &std::path::Path) -> bool {
 fn es_export_names(line: &str) -> Vec<String> {
     let mut out = Vec::new();
     let trimmed = line.trim();
-    // export { a, b, c }
+    // export { a, b, c } or export { foo as bar, baz as qux }
     if let Some(start) = trimmed.find("export {") {
         let inner = &trimmed[start + 8..];
         if let Some(end) = inner.find('}') {
             for name in inner[..end].split(',') {
-                let clean = clean_export_name(name.trim());
+                // For `foo as bar` the external name is `bar`.
+                let resolved = name.split_whitespace().last().unwrap_or("").trim();
+                let clean = clean_export_name(resolved);
                 if !clean.is_empty() {
                     out.push(clean);
                 }
@@ -92,18 +94,22 @@ fn es_export_names(line: &str) -> Vec<String> {
         }
     }
     // export default X
-    if trimmed.starts_with("export default") {
-        let name = trimmed[14..].trim();
-        let clean = clean_export_name(name);
+    if let Some(rest) = trimmed.strip_prefix("export default") {
+        let clean = clean_export_name(rest.trim());
         if !clean.is_empty() {
             out.push(clean);
         }
     }
     // export function/class/const/let/var NAME
-    for kw in &["export function", "export class", "export const", "export let", "export var"] {
-        if trimmed.starts_with(kw) {
-            let after = &trimmed[kw.len()..].trim_start();
-            let clean = clean_export_name(after);
+    for kw in &[
+        "export function",
+        "export class",
+        "export const",
+        "export let",
+        "export var",
+    ] {
+        if let Some(rest) = trimmed.strip_prefix(kw) {
+            let clean = clean_export_name(rest.trim_start());
             if !clean.is_empty() {
                 out.push(clean);
             }
@@ -116,12 +122,10 @@ fn es_export_names(line: &str) -> Vec<String> {
 fn cjs_export_names(line: &str) -> Vec<String> {
     let mut out = Vec::new();
     let trimmed = line.trim();
-    if trimmed.starts_with("module.exports.") || trimmed.starts_with("exports.") {
-        let after = if trimmed.starts_with("module.exports.") {
-            &trimmed[15..]
-        } else {
-            &trimmed[8..]
-        };
+    let after = trimmed
+        .strip_prefix("module.exports.")
+        .or_else(|| trimmed.strip_prefix("exports."));
+    if let Some(after) = after {
         let name = clean_export_name(after);
         if !name.is_empty() {
             out.push(name);
@@ -134,29 +138,24 @@ fn cjs_export_names(line: &str) -> Vec<String> {
 fn amd_define_names(line: &str) -> Vec<String> {
     let mut out = Vec::new();
     let trimmed = line.trim();
-    if trimmed.starts_with("define(") || trimmed.starts_with("define (") {
-        let after = if trimmed.starts_with("define(") {
-            &trimmed[7..]
-        } else {
-            &trimmed[8..]
-        };
-        // Find first quoted string
+    let after = trimmed
+        .strip_prefix("define(")
+        .or_else(|| trimmed.strip_prefix("define ("));
+    if let Some(after) = after {
+        // Find first quoted string (double or single).
         if let Some(start) = after.find('"') {
             let rest = &after[start + 1..];
             if let Some(end) = rest.find('"') {
-                let name = &rest[..end];
-                let clean = clean_export_name(name);
+                let clean = clean_amd_name(&rest[..end]);
                 if !clean.is_empty() {
                     out.push(clean);
                 }
             }
         }
-        // Try single quotes too
         if let Some(start) = after.find('\'') {
             let rest = &after[start + 1..];
             if let Some(end) = rest.find('\'') {
-                let name = &rest[..end];
-                let clean = clean_export_name(name);
+                let clean = clean_amd_name(&rest[..end]);
                 if !clean.is_empty() {
                     out.push(clean);
                 }
@@ -171,23 +170,48 @@ fn umd_global_names(line: &str) -> Vec<String> {
     let mut out = Vec::new();
     let trimmed = line.trim();
     for prefix in &["globalThis.", "global.", "window.", "self."] {
-        if trimmed.starts_with(prefix) {
-            let after = &trimmed[prefix.len()..];
+        if let Some(after) = trimmed.strip_prefix(prefix) {
             let name = clean_export_name(after);
-            if !name.is_empty() {
-                out.push(name);
+            if name.is_empty() {
+                continue;
+            }
+            // UMD pattern: `<global>.NAME = NAME` (RHS references same identifier).
+            // This filters out unrelated assignments like `window.location.href = ...`.
+            let Some(eq) = after.find('=') else { continue };
+            let rhs = after[eq + 1..].trim_start();
+            if rhs.starts_with(&name) {
+                let after_rhs = &rhs[name.len()..];
+                if after_rhs
+                    .chars()
+                    .next()
+                    .is_none_or(|c| !c.is_alphanumeric() && c != '_' && c != '$')
+                {
+                    out.push(name);
+                }
             }
         }
     }
     out
 }
 
-/// Extract an identifier from the start of `text`, stopping at any
-/// non-alphanumeric, underscore, dollar-sign, or hyphen character.
+// Extract a JS identifier (no hyphens) from the start of text.
 fn clean_export_name(text: &str) -> String {
     let mut out = String::new();
     for c in text.chars() {
-        if c.is_alphanumeric() || c == '_' || c == '$' || c == '-' {
+        if c.is_alphanumeric() || c == '_' || c == '$' {
+            out.push(c);
+        } else {
+            break;
+        }
+    }
+    out
+}
+
+// AMD module names allow hyphens (e.g. `define('my-module', ...)`).
+fn clean_amd_name(text: &str) -> String {
+    let mut out = String::new();
+    for c in text.chars() {
+        if c.is_alphanumeric() || c == '_' || c == '$' || c == '-' || c == '/' {
             out.push(c);
         } else {
             break;
@@ -205,6 +229,14 @@ mod tests {
         let anchors = es_export_names("export { foo, bar, baz }");
         assert!(anchors.contains(&"foo".to_string()));
         assert!(anchors.contains(&"bar".to_string()));
+    }
+
+    #[test]
+    fn es_export_resolves_as_alias() {
+        let anchors = es_export_names("export { foo as bar, baz as qux }");
+        assert!(anchors.contains(&"bar".to_string()));
+        assert!(anchors.contains(&"qux".to_string()));
+        assert!(!anchors.contains(&"foo".to_string()));
     }
 
     #[test]
@@ -259,6 +291,14 @@ mod tests {
     fn umd_window() {
         let anchors = umd_global_names("window.App = App;");
         assert_eq!(anchors, vec!["App"]);
+    }
+
+    #[test]
+    fn umd_rejects_unrelated_assignments() {
+        // Real-world false positives the prior naive match produced.
+        assert!(umd_global_names("window.location.href = '/login';").is_empty());
+        assert!(umd_global_names("self.state.count = 42;").is_empty());
+        assert!(umd_global_names("globalThis.Foo = SomethingElse;").is_empty());
     }
 
     #[test]

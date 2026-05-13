@@ -2,7 +2,6 @@
 
 use super::callees_detail::CallSite;
 
-/// Format one call site into a human-readable line.
 pub fn format_call_site(site: &CallSite) -> String {
     let mut out = format!("L{}", site.line);
 
@@ -29,7 +28,11 @@ fn compact_arg(arg: &str) -> String {
     if arg.len() <= 20 {
         arg.to_string()
     } else {
-        format!("{}...", &arg[..17])
+        let mut end = 17;
+        while end > 0 && !arg.is_char_boundary(end) {
+            end -= 1;
+        }
+        format!("{}...", &arg[..end])
     }
 }
 
