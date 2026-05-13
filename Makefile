@@ -16,10 +16,10 @@ build:
 	cargo build --release --features zlob
 
 build-c-lib:
-	cargo build --release -p fff-c --features zlob
+	cargo build --release -p ffs-c --features zlob
 
 header:
-	cbindgen --config crates/fff-c/cbindgen.toml --crate fff-c --output crates/fff-c/include/fff.h
+	cbindgen --config crates/ffs-c/cbindgen.toml --crate ffs-c --output crates/ffs-c/include/ffs.h
 
 # Install the C library and header under $(PREFIX) (default /usr/local).
 # Override PREFIX for user-local installs, e.g. `make install PREFIX=$$HOME/.local`.
@@ -27,27 +27,27 @@ header:
 install: build-c-lib
 	install -d $(DESTDIR)$(LIBDIR)
 	install -d $(DESTDIR)$(INCLUDEDIR)
-	install -m 0644 crates/fff-c/include/fff.h $(DESTDIR)$(INCLUDEDIR)/fff.h
-	@if [ -f target/release/libfff_c.dylib ]; then \
-		install -m 0755 target/release/libfff_c.dylib $(DESTDIR)$(LIBDIR)/libfff_c.dylib; \
-		echo "Installed $(DESTDIR)$(LIBDIR)/libfff_c.dylib"; \
+	install -m 0644 crates/ffs-c/include/ffs.h $(DESTDIR)$(INCLUDEDIR)/ffs.h
+	@if [ -f target/release/libffs_c.dylib ]; then \
+		install -m 0755 target/release/libffs_c.dylib $(DESTDIR)$(LIBDIR)/libffs_c.dylib; \
+		echo "Installed $(DESTDIR)$(LIBDIR)/libffs_c.dylib"; \
 	fi
-	@if [ -f target/release/libfff_c.so ]; then \
-		install -m 0755 target/release/libfff_c.so $(DESTDIR)$(LIBDIR)/libfff_c.so; \
-		echo "Installed $(DESTDIR)$(LIBDIR)/libfff_c.so"; \
+	@if [ -f target/release/libffs_c.so ]; then \
+		install -m 0755 target/release/libffs_c.so $(DESTDIR)$(LIBDIR)/libffs_c.so; \
+		echo "Installed $(DESTDIR)$(LIBDIR)/libffs_c.so"; \
 	fi
-	@if [ -f target/release/fff_c.dll ]; then \
-		install -m 0755 target/release/fff_c.dll $(DESTDIR)$(LIBDIR)/fff_c.dll; \
-		echo "Installed $(DESTDIR)$(LIBDIR)/fff_c.dll"; \
+	@if [ -f target/release/ffs_c.dll ]; then \
+		install -m 0755 target/release/ffs_c.dll $(DESTDIR)$(LIBDIR)/ffs_c.dll; \
+		echo "Installed $(DESTDIR)$(LIBDIR)/ffs_c.dll"; \
 	fi
-	@echo "Installed header $(DESTDIR)$(INCLUDEDIR)/fff.h"
+	@echo "Installed header $(DESTDIR)$(INCLUDEDIR)/ffs.h"
 
 uninstall:
-	rm -f $(DESTDIR)$(LIBDIR)/libfff_c.dylib
-	rm -f $(DESTDIR)$(LIBDIR)/libfff_c.so
-	rm -f $(DESTDIR)$(LIBDIR)/fff_c.dll
-	rm -f $(DESTDIR)$(INCLUDEDIR)/fff.h
-	@echo "Removed fff-c from $(DESTDIR)$(PREFIX)"
+	rm -f $(DESTDIR)$(LIBDIR)/libffs_c.dylib
+	rm -f $(DESTDIR)$(LIBDIR)/libffs_c.so
+	rm -f $(DESTDIR)$(LIBDIR)/ffs_c.dll
+	rm -f $(DESTDIR)$(INCLUDEDIR)/ffs.h
+	@echo "Removed ffs-c from $(DESTDIR)$(PREFIX)"
 
 test-setup:
 	@if [ ! -d "$(PLENARY_DIR)" ]; then \
@@ -56,7 +56,7 @@ test-setup:
 	fi
 
 test-rust:
-	cargo test --workspace --features zlob --exclude fff-nvim
+	cargo test --workspace --features zlob --exclude ffs-nvim
 
 test-lua: test-setup build
 	nvim --headless -u tests/minimal_init.lua \
@@ -67,25 +67,25 @@ test-version: test-setup
 		-c "PlenaryBustedFile tests/version_spec.lua" 2>&1
 
 prepare-bun: build
-	mkdir -p packages/fff-bun/bin
-	cp target/release/libfff_c.dylib packages/fff-bun/bin/ 2>/dev/null; \
-	cp target/release/libfff_c.so packages/fff-bun/bin/ 2>/dev/null; \
-	cp target/release/fff_c.dll packages/fff-bun/bin/ 2>/dev/null; \
+	mkdir -p packages/ffs-bun/bin
+	cp target/release/libffs_c.dylib packages/ffs-bun/bin/ 2>/dev/null; \
+	cp target/release/libffs_c.so packages/ffs-bun/bin/ 2>/dev/null; \
+	cp target/release/ffs_c.dll packages/ffs-bun/bin/ 2>/dev/null; \
 	true
 
 prepare-node: build
-	mkdir -p packages/fff-node/bin
-	cp target/release/libfff_c.dylib packages/fff-node/bin/ 2>/dev/null; \
-	cp target/release/libfff_c.so packages/fff-node/bin/ 2>/dev/null; \
-	cp target/release/fff_c.dll packages/fff-node/bin/ 2>/dev/null; \
+	mkdir -p packages/ffs-node/bin
+	cp target/release/libffs_c.dylib packages/ffs-node/bin/ 2>/dev/null; \
+	cp target/release/libffs_c.so packages/ffs-node/bin/ 2>/dev/null; \
+	cp target/release/ffs_c.dll packages/ffs-node/bin/ 2>/dev/null; \
 	true
 
 test-bun: prepare-bun
-	cd packages/fff-bun && bun test src/
-	cd packages/pi-fff && bun test test/
+	cd packages/ffs-bun && bun test src/
+	cd packages/pi-ffs && bun test test/
 
 test-node: prepare-node
-	cd packages/fff-node && npm run build && node test/e2e.mjs
+	cd packages/ffs-node && npm run build && node test/e2e.mjs
 
 test: test-rust test-lua test-version test-bun test-node
 
@@ -94,7 +94,7 @@ test-stress-seeded:
 	FFF_STRESS_SEED="$${FFF_STRESS_SEED:-$(FFF_STRESS_DEFAULT_SEED)}" \
 	RUSTFLAGS="$(STRESS_RUSTFLAGS)" \
 	cargo test \
-		-p fff-search \
+		-p ffs-search \
 		--test fuzz_git_watcher_stress \
 		--features zlob \
 		-- --nocapture stress_seeded
@@ -102,7 +102,7 @@ test-stress-seeded:
 test-stress-random:
 	RUSTFLAGS="$(STRESS_RUSTFLAGS)" \
 	cargo test \
-		-p fff-search \
+		-p ffs-search \
 		--test fuzz_git_watcher_stress \
 		--features zlob \
 		-- --nocapture stress_random
@@ -110,7 +110,7 @@ test-stress-random:
 test-stress: test-stress-seeded test-stress-random
 
 # Update version in a package.json, including optionalDependencies.
-# Usage: make set-npm-version PKG=packages/fff-bun VERSION=1.0.0-nightly.abc1234
+# Usage: make set-npm-version PKG=packages/ffs-bun VERSION=1.0.0-nightly.abc1234
 set-npm-version:
 	@test -n "$(PKG)" || (echo "PKG is required" && exit 1)
 	@test -n "$(VERSION)" || (echo "VERSION is required" && exit 1)
@@ -147,7 +147,7 @@ lint: lint-rust lint-lua lint-ts
 
 check: format lint
 
-CRATES_TO_PUBLISH= fff-grep fff-query-parser fff-search
+CRATES_TO_PUBLISH= ffs-grep ffs-query-parser ffs-search
 
 publish-crates:
 	@test -n "$(V)" || (echo "V is required. Usage: make publish-crates V=0.2.0" && exit 1)

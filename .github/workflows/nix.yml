@@ -24,8 +24,8 @@ jobs:
       - name: Run `nix build`
         run: nix build
 
-      - name: Run `nix build .#fff-nvim`
-        run: nix build .#fff-nvim
+      - name: Run `nix build .#ffs-nvim`
+        run: nix build .#ffs-nvim
 
       - name: Run `nix run .#release`
         run: nix run .#release

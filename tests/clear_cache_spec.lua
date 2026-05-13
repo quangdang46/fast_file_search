@@ -1,5 +1,5 @@
 ---@diagnostic disable: undefined-field, missing-fields
-local fff_rust = require('fff.rust')
+local fff_rust = require('ffs.rust')
 
 describe('clear_cache', function()
   local test_dir
@@ -42,7 +42,7 @@ describe('clear_cache', function()
     assert.are.equal(1, vim.fn.isdirectory(tmp_frecency_path), 'frecency db dir should exist after init')
     assert.are.equal(1, vim.fn.isdirectory(tmp_history_path), 'history db dir should exist after init')
 
-    local main = require('fff.main')
+    local main = require('ffs.main')
     local result = main.clear_cache('all')
     assert.is_true(result)
 
@@ -57,7 +57,7 @@ describe('clear_cache', function()
     assert.is_true(ok)
     fff_rust.wait_for_initial_scan(10000)
 
-    local main = require('fff.main')
+    local main = require('ffs.main')
     local result = main.clear_cache('frecency')
     assert.is_true(result)
 
@@ -76,7 +76,7 @@ describe('clear_cache', function()
     assert.is_true(ok)
     fff_rust.wait_for_initial_scan(10000)
 
-    local main = require('fff.main')
+    local main = require('ffs.main')
     local result = main.clear_cache('files')
     assert.is_true(result)
 

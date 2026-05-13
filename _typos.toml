@@ -6,7 +6,7 @@ noice = "noice"
 fo = "fo"
 ba = "ba"
 ue = "ue"
-# bloom-filter false-positive rate (used in fff-symbol/src/bloom.rs)
+# bloom-filter false-positive rate (used in ffs-symbol/src/bloom.rs)
 fpr = "fpr"
 FPR = "FPR"
 # file extensions that look like typos

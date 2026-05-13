@@ -1,0 +1,27 @@
+[package]
+name = "ffs-engine"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Unified scanner, query dispatch, ranking and memory-budget enforcement for scry."
+
+[dependencies]
+ffs-search = { path = "../ffs-core" }
+ffs-symbol = { workspace = true }
+ffs-budget = { workspace = true }
+ffs-grep = { workspace = true }
+ahash = { workspace = true }
+dashmap = { workspace = true }
+ignore = { workspace = true }
+memchr = { workspace = true }
+parking_lot = { workspace = true }
+rayon = { workspace = true }
+serde = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+criterion = { workspace = true }
+
+[[bench]]
+name = "dispatch_bench"
+harness = false

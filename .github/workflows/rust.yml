@@ -41,7 +41,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Run tests
-        run: cargo test --features zlob --workspace --exclude fff-nvim
+        run: cargo test --features zlob --workspace --exclude ffs-nvim
 
   stress-test:
     name: Stress Test (Watcher + Git)
@@ -92,7 +92,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: proptest-regressions-${{ matrix.os }}
-          path: crates/fff-core/tests/fuzz_git_watcher_stress.proptest-regressions
+          path: crates/ffs-core/tests/fuzz_git_watcher_stress.proptest-regressions
           if-no-files-found: ignore
 
   fmt:
@@ -151,6 +151,6 @@ jobs:
       - name: Compile benches (no run)
         run: |
           cargo bench --no-run \
-            -p fff-symbol \
-            -p fff-budget \
-            -p fff-engine
+            -p ffs-symbol \
+            -p ffs-budget \
+            -p ffs-engine

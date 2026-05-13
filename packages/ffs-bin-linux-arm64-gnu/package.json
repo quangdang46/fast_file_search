@@ -1,0 +1,19 @@
+{
+  "name": "@ff-labs/ffs-bin-linux-arm64-gnu",
+  "version": "0.0.0",
+  "description": "fff native binary for Linux ARM64 (glibc)",
+  "os": ["linux"],
+  "cpu": ["arm64"],
+  "main": "libffs_c.so",
+  "files": ["libffs_c.so"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dmtrKovalenko/ffs.nvim.git",
+    "directory": "packages/fff-bin-linux-arm64-gnu"
+  },
+  "libc": ["glibc"]
+}

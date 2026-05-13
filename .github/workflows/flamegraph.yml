@@ -15,7 +15,7 @@ on:
       crate:
         description: "Crate the bench lives in"
         required: false
-        default: fff-engine
+        default: ffs-engine
 
 env:
   CARGO_TERM_COLOR: always
@@ -65,7 +65,7 @@ jobs:
         run: |
           set -x
           cargo flamegraph --release \
-            -p "${CRATE:-fff-engine}" \
+            -p "${CRATE:-ffs-engine}" \
             --bench "${BENCH:-dispatch_bench}" \
             -o flamegraph.svg \
             -- --bench

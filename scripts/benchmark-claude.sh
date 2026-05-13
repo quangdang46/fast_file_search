@@ -13,7 +13,7 @@
 # Requirements:
 #   - claude CLI in PATH
 #   - ~/dev/lightsource exists
-#   - fff MCP server built (cargo build --release, binary at target/release/fff-mcp)
+#   - fff MCP server built (cargo build --release, binary at target/release/ffs-mcp)
 #
 # Auth: The script inherits YOUR shell environment. If you use AWS Bedrock,
 # make sure your AWS credentials are exported before running.
@@ -37,7 +37,7 @@ FFF_MCP_FILE=$(mktemp)
 trap "rm -f $FFF_MCP_FILE" EXIT
 
 cat > "$FFF_MCP_FILE" <<EOF
-{"mcpServers":{"fff":{"type":"stdio","command":"$PROJECT_ROOT/target/release/fff-mcp","args":[]}}}
+{"mcpServers":{"fff":{"type":"stdio","command":"$PROJECT_ROOT/target/release/ffs-mcp","args":[]}}}
 EOF
 
 # ─── PREFLIGHT CHECK ──────────────────────────────────────────────────────────
