@@ -107,6 +107,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         BfsConfig {
             max_hops: hops,
             hub_guard: args.hub_guard,
+            skip_hubs: String::new(),
         },
         &root_canon,
     );

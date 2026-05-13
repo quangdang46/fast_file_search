@@ -18,6 +18,7 @@ neo_frizbee = { workspace = true }
 tree-sitter = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true }
+clap_complete = "4.5"
 ignore = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

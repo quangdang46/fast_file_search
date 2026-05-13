@@ -186,7 +186,7 @@ fn collect_children(node: Node, lines: &[&str], lang: Lang, out: &mut Vec<Outlin
     }
 }
 
-/// Extract a single-line signature for the node — first line trimmed to ~120 chars.
+// Extract a single-line signature for the node — first line trimmed to ~120 chars.
 fn extract_signature(node: Node, lines: &[&str]) -> Option<String> {
     if node.kind().contains("function") || node.kind().contains("method") {
         if let Some(iife) = find_iife_function(node) {

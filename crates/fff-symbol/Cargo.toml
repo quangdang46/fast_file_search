@@ -6,6 +6,7 @@ license = "MIT"
 description = "Symbol indexing, bloom filters, and tree-sitter outline extraction for scry."
 
 [dependencies]
+aho-corasick = { workspace = true }
 dashmap = { workspace = true }
 ignore = { workspace = true }
 memchr = { workspace = true }

@@ -543,7 +543,7 @@ mod tests {
             has_more: false,
             did_you_mean: vec![Suggestion {
                 name: "foo".into(),
-                source: "fuzzy".into(),
+                source: "fuzzy",
                 hits: vec![],
             }],
         };

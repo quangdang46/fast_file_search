@@ -12,6 +12,8 @@
 //! All public types live in [`types`]. Language detection and tree-sitter
 //! grammar lookup live in [`lang`] and [`treesitter`].
 
+pub mod artifact;
+pub mod batch;
 pub mod bloom;
 pub mod detection;
 pub mod lang;

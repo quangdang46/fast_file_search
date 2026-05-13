@@ -6,8 +6,15 @@ pub fn is_binary(buf: &[u8]) -> bool {
     memchr::memchr(0, window).is_some()
 }
 
-/// Check filename against known generated/lock files.
+/// Check filename against known generated/lock files and extension patterns.
 pub fn is_generated_by_name(name: &str) -> bool {
+    if is_generated_filename(name) {
+        return true;
+    }
+    is_generated_extension(name)
+}
+
+fn is_generated_filename(name: &str) -> bool {
     matches!(
         name,
         "package-lock.json"
@@ -20,6 +27,20 @@ pub fn is_generated_by_name(name: &str) -> bool {
             | "go.sum"
             | "bun.lockb"
     )
+}
+
+fn is_generated_extension(name: &str) -> bool {
+    let lower = name.to_lowercase();
+    lower.ends_with(".min.js")
+        || lower.ends_with(".min.css")
+        || lower.ends_with(".pb.go")
+        || lower.contains(".generated.")
+        || lower.ends_with("_pb2.py")
+        || lower.ends_with("_pb2_grpc.py")
+        || lower.ends_with(".designer.cs")
+        || lower.ends_with(".g.dart")
+        || lower.ends_with(".gen.go")
+        || lower.ends_with(".gen.ts")
 }
 
 const GENERATED_MARKERS: &[&[u8]] = &[

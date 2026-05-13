@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
 
 use crate::commands;
 
@@ -24,8 +24,12 @@ pub struct Cli {
     #[arg(long, global = true, value_enum, default_value_t = OutputFormat::Text)]
     pub format: OutputFormat,
 
+    /// Generate shell completions for the given shell.
+    #[arg(long, global = true, value_enum)]
+    pub completions: Option<clap_complete::Shell>,
+
     #[command(subcommand)]
-    pub command: Command,
+    pub command: Option<Command>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -101,7 +105,13 @@ impl Cli {
             .clone()
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
 
-        match self.command {
+        let Some(command) = self.command else {
+            // No subcommand: print short help.
+            Self::command().print_help()?;
+            println!();
+            return Ok(());
+        };
+        match command {
             Command::Find(a) => commands::find::run(a, &root, self.format),
             Command::Glob(a) => commands::glob::run(a, &root, self.format),
             Command::Grep(a) => commands::grep::run(a, &root, self.format),

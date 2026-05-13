@@ -8,6 +8,7 @@
 //!   token-budgeted output that always shows a `[N more lines]` footer.
 //! * [`stream`] — `BlockStreamFilter` for line-oriented streaming output.
 
+pub mod cascade;
 pub mod filter;
 pub mod stream;
 pub mod tokens;
