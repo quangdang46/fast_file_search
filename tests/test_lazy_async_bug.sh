@@ -41,7 +41,7 @@ trap 'rm -rf "$RUNNERS"' EXIT
 #   the event loop never spins again, so the git/curl/rename callbacks die.
 cat >"$RUNNERS/async.lua" <<'LUA'
 vim.opt.runtimepath:prepend(os.getenv('FFF_PLUGIN_ROOT'))
-require('fff.download').ensure_downloaded(
+require('ffs.download').ensure_downloaded(
   { version = '3e9b865', force = true },
   function() end   -- this callback is never reached
 )
@@ -54,7 +54,7 @@ LUA
 cat >"$RUNNERS/blocking.lua" <<'LUA'
 vim.opt.runtimepath:prepend(os.getenv('FFF_PLUGIN_ROOT'))
 -- Blocks via vim.wait; only returns once the binary is on disk.
-require('fff.download').download_or_build_binary()
+require('ffs.download').download_or_build_binary()
 LUA
 
 printf '\n=== lazy.nvim async-exit bug ===\nbinary : %s\n\n' "$BINARY"

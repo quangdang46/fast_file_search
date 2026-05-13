@@ -43,4 +43,4 @@ git push origin "$TAG"
 
 echo ""
 echo "Release $VERSION created and pushed."
-echo "CI will build and publish: https://github.com/dmtrKovalenko/fff.nvim/actions"
+echo "CI will build and publish: https://github.com/dmtrKovalenko/ffs.nvim/actions"

@@ -1,5 +1,5 @@
 ---@diagnostic disable: undefined-field
-local fff_rust = require('fff.rust')
+local fff_rust = require('ffs.rust')
 
 --- Wait for the scan to fully complete, handling the startup race where
 --- the background thread hasn't set is_scanning=true yet.

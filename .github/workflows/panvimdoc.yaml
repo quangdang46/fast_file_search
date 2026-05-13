@@ -18,7 +18,7 @@ jobs:
       - name: panvimdoc
         uses: kdheepak/panvimdoc@main
         with:
-          vimdoc: fff.nvim
+          vimdoc: ffs.nvim
           version: "Neovim >= 0.10.0"
           demojify: true
           treesitter: true

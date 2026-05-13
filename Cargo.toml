@@ -1,24 +1,24 @@
 [workspace]
 members = [
-  "crates/fff-c",
-  "crates/fff-core",
-  "crates/fff-mcp",
-  "crates/fff-nvim",
-  "crates/fff-query-parser",
-  "crates/fff-grep",
-  "crates/fff-symbol",
-  "crates/fff-budget",
-  "crates/fff-engine",
-  "crates/fff-cli",
+  "crates/ffs-c",
+  "crates/ffs-core",
+  "crates/ffs-mcp",
+  "crates/ffs-nvim",
+  "crates/ffs-query-parser",
+  "crates/ffs-grep",
+  "crates/ffs-symbol",
+  "crates/ffs-budget",
+  "crates/ffs-engine",
+  "crates/ffs-cli",
 ]
 resolver = "2"
 
 [workspace.dependencies]
-fff-grep = { version = "0.7.2", path = "crates/fff-grep" }
-fff-query-parser = { version = "0.7.2", path = "crates/fff-query-parser", default-features = false }
-fff-symbol = { version = "0.1.0", path = "crates/fff-symbol" }
-fff-budget = { version = "0.1.0", path = "crates/fff-budget" }
-fff-engine = { version = "0.1.0", path = "crates/fff-engine" }
+ffs-grep = { version = "0.7.2", path = "crates/ffs-grep" }
+ffs-query-parser = { version = "0.7.2", path = "crates/ffs-query-parser", default-features = false }
+ffs-symbol = { version = "0.1.0", path = "crates/ffs-symbol" }
+ffs-budget = { version = "0.1.0", path = "crates/ffs-budget" }
+ffs-engine = { version = "0.1.0", path = "crates/ffs-engine" }
 
 # Shared dependencies
 aho-corasick = "1"

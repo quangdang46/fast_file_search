@@ -37,9 +37,9 @@ jobs:
       - name: Run benches
         run: |
           cargo bench \
-            -p fff-symbol \
-            -p fff-budget \
-            -p fff-engine
+            -p ffs-symbol \
+            -p ffs-budget \
+            -p ffs-engine
 
       - name: Upload criterion artifacts
         if: always()

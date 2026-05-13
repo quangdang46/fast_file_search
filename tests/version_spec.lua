@@ -1,5 +1,5 @@
 ---@diagnostic disable: undefined-field, need-check-nil, param-type-mismatch
-local version = require('fff.utils.version')
+local version = require('ffs.utils.version')
 
 describe('fff.utils.version', function()
   local repo_root
@@ -24,9 +24,9 @@ describe('fff.utils.version', function()
 
     it('should parse version from a temp Cargo.toml', function()
       local tmp = vim.fn.tempname()
-      vim.fn.mkdir(tmp .. '/crates/fff-core', 'p')
+      vim.fn.mkdir(tmp .. '/crates/ffs-core', 'p')
 
-      local f = io.open(tmp .. '/crates/fff-core/Cargo.toml', 'w')
+      local f = io.open(tmp .. '/crates/ffs-core/Cargo.toml', 'w')
       f:write('[package]\nname = "test"\nversion = "1.2.3"\n')
       f:close()
 
@@ -142,13 +142,13 @@ describe('fff.utils.version', function()
 
     it('should return dev on a non-main branch', function()
       local tmp = vim.fn.tempname()
-      vim.fn.mkdir(tmp .. '/crates/fff-core', 'p')
+      vim.fn.mkdir(tmp .. '/crates/ffs-core', 'p')
 
       vim.fn.system({ 'git', 'init', '-q', tmp })
       vim.fn.system({ 'git', '-C', tmp, 'config', 'user.email', 'test@test.com' })
       vim.fn.system({ 'git', '-C', tmp, 'config', 'user.name', 'Test' })
 
-      local f = io.open(tmp .. '/crates/fff-core/Cargo.toml', 'w')
+      local f = io.open(tmp .. '/crates/ffs-core/Cargo.toml', 'w')
       f:write('[package]\nname = "test"\nversion = "1.0.0"\nedition = "2024"\n')
       f:close()
 
@@ -168,13 +168,13 @@ describe('fff.utils.version', function()
 
     it('should return nightly on main branch', function()
       local tmp = vim.fn.tempname()
-      vim.fn.mkdir(tmp .. '/crates/fff-core', 'p')
+      vim.fn.mkdir(tmp .. '/crates/ffs-core', 'p')
 
       vim.fn.system({ 'git', 'init', '-q', '-b', 'main', tmp })
       vim.fn.system({ 'git', '-C', tmp, 'config', 'user.email', 'test@test.com' })
       vim.fn.system({ 'git', '-C', tmp, 'config', 'user.name', 'Test' })
 
-      local f = io.open(tmp .. '/crates/fff-core/Cargo.toml', 'w')
+      local f = io.open(tmp .. '/crates/ffs-core/Cargo.toml', 'w')
       f:write('[package]\nname = "test"\nversion = "2.0.0"\nedition = "2024"\n')
       f:close()
 
@@ -192,13 +192,13 @@ describe('fff.utils.version', function()
 
     it('should return stable release for v* tagged commit', function()
       local tmp = vim.fn.tempname()
-      vim.fn.mkdir(tmp .. '/crates/fff-core', 'p')
+      vim.fn.mkdir(tmp .. '/crates/ffs-core', 'p')
 
       vim.fn.system({ 'git', 'init', '-q', tmp })
       vim.fn.system({ 'git', '-C', tmp, 'config', 'user.email', 'test@test.com' })
       vim.fn.system({ 'git', '-C', tmp, 'config', 'user.name', 'Test' })
 
-      local f = io.open(tmp .. '/crates/fff-core/Cargo.toml', 'w')
+      local f = io.open(tmp .. '/crates/ffs-core/Cargo.toml', 'w')
       f:write('[package]\nname = "test"\nversion = "3.0.0"\nedition = "2024"\n')
       f:close()
 
@@ -218,9 +218,9 @@ describe('fff.utils.version', function()
 
     it('should fail for a non-git directory', function()
       local tmp = vim.fn.tempname()
-      vim.fn.mkdir(tmp .. '/crates/fff-core', 'p')
+      vim.fn.mkdir(tmp .. '/crates/ffs-core', 'p')
 
-      local f = io.open(tmp .. '/crates/fff-core/Cargo.toml', 'w')
+      local f = io.open(tmp .. '/crates/ffs-core/Cargo.toml', 'w')
       f:write('[package]\nname = "test"\nversion = "1.0.0"\n')
       f:close()
 

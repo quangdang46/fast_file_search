@@ -1,6 +1,6 @@
 # To Clankers
 
-This repository contains **FFF.nvim (Fast File Finder)**, a high-performance file picker for Neovim inspired by blink.cmp's fuzzy matching technology. It's NOT a completion plugin, but rather a standalone file finder with advanced fuzzy search and frecency scoring. The project aims to be the drop-in replacement for telescope, fzf-lua, snacks.picker and similar plugins, focusing on speed, accuracy search and usability features.
+This repository contains **FFS.nvim (Fast File Finder)**, a high-performance file picker for Neovim inspired by blink.cmp's fuzzy matching technology. It's NOT a completion plugin, but rather a standalone file finder with advanced fuzzy search and frecency scoring. The project aims to be the drop-in replacement for telescope, fzf-lua, snacks.picker and similar plugins, focusing on speed, accuracy search and usability features.
 
 ## Development Commands
 
@@ -49,23 +49,23 @@ There are 2 databases:
 ### Key Files
 
 - `lua/fff.lua` - Entry point, delegates to main.lua
-- `lua/fff/main.lua` - Public API (find_files, search, change_directory)
-- `lua/fff/core.lua` - Initialization, autocmds, global state management
-- `lua/fff/picker_ui.lua` - UI rendering, layout calculation, keymaps
-- `lua/fff/file_picker/preview.lua` - File preview with syntax highlighting
-- `lua/fff/file_picker/image.lua` - Image preview (snacks.nvim integration)
-- `lua/fff/conf.lua` - Default config
-- `lua/fff/rust/init.lua` - Loads compiled Rust shared library
+- `lua/ffs/main.lua` - Public API (find_files, search, change_directory)
+- `lua/ffs/core.lua` - Initialization, autocmds, global state management
+- `lua/ffs/picker_ui.lua` - UI rendering, layout calculation, keymaps
+- `lua/ffs/file_picker/preview.lua` - File preview with syntax highlighting
+- `lua/ffs/file_picker/image.lua` - Image preview (snacks.nvim integration)
+- `lua/ffs/conf.lua` - Default config
+- `lua/ffs/rust/init.lua` - Loads compiled Rust shared library
 
 **Rust Side:**
 
-- `lua/fff/rust/lib.rs` - FFI bindings, global state (FILE_PICKER, FRECENCY)
-- `lua/fff/rust/file_picker.rs` - Core FilePicker struct, indexing, background watcher
-- `lua/fff/rust/frecency.rs` - Frecency database (LMDB) and scoring
-- `lua/fff/rust/query_tracker.rs` - Search query history tracking
-- `lua/fff/rust/score.rs` - Fuzzy match scoring with frizbee integration
-- `lua/fff/rust/git.rs` - Git status caching and repository detection
-- `lua/fff/rust/background_watcher.rs` - File system watcher thread
+- `lua/ffs/rust/lib.rs` - FFI bindings, global state (FILE_PICKER, FRECENCY)
+- `lua/ffs/rust/file_picker.rs` - Core FilePicker struct, indexing, background watcher
+- `lua/ffs/rust/frecency.rs` - Frecency database (LMDB) and scoring
+- `lua/ffs/rust/query_tracker.rs` - Search query history tracking
+- `lua/ffs/rust/score.rs` - Fuzzy match scoring with frizbee integration
+- `lua/ffs/rust/git.rs` - Git status caching and repository detection
+- `lua/ffs/rust/background_watcher.rs` - File system watcher thread
 
 ### Scoring Algorithm
 
@@ -73,7 +73,7 @@ Located at the score.rs file
 
 ### Build System
 
-- `Cargo.toml` - Rust dependencies and build configuration (package name: `fff_nvim`)
+- `Cargo.toml` - Rust dependencies and build configuration (package name: `ffs_nvim`)
 - `rust-toolchain.toml` - Specifies Rust nightly toolchain with required components
 - `Cross.toml` - Cross-compilation settings using Zig for Linux targets
 - **CI/CD Workflows**:

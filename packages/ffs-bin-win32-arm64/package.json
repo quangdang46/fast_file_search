@@ -1,0 +1,18 @@
+{
+  "name": "@ff-labs/ffs-bin-win32-arm64",
+  "version": "0.0.0",
+  "description": "fff native binary for Windows ARM64",
+  "os": ["win32"],
+  "cpu": ["arm64"],
+  "main": "ffs_c.dll",
+  "files": ["ffs_c.dll"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dmtrKovalenko/ffs.nvim.git",
+    "directory": "packages/fff-bin-win32-arm64"
+  }
+}

@@ -3,7 +3,7 @@
 Diagnose LMDB lock.mdb holders and waiters.
 
 Usage: ./diagnose_lockmdb.py [path_to_lock.mdb]
-Default: /home/neogoose/.cache/nvim/fff_nvim/lock.mdb
+Default: /home/neogoose/.cache/nvim/ffs_nvim/lock.mdb
 
 Shows:
 1. Every process that has the lock.mdb inode in its mmap/fd table (potential holders)
@@ -17,7 +17,7 @@ import struct
 import sys
 from pathlib import Path
 
-LOCK_PATH = sys.argv[1] if len(sys.argv) > 1 else "/home/neogoose/.cache/nvim/fff_nvim/lock.mdb"
+LOCK_PATH = sys.argv[1] if len(sys.argv) > 1 else "/home/neogoose/.cache/nvim/ffs_nvim/lock.mdb"
 
 RMUTEX_OFFSET = 24   # MDB_txbody.mtb_rmutex
 WMUTEX_OFFSET = 64   # MDB_txninfo.mt2.mt2_wmutex

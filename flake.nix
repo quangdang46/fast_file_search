@@ -1,5 +1,5 @@
 {
-  description = "fff.nvim";
+  description = "ffs.nvim";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -45,7 +45,7 @@
 
         craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
 
-        cargoToml = builtins.fromTOML (builtins.readFile ./crates/fff-nvim/Cargo.toml);
+        cargoToml = builtins.fromTOML (builtins.readFile ./crates/ffs-nvim/Cargo.toml);
 
         # Common arguments can be set here to avoid repeating them later
         # Note: changes here will rebuild all dependency crates
@@ -58,7 +58,7 @@
             src = ./.;
             filter =
               path: type:
-              (pkgs.lib.hasInfix "/crates/fff-cli/assets/" path)
+              (pkgs.lib.hasInfix "/crates/ffs-cli/assets/" path)
               || (craneLib.filterCargoSources path type);
             name = "source";
           };
@@ -95,9 +95,9 @@
           set -eo pipefail
           mkdir -p target/release
           if [ "$(uname)" = "Darwin" ]; then
-            cp -vf ${my-crate}/lib/libfff_nvim.dylib target/release/libfff_nvim.dylib
+            cp -vf ${my-crate}/lib/libffs_nvim.dylib target/release/libffs_nvim.dylib
           else
-            cp -vf ${my-crate}/lib/libfff_nvim.so target/release/libfff_nvim.so
+            cp -vf ${my-crate}/lib/libffs_nvim.so target/release/libffs_nvim.so
           fi
           echo "Library copied to target/release/"
         '';
@@ -111,8 +111,8 @@
           default = my-crate;
 
           # Neovim plugin
-          fff-nvim = pkgs.vimUtils.buildVimPlugin {
-            pname = "fff.nvim";
+          ffs-nvim = pkgs.vimUtils.buildVimPlugin {
+            pname = "ffs.nvim";
             version = "main";
             src = pkgs.lib.cleanSource ./.;
             postPatch = copy-dynamic-library;
