@@ -237,7 +237,7 @@ fn capitalize(w: &str) -> String {
     }
 }
 
-/// Top-N fuzzy candidates using `neo_frizbee::match_list` with typo tolerance.
+// Top-N fuzzy candidates using `neo_frizbee::match_list` with typo tolerance.
 fn fuzzy_candidates(query: &str, names: &[String], top_n: usize) -> Vec<String> {
     if names.is_empty() {
         return Vec::new();

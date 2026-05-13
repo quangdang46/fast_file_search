@@ -17,6 +17,7 @@ use std::collections::{HashMap, HashSet};
 use serde::Serialize;
 
 use fff_engine::Engine;
+use fff_symbol::batch::batch_lookup;
 use fff_symbol::lang::detect_file_type;
 use fff_symbol::types::FileType;
 
@@ -67,18 +68,19 @@ pub fn run_bfs(engine: &Engine, initial: &str, cfg: BfsConfig) -> Vec<CalleeHit>
                 let Some(idents) = collect_callees(&content, lang, def.line, def.end_line) else {
                     continue;
                 };
-                for ident in &idents {
-                    if ident == name {
+                let lookup_names: Vec<&str> = idents
+                    .iter()
+                    .filter(|i| i.as_str() != name)
+                    .map(String::as_str)
+                    .collect();
+                for result in batch_lookup(&engine.handles.symbols, &lookup_names) {
+                    if result.locations.is_empty() {
                         continue;
                     }
-                    let locs = engine.handles.symbols.lookup_exact(ident);
-                    if locs.is_empty() {
-                        continue;
-                    }
-                    idents_this_name.push(ident.clone());
-                    for loc in locs {
+                    idents_this_name.push(result.symbol.clone());
+                    for loc in result.locations {
                         all_hits.push(CalleeHit {
-                            name: ident.clone(),
+                            name: result.symbol.clone(),
                             path: loc.path.to_string_lossy().to_string(),
                             line: loc.line,
                             depth,

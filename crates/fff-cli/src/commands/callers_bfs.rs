@@ -21,6 +21,14 @@ use fff_engine::{Engine, PreFilterStack};
 use fff_symbol::types::{Lang, OutlineEntry};
 
 use crate::commands::callers::CallerHit;
+use crate::commands::session::Session;
+
+// Minimum hit count at a depth >= 2 before proximity heuristic activates.
+const PROXIMITY_MIN_HITS: usize = 50;
+// Fraction of hits whose parent dir must overlap the previous depth's dirs;
+// below this, the hop is flagged as suspicious cross-package collisions.
+const PROXIMITY_RELATED_RATIO_NUM: usize = 1;
+const PROXIMITY_RELATED_RATIO_DEN: usize = 5;
 
 pub struct BfsConfig {
     pub max_hops: u32,
@@ -113,6 +121,7 @@ pub fn run_bfs(
         .iter()
         .map(|c| (c.path.clone(), c.mtime, c.content.clone()))
         .collect();
+    let session = Session::new();
 
     let max_hops = cfg.max_hops.clamp(1, 5);
     let user_hubs: HashSet<String> = if cfg.skip_hubs.is_empty() {
@@ -191,6 +200,11 @@ pub fn run_bfs(
                     if definition_lines.contains(&lineno) {
                         continue;
                     }
+                    // Dedup across BFS depths: each (path, line) reported once.
+                    if session.is_expanded(&cf.path, lineno) {
+                        continue;
+                    }
+                    session.record_expand(&cf.path, lineno);
                     let enclosing = enclosing_symbol(&outline, lineno);
                     if let Some(ref e) = enclosing {
                         enclosings_this_name.push(e.clone());
@@ -244,7 +258,9 @@ pub fn run_bfs(
             .then_with(|| b.count.cmp(&a.count))
             .then_with(|| a.name.cmp(&b.name))
     });
-    telemetry.hubs_skipped.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
+    telemetry
+        .hubs_skipped
+        .sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
     telemetry.proximity_suspicions = compute_proximity_suspicions(&all_hits);
 
     BfsResult {
@@ -253,9 +269,7 @@ pub fn run_bfs(
     }
 }
 
-/// Compute directory-proximity suspicion: for each depth >= 2 with >= 50 hits,
-/// check what fraction of hits share a parent directory with the previous depth's
-/// hits. Flag when < 20% are related (cross-package collision).
+// Flag depth-N hops whose hits scatter into unrelated directories vs depth-(N-1).
 pub fn compute_proximity_suspicions(hits: &[CallerHit]) -> Vec<ProximitySuspicion> {
     use std::collections::{BTreeMap, HashSet};
 
@@ -270,7 +284,7 @@ pub fn compute_proximity_suspicions(hits: &[CallerHit]) -> Vec<ProximitySuspicio
             continue;
         }
         let total = list.len();
-        if total < 50 {
+        if total < PROXIMITY_MIN_HITS {
             continue;
         }
         let prev = match by_depth.get(&(depth - 1)) {
@@ -295,8 +309,7 @@ pub fn compute_proximity_suspicions(hits: &[CallerHit]) -> Vec<ProximitySuspicio
                     .is_some_and(|p| prev_dirs.contains(p))
             })
             .count();
-        // related / total < 1/5  -->  related * 5 < total * 1
-        if related * 5 < total {
+        if related * PROXIMITY_RELATED_RATIO_DEN < total * PROXIMITY_RELATED_RATIO_NUM {
             out.push(ProximitySuspicion {
                 depth,
                 total_edges: total,

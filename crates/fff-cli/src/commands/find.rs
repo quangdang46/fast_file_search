@@ -35,18 +35,35 @@ struct FindResult {
     has_more: bool,
 }
 
-pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
-    let scopes: Vec<&Path> = if args.scope.is_empty() {
-        vec![root]
-    } else {
-        args.scope.iter().map(|p| p.as_path()).collect()
-    };
-    let needle_lower = args.needle.to_lowercase();
+fn resolve_scopes(scopes: &[PathBuf], root: &Path) -> Vec<PathBuf> {
+    if scopes.is_empty() {
+        return vec![root.to_path_buf()];
+    }
+    // Relative scopes resolve against `root`; absolutes pass through; any
+    // scope that escapes `root` after resolution falls back to `root`.
+    scopes
+        .iter()
+        .map(|p| {
+            let resolved = if p.is_absolute() {
+                p.clone()
+            } else {
+                root.join(p)
+            };
+            if resolved.starts_with(root) {
+                resolved
+            } else {
+                root.to_path_buf()
+            }
+        })
+        .collect()
+}
+
+pub(crate) fn search_matches(scopes: &[PathBuf], needle: &str) -> Vec<String> {
+    let needle_lower = needle.to_lowercase();
     let mut seen: HashSet<String> = HashSet::new();
     let mut all: Vec<String> = Vec::new();
     for scope in scopes {
-        let files = super::walk_files(scope);
-        for p in files {
+        for p in super::walk_files(scope) {
             let Some(s) = p.to_str() else { continue };
             if s.to_lowercase().contains(&needle_lower) && seen.insert(s.to_string()) {
                 all.push(s.to_string());
@@ -54,6 +71,12 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         }
     }
     all.sort();
+    all
+}
+
+pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
+    let resolved_scopes = resolve_scopes(&args.scope, root);
+    let all = search_matches(&resolved_scopes, &args.needle);
 
     let page = Page::paginate(all, args.offset, args.limit);
     let payload = FindResult {
@@ -100,25 +123,42 @@ mod tests {
     #[test]
     fn multi_scope_dedups() {
         let td = tempfile::tempdir().unwrap();
-        let a = td.path().join("a");
-        let b = td.path().join("b");
+        let root = td.path();
+        let a = root.join("a");
+        let b = root.join("b");
         std::fs::create_dir_all(&a).unwrap();
         std::fs::create_dir_all(&b).unwrap();
-        // Same relative structure under both scopes to test dedup.
         std::fs::write(a.join("shared.rs"), "x").unwrap();
         std::fs::write(b.join("unique.rs"), "y").unwrap();
 
-        let mut seen = HashSet::new();
-        let scopes = vec![a.as_path(), b.as_path()];
-        for scope in scopes {
-            for p in super::super::walk_files(scope) {
-                if let Some(s) = p.to_str() {
-                    if s.contains("shared") || s.contains("unique") {
-                        seen.insert(s.to_string());
-                    }
-                }
-            }
-        }
-        assert_eq!(seen.len(), 2, "should see both shared.rs and unique.rs");
+        let scopes = resolve_scopes(&[a, b], root);
+        let hits_shared = search_matches(&scopes, "shared");
+        let hits_unique = search_matches(&scopes, "unique");
+        assert_eq!(hits_shared.len(), 1);
+        assert_eq!(hits_unique.len(), 1);
+    }
+
+    #[test]
+    fn relative_scope_bound_to_root() {
+        let td = tempfile::tempdir().unwrap();
+        let root = td.path();
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        std::fs::write(root.join("src/inside.rs"), "x").unwrap();
+
+        // Relative scope: "src" resolves under root.
+        let scopes = resolve_scopes(&[PathBuf::from("src")], root);
+        assert_eq!(scopes, vec![root.join("src")]);
+        let hits = search_matches(&scopes, "inside");
+        assert_eq!(hits.len(), 1);
+    }
+
+    #[test]
+    fn absolute_scope_outside_root_falls_back() {
+        let td = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let root = td.path();
+        // Absolute scope outside root → falls back to root.
+        let scopes = resolve_scopes(&[outside.path().to_path_buf()], root);
+        assert_eq!(scopes, vec![root.to_path_buf()]);
     }
 }

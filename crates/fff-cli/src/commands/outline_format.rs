@@ -11,9 +11,6 @@
 
 use fff_symbol::types::{OutlineEntry, OutlineKind};
 
-/// Header metadata accompanying the agent-style outline. `path` is whatever
-/// caller wants to display (relative or absolute); `lines` and `tokens` are
-/// the file's totals before any filtering.
 pub(crate) struct AgentHeader<'a> {
     pub path: &'a str,
     pub lines: u64,
@@ -102,8 +99,8 @@ fn push_agent_entry(out: &mut String, e: &OutlineEntry, depth: usize, range_widt
     }
 }
 
-/// Bundle leading consecutive imports into a single line: `[A-B] imports: a, b(2), c`.
-/// Returns the number of entries consumed.
+// Bundle leading consecutive imports into a single line: `[A-B] imports: a, b(2), c`.
+// Returns the number of entries consumed.
 fn render_imports_bundle(entries: &[OutlineEntry], out: &mut String, range_width: usize) -> usize {
     let count = entries
         .iter()
@@ -140,10 +137,9 @@ fn render_imports_bundle(entries: &[OutlineEntry], out: &mut String, range_width
     count
 }
 
-/// Try to extract the imported module name from an import statement's first
-/// line. Handles JS/TS (`from 'x'` / `require('x')`), Python (`from x import`,
-/// `import x`), Rust (`use a::b::c;` → first segment), and bare quoted forms.
-/// Falls back to `None` when the shape isn't recognised.
+// Extract the imported module name from an import statement's first line.
+// Handles JS/TS (from / require), Python, Rust (`use a::b::c;`), and bare
+// quoted forms. Returns None when the shape isn't recognised.
 fn parse_import_source(sig: &str) -> Option<String> {
     let s = sig.trim();
     if s.is_empty() {

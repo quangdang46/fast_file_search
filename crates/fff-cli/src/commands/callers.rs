@@ -214,7 +214,11 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         hubs_skipped: telemetry
             .hubs_skipped
             .into_iter()
-            .map(|(depth, name)| AutoHubOut { depth, name, count: 0 })
+            .map(|(depth, name)| AutoHubOut {
+                depth,
+                name,
+                count: 0,
+            })
             .collect(),
         proximity_suspicions: telemetry
             .proximity_suspicions
@@ -229,9 +233,8 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     super::emit(format, &payload, render_text)
 }
 
-/// Compute frequency table for `hits` keyed by either enclosing symbol or
-/// file path. Returns `None` when `mode == None` so callers can skip emitting
-/// the field entirely (byte-identical default behaviour).
+// Frequency table over hits keyed by enclosing symbol, file, or package.
+// `None` mode returns `None` so callers can omit the field entirely.
 pub(crate) fn aggregate(hits: &[CallerHit], mode: CountBy) -> Option<Vec<Aggregation>> {
     if mode == CountBy::None {
         return None;
@@ -244,7 +247,10 @@ pub(crate) fn aggregate(hits: &[CallerHit], mode: CountBy) -> Option<Vec<Aggrega
                 .clone()
                 .unwrap_or_else(|| "<unknown>".to_string()),
             CountBy::File => h.path.clone(),
-            CountBy::Package => package_from_path(&h.path),
+            CountBy::Package => super::callers_bfs::package_root(
+                std::path::Path::new(&h.path),
+                std::path::Path::new(""),
+            ),
             CountBy::None => unreachable!(),
         };
         *counts.entry(key).or_default() += 1;
@@ -257,23 +263,8 @@ pub(crate) fn aggregate(hits: &[CallerHit], mode: CountBy) -> Option<Vec<Aggrega
     Some(rows)
 }
 
-fn package_from_path(path_str: &str) -> String {
-    let p = std::path::Path::new(path_str);
-    let mut comps = p.components();
-    let mut buf = std::path::PathBuf::new();
-    if let Some(c) = comps.next() {
-        buf.push(c.as_os_str());
-    }
-    if let Some(c) = comps.next() {
-        if comps.next().is_some() {
-            buf.push(c.as_os_str());
-        }
-    }
-    buf.to_string_lossy().replace('\\', "/")
-}
-
-/// Fill `enclosing` for hits that don't have it yet (single-hop path leaves
-/// it `None`). Uses the outline cache like the BFS path does.
+// Fill `enclosing` for hits that don't have it yet (single-hop path leaves
+// it `None`). Uses the outline cache like the BFS path does.
 fn populate_enclosing(engine: &Engine, hits: &mut [CallerHit], candidates: &[CandidateFile]) {
     let by_path: HashMap<&str, &CandidateFile> = candidates
         .iter()
