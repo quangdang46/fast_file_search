@@ -1,0 +1,43 @@
+*ffs.nvim.txt*  Code-aware file search toolkit for Neovim
+
+==============================================================================
+INTRODUCTION                                                       *ffs.nvim*
+
+ffs.nvim is the Neovim plugin frontend for ffs — a typo-resistant,
+frecency-ranked file and content search toolkit with an integrated
+tree-sitter symbol index, bloom + bigram pre-filters, and a
+token-budget aware reader.
+
+See README.md in the repository for the full documentation. Vim help
+output is regenerated automatically from README.md by the panvimdoc
+CI workflow on feature branches; this stub will be replaced when
+that workflow next runs.
+
+==============================================================================
+QUICK REFERENCE                                              *ffs.nvim-quick*
+
+Public Lua API:
+
+    require('ffs').find_files()                    Open the file picker.
+    require('ffs').live_grep()                     Open the live-grep picker.
+    require('ffs').scan_files()                    Force a rescan.
+    require('ffs').refresh_git_status()            Refresh git status.
+
+User commands:
+
+    :FFSFind [path|query]                          Open picker.
+    :FFSScan                                       Force rescan.
+    :FFSRefreshGit                                 Refresh git status.
+    :FFSClearCache [all|frecency|files]            Clear caches.
+    :FFSHealth                                     Health check.
+    :FFSDebug [on|off|toggle]                      Toggle scoring display.
+    :FFSOpenLog                                    Open log file.
+
+Code-aware Lua module:
+
+    require('ffs.engine').init(root)
+    require('ffs.engine').dispatch(query)
+    require('ffs.engine').symbol(name)
+    require('ffs.engine').read(path, budget, filter)
+
+vim:tw=78:ts=8:noet:ft=help:norl:

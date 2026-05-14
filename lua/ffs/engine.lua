@@ -20,7 +20,7 @@ local function load_rust()
   if type(rust.engine_init) ~= 'function' then
     error(
       'ffs.engine: this build of ffs_nvim was compiled without the `engine` Cargo '
-        .. "feature. Rebuild with `cargo build --release --features engine` "
+        .. 'feature. Rebuild with `cargo build --release --features engine` '
         .. 'to enable the engine_* exports.'
     )
   end
