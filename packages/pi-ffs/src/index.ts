@@ -13,14 +13,14 @@ import {
   type AutocompleteProvider,
 } from "@earendil-works/pi-tui";
 import { Type } from "@sinclair/typebox";
-import { FileFinder } from "@ff-labs/ffs-node";
+import { FileFinder } from "@ffs-cli/ffs-node";
 import type {
   GrepCursor,
   GrepMode,
   GrepResult,
   SearchResult,
   MixedItem,
-} from "@ff-labs/ffs-node";
+} from "@ffs-cli/ffs-node";
 import { buildQuery } from "./query";
 
 // ---------------------------------------------------------------------------

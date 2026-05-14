@@ -13,30 +13,30 @@ High-performance fuzzy file finder for Bun, powered by Rust. Perfect for LLM age
 ## Installation
 
 ```bash
-bun add @ff-labs/bun
+bun add @ffs-cli/bun
 ```
 
-The correct native binary for your platform is installed automatically via platform-specific packages (e.g. `@ff-labs/ffs-bin-darwin-arm64`, `@ff-labs/ffs-bin-linux-x64-gnu`). No GitHub downloads are needed.
+The correct native binary for your platform is installed automatically via platform-specific packages (e.g. `@ffs-cli/ffs-bin-darwin-arm64`, `@ffs-cli/ffs-bin-linux-x64-gnu`). No GitHub downloads are needed.
 
 ### Supported Platforms
 
 | Platform | Architecture | Package |
 |----------|-------------|---------|
-| macOS | ARM64 (Apple Silicon) | `@ff-labs/ffs-bin-darwin-arm64` |
-| macOS | x64 (Intel) | `@ff-labs/ffs-bin-darwin-x64` |
-| Linux | x64 (glibc) | `@ff-labs/ffs-bin-linux-x64-gnu` |
-| Linux | ARM64 (glibc) | `@ff-labs/ffs-bin-linux-arm64-gnu` |
-| Linux | x64 (musl) | `@ff-labs/ffs-bin-linux-x64-musl` |
-| Linux | ARM64 (musl) | `@ff-labs/ffs-bin-linux-arm64-musl` |
-| Windows | x64 | `@ff-labs/ffs-bin-win32-x64` |
-| Windows | ARM64 | `@ff-labs/ffs-bin-win32-arm64` |
+| macOS | ARM64 (Apple Silicon) | `@ffs-cli/ffs-bin-darwin-arm64` |
+| macOS | x64 (Intel) | `@ffs-cli/ffs-bin-darwin-x64` |
+| Linux | x64 (glibc) | `@ffs-cli/ffs-bin-linux-x64-gnu` |
+| Linux | ARM64 (glibc) | `@ffs-cli/ffs-bin-linux-arm64-gnu` |
+| Linux | x64 (musl) | `@ffs-cli/ffs-bin-linux-x64-musl` |
+| Linux | ARM64 (musl) | `@ffs-cli/ffs-bin-linux-arm64-musl` |
+| Windows | x64 | `@ffs-cli/ffs-bin-win32-x64` |
+| Windows | ARM64 | `@ffs-cli/ffs-bin-win32-arm64` |
 
 If the platform package isn't available, the postinstall script will attempt to download from GitHub releases as a fallback.
 
 ## Quick Start
 
 ```typescript
-import { FileFinder } from "@ff-labs/ffs-bun";
+import { FileFinder } from "@ffs-cli/ffs-bun";
 
 // Initialize with a directory
 const result = FileFinder.init({ basePath: "/path/to/project" });

@@ -1,4 +1,4 @@
-# @ff-labs/pi-ffs
+# @ffs-cli/pi-ffs
 
 A [pi](https://github.com/badlogic/pi-mono) extension that replaces the built-in `find` and `grep` tools with [ffs](https://github.com/dmtrKovalenko/ffs.nvim) — a Rust-native, SIMD-accelerated file finder with built-in memory.
 
@@ -32,13 +32,13 @@ Requirements:
 **Via npm (recommended):**
 
 ```bash
-pi install npm:@ff-labs/pi-ffs
+pi install npm:@ffs-cli/pi-ffs
 ```
 
 Project-local install:
 
 ```bash
-pi install -l npm:@ff-labs/pi-ffs
+pi install -l npm:@ffs-cli/pi-ffs
 ```
 
 **Via git:**

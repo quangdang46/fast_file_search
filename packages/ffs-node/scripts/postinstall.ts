@@ -40,7 +40,7 @@ async function main() {
     console.error("  cargo build --release -p ffs-c");
     console.error("");
     console.error(
-      "ffs: Or run `npx @ff-labs/ffs-node download` after fixing network issues.",
+      "ffs: Or run `npx @ffs-cli/ffs-node download` after fixing network issues.",
     );
     // Don't exit with error - allow install to complete
     // The error will surface when the user tries to use the library

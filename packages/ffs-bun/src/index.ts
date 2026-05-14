@@ -9,7 +9,7 @@
  *
  * @example
  * ```typescript
- * import { FileFinder } from "@ff-labs/ffs-bun";
+ * import { FileFinder } from "@ffs-cli/ffs-bun";
  *
  * // Create a file finder instance
  * const result = FileFinder.create({ basePath: "/path/to/project" });

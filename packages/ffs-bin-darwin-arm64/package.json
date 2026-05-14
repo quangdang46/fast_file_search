@@ -1,5 +1,5 @@
 {
-  "name": "@ff-labs/ffs-bin-darwin-arm64",
+  "name": "@ffs-cli/ffs-bin-darwin-arm64",
   "version": "0.0.0",
   "description": "ffs native binary for macOS ARM64 (Apple Silicon)",
   "os": ["darwin"],

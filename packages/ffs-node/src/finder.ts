@@ -56,7 +56,7 @@ import { err } from "./types.js";
  * @example
  *
  * ```ts
- * import { FileFinder } from "@ff-labs/ffs-node";
+ * import { FileFinder } from "@ffs-cli/ffs-node";
  *
  * // Create an instance
  * const finder = FileFinder.create({ basePath: "/path/to/project" });

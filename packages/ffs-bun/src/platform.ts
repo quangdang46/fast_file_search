@@ -95,20 +95,20 @@ export function getLibFilename(): string {
  * Map from Rust target triple to npm platform package name
  */
 const TRIPLE_TO_NPM_PACKAGE: Record<string, string> = {
-  "aarch64-apple-darwin": "@ff-labs/ffs-bin-darwin-arm64",
-  "x86_64-apple-darwin": "@ff-labs/ffs-bin-darwin-x64",
-  "x86_64-unknown-linux-gnu": "@ff-labs/ffs-bin-linux-x64-gnu",
-  "aarch64-unknown-linux-gnu": "@ff-labs/ffs-bin-linux-arm64-gnu",
-  "x86_64-unknown-linux-musl": "@ff-labs/ffs-bin-linux-x64-musl",
-  "aarch64-unknown-linux-musl": "@ff-labs/ffs-bin-linux-arm64-musl",
-  "x86_64-pc-windows-msvc": "@ff-labs/ffs-bin-win32-x64",
-  "aarch64-pc-windows-msvc": "@ff-labs/ffs-bin-win32-arm64",
+  "aarch64-apple-darwin": "@ffs-cli/ffs-bin-darwin-arm64",
+  "x86_64-apple-darwin": "@ffs-cli/ffs-bin-darwin-x64",
+  "x86_64-unknown-linux-gnu": "@ffs-cli/ffs-bin-linux-x64-gnu",
+  "aarch64-unknown-linux-gnu": "@ffs-cli/ffs-bin-linux-arm64-gnu",
+  "x86_64-unknown-linux-musl": "@ffs-cli/ffs-bin-linux-x64-musl",
+  "aarch64-unknown-linux-musl": "@ffs-cli/ffs-bin-linux-arm64-musl",
+  "x86_64-pc-windows-msvc": "@ffs-cli/ffs-bin-win32-x64",
+  "aarch64-pc-windows-msvc": "@ffs-cli/ffs-bin-win32-arm64",
 };
 
 /**
  * Get the npm package name for the current platform's native binary.
  *
- * @returns Package name like "@ff-labs/ffs-bin-darwin-arm64"
+ * @returns Package name like "@ffs-cli/ffs-bin-darwin-arm64"
  * @throws If the current platform is not supported
  */
 export function getNpmPackageName(): string {

@@ -112,7 +112,7 @@ function loadLibrary(): void {
   const binaryPath = findBinary();
   if (!binaryPath) {
     throw new Error(
-      "ffs native library not found. Run `npx @ff-labs/ffs-node download` or build from source with `cargo build --release -p ffs-c`",
+      "ffs native library not found. Run `npx @ffs-cli/ffs-node download` or build from source with `cargo build --release -p ffs-c`",
     );
   }
 

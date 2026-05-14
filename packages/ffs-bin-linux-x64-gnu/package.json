@@ -1,5 +1,5 @@
 {
-  "name": "@ff-labs/ffs-bin-linux-x64-gnu",
+  "name": "@ffs-cli/ffs-bin-linux-x64-gnu",
   "version": "0.0.0",
   "description": "ffs native binary for Linux x64 (glibc)",
   "os": ["linux"],

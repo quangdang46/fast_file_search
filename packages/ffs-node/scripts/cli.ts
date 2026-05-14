@@ -2,8 +2,8 @@
  * CLI tool for ffs-node package management
  *
  * Usage:
- *   npx @ff-labs/ffs-node download [tag]  - Download native binary from GitHub
- *   npx @ff-labs/ffs-node info            - Show platform and binary info
+ *   npx @ffs-cli/ffs-node download [tag]  - Download native binary from GitHub
+ *   npx @ffs-cli/ffs-node info            - Show platform and binary info
  */
 
 import { readFileSync } from "node:fs";
@@ -94,20 +94,20 @@ async function main() {
       console.log("");
       console.log("Usage:");
       console.log(
-        "  npx @ff-labs/ffs-node download [tag]  Download native binary from GitHub (fallback)",
+        "  npx @ffs-cli/ffs-node download [tag]  Download native binary from GitHub (fallback)",
       );
       console.log(
-        "  npx @ff-labs/ffs-node info             Show platform and binary info",
+        "  npx @ffs-cli/ffs-node info             Show platform and binary info",
       );
-      console.log("  npx @ff-labs/ffs-node version          Show version");
-      console.log("  npx @ff-labs/ffs-node help             Show this help message");
+      console.log("  npx @ffs-cli/ffs-node version          Show version");
+      console.log("  npx @ffs-cli/ffs-node help             Show this help message");
       console.log("");
       console.log("Examples:");
       console.log(
-        "  npx @ff-labs/ffs-node download          Download latest binary from GitHub",
+        "  npx @ffs-cli/ffs-node download          Download latest binary from GitHub",
       );
       console.log(
-        "  npx @ff-labs/ffs-node download abc1234  Download specific release tag",
+        "  npx @ffs-cli/ffs-node download abc1234  Download specific release tag",
       );
       console.log("");
       console.log(

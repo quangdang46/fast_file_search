@@ -51,7 +51,7 @@ Output defaults to plain text; pass `--format json` for machine-readable output.
                 ┌─────────────────────────────────────────────────────┐
                 │  Consumers                                          │
                 │  ──────────────────────────────────────────────     │
-                │  ffs CLI │ ffs-mcp │ ffs.nvim │ @ff-labs/ffs-node    │
+                │  ffs CLI │ ffs-mcp │ ffs.nvim │ @ffs-cli/ffs-node    │
                 │ (ffs-cli)  (ffs-mcp)  (ffs-nvim)  / ffs-bun / -c     │
                 └───────────────────────┬─────────────────────────────┘
                                         │
@@ -223,7 +223,7 @@ The MCP server gives any agent a file-search and code-navigation surface that is
 ### Install
 
 ```bash
-pi install npm:@ff-labs/pi-ffs
+pi install npm:@ffs-cli/pi-ffs
 ```
 
 ### Modes
@@ -513,13 +513,13 @@ The best file search picker for Neovim. Period. Faster and more intuitive querie
 </summary>
 
 ```bash
-npm install @ff-labs/ffs-node
+npm install @ffs-cli/ffs-node
 # or
-bun add @ff-labs/ffs-bun
+bun add @ffs-cli/ffs-bun
 ```
 
 ```ts
-import { FileFinder } from "@ff-labs/ffs-node";
+import { FileFinder } from "@ffs-cli/ffs-node";
 
 const finder = FileFinder.create({ basePath: process.cwd(), aiMode: true });
 if (!finder.ok) throw new Error(finder.error);
@@ -580,7 +580,7 @@ cargo build --release -p ffs-c --features zlob
 
 The output is a `cdylib` (`libffs_c.so` / `libffs_c.dylib` / `ffs_c.dll`). The header lives at [`crates/ffs-c/include/ffs.h`](./crates/ffs-c/include/ffs.h).
 
-Prebuilt binaries for every version, including every commit on main, are on the [releases page](https://github.com/dmtrKovalenko/ffs.nvim/releases). The same binaries also ship inside the `@ff-labs/ffs-bin-*` npm packages.
+Prebuilt binaries for every version, including every commit on main, are on the [releases page](https://github.com/dmtrKovalenko/ffs.nvim/releases). The same binaries also ship inside the `@ffs-cli/ffs-bin-*` npm packages.
 
 ### Install
 
@@ -663,7 +663,7 @@ Stable C ABI. Bind from C/C++, Zig, Go via cgo, Python via ctypes, or anything w
 
 ffs is a file-search library, not a CLI. Ripgrep and fzf are great tools, but they are command-line programs: every call forks a new process, re-reads `.gitignore`, re-stats directories, and rebuilds whatever state it needs in memory before it can answer. That is fine when you grep once from a shell. It is bad when an editor or an AI agent wants to run hundreds of searches per session.
 
-ffs keeps the index, file cache, and symbol index resident in one long-lived process and exposes the same Rust core through five thin layers: a native crate (`ffs-search`), a C library (`libffs_c`), a Node/Bun SDK (`@ff-labs/ffs-node` / `@ff-labs/ffs-bun`), an MCP server (`ffs-mcp`), and the unified `ffs` CLI. You initialise once, then every subsequent search hits warm memory. On a 500k-file Chromium checkout, that is the difference between 3-9 **seconds** per ripgrep spawn and sub-10 ms per ffs query.
+ffs keeps the index, file cache, and symbol index resident in one long-lived process and exposes the same Rust core through five thin layers: a native crate (`ffs-search`), a C library (`libffs_c`), a Node/Bun SDK (`@ffs-cli/ffs-node` / `@ffs-cli/ffs-bun`), an MCP server (`ffs-mcp`), and the unified `ffs` CLI. You initialise once, then every subsequent search hits warm memory. On a 500k-file Chromium checkout, that is the difference between 3-9 **seconds** per ripgrep spawn and sub-10 ms per ffs query.
 
 The fuzzy-matching algorithm is much more comprehensive than fzf's: it is **typo-resistant** and exposes a query language with constraint parsing for prefiltering. `*.rs !test/ shcema` is a valid query for ffs, but fzf wouldn't find anything even with a single typo in `shcema`.
 
@@ -736,9 +736,9 @@ If you are running one grep from a terminal, `rg` is still the right tool. If yo
 
 **Language SDKs and editor integration:**
 
-- `packages/ffs-node` — Node.js SDK (`@ff-labs/ffs-node`).
-- `packages/ffs-bun` — Bun SDK (`@ff-labs/ffs-bun`).
-- `packages/pi-ffs` — pi extension (`@ff-labs/pi-ffs`).
+- `packages/ffs-node` — Node.js SDK (`@ffs-cli/ffs-node`).
+- `packages/ffs-bun` — Bun SDK (`@ffs-cli/ffs-bun`).
+- `packages/pi-ffs` — pi extension (`@ffs-cli/pi-ffs`).
 - `lua/ffs/` — Neovim-side plugin code (`lua/ffs/engine.lua` is the code-aware wrapper).
 
 ## Benchmark infrastructure

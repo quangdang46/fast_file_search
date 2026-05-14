@@ -358,9 +358,95 @@ jobs:
           name: mcp-${{ matrix.target }}
           path: ffs-mcp-${{ matrix.target }}*
 
+  build-cli:
+    name: Build CLI ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        include:
+          ## Linux builds (using cargo-zigbuild)
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            zigbuild_target: x86_64-unknown-linux-gnu.2.31
+            artifact_name: target/x86_64-unknown-linux-gnu/ci/ffs
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            zigbuild_target: aarch64-unknown-linux-gnu.2.31
+            artifact_name: target/aarch64-unknown-linux-gnu/ci/ffs
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            artifact_name: target/x86_64-unknown-linux-musl/ci/ffs
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-musl
+            artifact_name: target/aarch64-unknown-linux-musl/ci/ffs
+
+          ## macOS builds
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact_name: target/x86_64-apple-darwin/ci/ffs
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact_name: target/aarch64-apple-darwin/ci/ffs
+
+          ## Windows builds
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: target/x86_64-pc-windows-msvc/ci/ffs.exe
+          - os: windows-latest
+            target: aarch64-pc-windows-msvc
+            artifact_name: target/aarch64-pc-windows-msvc/ci/ffs.exe
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Install Rust
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Install Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+
+      - name: Install cargo-zigbuild
+        if: contains(matrix.os, 'ubuntu')
+        run: cargo install cargo-zigbuild
+
+      - name: Build for Linux
+        if: contains(matrix.os, 'ubuntu')
+        run: |
+          cargo zigbuild --profile ci --target ${{ matrix.zigbuild_target || matrix.target }} -p ffs-cli --features zlob
+          cp "${{ matrix.artifact_name }}" "ffs-${{ matrix.target }}"
+
+      - name: Build for macOS
+        if: contains(matrix.os, 'macos')
+        run: |
+          MACOSX_DEPLOYMENT_TARGET="13" cargo build --profile ci --target ${{ matrix.target }} -p ffs-cli --features zlob
+          cp "${{ matrix.artifact_name }}" "ffs-${{ matrix.target }}"
+
+      - name: Ad-hoc sign macOS binary
+        if: contains(matrix.os, 'macos')
+        run: codesign --force --sign - "ffs-${{ matrix.target }}"
+
+      - name: Build for Windows
+        if: contains(matrix.os, 'windows')
+        shell: bash
+        run: |
+          cargo build --profile ci --target ${{ matrix.target }} -p ffs-cli --features zlob
+          cp "${{ matrix.artifact_name }}" "ffs-${{ matrix.target }}.exe"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-${{ matrix.target }}
+          path: ffs-${{ matrix.target }}*
+
   release:
     name: Release
-    needs: [build-nvim, build-c, build-mcp]
+    needs: [build-nvim, build-c, build-mcp, build-cli]
     runs-on: ubuntu-latest
     # do not create releases on the forks (no permissions)
     if: github.event_name != 'pull_request' || github.event.pull_request.user.login == 'dmtrKovalenko'
@@ -420,6 +506,19 @@ jobs:
             rmdir "$dir" 2>/dev/null || true
           done
 
+      - name: Flatten CLI artifacts
+        working-directory: ./binaries
+        run: |
+          for dir in cli-*/; do
+            for file in "$dir"*; do
+              if [ -f "$file" ]; then
+                filename=$(basename "$file")
+                mv "$file" "./$filename"
+              fi
+            done
+            rmdir "$dir" 2>/dev/null || true
+          done
+
       - name: Remove npm package artifacts from release binaries
         working-directory: ./binaries
         run: |
@@ -461,9 +560,16 @@ jobs:
             ## MCP Server
             - `ffs-mcp-{target}` - MCP server binary
 
+            ## CLI
+            - `ffs-{target}` - ffs CLI binary
+
             Install with:
             ```sh
+            # MCP server
             curl -fsSL https://raw.githubusercontent.com/dmtrKovalenko/ffs.nvim/main/install-mcp.sh | bash
+
+            # CLI from npm
+            npm install -g @ffs-cli/ffs
             ```
 
   crates-publish:
@@ -553,11 +659,11 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           TAG="${{ steps.version.outputs.npm_tag }}"
 
-          echo "Publishing @ff-labs/ffs-bun@${VERSION} with tag ${TAG}..."
+          echo "Publishing @ffs-cli/ffs-bun@${VERSION} with tag ${TAG}..."
           make set-npm-version PKG=packages/ffs-bun VERSION="$VERSION"
 
           cd packages/ffs-bun
-          npm publish --tag "$TAG" --access public || echo "Failed to publish @ff-labs/ffs-bun (may already exist)"
+          npm publish --tag "$TAG" --access public || echo "Failed to publish @ffs-cli/ffs-bun (may already exist)"
 
       - name: Publish Node.js package
         env:
@@ -566,13 +672,13 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           TAG="${{ steps.version.outputs.npm_tag }}"
 
-          echo "Publishing @ff-labs/ffs-node@${VERSION} with tag ${TAG}..."
+          echo "Publishing @ffs-cli/ffs-node@${VERSION} with tag ${TAG}..."
           make set-npm-version PKG=packages/ffs-node VERSION="$VERSION"
 
           cd packages/ffs-node
           npm install
           npm run build
-          npm publish --tag "$TAG" --access public || echo "Failed to publish @ff-labs/ffs-node (may already exist)"
+          npm publish --tag "$TAG" --access public || echo "Failed to publish @ffs-cli/ffs-node (may already exist)"
 
       - name: Publish pi-ffs package
         env:
@@ -581,8 +687,21 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           TAG="${{ steps.version.outputs.npm_tag }}"
 
-          echo "Publishing @ff-labs/pi-ffs@${VERSION} with tag ${TAG}..."
+          echo "Publishing @ffs-cli/pi-ffs@${VERSION} with tag ${TAG}..."
           make set-npm-version PKG=packages/pi-ffs VERSION="$VERSION"
 
           cd packages/pi-ffs
-          npm publish --tag "$TAG" --access public || echo "Failed to publish @ff-labs/pi-ffs (may already exist)"
+          npm publish --tag "$TAG" --access public || echo "Failed to publish @ffs-cli/pi-ffs (may already exist)"
+
+      - name: Publish ffs CLI package
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="${{ steps.version.outputs.npm_tag }}"
+
+          echo "Publishing @ffs-cli/ffs@${VERSION} with tag ${TAG}..."
+          make set-npm-version PKG=packages/ffs VERSION="$VERSION"
+
+          cd packages/ffs
+          npm publish --tag "$TAG" --access public || echo "Failed to publish @ffs-cli/ffs (may already exist)"

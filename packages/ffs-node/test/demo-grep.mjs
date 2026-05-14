@@ -1,4 +1,4 @@
-import { FileFinder } from "@ff-labs/ffs-node";
+import { FileFinder } from "@ffs-cli/ffs-node";
 
 const finder = FileFinder.create({ basePath: "~/dev/linux-root" });
 if (!finder.ok) {

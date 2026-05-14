@@ -1,5 +1,5 @@
 {
-  "name": "@ff-labs/ffs-node",
+  "name": "@ffs-cli/ffs-node",
   "version": "0.1.37",
   "private": false,
   "description": "High-performance fuzzy file finder for Node.js - perfect for LLM agent tools",
@@ -60,14 +60,14 @@
     "ffi-rs": "^1.0.0"
   },
   "optionalDependencies": {
-    "@ff-labs/ffs-bin-darwin-arm64": "0.0.0",
-    "@ff-labs/ffs-bin-darwin-x64": "0.0.0",
-    "@ff-labs/ffs-bin-linux-x64-gnu": "0.0.0",
-    "@ff-labs/ffs-bin-linux-arm64-gnu": "0.0.0",
-    "@ff-labs/ffs-bin-linux-x64-musl": "0.0.0",
-    "@ff-labs/ffs-bin-linux-arm64-musl": "0.0.0",
-    "@ff-labs/ffs-bin-win32-x64": "0.0.0",
-    "@ff-labs/ffs-bin-win32-arm64": "0.0.0"
+    "@ffs-cli/ffs-bin-darwin-arm64": "0.0.0",
+    "@ffs-cli/ffs-bin-darwin-x64": "0.0.0",
+    "@ffs-cli/ffs-bin-linux-x64-gnu": "0.0.0",
+    "@ffs-cli/ffs-bin-linux-arm64-gnu": "0.0.0",
+    "@ffs-cli/ffs-bin-linux-x64-musl": "0.0.0",
+    "@ffs-cli/ffs-bin-linux-arm64-musl": "0.0.0",
+    "@ffs-cli/ffs-bin-win32-x64": "0.0.0",
+    "@ffs-cli/ffs-bin-win32-arm64": "0.0.0"
   },
   "devDependencies": {
     "typescript": "^5.0.0",
