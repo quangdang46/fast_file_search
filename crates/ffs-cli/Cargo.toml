@@ -9,6 +9,12 @@ description = "Command line interface for ffs — unified code search and read t
 name = "ffs"
 path = "src/main.rs"
 
+[features]
+default = ["zlob"]
+# Use zlob (Zig-compiled C globbing library) for glob matching. Mirrors
+# ffs-search's `zlob` feature; requires Zig at build time.
+zlob = ["ffs-search/zlob"]
+
 [dependencies]
 ffs-search = { path = "../ffs-core" }
 ffs-engine = { workspace = true }
