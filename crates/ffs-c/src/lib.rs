@@ -29,19 +29,19 @@ use std::time::Duration;
 use ffs::shared::SharedQueryTracker;
 
 mod accessors;
-mod ffi_types;
 mod engine_ffi;
+mod ffi_types;
 pub use engine_ffi::*;
 
+use ffi_types::{
+    FfsDirItem, FfsDirSearchResult, FfsFileItem, FfsGrepMatch, FfsGrepResult, FfsMixedItem,
+    FfsMixedSearchResult, FfsResult, FfsScanProgress, FfsScore, FfsSearchResult,
+};
 use ffs::file_picker::FilePicker;
 use ffs::frecency::FrecencyTracker;
 use ffs::query_tracker::QueryTracker;
 use ffs::{DbHealthChecker, FfsMode, FuzzySearchOptions, PaginationArgs, QueryParser};
 use ffs::{SharedFilePicker, SharedFrecency};
-use ffi_types::{
-    FfsDirItem, FfsDirSearchResult, FfsFileItem, FfsGrepMatch, FfsGrepResult, FfsMixedItem,
-    FfsMixedSearchResult, FfsResult, FfsScanProgress, FfsScore, FfsSearchResult,
-};
 
 /// Opaque ffs_handle holding all per-instance state.
 ///

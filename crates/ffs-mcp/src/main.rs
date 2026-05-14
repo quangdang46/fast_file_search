@@ -7,9 +7,9 @@
 //! Uses `ffs-core` directly (zero FFI overhead) for all search operations.
 
 mod cursor;
+mod engine_tools;
 mod healthcheck;
 mod output;
-mod engine_tools;
 mod server;
 mod update_check;
 

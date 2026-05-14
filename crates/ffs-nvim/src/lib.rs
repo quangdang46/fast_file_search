@@ -16,12 +16,12 @@ use path_shortening::PathShortenStrategy;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+mod engine_bindings;
 mod error;
 mod hex_dump;
 mod log;
 mod lua_types;
 mod path_shortening;
-mod engine_bindings;
 
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
@@ -873,9 +873,12 @@ fn create_exports(lua: &Lua) -> LuaResult<LuaTable> {
 
     // Additive `engine_*` exports — wrapper around `ffs-engine`. Only compiled
     // in when (historical note removed)
-    // 
+    //
     {
-        exports.set("engine_init", lua.create_function(engine_bindings::engine_init)?)?;
+        exports.set(
+            "engine_init",
+            lua.create_function(engine_bindings::engine_init)?,
+        )?;
         exports.set(
             "engine_rebuild",
             lua.create_function(engine_bindings::engine_rebuild)?,
@@ -888,10 +891,22 @@ fn create_exports(lua: &Lua) -> LuaResult<LuaTable> {
             "engine_symbol",
             lua.create_function(engine_bindings::engine_symbol)?,
         )?;
-        exports.set("engine_grep", lua.create_function(engine_bindings::engine_grep)?)?;
-        exports.set("engine_read", lua.create_function(engine_bindings::engine_read)?)?;
-        exports.set("engine_refs", lua.create_function(engine_bindings::engine_refs)?)?;
-        exports.set("engine_flow", lua.create_function(engine_bindings::engine_flow)?)?;
+        exports.set(
+            "engine_grep",
+            lua.create_function(engine_bindings::engine_grep)?,
+        )?;
+        exports.set(
+            "engine_read",
+            lua.create_function(engine_bindings::engine_read)?,
+        )?;
+        exports.set(
+            "engine_refs",
+            lua.create_function(engine_bindings::engine_refs)?,
+        )?;
+        exports.set(
+            "engine_flow",
+            lua.create_function(engine_bindings::engine_flow)?,
+        )?;
         exports.set(
             "engine_impact",
             lua.create_function(engine_bindings::engine_impact)?,

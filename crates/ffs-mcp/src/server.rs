@@ -9,14 +9,14 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use crate::cursor::CursorStore;
-use crate::output::{GrepFormatter, OutputMode, file_suffix};
 use crate::engine_tools::{
-    EngineCallParams, EngineDispatchParams, EngineHolder, EngineFlowParams, EngineImpactParams,
+    EngineCallParams, EngineDispatchParams, EngineFlowParams, EngineHolder, EngineImpactParams,
     EngineReadParams, EngineRefsParams, EngineSymbolParams,
 };
+use crate::output::{GrepFormatter, OutputMode, file_suffix};
+use ffs::PaginationArgs;
 use ffs::grep::{GrepMode, GrepSearchOptions, has_regex_metacharacters};
 use ffs::types::FileItem;
-use ffs::PaginationArgs;
 use ffs::{FuzzySearchOptions, QueryParser, SharedFilePicker, SharedFrecency};
 use ffs_query_parser::AiGrepConfig;
 use rmcp::handler::server::router::tool::ToolRouter;
@@ -660,7 +660,8 @@ impl FfsServer {
         let root = self.picker_base_path()?;
         let max_results = normalize_max_results(params.max_results, 100);
         let engine = self.engine.get_or_build(&root, 25_000);
-        let hits = crate::engine_tools::find_callee_sites(&engine, &root, &params.name, max_results);
+        let hits =
+            crate::engine_tools::find_callee_sites(&engine, &root, &params.name, max_results);
         let text = crate::engine_tools::format_call_hits(&hits, "callees");
         Ok(CallToolResult::success(vec![Content::text(text)]))
     }
