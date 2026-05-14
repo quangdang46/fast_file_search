@@ -1,5 +1,5 @@
 /**
- * CLI tool for fff-node package management
+ * CLI tool for ffs-node package management
  *
  * Usage:
  *   npx @ff-labs/ffs-node download [tag]  - Download native binary from GitHub
@@ -39,12 +39,12 @@ async function main() {
   switch (command) {
     case "download": {
       const tag = args[1];
-      console.log("fff: Downloading native library from GitHub...");
+      console.log("ffs: Downloading native library from GitHub...");
       try {
         const resolvedTag = await downloadBinary(tag);
-        console.log(`fff: Download complete! (${resolvedTag})`);
+        console.log(`ffs: Download complete! (${resolvedTag})`);
       } catch (error) {
-        console.error("fff: Download failed:", error);
+        console.error("ffs: Download failed:", error);
         process.exit(1);
       }
       break;
@@ -59,7 +59,7 @@ async function main() {
         npmPackage = "unsupported";
       }
 
-      console.log("fff - Fast File Finder (Node.js)");
+      console.log("ffs - Fast File Search (Node.js)");
       console.log(`Package version: ${pkg.version}`);
       console.log("");
       console.log("Platform Information:");
@@ -90,7 +90,7 @@ async function main() {
 
     default: {
       const pkg = getPackageInfo();
-      console.log(`fff - Fast File Finder CLI (Node.js) v${pkg.version}`);
+      console.log(`ffs - Fast File Search CLI (Node.js) v${pkg.version}`);
       console.log("");
       console.log("Usage:");
       console.log(

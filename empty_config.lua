@@ -59,4 +59,4 @@ vim.keymap.set('n', 'fg', function() require('ffs').find_in_git_root() end, { de
 vim.keymap.set('n', 'fr', function() require('ffs').scan_files() end, { desc = 'Rescan files' })
 vim.keymap.set('n', 'fs', function() require('ffs').refresh_git_status() end, { desc = 'Refresh git status' })
 
-vim.notify('FFF.nvim local config loaded! Press ff', vim.log.levels.INFO)
+vim.notify('ffs.nvim local config loaded! Press ff', vim.log.levels.INFO)

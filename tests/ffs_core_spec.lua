@@ -1,5 +1,5 @@
 ---@diagnostic disable: undefined-field
-local fff_rust = require('ffs.rust')
+local ffs_rust = require('ffs.rust')
 
 --- Wait for the scan to fully complete, handling the startup race where
 --- the background thread hasn't set is_scanning=true yet.
@@ -8,10 +8,10 @@ local function wait_for_scan(timeout_ms)
   -- Small sleep to let the background thread start and set is_scanning=true.
   -- This handles the race between init_file_picker returning and the thread starting.
   vim.wait(100, function() return false end)
-  fff_rust.wait_for_initial_scan(timeout_ms)
+  ffs_rust.wait_for_initial_scan(timeout_ms)
 end
 
-describe('fff.nvim core', function()
+describe('ffs.nvim core', function()
   local test_dir
 
   before_each(function()
@@ -23,18 +23,18 @@ describe('fff.nvim core', function()
 
   after_each(function()
     -- Cleanup: stop background monitor and release the file picker
-    pcall(fff_rust.stop_background_monitor)
-    pcall(fff_rust.cleanup_file_picker)
+    pcall(ffs_rust.stop_background_monitor)
+    pcall(ffs_rust.cleanup_file_picker)
   end)
 
   describe('init and scan', function()
     it('should initialize the file picker and scan files', function()
-      local ok = fff_rust.init_file_picker(test_dir)
+      local ok = ffs_rust.init_file_picker(test_dir)
       assert.is_true(ok)
 
       wait_for_scan(10000)
 
-      local progress = fff_rust.get_scan_progress()
+      local progress = ffs_rust.get_scan_progress()
       assert.is_not_nil(progress)
       assert.is_number(progress.scanned_files_count)
       assert.is_true(
@@ -47,13 +47,13 @@ describe('fff.nvim core', function()
 
   describe('fuzzy search', function()
     it('should return results for a known query', function()
-      local ok = fff_rust.init_file_picker(test_dir)
+      local ok = ffs_rust.init_file_picker(test_dir)
       assert.is_true(ok)
       wait_for_scan(10000)
 
       -- Search for "main" which should match main.lua and possibly other files
       -- Args: query, max_threads, current_file, combo_boost_score_multiplier, min_combo_count, offset, page_size
-      local result = fff_rust.fuzzy_search_files('main', 2, nil, 100, 3, 0, 10)
+      local result = ffs_rust.fuzzy_search_files('main', 2, nil, 100, 3, 0, 10)
       assert.is_not_nil(result)
       assert.is_not_nil(result.items)
       assert.is_true(#result.items > 0, 'expected search results for "main"')
@@ -65,11 +65,11 @@ describe('fff.nvim core', function()
     end)
 
     it('should return empty results for nonsense query', function()
-      local ok = fff_rust.init_file_picker(test_dir)
+      local ok = ffs_rust.init_file_picker(test_dir)
       assert.is_true(ok)
       wait_for_scan(10000)
 
-      local result = fff_rust.fuzzy_search_files('zzzxxxqqq_no_match_ever', 2, nil, 100, 3, 0, 10)
+      local result = ffs_rust.fuzzy_search_files('zzzxxxqqq_no_match_ever', 2, nil, 100, 3, 0, 10)
       assert.is_not_nil(result)
       assert.is_not_nil(result.items)
       assert.are.equal(0, #result.items)
@@ -78,11 +78,11 @@ describe('fff.nvim core', function()
 
   describe('git root detection', function()
     it('should return the git root for a git repository', function()
-      local ok = fff_rust.init_file_picker(test_dir)
+      local ok = ffs_rust.init_file_picker(test_dir)
       assert.is_true(ok)
       wait_for_scan(10000)
 
-      local git_root = fff_rust.get_git_root()
+      local git_root = ffs_rust.get_git_root()
       assert.is_not_nil(git_root, 'expected git root to be found in the plugin repo')
       assert.is_string(git_root)
       -- The git root should be a real directory
@@ -94,11 +94,11 @@ describe('fff.nvim core', function()
       local tmp_dir = vim.fn.tempname()
       vim.fn.mkdir(tmp_dir, 'p')
 
-      local ok = fff_rust.init_file_picker(tmp_dir)
+      local ok = ffs_rust.init_file_picker(tmp_dir)
       assert.is_true(ok)
       wait_for_scan(10000)
 
-      local git_root = fff_rust.get_git_root()
+      local git_root = ffs_rust.get_git_root()
       assert.is_nil(git_root)
 
       vim.fn.delete(tmp_dir, 'rf')
@@ -107,11 +107,11 @@ describe('fff.nvim core', function()
 
   describe('health check', function()
     it('should return version and component status', function()
-      local ok = fff_rust.init_file_picker(test_dir)
+      local ok = ffs_rust.init_file_picker(test_dir)
       assert.is_true(ok)
       wait_for_scan(10000)
 
-      local health = fff_rust.health_check(test_dir)
+      local health = ffs_rust.health_check(test_dir)
       assert.is_not_nil(health)
       assert.is_string(health.version)
 

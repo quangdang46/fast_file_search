@@ -1,5 +1,5 @@
 /**
- * FileFinder - High-level API for the fff file finder
+ * FileFinder - High-level API for the ffs file finder
  *
  * This class provides a type-safe, ergonomic API for file finding operations.
  * Each instance owns an independent native file picker that can be created

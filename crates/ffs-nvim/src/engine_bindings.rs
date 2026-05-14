@@ -1,15 +1,15 @@
-//! Scry Lua bindings — additive layer on top of the existing ffs-nvim API.
+//! Engine Lua bindings — additive layer on top of the existing ffs-nvim API.
 //!
 //! Existing exports (`init_db`, `init_file_picker`, `scan_files`,
 //! `fuzzy_search_files`, `live_grep`, etc.) are byte-for-byte unchanged.
 //! These bindings expose the new `ffs-engine` (symbol index, dispatch,
-//! token-budgeted read) under the `scry_*` namespace.
+//! token-budgeted read) under the `engine_*` namespace.
 //!
 //! Lifecycle:
-//!   - `scry_init(root)` builds the engine and runs the initial unified scan.
-//!   - `scry_dispatch / scry_symbol / scry_grep / scry_read` query the warm
+//!   - `engine_init(root)` builds the engine and runs the initial unified scan.
+//!   - `engine_dispatch / engine_symbol / engine_grep / engine_read` query the warm
 //!     caches.
-//!   - `scry_rebuild()` re-runs the unified scan against the same root.
+//!   - `engine_rebuild()` re-runs the unified scan against the same root.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -22,12 +22,12 @@ use ffs_budget::FilterLevel;
 use ffs_engine::dispatch::DispatchResult;
 use ffs_engine::{Engine, EngineConfig};
 
-struct ScryState {
+struct EngineState {
     engine: Arc<Engine>,
     root: PathBuf,
 }
 
-static SCRY_STATE: Lazy<RwLock<Option<ScryState>>> = Lazy::new(|| RwLock::new(None));
+static ENGINE_STATE: Lazy<RwLock<Option<EngineState>>> = Lazy::new(|| RwLock::new(None));
 
 fn parse_filter_level(raw: Option<String>) -> FilterLevel {
     match raw.as_deref() {
@@ -37,18 +37,18 @@ fn parse_filter_level(raw: Option<String>) -> FilterLevel {
     }
 }
 
-fn ensure_state() -> Result<ScryState, mlua::Error> {
-    SCRY_STATE
+fn ensure_state() -> Result<EngineState, mlua::Error> {
+    ENGINE_STATE
         .read()
         .as_ref()
-        .map(|s| ScryState {
+        .map(|s| EngineState {
             engine: s.engine.clone(),
             root: s.root.clone(),
         })
-        .ok_or_else(|| mlua::Error::RuntimeError("scry_init() not called yet".to_string()))
+        .ok_or_else(|| mlua::Error::RuntimeError("engine_init() not called yet".to_string()))
 }
 
-pub fn scry_init(_: &Lua, (root, opts): (String, Option<LuaTable>)) -> LuaResult<bool> {
+pub fn engine_init(_: &Lua, (root, opts): (String, Option<LuaTable>)) -> LuaResult<bool> {
     let total_token_budget: u64 = opts
         .as_ref()
         .and_then(|t| t.get::<u64>("total_token_budget").ok())
@@ -61,21 +61,21 @@ pub fn scry_init(_: &Lua, (root, opts): (String, Option<LuaTable>)) -> LuaResult
     let engine = Arc::new(Engine::new(cfg));
     let root_path = PathBuf::from(&root);
     engine.index(&root_path);
-    *SCRY_STATE.write() = Some(ScryState {
+    *ENGINE_STATE.write() = Some(EngineState {
         engine,
         root: root_path,
     });
     Ok(true)
 }
 
-pub fn scry_rebuild(_: &Lua, _: ()) -> LuaResult<bool> {
+pub fn engine_rebuild(_: &Lua, _: ()) -> LuaResult<bool> {
     let state = ensure_state()?;
     state.engine.handles.symbols.clear();
     state.engine.index(&state.root);
     Ok(true)
 }
 
-pub fn scry_dispatch(lua: &Lua, query: String) -> LuaResult<LuaTable> {
+pub fn engine_dispatch(lua: &Lua, query: String) -> LuaResult<LuaTable> {
     let state = ensure_state()?;
     let result = state.engine.dispatch(&query, &state.root);
     let tbl = lua.create_table()?;
@@ -127,7 +127,7 @@ pub fn scry_dispatch(lua: &Lua, query: String) -> LuaResult<LuaTable> {
     Ok(tbl)
 }
 
-pub fn scry_symbol(lua: &Lua, name: String) -> LuaResult<LuaTable> {
+pub fn engine_symbol(lua: &Lua, name: String) -> LuaResult<LuaTable> {
     let state = ensure_state()?;
     let arr = lua.create_table()?;
     if let Some(prefix) = name.strip_suffix('*') {
@@ -154,7 +154,7 @@ pub fn scry_symbol(lua: &Lua, name: String) -> LuaResult<LuaTable> {
     Ok(arr)
 }
 
-pub fn scry_grep(lua: &Lua, pattern: String) -> LuaResult<LuaTable> {
+pub fn engine_grep(lua: &Lua, pattern: String) -> LuaResult<LuaTable> {
     let state = ensure_state()?;
     let mut out = Vec::new();
     let walker = ignore::WalkBuilder::new(&state.root)
@@ -193,11 +193,11 @@ pub fn scry_grep(lua: &Lua, pattern: String) -> LuaResult<LuaTable> {
     Ok(arr)
 }
 
-// Invoke the scry CLI (current_exe) and return stdout as a string. Used by
-// the additive `scry_refs` / `scry_flow` / `scry_impact` Lua exports — those
+// Invoke the ffs CLI (current_exe) and return stdout as a string. Used by
+// the additive `engine_refs` / `engine_flow` / `engine_impact` Lua exports — those
 // reimplementations would be too heavy here, so we shell out to the same
-// binary that loaded this `fff_nvim` module.
-fn run_scry_subprocess(subcommand: &str, root: &Path, args: &[String]) -> mlua::Result<String> {
+// binary that loaded this `ffs_nvim` module.
+fn run_engine_subprocess(subcommand: &str, root: &Path, args: &[String]) -> mlua::Result<String> {
     let exe = std::env::current_exe().map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
     let mut cmd = std::process::Command::new(exe);
     cmd.arg("--root")
@@ -213,7 +213,7 @@ fn run_scry_subprocess(subcommand: &str, root: &Path, args: &[String]) -> mlua::
         .map_err(|e| mlua::Error::RuntimeError(e.to_string()))?;
     if !out.status.success() {
         return Err(mlua::Error::RuntimeError(format!(
-            "scry {subcommand} exited {}: {}",
+            "ffs {subcommand} exited {}: {}",
             out.status,
             String::from_utf8_lossy(&out.stderr)
         )));
@@ -221,7 +221,7 @@ fn run_scry_subprocess(subcommand: &str, root: &Path, args: &[String]) -> mlua::
     Ok(String::from_utf8_lossy(&out.stdout).into_owned())
 }
 
-pub fn scry_refs(
+pub fn engine_refs(
     _: &Lua,
     (name, limit, offset): (String, Option<u64>, Option<u64>),
 ) -> LuaResult<String> {
@@ -235,10 +235,10 @@ pub fn scry_refs(
         args.push("--offset".into());
         args.push(n.to_string());
     }
-    run_scry_subprocess("refs", &state.root, &args)
+    run_engine_subprocess("refs", &state.root, &args)
 }
 
-pub fn scry_flow(_: &Lua, (name, opts): (String, Option<LuaTable>)) -> LuaResult<String> {
+pub fn engine_flow(_: &Lua, (name, opts): (String, Option<LuaTable>)) -> LuaResult<String> {
     let state = ensure_state()?;
     let mut args = vec![name];
     if let Some(t) = opts {
@@ -255,10 +255,10 @@ pub fn scry_flow(_: &Lua, (name, opts): (String, Option<LuaTable>)) -> LuaResult
             }
         }
     }
-    run_scry_subprocess("flow", &state.root, &args)
+    run_engine_subprocess("flow", &state.root, &args)
 }
 
-pub fn scry_impact(_: &Lua, (name, opts): (String, Option<LuaTable>)) -> LuaResult<String> {
+pub fn engine_impact(_: &Lua, (name, opts): (String, Option<LuaTable>)) -> LuaResult<String> {
     let state = ensure_state()?;
     let mut args = vec![name];
     if let Some(t) = opts {
@@ -274,10 +274,10 @@ pub fn scry_impact(_: &Lua, (name, opts): (String, Option<LuaTable>)) -> LuaResu
             }
         }
     }
-    run_scry_subprocess("impact", &state.root, &args)
+    run_engine_subprocess("impact", &state.root, &args)
 }
 
-pub fn scry_read(
+pub fn engine_read(
     lua: &Lua,
     (target, budget, filter): (String, Option<u64>, Option<String>),
 ) -> LuaResult<LuaTable> {

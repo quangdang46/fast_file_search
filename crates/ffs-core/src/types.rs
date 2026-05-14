@@ -6,12 +6,12 @@ use std::sync::atomic::{AtomicI32, AtomicU64, AtomicUsize, Ordering};
 use crate::constraints::Constrainable;
 use crate::query_tracker::QueryMatchEntry;
 use crate::simd_path::{ArenaPtr, PATH_BUF_SIZE};
-use ffs_query_parser::{FFFQuery, FuzzyQuery, Location};
+use ffs_query_parser::{FfsQuery, FuzzyQuery, Location};
 
-/// Different sources of the string storage used by FFF
+/// Different sources of the string storage used by ffs
 /// implements as a deduplicated 16-bytes alined heap
 /// can be stored in RAM or on disk
-pub trait FFFStringStorage {
+pub trait FfsStringStorage {
     /// Resolve the arena for a [`FileItem`] (handles base vs overflow split).
     fn arena_for(&self, file: &FileItem) -> ArenaPtr;
 
@@ -21,7 +21,7 @@ pub trait FFFStringStorage {
     fn overflow_arena(&self) -> ArenaPtr;
 }
 
-impl FFFStringStorage for ArenaPtr {
+impl FfsStringStorage for ArenaPtr {
     #[inline]
     fn arena_for(&self, _file: &FileItem) -> ArenaPtr {
         *self
@@ -152,7 +152,7 @@ impl DirItem {
     }
 
     /// Relative dir path as owned String (cold path).
-    pub fn relative_path(&self, arena: impl FFFStringStorage) -> String {
+    pub fn relative_path(&self, arena: impl FfsStringStorage) -> String {
         let mut out = String::new();
         let ptr = if self.is_overflow() {
             arena.overflow_arena()
@@ -179,7 +179,7 @@ impl DirItem {
     }
 
     /// The dirname (last segment) as an owned String. Cold path.
-    pub fn dir_name(&self, arena: impl FFFStringStorage) -> String {
+    pub fn dir_name(&self, arena: impl FfsStringStorage) -> String {
         let mut out = String::new();
         let ptr = if self.is_overflow() {
             arena.overflow_arena()
@@ -191,7 +191,7 @@ impl DirItem {
     }
 
     /// A path = base_path + "/" + relative. Cold path, allocates.
-    pub fn absolute_path(&self, arena: impl FFFStringStorage, base_path: &Path) -> PathBuf {
+    pub fn absolute_path(&self, arena: impl FfsStringStorage, base_path: &Path) -> PathBuf {
         let rel = self.relative_path(arena);
         if rel.is_empty() {
             base_path.to_path_buf()
@@ -279,7 +279,7 @@ impl FileItem {
     }
 
     /// Returns an absolute path of the file
-    pub fn absolute_path(&self, arena: impl FFFStringStorage, base_path: &Path) -> PathBuf {
+    pub fn absolute_path(&self, arena: impl FfsStringStorage, base_path: &Path) -> PathBuf {
         let mut buf = [0u8; PATH_BUF_SIZE];
         let rel = self.path.read_to_buf(arena.arena_for(self), &mut buf);
         base_path.join(rel)
@@ -297,7 +297,7 @@ impl FileItem {
         self.parent_dir = idx;
     }
 
-    pub fn dir_str(&self, arena: impl FFFStringStorage) -> String {
+    pub fn dir_str(&self, arena: impl FfsStringStorage) -> String {
         let mut s = String::with_capacity(64);
         self.path.write_dir_to(arena.arena_for(self), &mut s);
         s
@@ -307,7 +307,7 @@ impl FileItem {
         self.path.write_dir_to(arena, out);
     }
 
-    pub fn file_name(&self, arena: impl FFFStringStorage) -> String {
+    pub fn file_name(&self, arena: impl FfsStringStorage) -> String {
         let mut s = String::with_capacity(32);
         self.path.write_filename_to(arena.arena_for(self), &mut s);
         s
@@ -317,7 +317,7 @@ impl FileItem {
         self.path.write_filename_to(arena, out);
     }
 
-    pub fn relative_path(&self, arena: impl FFFStringStorage) -> String {
+    pub fn relative_path(&self, arena: impl FfsStringStorage) -> String {
         let mut s = String::with_capacity(64);
         self.path.write_to_string(arena.arena_for(self), &mut s);
         s
@@ -638,7 +638,7 @@ impl Default for PaginationArgs {
 
 #[derive(Debug, Clone)]
 pub struct ScoringContext<'a> {
-    pub query: &'a FFFQuery<'a>,
+    pub query: &'a FfsQuery<'a>,
     pub project_path: Option<&'a Path>,
     pub current_file: Option<&'a str>,
     pub max_typos: u16,

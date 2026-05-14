@@ -2,7 +2,7 @@ import { FileFinder } from "./src/index";
 import { resolve, dirname } from "node:path";
 
 async function main() {
-  console.log("=== fff Test Script ===\n");
+  console.log("=== ffs Test Script ===\n");
 
   // Check if library is available
   console.log("Checking library availability...");
@@ -11,7 +11,7 @@ async function main() {
 
   if (!available) {
     console.error("Native library not found!");
-    console.error("Build it with: cargo build --release -p fff-c");
+    console.error("Build it with: cargo build --release -p ffs-c");
     process.exit(1);
   }
 

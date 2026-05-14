@@ -1,7 +1,7 @@
 {
   "name": "@ff-labs/ffs-bin-linux-x64-gnu",
   "version": "0.0.0",
-  "description": "fff native binary for Linux x64 (glibc)",
+  "description": "ffs native binary for Linux x64 (glibc)",
   "os": ["linux"],
   "cpu": ["x64"],
   "main": "libffs_c.so",
@@ -13,7 +13,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/dmtrKovalenko/ffs.nvim.git",
-    "directory": "packages/fff-bin-linux-x64-gnu"
+    "directory": "packages/ffs-bin-linux-x64-gnu"
   },
   "libc": ["glibc"]
 }

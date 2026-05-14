@@ -6,7 +6,7 @@ INCLUDEDIR ?= $(PREFIX)/include
 
 # Compile-time cfg that gates the watcher + git-status fuzz stress test.
 STRESS_RUSTFLAGS := --cfg stress
-FFF_STRESS_DEFAULT_SEED ?= 0xDEADBEEFCAFEBABE
+FFS_STRESS_DEFAULT_SEED ?= 0xDEADBEEFCAFEBABE
 
 .PHONY: build build-c-lib install uninstall test test-rust test-lua test-version test-bun test-node prepare-bun prepare-node set-npm-version header test-stress test-stress-seeded test-stress-random
 
@@ -91,7 +91,7 @@ test: test-rust test-lua test-version test-bun test-node
 
 
 test-stress-seeded:
-	FFF_STRESS_SEED="$${FFF_STRESS_SEED:-$(FFF_STRESS_DEFAULT_SEED)}" \
+	FFS_STRESS_SEED="$${FFS_STRESS_SEED:-$(FFS_STRESS_DEFAULT_SEED)}" \
 	RUSTFLAGS="$(STRESS_RUSTFLAGS)" \
 	cargo test \
 		-p ffs-search \

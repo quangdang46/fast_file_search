@@ -5,7 +5,7 @@
 use ffs::file_picker::FilePicker;
 use ffs::git::format_git_status;
 use ffs::{
-    FFFMode, FuzzySearchOptions, PaginationArgs, QueryParser, SharedFilePicker, SharedFrecency,
+    FfsMode, FuzzySearchOptions, PaginationArgs, QueryParser, SharedFilePicker, SharedFrecency,
 };
 use std::env;
 use std::io::{self, Write};
@@ -53,7 +53,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ffs::FilePickerOptions {
             base_path: base_path.clone(),
             enable_mmap_cache: false,
-            mode: FFFMode::default(),
+            mode: FfsMode::default(),
             ..Default::default()
         },
     )?;

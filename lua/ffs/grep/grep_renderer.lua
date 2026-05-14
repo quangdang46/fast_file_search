@@ -188,7 +188,7 @@ local function apply_match_highlights(item, ctx, item_idx, buf, ns_id, row, line
     if ctx.selected_items[key] then
       vim.api.nvim_buf_set_extmark(buf, ns_id, row, 0, {
         sign_text = '▊',
-        sign_hl_group = config.hl.selected or 'FFFSelected',
+        sign_hl_group = config.hl.selected or 'FFSSelected',
         priority = 1001,
       })
     end

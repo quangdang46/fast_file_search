@@ -16,14 +16,14 @@
 set -euo pipefail
 
 PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-export FFF_PLUGIN_ROOT="$PLUGIN_ROOT"   # picked up by os.getenv() inside Lua
+export FFS_PLUGIN_ROOT="$PLUGIN_ROOT"   # picked up by os.getenv() inside Lua
 
 case "$(uname -s)" in
   Darwin)           EXT=dylib ;;
   MINGW*|MSYS*|CYGWIN*) EXT=dll ;;
   *)                EXT=so ;;
 esac
-BINARY="$PLUGIN_ROOT/target/release/libfff_nvim.$EXT"
+BINARY="$PLUGIN_ROOT/target/release/libffs_nvim.$EXT"
 
 passed=0; failed=0
 pass()      { printf '  PASS  %s\n'   "$1";      (( passed += 1 )) || true; }
@@ -40,7 +40,7 @@ trap 'rm -rf "$RUNNERS"' EXIT
 #   os.exit(0) mimics Neovim exiting immediately after the hook returns —
 #   the event loop never spins again, so the git/curl/rename callbacks die.
 cat >"$RUNNERS/async.lua" <<'LUA'
-vim.opt.runtimepath:prepend(os.getenv('FFF_PLUGIN_ROOT'))
+vim.opt.runtimepath:prepend(os.getenv('FFS_PLUGIN_ROOT'))
 require('ffs.download').ensure_downloaded(
   { version = '3e9b865', force = true },
   function() end   -- this callback is never reached
@@ -52,7 +52,7 @@ LUA
 #   vim.wait spins the event loop until the rename lands on disk,
 #   so the function only returns after the binary is present.
 cat >"$RUNNERS/blocking.lua" <<'LUA'
-vim.opt.runtimepath:prepend(os.getenv('FFF_PLUGIN_ROOT'))
+vim.opt.runtimepath:prepend(os.getenv('FFS_PLUGIN_ROOT'))
 -- Blocks via vim.wait; only returns once the binary is on disk.
 require('ffs.download').download_or_build_binary()
 LUA
@@ -67,7 +67,7 @@ nvim -l "$RUNNERS/async.lua" 2>/dev/null
 
 # Give any orphaned subprocesses a full second to do whatever they can.
 # They finish running (git/curl), but the Neovim rename callback is dead,
-# so the binary never moves from .tmp → libfff_nvim.dylib.
+# so the binary never moves from .tmp → libffs_nvim.dylib.
 sleep 1
 assert_no_file "$BINARY" "binary absent — rename callback was killed with the process"
 

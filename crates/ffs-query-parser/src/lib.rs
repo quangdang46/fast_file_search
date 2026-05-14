@@ -12,7 +12,7 @@
 //!
 //! let parser = QueryParser::default();
 //!
-//! // Single-token queries return FFFQuery with Text fuzzy query and no constraints
+//! // Single-token queries return FfsQuery with Text fuzzy query and no constraints
 //! let result = parser.parse("hello");
 //! assert!(result.constraints.is_empty());
 //! assert_eq!(result.fuzzy_query, FuzzyQuery::Text("hello"));
@@ -50,7 +50,7 @@ pub use config::{
 };
 pub use constraints::{Constraint, GitStatusFilter};
 pub use location::Location;
-pub use parser::{FFFQuery, FuzzyQuery, QueryParser};
+pub use parser::{FfsQuery, FuzzyQuery, QueryParser};
 
 pub type ConstraintVec<'a> = Vec<Constraint<'a>>;
 

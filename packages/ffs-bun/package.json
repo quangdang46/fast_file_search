@@ -13,8 +13,8 @@
     }
   },
   "bin": {
-    "fff-demo": "./examples/search.ts",
-    "fff-grep": "./examples/grep.ts"
+    "ffs-demo": "./examples/search.ts",
+    "ffs-grep": "./examples/grep.ts"
   },
   "files": [
     "src",
@@ -40,7 +40,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/dmtrKovalenko/ffs.nvim.git",
-    "directory": "packages/fff"
+    "directory": "packages/ffs"
   },
   "keywords": [
     "file-finder",

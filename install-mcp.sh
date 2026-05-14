@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
-# FFF MCP Server installer
+# ffs MCP Server installer
 # Usage: curl -fsSL https://raw.githubusercontent.com/dmtrKovalenko/ffs.nvim/main/install-mcp.sh | bash
 
 REPO="dmtrKovalenko/ffs.nvim"
-BINARY_NAME="fff-mcp"
-INSTALL_DIR="${FFF_MCP_INSTALL_DIR:-$HOME/.local/bin}"
+BINARY_NAME="ffs-mcp"
+INSTALL_DIR="${FFS_MCP_INSTALL_DIR:-$HOME/.local/bin}"
 
 info() { printf '\033[1;34m%s\033[0m\n' "$*"; }
 success() { printf '\033[1;38;5;208m%s\033[0m\n' "$*"; }
@@ -63,17 +63,17 @@ get_latest_release_tag() {
     releases_json=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases") \
         || error "Failed to fetch releases from https://github.com/${REPO}/releases"
 
-    # Find the first release that contains an fff-mcp binary for our platform
+    # Find the first release that contains an ffs-mcp binary for our platform
     local tag
     tag=$(echo "$releases_json" \
         | grep -oE '"(tag_name|name)": *"[^"]*"' \
-        | awk -v target="fff-mcp-${target}" '
+        | awk -v target="ffs-mcp-${target}" '
             /"tag_name":/ { gsub(/.*": *"|"/, ""); current_tag = $0; next }
             /"name":/ && index($0, target) { print current_tag; exit }
         ')
 
     if [ -z "$tag" ]; then
-        error "No release found containing fff-mcp binaries for ${target}. The MCP build may not have been released yet."
+        error "No release found containing ffs-mcp binaries for ${target}. The MCP build may not have been released yet."
     fi
     echo "$tag"
 }
@@ -164,7 +164,7 @@ print_setup_instructions() {
     local found_any=false
 
     echo ""
-    success "FFF MCP Server installed successfully!"
+    success "ffs MCP Server installed successfully!"
     echo ""
     info "Setup with your AI coding assistant:"
     echo ""
@@ -175,15 +175,15 @@ print_setup_instructions() {
         success "[Claude Code] detected"
         echo ""
         echo "Global (recommended):"
-        echo "claude mcp add -s user fff -- ${binary_path}"
+        echo "claude mcp add -s user ffs -- ${binary_path}"
         echo ""
         echo "Or project-level .mcp.json (uses PATH):"
         echo ""
         print_json '{
   "mcpServers": {
-    "fff": {
+    "ffs": {
       "type": "stdio",
-      "command": "fff-mcp",
+      "command": "ffs-mcp",
       "args": []
     }
   }
@@ -200,9 +200,9 @@ print_setup_instructions() {
         echo ""
         print_json '{
   "mcp": {
-    "fff": {
+    "ffs": {
       "type": "local",
-      "command": ["fff-mcp"],
+      "command": ["ffs-mcp"],
       "enabled": true
     }
   }
@@ -215,7 +215,7 @@ print_setup_instructions() {
         found_any=true
         success "[Codex] detected"
         echo ""
-        echo "codex mcp add fff -- fff-mcp"
+        echo "codex mcp add ffs -- ffs-mcp"
         echo ""
     fi
 
@@ -229,9 +229,9 @@ print_setup_instructions() {
     echo "Binary: ${binary_path}"
     echo "Docs:   https://github.com/${REPO}"
     echo ""
-    info "Tip: Add this to your CLAUDE.md or AGENTS.md to make AI use fff for all searches:"
+    info "Tip: Add this to your CLAUDE.md or AGENTS.md to make AI use ffs for all searches:"
     echo "\""
-    echo "Use the fff MCP tools for all file search operations instead of default tools."
+    echo "use the ffs MCP tools for all file search operations instead of default tools."
     echo "\""
 
 
@@ -246,9 +246,9 @@ main() {
 
     if [ -x "$existing_binary" ]; then
         IS_UPDATE=true
-        info "Updating FFF MCP Server..."
+        info "Updating ffs MCP Server..."
     else
-        info "Installing FFF MCP Server..."
+        info "Installing ffs MCP Server..."
     fi
     echo ""
 
@@ -261,7 +261,7 @@ main() {
 
     if [ "$IS_UPDATE" = true ]; then
         echo ""
-        success "FFF MCP Server updated to ${tag}!"
+        success "ffs MCP Server updated to ${tag}!"
         echo ""
     else
         check_path

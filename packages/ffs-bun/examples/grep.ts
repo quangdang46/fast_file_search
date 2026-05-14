@@ -99,12 +99,12 @@ function parseArgs(): { directory: string; mode: GrepMode } {
 async function main() {
   const { directory, mode } = parseArgs();
 
-  console.log(`${BOLD}${CYAN}fff - Live Grep Demo${RESET}`);
+  console.log(`${BOLD}${CYAN}ffs - Live Grep Demo${RESET}`);
   console.log(`${DIM}Mode: ${mode}${RESET}\n`);
 
   if (!FileFinder.isAvailable()) {
     console.error(`${RED}Error: Native library not found.${RESET}`);
-    console.error("Build with: cargo build --release -p fff-c");
+    console.error("Build with: cargo build --release -p ffs-c");
     process.exit(1);
   }
 

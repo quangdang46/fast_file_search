@@ -1,4 +1,4 @@
-//! End-to-end tests for the B0 default-routing of `scry read`:
+//! End-to-end tests for the B0 default-routing of `ffs read`:
 //! a no-flag invocation returns the agent-style outline, not the full body.
 
 use std::process::Command;
@@ -49,7 +49,7 @@ fn read_with_no_flags_emits_agent_outline_for_code_files() {
         .args(["--root", tmp.path().to_str().unwrap()])
         .args(["read", "sample.rs"])
         .output()
-        .expect("run scry read");
+        .expect("run ffs read");
     assert!(
         out.status.success(),
         "stderr: {}",
@@ -86,7 +86,7 @@ fn read_with_full_flag_returns_raw_body() {
         .args(["--root", tmp.path().to_str().unwrap()])
         .args(["read", "sample.rs", "--full"])
         .output()
-        .expect("run scry read --full");
+        .expect("run ffs read --full");
     assert!(
         out.status.success(),
         "stderr: {}",
@@ -111,7 +111,7 @@ fn read_with_line_suffix_drills_into_section() {
         .args(["--root", tmp.path().to_str().unwrap()])
         .args(["read", "sample.rs:18"])
         .output()
-        .expect("run scry read sample.rs:18");
+        .expect("run ffs read sample.rs:18");
     assert!(
         out.status.success(),
         "stderr: {}",
@@ -139,7 +139,7 @@ fn outline_default_style_is_agent() {
         .args(["--root", tmp.path().to_str().unwrap()])
         .args(["outline", "sample.rs"])
         .output()
-        .expect("run scry outline");
+        .expect("run ffs outline");
     assert!(
         out.status.success(),
         "stderr: {}",
@@ -164,7 +164,7 @@ fn outline_legacy_styles_still_work() {
             .args(["--root", tmp.path().to_str().unwrap()])
             .args(["outline", "sample.rs", "--style", style])
             .output()
-            .unwrap_or_else(|e| panic!("run scry outline --style {style}: {e}"));
+            .unwrap_or_else(|e| panic!("run ffs outline --style {style}: {e}"));
         assert!(
             out.status.success(),
             "style {style} failed: {}",

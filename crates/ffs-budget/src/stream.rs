@@ -1,6 +1,6 @@
 //! Block-oriented streaming filter.
 //!
-//! Real subprocess hookup happens in `scry exec` (CLI layer). This module
+//! Real subprocess hookup happens in `ffs exec` (CLI layer). This module
 //! provides the `StreamFilter` trait + `BlockStreamFilter` to apply a chain of
 //! filters and `BlockHandler`s to a producer of lines.
 

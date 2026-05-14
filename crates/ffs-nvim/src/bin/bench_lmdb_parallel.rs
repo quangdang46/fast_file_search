@@ -8,8 +8,8 @@
 ///   cargo build --release --bin bench_lmdb_parallel
 ///   ./target/release/bench_lmdb_parallel --procs 4 --iters 5000
 ///
-/// Env var FFF_BENCH_ROLE=worker turns the binary into a worker that talks
-/// to a db path passed via FFF_BENCH_DB.
+/// Env var FFS_BENCH_ROLE=worker turns the binary into a worker that talks
+/// to a db path passed via FFS_BENCH_DB.
 use ffs::frecency::FrecencyTracker;
 use ffs::query_tracker::QueryTracker;
 use std::env;
@@ -80,7 +80,7 @@ fn worker_main(db: &Path, iters: usize, worker_id: u32) {
 
 fn driver_main(procs: usize, iters: usize, db_override: Option<String>) {
     let db = db_override.map(PathBuf::from).unwrap_or_else(|| {
-        std::env::temp_dir().join(format!("fff_bench_lmdb_{}", std::process::id()))
+        std::env::temp_dir().join(format!("ffs_bench_lmdb_{}", std::process::id()))
     });
     let _ = std::fs::remove_dir_all(&db);
     std::fs::create_dir_all(&db).expect("create db dir");
@@ -98,10 +98,10 @@ fn driver_main(procs: usize, iters: usize, db_override: Option<String>) {
     let mut children = Vec::with_capacity(procs);
     for worker_id in 0..procs {
         let child = Command::new(&exe)
-            .env("FFF_BENCH_ROLE", "worker")
-            .env("FFF_BENCH_DB", &db)
-            .env("FFF_BENCH_ITERS", iters.to_string())
-            .env("FFF_BENCH_WORKER_ID", worker_id.to_string())
+            .env("FFS_BENCH_ROLE", "worker")
+            .env("FFS_BENCH_DB", &db)
+            .env("FFS_BENCH_ITERS", iters.to_string())
+            .env("FFS_BENCH_WORKER_ID", worker_id.to_string())
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit())
             .spawn()
@@ -131,13 +131,13 @@ fn driver_main(procs: usize, iters: usize, db_override: Option<String>) {
 
 fn main() {
     // Worker branch: spawned by driver to contend on the same db.
-    if env::var("FFF_BENCH_ROLE").as_deref() == Ok("worker") {
-        let db = env::var("FFF_BENCH_DB").expect("FFF_BENCH_DB");
-        let iters: usize = env::var("FFF_BENCH_ITERS")
+    if env::var("FFS_BENCH_ROLE").as_deref() == Ok("worker") {
+        let db = env::var("FFS_BENCH_DB").expect("FFS_BENCH_DB");
+        let iters: usize = env::var("FFS_BENCH_ITERS")
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(1000);
-        let worker_id: u32 = env::var("FFF_BENCH_WORKER_ID")
+        let worker_id: u32 = env::var("FFS_BENCH_WORKER_ID")
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(0);

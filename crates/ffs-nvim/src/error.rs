@@ -1,6 +1,6 @@
 //! Error handling for ffs-nvim
 //!
-//! This module provides utilities for converting fff errors to mlua errors.
+//! This module provides utilities for converting ffs errors to mlua errors.
 
 use ffs::Error as CoreError;
 

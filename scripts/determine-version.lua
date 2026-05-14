@@ -5,7 +5,7 @@ local repo_root = script_dir .. '..'
 -- Add the plugin's lua/ directory to the module search path
 package.path = repo_root .. '/lua/?.lua;' .. repo_root .. '/lua/?/init.lua;' .. package.path
 
-local version = require('fff.utils.version')
+local version = require('ffs.utils.version')
 
 local info, err = version.resolve(repo_root)
 if not info then

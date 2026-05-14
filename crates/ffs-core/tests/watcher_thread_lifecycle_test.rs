@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 
 use tempfile::TempDir;
 
-use ffs_search::file_picker::{FFFMode, FilePicker};
+use ffs_search::file_picker::{FfsMode, FilePicker};
 use ffs_search::{FilePickerOptions, SharedFilePicker, SharedFrecency};
 
 /// Thread comm names Linux exposes via `/proc/self/task/*/comm` are
@@ -71,7 +71,7 @@ fn spawn_watched_picker(base: PathBuf) -> (SharedFilePicker, SharedFrecency) {
             base_path: base.to_string_lossy().to_string(),
             enable_mmap_cache: false,
             enable_content_indexing: false,
-            mode: FFFMode::Neovim,
+            mode: FfsMode::Neovim,
             watch: true,
             ..Default::default()
         },
@@ -92,7 +92,7 @@ fn spawn_watched_picker(base: PathBuf) -> (SharedFilePicker, SharedFrecency) {
 
 #[test]
 fn watcher_threads_do_not_leak_across_picker_lifetimes() {
-    // this is needed because I run this within neovim with it's own fff owner thread lmao
+    // this is needed because I run this within neovim with it's own ffs owner thread lmao
     let baseline = count_live_threads_named(WATCHER_OWNER_THREAD_NAME);
 
     const PICKER_COUNT: usize = 4;

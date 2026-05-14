@@ -1,4 +1,4 @@
-//! `--expand` body inlining for `scry symbol`.
+//! `--expand` body inlining for `ffs symbol`.
 //!
 //! Given the locations returned by `lookup_exact`, walk each one back to its
 //! containing structural node via the outline cache, slice the body bytes,

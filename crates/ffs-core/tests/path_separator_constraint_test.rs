@@ -1,4 +1,4 @@
-//! Regression test for https://github.com/dmtrKovalenko/fff/issues/381
+//! Regression test for https://github.com/dmtrKovalenko/ffs.nvim/issues/381
 //!
 //! Directory (`PathSegment`) and file-path (`FilePath`) constraints must
 //! return results on every platform. Indexed paths on Windows use native

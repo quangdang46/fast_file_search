@@ -1,4 +1,4 @@
-//! `scry impact <symbol>` — rank workspace files by how much each one would
+//! `ffs impact <symbol>` — rank workspace files by how much each one would
 //! be affected if `<symbol>` changed. Combines three signals per file:
 //!
 //! * direct callers (single-hop call sites)        — weight 3
@@ -45,7 +45,7 @@ pub struct Args {
     pub hops: u32,
 
     /// Stop propagating from any single name that produces more than this
-    /// many hits in one hop. Mirrors `scry callers --hub-guard`.
+    /// many hits in one hop. Mirrors `ffs callers --hub-guard`.
     #[arg(long, default_value_t = 50)]
     pub hub_guard: usize,
 }

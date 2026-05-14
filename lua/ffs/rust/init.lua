@@ -46,10 +46,10 @@ end
 -- load the library directly from the first valid path we find
 local function try_load_library()
   for _, path_pattern in ipairs(paths) do
-    local actual_path = resolve_path(path_pattern:gsub('%?', 'fff_nvim'))
+    local actual_path = resolve_path(path_pattern:gsub('%?', 'ffs_nvim'))
     local stat = vim.uv.fs_stat(actual_path)
     if stat and stat.type == 'file' then
-      local loader, err = package.loadlib(actual_path, 'luaopen_fff_nvim')
+      local loader, err = package.loadlib(actual_path, 'luaopen_ffs_nvim')
       if err then return nil, string.format('Error loading library from %s: %s', actual_path, err) end
       if loader then return loader() end
     end
@@ -61,7 +61,7 @@ local backend, load_err = try_load_library()
 if not backend or load_err then
   local resolved = {}
   for _, p in ipairs(paths) do
-    table.insert(resolved, resolve_path(p:gsub('%?', 'fff_nvim')))
+    table.insert(resolved, resolve_path(p:gsub('%?', 'ffs_nvim')))
   end
 
   local err_msg = string.format(

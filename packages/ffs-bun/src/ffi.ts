@@ -1,5 +1,5 @@
 /**
- * Bun FFI bindings for the fff-c native library
+ * Bun FFI bindings for the ffs-c native library
  *
  * This module uses Bun's native FFI to call into the Rust C library.
  * All functions follow the Result pattern for error handling.
@@ -44,7 +44,7 @@ function grepModeToU8(mode?: string): number {
 }
 
 const ffiDefinition = {
-  fff_create_instance2: {
+  ffs_create_instance2: {
     args: [
       FFIType.cstring, // base_path
       FFIType.cstring, // frecency_db_path
@@ -62,13 +62,13 @@ const ffiDefinition = {
     ],
     returns: FFIType.ptr,
   },
-  fff_destroy: {
+  ffs_destroy: {
     args: [FFIType.ptr],
     returns: FFIType.void,
   },
 
   // Search
-  fff_search: {
+  ffs_search: {
     args: [
       FFIType.ptr, // handle
       FFIType.cstring, // query
@@ -83,7 +83,7 @@ const ffiDefinition = {
   },
 
   // Directory search
-  fff_search_directories: {
+  ffs_search_directories: {
     args: [
       FFIType.ptr, // handle
       FFIType.cstring, // query
@@ -96,7 +96,7 @@ const ffiDefinition = {
   },
 
   // Mixed search (files + directories)
-  fff_search_mixed: {
+  ffs_search_mixed: {
     args: [
       FFIType.ptr, // handle
       FFIType.cstring, // query
@@ -111,7 +111,7 @@ const ffiDefinition = {
   },
 
   // Live grep (content search)
-  fff_live_grep: {
+  ffs_live_grep: {
     args: [
       FFIType.ptr, // handle
       FFIType.cstring, // query
@@ -130,7 +130,7 @@ const ffiDefinition = {
   },
 
   // Multi-pattern grep (Aho-Corasick)
-  fff_multi_grep: {
+  ffs_multi_grep: {
     args: [
       FFIType.ptr, // handle
       FFIType.cstring, // patterns_joined (\n-separated)
@@ -149,139 +149,139 @@ const ffiDefinition = {
   },
 
   // File index
-  fff_scan_files: {
+  ffs_scan_files: {
     args: [FFIType.ptr],
     returns: FFIType.ptr,
   },
-  fff_is_scanning: {
+  ffs_is_scanning: {
     args: [FFIType.ptr],
     returns: FFIType.bool,
   },
-  fff_get_base_path: {
+  ffs_get_base_path: {
     args: [FFIType.ptr],
     returns: FFIType.ptr,
   },
-  fff_get_scan_progress: {
+  ffs_get_scan_progress: {
     args: [FFIType.ptr],
     returns: FFIType.ptr,
   },
-  fff_wait_for_scan: {
+  ffs_wait_for_scan: {
     args: [FFIType.ptr, FFIType.u64],
     returns: FFIType.ptr,
   },
-  fff_wait_for_watcher: {
+  ffs_wait_for_watcher: {
     args: [FFIType.ptr, FFIType.u64],
     returns: FFIType.ptr,
   },
-  fff_restart_index: {
+  ffs_restart_index: {
     args: [FFIType.ptr, FFIType.cstring],
     returns: FFIType.ptr,
   },
 
   // Git
-  fff_refresh_git_status: {
+  ffs_refresh_git_status: {
     args: [FFIType.ptr],
     returns: FFIType.ptr,
   },
 
   // Query tracking
-  fff_track_query: {
+  ffs_track_query: {
     args: [FFIType.ptr, FFIType.cstring, FFIType.cstring],
     returns: FFIType.ptr,
   },
-  fff_get_historical_query: {
+  ffs_get_historical_query: {
     args: [FFIType.ptr, FFIType.u64],
     returns: FFIType.ptr,
   },
 
   // Utilities
-  fff_health_check: {
+  ffs_health_check: {
     args: [FFIType.ptr, FFIType.cstring],
     returns: FFIType.ptr,
   },
 
   // Search result accessors / free
-  fff_free_search_result: {
+  ffs_free_search_result: {
     args: [FFIType.ptr],
     returns: FFIType.void,
   },
-  fff_search_result_get_item: {
+  ffs_search_result_get_item: {
     args: [FFIType.ptr, FFIType.u32],
     returns: FFIType.ptr,
   },
-  fff_search_result_get_score: {
+  ffs_search_result_get_score: {
     args: [FFIType.ptr, FFIType.u32],
     returns: FFIType.ptr,
   },
 
   // Dir search result accessors / free
-  fff_free_dir_search_result: {
+  ffs_free_dir_search_result: {
     args: [FFIType.ptr],
     returns: FFIType.void,
   },
-  fff_dir_search_result_get_item: {
+  ffs_dir_search_result_get_item: {
     args: [FFIType.ptr, FFIType.u32],
     returns: FFIType.ptr,
   },
-  fff_dir_search_result_get_score: {
+  ffs_dir_search_result_get_score: {
     args: [FFIType.ptr, FFIType.u32],
     returns: FFIType.ptr,
   },
 
   // Mixed search result accessors / free
-  fff_free_mixed_search_result: {
+  ffs_free_mixed_search_result: {
     args: [FFIType.ptr],
     returns: FFIType.void,
   },
-  fff_mixed_search_result_get_item: {
+  ffs_mixed_search_result_get_item: {
     args: [FFIType.ptr, FFIType.u32],
     returns: FFIType.ptr,
   },
-  fff_mixed_search_result_get_score: {
+  ffs_mixed_search_result_get_score: {
     args: [FFIType.ptr, FFIType.u32],
     returns: FFIType.ptr,
   },
 
   // Grep result accessors / free
-  fff_free_grep_result: {
+  ffs_free_grep_result: {
     args: [FFIType.ptr],
     returns: FFIType.void,
   },
-  fff_grep_result_get_match: {
+  ffs_grep_result_get_match: {
     args: [FFIType.ptr, FFIType.u32],
     returns: FFIType.ptr,
   },
 
   // Memory management
-  fff_free_result: {
+  ffs_free_result: {
     args: [FFIType.ptr],
     returns: FFIType.void,
   },
-  fff_free_string: {
+  ffs_free_string: {
     args: [FFIType.ptr],
     returns: FFIType.void,
   },
-  fff_free_scan_progress: {
+  ffs_free_scan_progress: {
     args: [FFIType.ptr],
     returns: FFIType.void,
   },
 } as const;
 
-type FFFLibrary = ReturnType<typeof dlopen<typeof ffiDefinition>>;
+type FfsLibrary = ReturnType<typeof dlopen<typeof ffiDefinition>>;
 
 // Library instance (lazy loaded)
-let lib: FFFLibrary | null = null;
+let lib: FfsLibrary | null = null;
 
 /**
  * Load the native library
  */
-function loadLibrary(): FFFLibrary {
+function loadLibrary(): FfsLibrary {
   if (lib) return lib;
 
   const binaryPath = findBinary();
   if (!binaryPath) {
     throw new Error(
-      "fff native library not found. Build from source with `cargo build --release -p fff-c` or install the platform package.",
+      "ffs native library not found. Build from source with `cargo build --release -p ffs-c` or install the platform package.",
     );
   }
 
@@ -324,7 +324,7 @@ function snakeToCamel(obj: unknown): unknown {
 }
 
 // ---------------------------------------------------------------------------
-// FffResult byte offsets (must match #[repr(C)] layout on 64-bit)
+// FfsResult byte offsets (must match #[repr(C)] layout on 64-bit)
 // { success: bool(1+7pad), error: *char(8), handle: *void(8), int_value: i64(8) }
 // ---------------------------------------------------------------------------
 const RES_SUCCESS = 0; // bool (1 + 7 padding)
@@ -333,7 +333,7 @@ const RES_HANDLE = 16; // *mut c_void (8)
 const RES_INT_VALUE = 24; // i64         (8)
 
 /**
- * Read the FffResult envelope: check success, extract payload, free envelope.
+ * Read the FfsResult envelope: check success, extract payload, free envelope.
  * On error returns a Result<never>. On success returns the raw handle pointer and int_value.
  */
 function readResultEnvelope(
@@ -349,31 +349,31 @@ function readResultEnvelope(
   if (!success) {
     const errorPtr = read.ptr(resultPtr, RES_ERROR);
     const errorMsg = readCString(errorPtr) || "Unknown error";
-    library.symbols.fff_free_result(resultPtr);
+    library.symbols.ffs_free_result(resultPtr);
     return err(errorMsg);
   }
 
   const handlePtr = read.ptr(resultPtr, RES_HANDLE);
   const intValue = Number(read.i64(resultPtr, RES_INT_VALUE));
-  library.symbols.fff_free_result(resultPtr);
+  library.symbols.ffs_free_result(resultPtr);
   return { success: true, handlePtr, intValue };
 }
 
-/** Parse a FffResult that carries a bool in int_value (0 = false, nonzero = true). */
+/** Parse a FfsResult that carries a bool in int_value (0 = false, nonzero = true). */
 function parseBoolResult(resultPtr: Pointer | null): Result<boolean> {
   const envelope = readResultEnvelope(resultPtr);
   if (!("success" in envelope)) return envelope;
   return { ok: true, value: envelope.intValue !== 0 };
 }
 
-/** Parse a FffResult that carries an integer in int_value. */
+/** Parse a FfsResult that carries an integer in int_value. */
 function parseIntResult(resultPtr: Pointer | null): Result<number> {
   const envelope = readResultEnvelope(resultPtr);
   if (!("success" in envelope)) return envelope;
   return { ok: true, value: envelope.intValue };
 }
 
-/** Parse a FffResult that carries a string in handle (freed with fff_free_string). */
+/** Parse a FfsResult that carries a string in handle (freed with ffs_free_string). */
 function parseStringResult(resultPtr: Pointer | null): Result<string | null> {
   const envelope = readResultEnvelope(resultPtr);
   if (!("success" in envelope)) return envelope;
@@ -382,11 +382,11 @@ function parseStringResult(resultPtr: Pointer | null): Result<string | null> {
 
   const library = loadLibrary();
   const str = readCString(envelope.handlePtr);
-  library.symbols.fff_free_string(asPtr(envelope.handlePtr));
+  library.symbols.ffs_free_string(asPtr(envelope.handlePtr));
   return { ok: true, value: str };
 }
 
-/** Parse a FffResult that carries a JSON string in handle. */
+/** Parse a FfsResult that carries a JSON string in handle. */
 function parseJsonResult<T>(resultPtr: Pointer | null): Result<T> {
   const envelope = readResultEnvelope(resultPtr);
   if (!("success" in envelope)) return envelope;
@@ -395,7 +395,7 @@ function parseJsonResult<T>(resultPtr: Pointer | null): Result<T> {
 
   const library = loadLibrary();
   const jsonStr = readCString(envelope.handlePtr);
-  library.symbols.fff_free_string(asPtr(envelope.handlePtr));
+  library.symbols.ffs_free_string(asPtr(envelope.handlePtr));
 
   if (jsonStr === null || jsonStr === "") return { ok: true, value: undefined as T };
 
@@ -406,7 +406,7 @@ function parseJsonResult<T>(resultPtr: Pointer | null): Result<T> {
   }
 }
 
-/** Parse a FffResult with no payload (void, success/error only). */
+/** Parse a FfsResult with no payload (void, success/error only). */
 function parseVoidResult(resultPtr: Pointer | null): Result<void> {
   const envelope = readResultEnvelope(resultPtr);
   if (!("success" in envelope)) return envelope;
@@ -437,7 +437,7 @@ export function ffiCreate(
   cacheBudgetMaxFileSize: bigint,
 ): Result<NativeHandle> {
   const library = loadLibrary();
-  const resultPtr = library.symbols.fff_create_instance2(
+  const resultPtr = library.symbols.ffs_create_instance2(
     ptr(encodeString(basePath)),
     ptr(encodeString(frecencyDbPath)),
     ptr(encodeString(historyDbPath)),
@@ -463,16 +463,16 @@ export function ffiCreate(
 
   if (success) {
     const handle = handlePtr as unknown as Pointer;
-    library.symbols.fff_free_result(resultPtr);
+    library.symbols.ffs_free_result(resultPtr);
 
     if (!handle || handle === (0 as unknown as Pointer)) {
-      return err("fff_create_instance returned null handle");
+      return err("ffs_create_instance returned null handle");
     }
 
     return { ok: true, value: handle };
   } else {
     const errorMsg = readCString(errorPtr) || "Unknown error";
-    library.symbols.fff_free_result(resultPtr);
+    library.symbols.ffs_free_result(resultPtr);
     return err(errorMsg);
   }
 }
@@ -482,27 +482,27 @@ export function ffiCreate(
  */
 export function ffiDestroy(handle: NativeHandle): void {
   const library = loadLibrary();
-  library.symbols.fff_destroy(handle);
+  library.symbols.ffs_destroy(handle);
 }
 
 // ---------------------------------------------------------------------------
 // Struct byte offsets (must match #[repr(C)] layout on 64-bit)
 // ---------------------------------------------------------------------------
 
-// FffSearchResult { items: *mut, scores: *mut, count: u32, total_matched: u32, total_files: u32, location: FffLocation }
-const SR_ITEMS = 0; // *mut FffFileItem (8)
-const SR_SCORES = 8; // *mut FffScore    (8)
+// FfsSearchResult { items: *mut, scores: *mut, count: u32, total_matched: u32, total_files: u32, location: FfsLocation }
+const SR_ITEMS = 0; // *mut FfsFileItem (8)
+const SR_SCORES = 8; // *mut FfsScore    (8)
 const SR_COUNT = 16; // u32              (4)
 const SR_MATCHED = 20; // u32              (4)
 const SR_TOTAL = 24; // u32              (4)
-// FffLocation is inlined at offset 28
+// FfsLocation is inlined at offset 28
 const SR_LOC_TAG = 28; // u8               (1 + 3 padding)
 const SR_LOC_LINE = 32; // i32              (4)
 const SR_LOC_COL = 36; // i32              (4)
 const SR_LOC_END_LINE = 40; // i32           (4)
 const SR_LOC_END_COL = 44; // i32           (4)
 
-// FffFileItem (72 bytes)
+// FfsFileItem (72 bytes)
 const FI_RELPATH = 0; // *mut c_char (8)
 const FI_FNAME = 8; // *mut c_char (8)
 const FI_GIT = 16; // *mut c_char (8)
@@ -513,7 +513,7 @@ const FI_MODFR = 48; // i64         (8)
 const FI_TOTAL_FR = 56; // i64         (8)
 const FI_SIZE_OF = 72;
 
-// FffScore (48 bytes)
+// FfsScore (48 bytes)
 const SC_TOTAL = 0; // i32         (4)
 const SC_BASE = 4; // i32         (4)
 const SC_FNAME = 8; // i32         (4)
@@ -532,7 +532,7 @@ function asPtr(n: number): Pointer {
 }
 
 /**
- * Read an FffFileItem struct at the given raw address.
+ * Read an FfsFileItem struct at the given raw address.
  */
 function readFileItemStruct(p: number): FileItem {
   const pp = asPtr(p);
@@ -549,7 +549,7 @@ function readFileItemStruct(p: number): FileItem {
 }
 
 /**
- * Read an FffScore struct at the given raw address.
+ * Read an FfsScore struct at the given raw address.
  */
 function readScoreStruct(p: number): Score {
   const pp = asPtr(p);
@@ -568,7 +568,7 @@ function readScoreStruct(p: number): Score {
 }
 
 /**
- * Parse an FffSearchResult from a raw pointer, then free native memory.
+ * Parse an FfsSearchResult from a raw pointer, then free native memory.
  */
 function parseSearchResult(resultPtr: Pointer | null): Result<SearchResult> {
   if (resultPtr === null) {
@@ -579,7 +579,7 @@ function parseSearchResult(resultPtr: Pointer | null): Result<SearchResult> {
   if (!("success" in envelope)) return envelope;
 
   if (envelope.handlePtr === 0) {
-    return err("fff_search returned null search result");
+    return err("ffs_search returned null search result");
   }
 
   const hp = asPtr(envelope.handlePtr);
@@ -621,7 +621,7 @@ function parseSearchResult(resultPtr: Pointer | null): Result<SearchResult> {
   }
 
   // Free native search result
-  loadLibrary().symbols.fff_free_search_result(hp);
+  loadLibrary().symbols.ffs_free_search_result(hp);
 
   const result: SearchResult = { items, scores, totalMatched, totalFiles };
   if (location) {
@@ -631,20 +631,20 @@ function parseSearchResult(resultPtr: Pointer | null): Result<SearchResult> {
 }
 
 // ---------------------------------------------------------------------------
-// FffDirSearchResult byte offsets (must match #[repr(C)] layout on 64-bit)
+// FfsDirSearchResult byte offsets (must match #[repr(C)] layout on 64-bit)
 // { items: *mut, scores: *mut, count: u32, total_matched: u32, total_dirs: u32 }
 // ---------------------------------------------------------------------------
 const DSR_COUNT = 16; // u32              (4)
 const DSR_MATCHED = 20; // u32              (4)
 const DSR_TOTAL_DIRS = 24; // u32              (4)
 
-// FffDirItem (24 bytes: 8 + 8 + 4 + 4pad)
+// FfsDirItem (24 bytes: 8 + 8 + 4 + 4pad)
 const DI_RELPATH = 0; // *mut c_char (8)
 const DI_DIRNAME = 8; // *mut c_char (8)
 const DI_MAX_FRECENCY = 16; // i32         (4)
 
 /**
- * Read an FffDirItem struct at the given raw address.
+ * Read an FfsDirItem struct at the given raw address.
  */
 function readDirItemStruct(p: number): DirItem {
   const pp = asPtr(p);
@@ -656,7 +656,7 @@ function readDirItemStruct(p: number): DirItem {
 }
 
 /**
- * Parse an FffDirSearchResult from a raw FffResult pointer, then free native memory.
+ * Parse an FfsDirSearchResult from a raw FfsResult pointer, then free native memory.
  */
 function parseDirSearchResult(resultPtr: Pointer | null): Result<DirSearchResult> {
   if (resultPtr === null) {
@@ -667,7 +667,7 @@ function parseDirSearchResult(resultPtr: Pointer | null): Result<DirSearchResult
   if (!("success" in envelope)) return envelope;
 
   if (envelope.handlePtr === 0) {
-    return err("fff_search_directories returned null search result");
+    return err("ffs_search_directories returned null search result");
   }
 
   const hp = asPtr(envelope.handlePtr);
@@ -681,38 +681,38 @@ function parseDirSearchResult(resultPtr: Pointer | null): Result<DirSearchResult
   const scores: Score[] = [];
 
   for (let i = 0; i < count; i++) {
-    const itemPtr = library.symbols.fff_dir_search_result_get_item(hp, i);
+    const itemPtr = library.symbols.ffs_dir_search_result_get_item(hp, i);
     if (itemPtr !== null && (itemPtr as unknown as number) !== 0) {
       items.push(readDirItemStruct(itemPtr as unknown as number));
     }
-    const scorePtr = library.symbols.fff_dir_search_result_get_score(hp, i);
+    const scorePtr = library.symbols.ffs_dir_search_result_get_score(hp, i);
     if (scorePtr !== null && (scorePtr as unknown as number) !== 0) {
       scores.push(readScoreStruct(scorePtr as unknown as number));
     }
   }
 
   // Free native dir search result
-  library.symbols.fff_free_dir_search_result(hp);
+  library.symbols.ffs_free_dir_search_result(hp);
 
   return { ok: true, value: { items, scores, totalMatched, totalDirs } };
 }
 
 // ---------------------------------------------------------------------------
-// FffMixedSearchResult byte offsets (must match #[repr(C)] layout on 64-bit)
-// { items: *mut, scores: *mut, count: u32, total_matched: u32, total_files: u32, total_dirs: u32, location: FffLocation }
+// FfsMixedSearchResult byte offsets (must match #[repr(C)] layout on 64-bit)
+// { items: *mut, scores: *mut, count: u32, total_matched: u32, total_files: u32, total_dirs: u32, location: FfsLocation }
 // ---------------------------------------------------------------------------
 const MSR_COUNT = 16; // u32               (4)
 const MSR_MATCHED = 20; // u32               (4)
 const MSR_TOTAL_FILES = 24; // u32               (4)
 const MSR_TOTAL_DIRS = 28; // u32               (4)
-// FffLocation is inlined at offset 32
+// FfsLocation is inlined at offset 32
 const MSR_LOC_TAG = 32; // u8                (1 + 3 padding)
 const MSR_LOC_LINE = 36; // i32               (4)
 const MSR_LOC_COL = 40; // i32               (4)
 const MSR_LOC_END_LINE = 44; // i32               (4)
 const MSR_LOC_END_COL = 48; // i32               (4)
 
-// FffMixedItem (80 bytes)
+// FfsMixedItem (80 bytes)
 const MI_TYPE = 0; // u8          (1 + 7 pad)
 const MI_RELPATH = 8; // *mut c_char (8)
 const MI_DISPLAY = 16; // *mut c_char (8)
@@ -724,7 +724,7 @@ const MI_MODFR = 56; // i64         (8)
 const MI_TOTAL_FR = 64; // i64         (8)
 
 /**
- * Read an FffMixedItem struct at the given raw address and return a MixedItem.
+ * Read an FfsMixedItem struct at the given raw address and return a MixedItem.
  */
 function readMixedItemStruct(p: number): MixedItem {
   const pp = asPtr(p);
@@ -759,7 +759,7 @@ function readMixedItemStruct(p: number): MixedItem {
 }
 
 /**
- * Parse an FffMixedSearchResult from a raw FffResult pointer, then free native memory.
+ * Parse an FfsMixedSearchResult from a raw FfsResult pointer, then free native memory.
  */
 function parseMixedSearchResult(resultPtr: Pointer | null): Result<MixedSearchResult> {
   if (resultPtr === null) {
@@ -770,7 +770,7 @@ function parseMixedSearchResult(resultPtr: Pointer | null): Result<MixedSearchRe
   if (!("success" in envelope)) return envelope;
 
   if (envelope.handlePtr === 0) {
-    return err("fff_search_mixed returned null search result");
+    return err("ffs_search_mixed returned null search result");
   }
 
   const hp = asPtr(envelope.handlePtr);
@@ -807,18 +807,18 @@ function parseMixedSearchResult(resultPtr: Pointer | null): Result<MixedSearchRe
   const scores: Score[] = [];
 
   for (let i = 0; i < count; i++) {
-    const itemPtr = library.symbols.fff_mixed_search_result_get_item(hp, i);
+    const itemPtr = library.symbols.ffs_mixed_search_result_get_item(hp, i);
     if (itemPtr !== null && (itemPtr as unknown as number) !== 0) {
       items.push(readMixedItemStruct(itemPtr as unknown as number));
     }
-    const scorePtr = library.symbols.fff_mixed_search_result_get_score(hp, i);
+    const scorePtr = library.symbols.ffs_mixed_search_result_get_score(hp, i);
     if (scorePtr !== null && (scorePtr as unknown as number) !== 0) {
       scores.push(readScoreStruct(scorePtr as unknown as number));
     }
   }
 
   // Free native mixed search result
-  library.symbols.fff_free_mixed_search_result(hp);
+  library.symbols.ffs_free_mixed_search_result(hp);
 
   const result: MixedSearchResult = {
     items,
@@ -834,7 +834,7 @@ function parseMixedSearchResult(resultPtr: Pointer | null): Result<MixedSearchRe
 }
 
 // ---------------------------------------------------------------------------
-// FffGrepMatch byte offsets (must match #[repr(C)] layout on 64-bit)
+// FfsGrepMatch byte offsets (must match #[repr(C)] layout on 64-bit)
 // ---------------------------------------------------------------------------
 
 // Pointers (8 bytes each)
@@ -870,8 +870,8 @@ const GM_IS_BINARY = 131;
 // struct size: pad to 8-byte alignment → 136
 const GM_SIZE_OF = 136;
 
-// FffGrepResult
-const GR_ITEMS = 0; // *mut FffGrepMatch (8)
+// FfsGrepResult
+const GR_ITEMS = 0; // *mut FfsGrepMatch (8)
 const GR_COUNT = 8; // u32 (4)
 const GR_MATCHED = 12; // u32 (4)
 const GR_FILES_SEARCHED = 16; // u32 (4)
@@ -880,7 +880,7 @@ const GR_FILTERED = 24; // u32 (4)
 const GR_NEXT_OFFSET = 28; // u32 (4)
 const GR_REGEX_ERR = 32; // *mut c_char (8)
 
-// FffMatchRange (8 bytes)
+// FfsMatchRange (8 bytes)
 const MR_START = 0;
 const MR_END = 4;
 const MR_SIZE = 8;
@@ -900,7 +900,7 @@ function readCStringArray(base: number, count: number): string[] {
 }
 
 /**
- * Read an FffGrepMatch struct at the given raw address.
+ * Read an FfsGrepMatch struct at the given raw address.
  */
 function readGrepMatchStruct(p: number): GrepMatch {
   const pp = asPtr(p);
@@ -948,7 +948,7 @@ function readGrepMatchStruct(p: number): GrepMatch {
 }
 
 /**
- * Parse an FffGrepResult from a raw FffResult pointer, then free native memory.
+ * Parse an FfsGrepResult from a raw FfsResult pointer, then free native memory.
  */
 function parseGrepResult(resultPtr: Pointer | null): Result<GrepResult> {
   const envelope = readResultEnvelope(resultPtr);
@@ -974,7 +974,7 @@ function parseGrepResult(resultPtr: Pointer | null): Result<GrepResult> {
     items.push(readGrepMatchStruct(itemsBase + i * GM_SIZE_OF));
   }
 
-  loadLibrary().symbols.fff_free_grep_result(hp);
+  loadLibrary().symbols.ffs_free_grep_result(hp);
 
   const grepResult: GrepResult = {
     items,
@@ -1004,7 +1004,7 @@ export function ffiSearch(
   minComboCount: number,
 ): Result<SearchResult> {
   const library = loadLibrary();
-  const resultPtr = library.symbols.fff_search(
+  const resultPtr = library.symbols.ffs_search(
     handle,
     ptr(encodeString(query)),
     ptr(encodeString(currentFile)),
@@ -1029,7 +1029,7 @@ export function ffiSearchDirectories(
   pageSize: number,
 ): Result<DirSearchResult> {
   const library = loadLibrary();
-  const resultPtr = library.symbols.fff_search_directories(
+  const resultPtr = library.symbols.ffs_search_directories(
     handle,
     ptr(encodeString(query)),
     ptr(encodeString(currentFile ?? "")),
@@ -1054,7 +1054,7 @@ export function ffiSearchMixed(
   minComboCount: number,
 ): Result<MixedSearchResult> {
   const library = loadLibrary();
-  const resultPtr = library.symbols.fff_search_mixed(
+  const resultPtr = library.symbols.ffs_search_mixed(
     handle,
     ptr(encodeString(query)),
     ptr(encodeString(currentFile)),
@@ -1085,7 +1085,7 @@ export function ffiLiveGrep(
   classifyDefinitions: boolean,
 ): Result<GrepResult> {
   const library = loadLibrary();
-  const resultPtr = library.symbols.fff_live_grep(
+  const resultPtr = library.symbols.ffs_live_grep(
     handle,
     ptr(encodeString(query)),
     grepModeToU8(mode),
@@ -1120,7 +1120,7 @@ export function ffiMultiGrep(
   classifyDefinitions: boolean,
 ): Result<GrepResult> {
   const library = loadLibrary();
-  const resultPtr = library.symbols.fff_multi_grep(
+  const resultPtr = library.symbols.ffs_multi_grep(
     handle,
     ptr(encodeString(patternsJoined)),
     ptr(encodeString(constraints)),
@@ -1142,7 +1142,7 @@ export function ffiMultiGrep(
  */
 export function ffiScanFiles(handle: NativeHandle): Result<void> {
   const library = loadLibrary();
-  const resultPtr = library.symbols.fff_scan_files(handle);
+  const resultPtr = library.symbols.ffs_scan_files(handle);
   return parseVoidResult(resultPtr);
 }
 
@@ -1151,7 +1151,7 @@ export function ffiScanFiles(handle: NativeHandle): Result<void> {
  */
 export function ffiIsScanning(handle: NativeHandle): boolean {
   const library = loadLibrary();
-  return library.symbols.fff_is_scanning(handle) as boolean;
+  return library.symbols.ffs_is_scanning(handle) as boolean;
 }
 
 /**
@@ -1159,11 +1159,11 @@ export function ffiIsScanning(handle: NativeHandle): boolean {
  */
 export function ffiGetBasePath(handle: NativeHandle): Result<string | null> {
   const library = loadLibrary();
-  const resultPtr = library.symbols.fff_get_base_path(handle);
+  const resultPtr = library.symbols.ffs_get_base_path(handle);
   return parseStringResult(resultPtr);
 }
 
-// FffScanProgress { scanned_files_count: u64(8), is_scanning: bool(1), is_watcher_ready: bool(1), is_warmup_complete: bool(1) + pad }
+// FfsScanProgress { scanned_files_count: u64(8), is_scanning: bool(1), is_watcher_ready: bool(1), is_warmup_complete: bool(1) + pad }
 const SP_COUNT = 0; // u64 (8)
 const SP_SCANNING = 8; // bool (1)
 const SP_WATCHER_READY = 9; // bool (1)
@@ -1174,7 +1174,7 @@ const SP_WARMUP_COMPLETE = 10; // bool (1)
  */
 export function ffiGetScanProgress(handle: NativeHandle): Result<ScanProgress> {
   const library = loadLibrary();
-  const resultPtr = library.symbols.fff_get_scan_progress(handle);
+  const resultPtr = library.symbols.ffs_get_scan_progress(handle);
   const envelope = readResultEnvelope(resultPtr);
   if (!("success" in envelope)) return envelope;
 
@@ -1189,7 +1189,7 @@ export function ffiGetScanProgress(handle: NativeHandle): Result<ScanProgress> {
     isWatcherReady: read.u8(hp, SP_WATCHER_READY) !== 0,
     isWarmupComplete: read.u8(hp, SP_WARMUP_COMPLETE) !== 0,
   };
-  library.symbols.fff_free_scan_progress(hp);
+  library.symbols.ffs_free_scan_progress(hp);
   return { ok: true, value: result };
 }
 
@@ -1198,7 +1198,7 @@ export function ffiGetScanProgress(handle: NativeHandle): Result<ScanProgress> {
  */
 export function ffiWaitForScan(handle: NativeHandle, timeoutMs: number): Result<boolean> {
   const library = loadLibrary();
-  const resultPtr = library.symbols.fff_wait_for_scan(handle, BigInt(timeoutMs));
+  const resultPtr = library.symbols.ffs_wait_for_scan(handle, BigInt(timeoutMs));
   return parseBoolResult(resultPtr);
 }
 
@@ -1210,7 +1210,7 @@ export function ffiWaitForWatcher(
   timeoutMs: number,
 ): Result<boolean> {
   const library = loadLibrary();
-  const resultPtr = library.symbols.fff_wait_for_watcher(handle, BigInt(timeoutMs));
+  const resultPtr = library.symbols.ffs_wait_for_watcher(handle, BigInt(timeoutMs));
   return parseBoolResult(resultPtr);
 }
 
@@ -1219,7 +1219,7 @@ export function ffiWaitForWatcher(
  */
 export function ffiRestartIndex(handle: NativeHandle, newPath: string): Result<void> {
   const library = loadLibrary();
-  const resultPtr = library.symbols.fff_restart_index(handle, ptr(encodeString(newPath)));
+  const resultPtr = library.symbols.ffs_restart_index(handle, ptr(encodeString(newPath)));
   return parseVoidResult(resultPtr);
 }
 
@@ -1228,7 +1228,7 @@ export function ffiRestartIndex(handle: NativeHandle, newPath: string): Result<v
  */
 export function ffiRefreshGitStatus(handle: NativeHandle): Result<number> {
   const library = loadLibrary();
-  const resultPtr = library.symbols.fff_refresh_git_status(handle);
+  const resultPtr = library.symbols.ffs_refresh_git_status(handle);
   return parseIntResult(resultPtr);
 }
 
@@ -1241,7 +1241,7 @@ export function ffiTrackQuery(
   filePath: string,
 ): Result<boolean> {
   const library = loadLibrary();
-  const resultPtr = library.symbols.fff_track_query(
+  const resultPtr = library.symbols.ffs_track_query(
     handle,
     ptr(encodeString(query)),
     ptr(encodeString(filePath)),
@@ -1257,7 +1257,7 @@ export function ffiGetHistoricalQuery(
   offset: number,
 ): Result<string | null> {
   const library = loadLibrary();
-  const resultPtr = library.symbols.fff_get_historical_query(handle, BigInt(offset));
+  const resultPtr = library.symbols.ffs_get_historical_query(handle, BigInt(offset));
   return parseStringResult(resultPtr);
 }
 
@@ -1271,7 +1271,7 @@ export function ffiHealthCheck(
   testPath: string,
 ): Result<unknown> {
   const library = loadLibrary();
-  const resultPtr = library.symbols.fff_health_check(
+  const resultPtr = library.symbols.ffs_health_check(
     handle ?? (0 as unknown as Pointer),
     ptr(encodeString(testPath)),
   );

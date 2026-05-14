@@ -1,4 +1,4 @@
-//! `scry deps <path>` — list a file's imports (raw + resolved) and the files
+//! `ffs deps <path>` — list a file's imports (raw + resolved) and the files
 //! that depend on it.
 
 use std::collections::BTreeSet;

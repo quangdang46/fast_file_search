@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 #
-# Benchmark: fff MCP vs Claude Code native tools on real search tasks
+# Benchmark: ffs MCP vs Claude Code native tools on real search tasks
 #
 # Usage:
-#   ./scripts/benchmark-claude.sh [concept_number] [--fff-only | --native-only]
+#   ./scripts/benchmark-claude.sh [concept_number] [--ffs-only | --native-only]
 #
 # Runs real Claude Code instances against ~/dev/lightsource:
-#   - With fff MCP tools (frecency-ranked, fuzzy search)
+#   - With ffs MCP tools (frecency-ranked, fuzzy search)
 #   - With native tools only (Glob, Grep, Read)
 # Then compares: tokens, cost, turns, and whether the right file was found.
 #
 # Requirements:
 #   - claude CLI in PATH
 #   - ~/dev/lightsource exists
-#   - fff MCP server built (cargo build --release, binary at target/release/ffs-mcp)
+#   - ffs MCP server built (cargo build --release, binary at target/release/ffs-mcp)
 #
 # Auth: The script inherits YOUR shell environment. If you use AWS Bedrock,
 # make sure your AWS credentials are exported before running.
@@ -32,12 +32,12 @@ MODEL="us.anthropic.claude-opus-4-6-v1"
 mkdir -p "$RESULTS_DIR"
 
 # Write MCP config to temp file to avoid shell quoting issues.
-# Both modes (fff and native) connect the fff MCP so context overhead is identical.
-FFF_MCP_FILE=$(mktemp)
-trap "rm -f $FFF_MCP_FILE" EXIT
+# Both modes (ffs and native) connect the ffs MCP so context overhead is identical.
+FFS_MCP_FILE=$(mktemp)
+trap "rm -f $FFS_MCP_FILE" EXIT
 
-cat > "$FFF_MCP_FILE" <<EOF
-{"mcpServers":{"fff":{"type":"stdio","command":"$PROJECT_ROOT/target/release/ffs-mcp","args":[]}}}
+cat > "$FFS_MCP_FILE" <<EOF
+{"mcpServers":{"ffs":{"type":"stdio","command":"$PROJECT_ROOT/target/release/ffs-mcp","args":[]}}}
 EOF
 
 # ─── PREFLIGHT CHECK ──────────────────────────────────────────────────────────
@@ -56,7 +56,7 @@ fi
 # Quick auth test — must clear nesting env vars, cd to lightsource, use </dev/null
 AUTH_TEST=$(cd "$LIGHTSOURCE" && env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT \
   timeout 60s claude --print --output-format json -p "say ok" --max-turns 1 \
-  --mcp-config "$FFF_MCP_FILE" --strict-mcp-config </dev/null 2>&1 || true)
+  --mcp-config "$FFS_MCP_FILE" --strict-mcp-config </dev/null 2>&1 || true)
 if [[ -z "$AUTH_TEST" ]] || echo "$AUTH_TEST" | grep -q '"is_error":true' 2>/dev/null; then
   echo "ERROR: Claude auth failed. Test output:"
   echo "$AUTH_TEST" | head -5
@@ -133,27 +133,27 @@ millis() {
 }
 
 run_claude() {
-  local mode="$1"  # "fff" or "native"
+  local mode="$1"  # "ffs" or "native"
   local concept="$2"
   local raw_prompt="${PROMPTS[$concept]}"
   local outfile="$RESULTS_DIR/${NAMES[$concept]}-${mode}.json"
 
-  # Both modes connect fff MCP so context overhead is identical.
+  # Both modes connect ffs MCP so context overhead is identical.
   # The prompt prefix steers which tools Claude actually uses.
-  local mcp_args=(--mcp-config "$FFF_MCP_FILE" --strict-mcp-config)
+  local mcp_args=(--mcp-config "$FFS_MCP_FILE" --strict-mcp-config)
   # (tool_args removed — both modes use identical MCP config, prompt steers tool choice)
 
   local reasoning_instruction="IMPORTANT: Before EVERY tool call, write 1-2 sentences explaining your reasoning: why you chose this specific tool, what query/pattern you picked and why, what you expect to find, and if this is a follow-up, what the previous result told you that led to this next step."
 
   local prompt
-  if [[ "$mode" == "fff" ]]; then
-    prompt="Use fff tools (grep, find_files, multi_grep) instead of native Glob/Grep.
+  if [[ "$mode" == "ffs" ]]; then
+    prompt="Use ffs tools (grep, find_files, multi_grep) instead of native Glob/Grep.
 
 $reasoning_instruction
 
 $raw_prompt"
   else
-    prompt="IMPORTANT: For file search and content search, use ONLY the native tools (Glob, Grep, Read). Do NOT use any mcp__fff__* tools. Ignore the fff MCP server entirely.
+    prompt="IMPORTANT: For file search and content search, use ONLY the native tools (Glob, Grep, Read). Do NOT use any mcp__ffs__* tools. Ignore the ffs MCP server entirely.
 
 $reasoning_instruction
 
@@ -384,50 +384,50 @@ print_comparison() {
   local name="${NAMES[$concept]}"
   local target="${TARGETS[$concept]}"
 
-  local fff_file="$RESULTS_DIR/${name}-fff.json"
+  local ffs_file="$RESULTS_DIR/${name}-ffs.json"
   local native_file="$RESULTS_DIR/${name}-native.json"
 
-  local fff_data native_data
-  fff_data=$(parse_result "$fff_file" "$target")
+  local ffs_data native_data
+  ffs_data=$(parse_result "$ffs_file" "$target")
   native_data=$(parse_result "$native_file" "$target")
 
-  IFS='|' read -r fff_cost fff_turns fff_dur fff_wall fff_err fff_found <<< "$fff_data"
+  IFS='|' read -r ffs_cost ffs_turns ffs_dur ffs_wall ffs_err ffs_found <<< "$ffs_data"
   IFS='|' read -r nat_cost nat_turns nat_dur nat_wall nat_err nat_found <<< "$native_data"
 
   # Token counts from usage
-  local fff_input fff_output nat_input nat_output
-  fff_input=$(jq -r '.usage.input_tokens // 0' "$fff_file" 2>/dev/null || echo "0")
-  fff_output=$(jq -r '.usage.output_tokens // 0' "$fff_file" 2>/dev/null || echo "0")
+  local ffs_input ffs_output nat_input nat_output
+  ffs_input=$(jq -r '.usage.input_tokens // 0' "$ffs_file" 2>/dev/null || echo "0")
+  ffs_output=$(jq -r '.usage.output_tokens // 0' "$ffs_file" 2>/dev/null || echo "0")
   nat_input=$(jq -r '.usage.input_tokens // 0' "$native_file" 2>/dev/null || echo "0")
   nat_output=$(jq -r '.usage.output_tokens // 0' "$native_file" 2>/dev/null || echo "0")
-  local fff_tokens=$((fff_input + fff_output))
+  local ffs_tokens=$((ffs_input + ffs_output))
   local nat_tokens=$((nat_input + nat_output))
 
   # Determine winner
   local winner="tie"
-  if [[ "$fff_found" == "true" && "$nat_found" == "false" ]]; then
-    winner="FFF"
-  elif [[ "$fff_found" == "false" && "$nat_found" == "true" ]]; then
+  if [[ "$ffs_found" == "true" && "$nat_found" == "false" ]]; then
+    winner="ffs"
+  elif [[ "$ffs_found" == "false" && "$nat_found" == "true" ]]; then
     winner="NATIVE"
-  elif [[ "$fff_found" == "true" && "$nat_found" == "true" ]]; then
+  elif [[ "$ffs_found" == "true" && "$nat_found" == "true" ]]; then
     # Both found — compare cost with 15% tolerance band for ties
     local ratio
-    ratio=$(echo "scale=4; $fff_cost / $nat_cost" | bc 2>/dev/null || echo "1")
-    # ratio < 0.85 means FFF is >15% cheaper → FFF wins
-    # ratio > 1.15 means FFF is >15% more expensive → NATIVE wins
+    ratio=$(echo "scale=4; $ffs_cost / $nat_cost" | bc 2>/dev/null || echo "1")
+    # ratio < 0.85 means ffs is >15% cheaper → ffs wins
+    # ratio > 1.15 means ffs is >15% more expensive → NATIVE wins
     # otherwise → tie
     local ratio_x100
     ratio_x100=$(echo "$ratio * 100" | bc 2>/dev/null | cut -d. -f1 || echo "100")
     if [[ "${ratio_x100:-100}" -lt 85 ]]; then
-      winner="FFF"
+      winner="ffs"
     elif [[ "${ratio_x100:-100}" -gt 115 ]]; then
       winner="NATIVE"
     fi
   fi
 
   # Format costs to 4 decimal places
-  local fff_cost_fmt nat_cost_fmt
-  fff_cost_fmt=$(printf '%.4f' "$fff_cost" 2>/dev/null || echo "$fff_cost")
+  local ffs_cost_fmt nat_cost_fmt
+  ffs_cost_fmt=$(printf '%.4f' "$ffs_cost" 2>/dev/null || echo "$ffs_cost")
   nat_cost_fmt=$(printf '%.4f' "$nat_cost" 2>/dev/null || echo "$nat_cost")
 
   echo ""
@@ -438,7 +438,7 @@ print_comparison() {
   printf "  %-12s │ %10s │ %6s │ %8s │ %8s │ %7s │ %7s\n" "" "Cost" "Turns" "Tokens" "Wall (s)" "Found?" "Error?"
   echo "  ─────────────┼────────────┼────────┼──────────┼──────────┼─────────┼────────"
   printf "  %-12s │ %10s │ %6s │ %8s │ %8s │ %7s │ %7s\n" \
-    "fff MCP" "\$$fff_cost_fmt" "$fff_turns" "$fff_tokens" "$((fff_wall/1000))" "$fff_found" "$fff_err"
+    "ffs MCP" "\$$ffs_cost_fmt" "$ffs_turns" "$ffs_tokens" "$((ffs_wall/1000))" "$ffs_found" "$ffs_err"
   printf "  %-12s │ %10s │ %6s │ %8s │ %8s │ %7s │ %7s\n" \
     "Native" "\$$nat_cost_fmt" "$nat_turns" "$nat_tokens" "$((nat_wall/1000))" "$nat_found" "$nat_err"
   echo "  ─────────────┴────────────┴────────┴──────────┴──────────┴─────────┴────────"
@@ -446,8 +446,8 @@ print_comparison() {
   # Cost savings percentage
   if [[ "$nat_cost" != "0" ]]; then
     local cost_savings
-    cost_savings=$(echo "scale=1; (1 - $fff_cost / $nat_cost) * 100" | bc 2>/dev/null || echo "?")
-    echo "  Cost savings: ${cost_savings}% (fff: \$$fff_cost_fmt, native: \$$nat_cost_fmt)"
+    cost_savings=$(echo "scale=1; (1 - $ffs_cost / $nat_cost) * 100" | bc 2>/dev/null || echo "?")
+    echo "  Cost savings: ${cost_savings}% (ffs: \$$ffs_cost_fmt, native: \$$nat_cost_fmt)"
   fi
 
   echo "  WINNER: $winner"
@@ -457,11 +457,11 @@ print_comparison() {
 # ─── MAIN ──────────────────────────────────────────────────────────────────────
 
 SELECTED=""
-MODE="both"  # both, fff-only, native-only
+MODE="both"  # both, ffs-only, native-only
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --fff-only)    MODE="fff"; shift ;;
+    --ffs-only)    MODE="ffs"; shift ;;
     --native-only) MODE="native"; shift ;;
     --model)       MODEL="$2"; shift 2 ;;
     --max-turns)   MAX_TURNS="$2"; shift 2 ;;
@@ -471,8 +471,8 @@ while [[ $# -gt 0 ]]; do
       echo "Usage: $0 [1-10] [options]"
       echo ""
       echo "Options:"
-      echo "  --fff-only       Only run fff MCP (skip native)"
-      echo "  --native-only    Only run native tools (skip fff)"
+      echo "  --ffs-only       Only run ffs MCP (skip native)"
+      echo "  --native-only    Only run native tools (skip ffs)"
       echo "  --model MODEL    Use specific model (e.g., haiku, sonnet)"
       echo "  --max-turns N    Max agentic turns per run (default: 10)"
       echo "  --timeout SEC    Timeout per run in seconds (default: 300)"
@@ -496,8 +496,8 @@ fi
 for c in "${concepts[@]}"; do
   echo "── Concept $c: ${NAMES[$c]} ──"
 
-  if [[ "$MODE" == "both" || "$MODE" == "fff" ]]; then
-    run_claude "fff" "$c"
+  if [[ "$MODE" == "both" || "$MODE" == "ffs" ]]; then
+    run_claude "ffs" "$c"
   fi
 
   if [[ "$MODE" == "both" || "$MODE" == "native" ]]; then
@@ -603,27 +603,27 @@ def load_traces(name, mode):
 
 # ── Collect all data ──
 rows = []
-total_fff = 0
+total_ffs = 0
 total_nat = 0
-fff_wins = 0
+ffs_wins = 0
 nat_wins = 0
 ties = 0
 
 for c in concepts:
     name = NAMES.get(c, f"concept-{c}")
-    fff = load_result(name, "fff")
+    ffs = load_result(name, "ffs")
     nat = load_result(name, "native")
-    if not fff or not nat:
+    if not ffs or not nat:
         continue
 
-    fc = fff.get("total_cost_usd", 0)
+    fc = ffs.get("total_cost_usd", 0)
     nc = nat.get("total_cost_usd", 0)
-    ft = fff.get("num_turns", 0)
+    ft = ffs.get("num_turns", 0)
     nt = nat.get("num_turns", 0)
-    fw = fff.get("wall_ms", 0) / 1000
+    fw = ffs.get("wall_ms", 0) / 1000
     nw = nat.get("wall_ms", 0) / 1000
 
-    total_fff += fc
+    total_ffs += fc
     total_nat += nc
 
     if nc > 0:
@@ -632,8 +632,8 @@ for c in concepts:
         ratio = 1.0
 
     if ratio < 0.85:
-        winner = "FFF"
-        fff_wins += 1
+        winner = "ffs"
+        ffs_wins += 1
     elif ratio > 1.15:
         winner = "NATIVE"
         nat_wins += 1
@@ -641,42 +641,42 @@ for c in concepts:
         winner = "TIE"
         ties += 1
 
-    fff_traces = load_traces(name, "fff")
+    ffs_traces = load_traces(name, "ffs")
     nat_traces = load_traces(name, "native")
 
     rows.append({
         "num": c, "name": name,
-        "fff_cost": fc, "nat_cost": nc,
-        "fff_turns": ft, "nat_turns": nt,
-        "fff_wall": fw, "nat_wall": nw,
+        "ffs_cost": fc, "nat_cost": nc,
+        "ffs_turns": ft, "nat_turns": nt,
+        "ffs_wall": fw, "nat_wall": nw,
         "winner": winner, "ratio": ratio,
-        "fff_traces": fff_traces, "nat_traces": nat_traces,
+        "ffs_traces": ffs_traces, "nat_traces": nat_traces,
     })
 
 # ── Summary table ──
 print()
-print(f"  {'#':>2} {'Concept':<28} {'FFF $':>8} {'Nat $':>8} {'Δ':>6} {'FFF T':>5} {'Nat T':>5} {'Winner':>8}")
+print(f"  {'#':>2} {'Concept':<28} {'ffs $':>8} {'Nat $':>8} {'Δ':>6} {'ffs T':>5} {'Nat T':>5} {'Winner':>8}")
 print(f"  {'─'*2} {'─'*28} {'─'*8} {'─'*8} {'─'*6} {'─'*5} {'─'*5} {'─'*8}")
 
 for r in rows:
     savings = (1 - r["ratio"]) * 100
-    print(f"  {r['num']:>2} {r['name']:<28} ${r['fff_cost']:.4f} ${r['nat_cost']:.4f} {savings:>+5.0f}% {r['fff_turns']:>5} {r['nat_turns']:>5} {r['winner']:>8}")
+    print(f"  {r['num']:>2} {r['name']:<28} ${r['ffs_cost']:.4f} ${r['nat_cost']:.4f} {savings:>+5.0f}% {r['ffs_turns']:>5} {r['nat_turns']:>5} {r['winner']:>8}")
 
 if total_nat > 0:
-    overall = (1 - total_fff / total_nat) * 100
+    overall = (1 - total_ffs / total_nat) * 100
 else:
     overall = 0
 
 print()
-print(f"  Score: FFF {fff_wins} | Native {nat_wins} | Tie {ties}")
-print(f"  Total: FFF ${total_fff:.4f} | Native ${total_nat:.4f} | Savings: {overall:+.1f}%")
+print(f"  Score: ffs {ffs_wins} | Native {nat_wins} | Tie {ties}")
+print(f"  Total: ffs ${total_ffs:.4f} | Native ${total_nat:.4f} | Savings: {overall:+.1f}%")
 print()
 
 # ── Waste pattern analysis ──
 print("  ┌─ WASTE ANALYSIS ────────────────────────────────────────────────────")
 
 for r in rows:
-    traces = r["fff_traces"]
+    traces = r["ffs_traces"]
     if not traces:
         continue
 
@@ -723,16 +723,16 @@ for r in rows:
     if len(grep_calls) >= 3 and not any("multi" in t["name"].lower() for t in traces):
         issues.append(f"{len(grep_calls)} sequential greps — could multi_grep reduce to 1 call?")
 
-    if issues and r["winner"] != "FFF":
+    if issues and r["winner"] != "ffs":
         print(f"  │")
         savings = (1 - r["ratio"]) * 100
         print(f"  │ #{r['num']} {r['name']} ({r['winner']}, {savings:+.0f}%)")
         for issue in issues:
             print(f"  │   • {issue}")
 
-        # Show fff trace summary
+        # Show ffs trace summary
         trace_summary = " → ".join(
-            t["name"].replace("mcp__fff__", "").replace("ToolSearch", "🔍")
+            t["name"].replace("mcp__ffs__", "").replace("ToolSearch", "🔍")
             for t in traces
         )
         print(f"  │   trace: {trace_summary}")
@@ -754,20 +754,20 @@ print()
 print("  ┌─ SUGGESTED IMPROVEMENTS ────────────────────────────────────────────")
 
 # Aggregate patterns across all concepts
-total_tool_search = sum(len([t for t in r["fff_traces"] if t["name"] == "ToolSearch"]) for r in rows)
+total_tool_search = sum(len([t for t in r["ffs_traces"] if t["name"] == "ToolSearch"]) for r in rows)
 total_reads_after_grep = sum(
     1 for r in rows
-    if any("grep" in t["name"].lower() for t in r["fff_traces"])
-    and any(t["name"] == "Read" for t in r["fff_traces"])
+    if any("grep" in t["name"].lower() for t in r["ffs_traces"])
+    and any(t["name"] == "Read" for t in r["ffs_traces"])
 )
 total_tiny_greps = sum(
-    len([t for t in r["fff_traces"] if "grep" in t["name"].lower() and 0 <= t["result_chars"] <= 50])
+    len([t for t in r["ffs_traces"] if "grep" in t["name"].lower() and 0 <= t["result_chars"] <= 50])
     for r in rows
 )
 total_sequential_greps = sum(
-    len([t for t in r["fff_traces"] if "grep" in t["name"].lower()])
+    len([t for t in r["ffs_traces"] if "grep" in t["name"].lower()])
     for r in rows
-    if len([t for t in r["fff_traces"] if "grep" in t["name"].lower()]) >= 3
+    if len([t for t in r["ffs_traces"] if "grep" in t["name"].lower()]) >= 3
 )
 
 if total_reads_after_grep >= 3:
@@ -799,15 +799,15 @@ losing = [r for r in rows if r["winner"] == "NATIVE"]
 if losing:
     print(f"  │ LOSING CONCEPTS ({len(losing)}):")
     for r in losing:
-        traces = r["fff_traces"]
+        traces = r["ffs_traces"]
         nat_traces = r["nat_traces"]
-        fff_grep_count = len([t for t in traces if "grep" in t["name"].lower()])
+        ffs_grep_count = len([t for t in traces if "grep" in t["name"].lower()])
         nat_grep_count = len([t for t in nat_traces if "grep" in t["name"].lower() or t["name"] == "Grep"])
-        fff_read_count = len([t for t in traces if t["name"] == "Read"])
+        ffs_read_count = len([t for t in traces if t["name"] == "Read"])
         nat_read_count = len([t for t in nat_traces if t["name"] == "Read"])
 
         savings = (1 - r["ratio"]) * 100
-        print(f"  │   #{r['num']} {r['name']} ({savings:+.0f}%): fff={fff_grep_count}grep+{fff_read_count}read vs nat={nat_grep_count}grep+{nat_read_count}read")
+        print(f"  │   #{r['num']} {r['name']} ({savings:+.0f}%): ffs={ffs_grep_count}grep+{ffs_read_count}read vs nat={nat_grep_count}grep+{nat_read_count}read")
 
 print("  │")
 print("  └────────────────────────────────────────────────────────────────────")

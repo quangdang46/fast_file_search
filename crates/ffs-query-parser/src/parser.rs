@@ -13,7 +13,7 @@ pub enum FuzzyQuery<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct FFFQuery<'a> {
+pub struct FfsQuery<'a> {
     /// The original raw query string before parsing
     pub raw_query: &'a str,
     /// Parsed constraints (stack-allocated for ≤8 constraints)
@@ -34,7 +34,7 @@ impl<C: ParserConfig> QueryParser<C> {
         Self { config }
     }
 
-    pub fn parse<'a>(&self, query: &'a str) -> FFFQuery<'a> {
+    pub fn parse<'a>(&self, query: &'a str) -> FfsQuery<'a> {
         let raw_query = query;
         let config: &C = &self.config;
         let mut constraints = ConstraintVec::new();
@@ -71,7 +71,7 @@ impl<C: ParserConfig> QueryParser<C> {
                     && !treat_as_text
                 {
                     constraints.push(constraint);
-                    return FFFQuery {
+                    return FfsQuery {
                         raw_query,
                         constraints,
                         fuzzy_query: FuzzyQuery::Empty,
@@ -84,7 +84,7 @@ impl<C: ParserConfig> QueryParser<C> {
             if config.enable_location() {
                 let (query_without_loc, location) = parse_location(query);
                 if location.is_some() {
-                    return FFFQuery {
+                    return FfsQuery {
                         raw_query,
                         constraints,
                         fuzzy_query: FuzzyQuery::Text(query_without_loc),
@@ -94,7 +94,7 @@ impl<C: ParserConfig> QueryParser<C> {
             }
 
             // Plain text single token
-            return FFFQuery {
+            return FfsQuery {
                 raw_query,
                 constraints,
                 fuzzy_query: if query.is_empty() {
@@ -187,7 +187,7 @@ impl<C: ParserConfig> QueryParser<C> {
             }
         };
 
-        FFFQuery {
+        FfsQuery {
             raw_query,
             constraints,
             fuzzy_query,
@@ -196,7 +196,7 @@ impl<C: ParserConfig> QueryParser<C> {
     }
 }
 
-impl<'a> FFFQuery<'a> {
+impl<'a> FfsQuery<'a> {
     /// Returns the grep search text by joining all non-constraint text tokens.
     ///
     /// Backslash-escaped tokens (e.g. `\*.rs`) are included as literal text
@@ -802,7 +802,7 @@ mod tests {
             "Backslash-b word boundaries must be preserved"
         );
 
-        // Single-token regex like "fn\\s+\\w+" returns FFFQuery with Text fuzzy query
+        // Single-token regex like "fn\\s+\\w+" returns FfsQuery with Text fuzzy query
         let result = QueryParser::new(GrepConfig).parse("fn\\s+\\w+");
         assert!(result.constraints.is_empty());
         assert_eq!(result.fuzzy_query, FuzzyQuery::Text("fn\\s+\\w+"));
@@ -1242,7 +1242,7 @@ mod tests {
     fn test_file_picker_single_token_filename_stays_fuzzy() {
         let parser = QueryParser::new(FileSearchConfig);
         // Single-token filename should NOT become a constraint -- it should
-        // return FFFQuery with Text fuzzy query so the caller uses it for fuzzy matching.
+        // return FfsQuery with Text fuzzy query so the caller uses it for fuzzy matching.
         let result = parser.parse("score.rs");
         assert!(result.constraints.is_empty());
         assert_eq!(result.fuzzy_query, FuzzyQuery::Text("score.rs"));

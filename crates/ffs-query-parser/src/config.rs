@@ -197,7 +197,7 @@ pub struct AiGrepConfig;
 ///
 /// Disables path segment parsing so that trailing `/` is kept as fuzzy text
 /// (e.g. `ffs-core/` fuzzy-matches directory paths instead of becoming a
-/// `PathSegment("fff-core")` constraint with an empty query). Extension and
+/// `PathSegment("ffs-core")` constraint with an empty query). Extension and
 /// filename constraints are also disabled since they don't apply to directories.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct DirSearchConfig;

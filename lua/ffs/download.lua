@@ -10,7 +10,7 @@ local function get_binary_dir(plugin_dir) return plugin_dir .. '/../target/relea
 local function get_binary_path(plugin_dir)
   local binary_dir = get_binary_dir(plugin_dir)
   local extension = system.get_lib_extension()
-  return binary_dir .. '/libfff_nvim.' .. extension
+  return binary_dir .. '/libffs_nvim.' .. extension
 end
 
 local function binary_exists(plugin_dir)
@@ -26,7 +26,7 @@ local function binary_exists(plugin_dir)
     -- Verify the .tmp is a valid library before promoting it, in case the
     -- process was killed between the loadlib check and the rename attempt
     -- during a previous download, leaving a corrupt or partial .tmp on disk.
-    local loader = package.loadlib(tmp_path, 'luaopen_fff_nvim')
+    local loader = package.loadlib(tmp_path, 'luaopen_ffs_nvim')
     if not loader then
       vim.uv.fs_unlink(tmp_path)
       return false
@@ -115,7 +115,7 @@ local function download_from_github(version, binary_path, opts, callback)
       -- loaded by this process, so dlopen loads the new file for real and catches
       -- truncated or corrupt downloads).
       -- Note: package.loadlib returns (nil, error_string) on failure rather than throwing.
-      local loader, load_err = package.loadlib(tmp_path, 'luaopen_fff_nvim')
+      local loader, load_err = package.loadlib(tmp_path, 'luaopen_ffs_nvim')
 
       if not loader then
         vim.uv.fs_unlink(tmp_path)
@@ -264,7 +264,7 @@ function M.download_or_build_binary()
   -- Block the caller (and keep the Neovim event loop alive) until the entire
   -- download-or-build chain finishes.  This is critical for lazy.nvim build
   -- hooks: lazy returns from the hook immediately after this function returns,
-  -- and if Neovim exits before the final rename(tmp → libfff_nvim.{dylib,so,dll})
+  -- and if Neovim exits before the final rename(tmp → libffs_nvim.{dylib,so,dll})
   -- executes, the binary is never written to disk.  vim.wait pumps the event
   -- loop so all vim.system / vim.schedule callbacks can fire.
   local timeout_ms = 1000 * 60 * 2 -- 2 minutes

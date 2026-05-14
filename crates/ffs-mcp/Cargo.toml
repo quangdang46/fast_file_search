@@ -2,7 +2,7 @@
 name = "ffs-mcp"
 version = "0.7.2"
 edition = "2024"
-description = "MCP server for FFF file finder - drop-in replacement for AI code assistant search tools"
+description = "MCP server for ffs file finder - drop-in replacement for AI code assistant search tools"
 license = "MIT"
 
 [[bin]]

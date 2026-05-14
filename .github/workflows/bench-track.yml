@@ -1,6 +1,6 @@
 name: bench-track
 
-# Run the criterion benches over the new scry crates and upload the
+# Run the criterion benches over the engine crates and upload the
 # `target/criterion` directory as a workflow artifact. No external service
 # (e.g. bencher.dev) is required — engineers diff artifacts manually.
 
@@ -16,7 +16,7 @@ env:
 
 jobs:
   bench:
-    name: cargo bench (scry crates)
+    name: cargo bench (engine crates)
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:

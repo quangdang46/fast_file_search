@@ -88,7 +88,7 @@ export function getLibPrefix(): string {
 export function getLibFilename(): string {
   const prefix = getLibPrefix();
   const ext = getLibExtension();
-  return `${prefix}fff_c.${ext}`;
+  return `${prefix}ffs_c.${ext}`;
 }
 
 /**

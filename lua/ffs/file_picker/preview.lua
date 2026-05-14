@@ -591,7 +591,7 @@ end
 local function get_hex_hl_group(hex_color)
   local cached = hex_hl_cache[hex_color]
   if cached then return cached end
-  local group = 'FffHex_' .. hex_color:sub(2)
+  local group = 'FfsHex_' .. hex_color:sub(2)
   vim.api.nvim_set_hl(0, group, { fg = hex_color })
   hex_hl_cache[hex_color] = group
   return group

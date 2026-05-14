@@ -1,5 +1,5 @@
 /**
- * FileFinder - High-level API for the fff file finder
+ * FileFinder - High-level API for the ffs file finder
  *
  * This class provides a type-safe, ergonomic API for file finding operations.
  * Each instance owns an independent native file picker that can be created
@@ -38,7 +38,7 @@ import type {
   GrepOptions,
   GrepResult,
   HealthCheck,
-  InitOptions as FFFInitOptions,
+  InitOptions as FfsInitOptions,
   MixedSearchResult,
   MultiGrepOptions,
   Result,
@@ -57,7 +57,7 @@ import { err } from "./types";
  *
  * @example
  * ```typescript
- * import { FileFinder } from "fff";
+ * import { FileFinder } from "ffs";
  *
  * // Create an instance
  * const finder = FileFinder.create({ basePath: "/path/to/project" });
@@ -107,7 +107,7 @@ export class FileFinder {
    * });
    * ```
    */
-  static create(options: FFFInitOptions): Result<FileFinder> {
+  static create(options: FfsInitOptions): Result<FileFinder> {
     const result = ffiCreate(
       options.basePath,
       options.frecencyDbPath ?? "",

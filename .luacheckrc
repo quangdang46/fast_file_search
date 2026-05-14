@@ -1,4 +1,4 @@
--- luacheck configuration for fff.nvim
+-- luacheck configuration for ffs.nvim
 -- https://luacheck.readthedocs.io/en/stable/config.html
 
 -- Neovim globals

@@ -1,4 +1,4 @@
-use ffs::file_picker::{FFFMode, FilePicker};
+use ffs::file_picker::{FfsMode, FilePicker};
 use ffs::{FuzzySearchOptions, PaginationArgs, QueryParser, SharedFilePicker, SharedFrecency};
 use std::time::{Duration, Instant};
 
@@ -43,7 +43,7 @@ fn main() {
         ffs::FilePickerOptions {
             base_path: canonical_path.to_string_lossy().to_string(),
             enable_mmap_cache: false,
-            mode: FFFMode::Neovim,
+            mode: FfsMode::Neovim,
             ..Default::default()
         },
     )

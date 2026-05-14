@@ -19,7 +19,7 @@ use std::process::Command;
 use std::time::Duration;
 use tempfile::TempDir;
 
-use ffs_search::file_picker::{FFFMode, FilePicker, FuzzySearchOptions};
+use ffs_search::file_picker::{FfsMode, FilePicker, FuzzySearchOptions};
 use ffs_search::grep::{GrepMode, GrepSearchOptions, parse_grep_query};
 use ffs_search::{
     FilePickerOptions, PaginationArgs, QueryParser, SharedFilePicker, SharedFrecency,
@@ -1413,7 +1413,7 @@ fn make_picker(base: &Path) -> (SharedFilePicker, SharedFrecency) {
             base_path: base.to_string_lossy().to_string(),
             enable_mmap_cache: true,
             enable_content_indexing: true,
-            mode: FFFMode::Neovim,
+            mode: FfsMode::Neovim,
             watch: false, // we drive events manually
             ..Default::default()
         },

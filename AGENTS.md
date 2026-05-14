@@ -48,7 +48,7 @@ There are 2 databases:
 
 ### Key Files
 
-- `lua/fff.lua` - Entry point, delegates to main.lua
+- `lua/ffs/main.lua` - Public API entry point
 - `lua/ffs/main.lua` - Public API (find_files, search, change_directory)
 - `lua/ffs/core.lua` - Initialization, autocmds, global state management
 - `lua/ffs/picker_ui.lua` - UI rendering, layout calculation, keymaps

@@ -1,6 +1,6 @@
-# fff
+# ffs
 
-fff is a file search toolkit. It is faster than ripgrep and fzf and designed for a long running applications like file editors, ai agents, or file exploerers.
+ffs is a file search toolkit. It is faster than ripgrep and fzf and designed for a long running applications like file editors, ai agents, or file exploerers.
 
 ## Features
 
@@ -17,9 +17,9 @@ fff is a file search toolkit. It is faster than ripgrep and fzf and designed for
 
 ## Performance
 
-FFF is designed for high performance and low latency. SIMD optimized where needed, parallelized for multi core systems, efficient sorting and ranking algorithms, memaps and much more.
+ffs is designed for high performance and low latency. SIMD optimized where needed, parallelized for multi core systems, efficient sorting and ranking algorithms, memaps and much more.
 
-On MacOS FFF is about 20-50 times faster than ripgrep for content search and around 10 times faster than fzf for file name search.
+On MacOS ffs is about 20-50 times faster than ripgrep for content search and around 10 times faster than fzf for file name search.
 
 ## Documentation
 

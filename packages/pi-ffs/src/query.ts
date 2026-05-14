@@ -22,7 +22,7 @@ export function normalizePathConstraint(
   // Strip a leading `./` so `./**/*.rs` and `**/*.rs` behave identically.
   if (trimmed.startsWith("./")) trimmed = trimmed.slice(2);
 
-  // FFF's glob matcher can treat a hidden directory root glob such as
+  // ffs's glob matcher can treat a hidden directory root glob such as
   // `.agents/**` as empty, while the tool contract says this means "inside
   // this directory". Collapse simple trailing recursive directory globs to the
   // directory-prefix constraint understood by the parser. Keep real file globs
@@ -45,7 +45,7 @@ export function normalizePathConstraint(
 }
 
 // Exclusions are emitted as `!<constraint>` tokens, which the Rust parser
-// understands (crates/fff-query-parser/src/parser.rs). We normalize each one
+// understands (crates/ffs-query-parser/src/parser.rs). We normalize each one
 // the same way as the include path so bare dirs become PathSegment excludes.
 // Tolerate callers passing already-negated forms like `!src/` by stripping
 // the leading `!` before normalizing so we never double-negate (`!!src/`).

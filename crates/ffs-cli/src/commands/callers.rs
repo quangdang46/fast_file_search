@@ -1,4 +1,4 @@
-//! `scry callers <symbol>` — find call sites for `symbol`. With `--hops > 1`
+//! `ffs callers <symbol>` — find call sites for `symbol`. With `--hops > 1`
 //! the search becomes a BFS over the caller graph.
 
 use std::collections::HashMap;

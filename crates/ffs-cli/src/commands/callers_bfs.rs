@@ -1,4 +1,4 @@
-//! Multi-hop BFS over the caller graph for `scry callers --hops N`.
+//! Multi-hop BFS over the caller graph for `ffs callers --hops N`.
 //!
 //! Each hop:
 //! 1. For every name in the current frontier, find direct call-site lines

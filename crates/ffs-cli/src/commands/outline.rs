@@ -124,7 +124,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
 }
 
 /// Library-style helper: render the agent outline for a path. Used by
-/// `scry read` when no flags steer it elsewhere.
+/// `ffs read` when no flags steer it elsewhere.
 pub fn render_agent(path: &Path, display_path: &str) -> Result<String> {
     let ft = detect_file_type(path);
     let lang = match ft {

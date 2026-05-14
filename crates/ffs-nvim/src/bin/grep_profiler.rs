@@ -1,4 +1,4 @@
-/// Live grep benchmark profiler for fff.nvim
+/// Live grep benchmark profiler for ffs.nvim
 ///
 /// Benchmarks the full grep pipeline against a large repository (Linux kernel).
 /// Measures cold-cache, warm-cache, and incremental typing latencies to simulate
@@ -17,7 +17,7 @@ fn create_picker(path: &std::path::Path) -> FilePicker {
     let mut picker = FilePicker::new(ffs::FilePickerOptions {
         base_path: path.to_string_lossy().to_string(),
         enable_mmap_cache: false,
-        mode: ffs::FFFMode::Neovim,
+        mode: ffs::FfsMode::Neovim,
         ..Default::default()
     })
     .expect("Failed to create FilePicker");
@@ -185,7 +185,7 @@ fn main() {
     }
 
     let canonical = ffs::path_utils::canonicalize(&repo).expect("Failed to canonicalize path");
-    eprintln!("=== FFF Live Grep Profiler ===");
+    eprintln!("=== ffs Live Grep Profiler ===");
     eprintln!("Repository: {:?}", canonical);
 
     // Direct file loading (no background thread)

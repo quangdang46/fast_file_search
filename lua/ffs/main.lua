@@ -4,7 +4,7 @@ M.state = { initialized = false }
 
 --- Setup the file picker with the given configuration
 --- @param config table Configuration options
-function M.setup(config) vim.g.fff = config end
+function M.setup(config) vim.g.ffs = config end
 
 --- Find files in current directory
 --- @param opts? table Optional configuration {renderer = custom_renderer}
@@ -55,7 +55,7 @@ function M.find_in_git_root()
   M.find_files_in_dir(git_root)
 end
 
---- Clear FFF caches (both in-memory state and on-disk database files)
+--- Clear ffs caches (both in-memory state and on-disk database files)
 --- @param scope? string Cache scope: all|frecency|files
 function M.clear_cache(scope)
   local fuzzy = require('ffs.fuzzy')
@@ -77,11 +77,11 @@ function M.clear_cache(scope)
   end
 
   if #errors > 0 then
-    vim.notify('FFF: errors clearing cache: ' .. table.concat(errors, '; '), vim.log.levels.ERROR)
+    vim.notify('ffs: errors clearing cache: ' .. table.concat(errors, '; '), vim.log.levels.ERROR)
     return false
   end
 
-  vim.notify('Cleared FFF cache: ' .. scope, vim.log.levels.INFO)
+  vim.notify('Cleared ffs cache: ' .. scope, vim.log.levels.INFO)
   return true
 end
 
@@ -168,7 +168,7 @@ function M.search_and_show(query)
 
   if #files > 15 then print('  ... and ' .. (#files - 15) .. ' more files') end
 
-  print('Use :FFFFind to browse all files')
+  print('Use :FFSFind to browse all files')
 end
 
 --- Get file preview

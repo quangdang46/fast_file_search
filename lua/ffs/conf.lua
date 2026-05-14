@@ -1,6 +1,6 @@
 local M = {}
 
---- @class FffLayoutConfig
+--- @class FfsLayoutConfig
 --- @field height number
 --- @field width number
 --- @field prompt_position string
@@ -9,7 +9,7 @@ local M = {}
 --- @field show_scrollbar boolean
 --- @field path_shorten_strategy string
 
---- @class FffPreviewConfig
+--- @class FfsPreviewConfig
 --- @field enabled boolean
 --- @field max_size number
 --- @field chunk_size number
@@ -20,7 +20,7 @@ local M = {}
 --- @field wrap_lines boolean
 --- @field filetypes table<string, table>
 
---- @class FffKeymapsConfig
+--- @class FfsKeymapsConfig
 --- @field close string
 --- @field select string
 --- @field select_split string
@@ -39,17 +39,17 @@ local M = {}
 --- @field focus_list string
 --- @field focus_preview string
 
---- @class FffFrecencyConfig
+--- @class FfsFrecencyConfig
 --- @field enabled boolean
 --- @field db_path string
 
---- @class FffHistoryConfig
+--- @class FfsHistoryConfig
 --- @field enabled boolean
 --- @field db_path string
 --- @field min_combo_count number
 --- @field combo_boost_score_multiplier number
 
---- @class FffGrepConfig
+--- @class FfsGrepConfig
 --- @field max_file_size number
 --- @field max_matches_per_file number
 --- @field smart_case boolean
@@ -57,7 +57,7 @@ local M = {}
 --- @field modes string[]
 --- @field trim_whitespace boolean
 
---- @class FffConfig
+--- @class FfsConfig
 --- @field base_path string
 --- @field prompt string
 --- @field title string
@@ -65,21 +65,21 @@ local M = {}
 --- @field max_threads number
 --- @field lazy_sync boolean
 --- @field prompt_vim_mode boolean
---- @field layout FffLayoutConfig
---- @field preview FffPreviewConfig
---- @field keymaps FffKeymapsConfig
+--- @field layout FfsLayoutConfig
+--- @field preview FfsPreviewConfig
+--- @field keymaps FfsKeymapsConfig
 --- @field hl table<string, string>
---- @field frecency FffFrecencyConfig
---- @field history FffHistoryConfig
+--- @field frecency FfsFrecencyConfig
+--- @field history FfsHistoryConfig
 --- @field git table
 --- @field debug table
 --- @field logging table
 --- @field file_picker table
---- @field grep FffGrepConfig
+--- @field grep FfsGrepConfig
 
 ---@class ffs.conf.State
 local state = {
-  ---@type FffConfig|nil
+  ---@type FfsConfig|nil
   config = nil,
 }
 
@@ -169,7 +169,7 @@ local function handle_deprecated_config(user_config)
       set_nested_value(migrated_config, rule.new_path, old_value)
       remove_nested_value(migrated_config, rule.old_path)
 
-      vim.notify('FFF: ' .. rule.message, vim.log.levels.WARN)
+      vim.notify('ffs: ' .. rule.message, vim.log.levels.WARN)
     end
   end
 
@@ -190,11 +190,11 @@ local function fallback_hl(name)
 end
 
 local function init()
-  local config = vim.g.fff or {}
+  local config = vim.g.ffs or {}
   local default_config = {
     base_path = vim.fn.getcwd(),
     prompt = '🪿 ',
-    title = 'FFFiles',
+    title = 'Files',
     max_results = 100,
     max_threads = 4,
     lazy_sync = true, -- set to false if you want file indexing to start on open
@@ -270,29 +270,29 @@ local function init()
       scrollbar = 'Comment',
       directory_path = 'Comment',
       -- Multi-select highlights
-      selected = 'FFFSelected',
-      selected_active = 'FFFSelectedActive',
+      selected = 'FFSSelected',
+      selected_active = 'FFSSelectedActive',
       -- Git text highlights for file names
-      git_staged = 'FFFGitStaged',
-      git_modified = 'FFFGitModified',
-      git_deleted = 'FFFGitDeleted',
-      git_renamed = 'FFFGitRenamed',
-      git_untracked = 'FFFGitUntracked',
-      git_ignored = 'FFFGitIgnored',
+      git_staged = 'FFSGitStaged',
+      git_modified = 'FFSGitModified',
+      git_deleted = 'FFSGitDeleted',
+      git_renamed = 'FFSGitRenamed',
+      git_untracked = 'FFSGitUntracked',
+      git_ignored = 'FFSGitIgnored',
       -- Git sign/border highlights
-      git_sign_staged = 'FFFGitSignStaged',
-      git_sign_modified = 'FFFGitSignModified',
-      git_sign_deleted = 'FFFGitSignDeleted',
-      git_sign_renamed = 'FFFGitSignRenamed',
-      git_sign_untracked = 'FFFGitSignUntracked',
-      git_sign_ignored = 'FFFGitSignIgnored',
+      git_sign_staged = 'FFSGitSignStaged',
+      git_sign_modified = 'FFSGitSignModified',
+      git_sign_deleted = 'FFSGitSignDeleted',
+      git_sign_renamed = 'FFSGitSignRenamed',
+      git_sign_untracked = 'FFSGitSignUntracked',
+      git_sign_ignored = 'FFSGitSignIgnored',
       -- Git sign selected highlights
-      git_sign_staged_selected = 'FFFGitSignStagedSelected',
-      git_sign_modified_selected = 'FFFGitSignModifiedSelected',
-      git_sign_deleted_selected = 'FFFGitSignDeletedSelected',
-      git_sign_renamed_selected = 'FFFGitSignRenamedSelected',
-      git_sign_untracked_selected = 'FFFGitSignUntrackedSelected',
-      git_sign_ignored_selected = 'FFFGitSignIgnoredSelected',
+      git_sign_staged_selected = 'FFSGitSignStagedSelected',
+      git_sign_modified_selected = 'FFSGitSignModifiedSelected',
+      git_sign_deleted_selected = 'FFSGitSignDeletedSelected',
+      git_sign_renamed_selected = 'FFSGitSignRenamedSelected',
+      git_sign_untracked_selected = 'FFSGitSignUntrackedSelected',
+      git_sign_ignored_selected = 'FFSGitSignIgnoredSelected',
       -- Grep highlights
       grep_match = 'IncSearch', -- Highlight for matched text in grep results
       grep_line_number = 'LineNr', -- Highlight for :line:col location
@@ -349,10 +349,10 @@ local function init()
 end
 
 --- Setup the file picker with the given configuration
---- @param config FffConfig Configuration options
-function M.setup(config) vim.g.fff = config end
+--- @param config FfsConfig Configuration options
+function M.setup(config) vim.g.ffs = config end
 
---- @return FffConfig the ffs configuration
+--- @return FfsConfig the ffs configuration
 function M.get()
   if not state.config then init() end
   return state.config
@@ -364,7 +364,7 @@ function M.toggle_debug()
   state.config.debug.show_scores = not state.config.debug.show_scores
   state.config.debug.enabled = state.config.debug.show_scores
   local status = state.config.debug.show_scores and 'enabled' or 'disabled'
-  vim.notify('FFF debug scores ' .. status, vim.log.levels.INFO)
+  vim.notify('ffs debug scores ' .. status, vim.log.levels.INFO)
   return old_debug_state ~= state.config.debug.show_scores
 end
 

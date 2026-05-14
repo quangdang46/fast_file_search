@@ -40,7 +40,7 @@ describe("Platform Detection", () => {
     const ext = getLibExtension();
 
     if (process.platform === "win32") {
-      expect(filename).toBe(`fff_c.${ext}`);
+      expect(filename).toBe(`ffs_c.${ext}`);
     } else {
       expect(filename).toBe(`libffs_c.${ext}`);
     }
@@ -165,7 +165,7 @@ describe("FileFinder - Full Lifecycle", () => {
   });
 
   test("grep plain text returns matching lines", () => {
-    const result = finder.grep("fff-core", {
+    const result = finder.grep("ffs-core", {
       mode: "plain",
     });
     expect(result.ok).toBe(true);
@@ -188,7 +188,7 @@ describe("FileFinder - Full Lifecycle", () => {
       expect(typeof first.lineNumber).toBe("number");
       expect(first.lineNumber).toBeGreaterThan(0);
       expect(typeof first.lineContent).toBe("string");
-      expect(first.lineContent.toLowerCase()).toContain("fff-core");
+      expect(first.lineContent.toLowerCase()).toContain("ffs-core");
       expect(Array.isArray(first.matchRanges)).toBe(true);
       expect(first.matchRanges.length).toBeGreaterThan(0);
 

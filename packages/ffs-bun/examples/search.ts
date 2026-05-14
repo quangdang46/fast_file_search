@@ -3,7 +3,7 @@
  * Interactive file finder demo
  *
  * Usage:
- *   bunx fff-demo [directory]
+ *   bunx ffs-demo [directory]
  *   bun examples/search.ts [directory]
  *
  * Indexes the specified directory (or cwd) and provides an interactive
@@ -157,12 +157,12 @@ function printMixedResult(mixed: MixedItem, score: Score, showBreakdown: boolean
 async function main() {
   const targetDir = process.argv[2] || process.cwd();
 
-  console.log(`${BOLD}${CYAN}fff - Fast File Finder Demo${RESET}\n`);
+  console.log(`${BOLD}${CYAN}ffs - Fast File Search Demo${RESET}\n`);
 
   // Check library availability
   if (!FileFinder.isAvailable()) {
     console.error(`${RED}Error: Native library not found.${RESET}`);
-    console.error("Build with: cargo build --release -p fff-c");
+    console.error("Build with: cargo build --release -p ffs-c");
     process.exit(1);
   }
 
@@ -171,8 +171,8 @@ async function main() {
   const nvimCache = process.env.XDG_CACHE_HOME || join(homedir(), ".cache", "nvim");
   const nvimData =
     process.env.XDG_DATA_HOME || join(homedir(), ".local", "share", "nvim");
-  const frecencyDbPath = join(nvimCache, "fff_nvim");
-  const historyDbPath = join(nvimData, "fff_queries");
+  const frecencyDbPath = join(nvimCache, "ffs_nvim");
+  const historyDbPath = join(nvimData, "ffs_queries");
 
   console.log(`${DIM}Initializing index for: ${targetDir}${RESET}`);
   console.log(`${DIM}Frecency DB: ${frecencyDbPath}${RESET}`);

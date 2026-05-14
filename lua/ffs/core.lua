@@ -18,7 +18,7 @@ local function setup_global_autocmds(config)
   if config.frecency.enabled then
     vim.api.nvim_create_autocmd({ 'BufEnter' }, {
       group = group,
-      desc = 'Track file access for FFF frecency',
+      desc = 'Track file access for ffs frecency',
       callback = function(args)
         local file_path = args.file
         if not (file_path and file_path ~= '' and not vim.startswith(file_path, 'term://')) then return end
@@ -32,7 +32,7 @@ local function setup_global_autocmds(config)
 
             if not ok then
               vim.schedule(
-                function() vim.notify('FFF: Failed to track file access: ' .. tostring(track_err), vim.log.levels.ERROR) end
+                function() vim.notify('ffs: Failed to track file access: ' .. tostring(track_err), vim.log.levels.ERROR) end
               )
             end
           end)
@@ -82,16 +82,16 @@ local function setup_global_autocmds(config)
         -- Delay require to avoid circular dependency: core -> main -> picker_ui -> file_picker -> core
         local ok, picker = pcall(require, 'ffs.main')
         if not ok then
-          vim.notify('FFF: Failed to load main module: ' .. tostring(picker), vim.log.levels.ERROR)
+          vim.notify('ffs: Failed to load main module: ' .. tostring(picker), vim.log.levels.ERROR)
           return
         end
         local change_ok, err = pcall(picker.change_indexing_directory, new_canonical)
         if not change_ok then
-          vim.notify('FFF: Failed to change indexing directory: ' .. tostring(err), vim.log.levels.ERROR)
+          vim.notify('ffs: Failed to change indexing directory: ' .. tostring(err), vim.log.levels.ERROR)
         end
       end)
     end,
-    desc = 'Automatically sync FFF directory changes',
+    desc = 'Automatically sync ffs directory changes',
   })
 end
 

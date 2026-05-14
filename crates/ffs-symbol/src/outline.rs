@@ -1,5 +1,5 @@
 //! Tree-sitter driven outline extraction (functions, classes, modules, …)
-//! for the languages scry supports.
+//! for the languages ffs supports.
 
 use tree_sitter::{Language, Node, Parser};
 

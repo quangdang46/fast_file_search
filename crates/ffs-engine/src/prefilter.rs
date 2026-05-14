@@ -15,7 +15,7 @@ pub struct PreFilteredCandidate {
     pub mtime: SystemTime,
 }
 
-/// Stack of pre-filters. The bigram check is owned by `fff-core`; here we
+/// Stack of pre-filters. The bigram check is owned by `ffs-core`; here we
 /// expose a tiny adaptor that takes pre-narrowed candidates plus the bloom
 /// cache and returns the survivors.
 pub struct PreFilterStack {

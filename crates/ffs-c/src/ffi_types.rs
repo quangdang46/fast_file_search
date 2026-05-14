@@ -60,10 +60,10 @@ unsafe fn free_cstring_array(arr: *mut *mut c_char, count: u32) {
 
 /// A file item returned by `ffs_search`.
 ///
-/// All string fields are heap-allocated and owned by the parent `FffSearchResult`.
-/// Free the entire result with `fff_free_search_result`.
+/// All string fields are heap-allocated and owned by the parent `FfsSearchResult`.
+/// Free the entire result with `ffs_free_search_result`.
 #[repr(C)]
-pub struct FffFileItem {
+pub struct FfsFileItem {
     pub relative_path: *mut c_char,
     pub file_name: *mut c_char,
     pub git_status: *mut c_char,
@@ -75,9 +75,9 @@ pub struct FffFileItem {
     pub is_binary: bool,
 }
 
-impl FffFileItem {
+impl FfsFileItem {
     pub fn from_item(item: &FileItem, picker: &FilePicker) -> Self {
-        FffFileItem {
+        FfsFileItem {
             relative_path: cstring_new(&item.relative_path(picker)),
             file_name: cstring_new(&item.file_name(picker)),
             git_status: cstring_new(format_git_status(item.git_status)),
@@ -91,7 +91,7 @@ impl FffFileItem {
     }
 }
 
-impl FffFileItem {
+impl FfsFileItem {
     /// ## Safety
     /// All string pointers must have been allocated by `CString::into_raw`.
     pub unsafe fn free_strings(&mut self) {
@@ -111,7 +111,7 @@ impl FffFileItem {
 
 /// Score breakdown for a search result.
 #[repr(C)]
-pub struct FffScore {
+pub struct FfsScore {
     pub total: i32,
     pub base_score: i32,
     pub filename_bonus: i32,
@@ -125,9 +125,9 @@ pub struct FffScore {
     pub match_type: *mut c_char,
 }
 
-impl From<&Score> for FffScore {
+impl From<&Score> for FfsScore {
     fn from(score: &Score) -> Self {
-        FffScore {
+        FfsScore {
             total: score.total,
             base_score: score.base_score,
             filename_bonus: score.filename_bonus,
@@ -143,7 +143,7 @@ impl From<&Score> for FffScore {
     }
 }
 
-impl FffScore {
+impl FfsScore {
     /// ## Safety
     /// `match_type` must have been allocated by `CString::into_raw`.
     pub unsafe fn free_strings(&mut self) {
@@ -163,7 +163,7 @@ impl FffScore {
 ///   2 = position (`line` + `col`),
 ///   3 = range (`line`/`col` = start, `end_line`/`end_col` = end).
 #[repr(C)]
-pub struct FffLocation {
+pub struct FfsLocation {
     pub tag: u8,
     pub line: i32,
     pub col: i32,
@@ -171,31 +171,31 @@ pub struct FffLocation {
     pub end_col: i32,
 }
 
-impl From<Option<&Location>> for FffLocation {
+impl From<Option<&Location>> for FfsLocation {
     fn from(loc: Option<&Location>) -> Self {
         match loc {
-            None => FffLocation {
+            None => FfsLocation {
                 tag: 0,
                 line: 0,
                 col: 0,
                 end_line: 0,
                 end_col: 0,
             },
-            Some(Location::Line(line)) => FffLocation {
+            Some(Location::Line(line)) => FfsLocation {
                 tag: 1,
                 line: *line,
                 col: 0,
                 end_line: 0,
                 end_col: 0,
             },
-            Some(Location::Position { line, col }) => FffLocation {
+            Some(Location::Position { line, col }) => FfsLocation {
                 tag: 2,
                 line: *line,
                 col: *col,
                 end_line: 0,
                 end_col: 0,
             },
-            Some(Location::Range { start, end }) => FffLocation {
+            Some(Location::Range { start, end }) => FfsLocation {
                 tag: 3,
                 line: start.0,
                 col: start.1,
@@ -208,13 +208,13 @@ impl From<Option<&Location>> for FffLocation {
 
 /// Search result returned by `ffs_search`.
 ///
-/// The caller must free this with `fff_free_search_result`.
+/// The caller must free this with `ffs_free_search_result`.
 #[repr(C)]
-pub struct FffSearchResult {
-    /// Pointer to a heap-allocated array of `FffFileItem` (length = `count`).
-    pub items: *mut FffFileItem,
-    /// Pointer to a heap-allocated array of `FffScore` (length = `count`).
-    pub scores: *mut FffScore,
+pub struct FfsSearchResult {
+    /// Pointer to a heap-allocated array of `FfsFileItem` (length = `count`).
+    pub items: *mut FfsFileItem,
+    /// Pointer to a heap-allocated array of `FfsScore` (length = `count`).
+    pub scores: *mut FfsScore,
     /// Number of items/scores in the arrays.
     pub count: u32,
     /// Total number of files that matched the query.
@@ -222,30 +222,30 @@ pub struct FffSearchResult {
     /// Total number of indexed files.
     pub total_files: u32,
     /// Location parsed from the query string.
-    pub location: FffLocation,
+    pub location: FfsLocation,
 }
 
-impl FffSearchResult {
-    /// Convert a core `SearchResult` into a heap-allocated `FffSearchResult`.
+impl FfsSearchResult {
+    /// Convert a core `SearchResult` into a heap-allocated `FfsSearchResult`.
     pub fn from_core(result: &SearchResult, picker: &FilePicker) -> *mut Self {
-        let items: Vec<FffFileItem> = result
+        let items: Vec<FfsFileItem> = result
             .items
             .iter()
-            .map(|i| FffFileItem::from_item(i, picker))
+            .map(|i| FfsFileItem::from_item(i, picker))
             .collect();
-        let scores: Vec<FffScore> = result.scores.iter().map(FffScore::from).collect();
+        let scores: Vec<FfsScore> = result.scores.iter().map(FfsScore::from).collect();
         let count = items.len() as u32;
 
         let (items_ptr, _) = vec_to_raw(items);
         let (scores_ptr, _) = vec_to_raw(scores);
 
-        Box::into_raw(Box::new(FffSearchResult {
+        Box::into_raw(Box::new(FfsSearchResult {
             items: items_ptr,
             scores: scores_ptr,
             count,
             total_matched: result.total_matched as u32,
             total_files: result.total_files as u32,
-            location: FffLocation::from(result.location.as_ref()),
+            location: FfsLocation::from(result.location.as_ref()),
         }))
     }
 }
@@ -256,7 +256,7 @@ impl FffSearchResult {
 
 /// A byte range within a matched line, used for highlighting.
 #[repr(C)]
-pub struct FffMatchRange {
+pub struct FfsMatchRange {
     pub start: u32,
     pub end: u32,
 }
@@ -264,15 +264,15 @@ pub struct FffMatchRange {
 /// A single grep match with file and line information.
 ///
 /// All string fields and arrays are heap-allocated. Free the parent
-/// `FffGrepResult` with `fff_free_grep_result` to release everything.
+/// `FfsGrepResult` with `ffs_free_grep_result` to release everything.
 #[repr(C)]
-pub struct FffGrepMatch {
+pub struct FfsGrepMatch {
     // -- pointers (8 bytes each) --
     pub relative_path: *mut c_char,
     pub file_name: *mut c_char,
     pub git_status: *mut c_char,
     pub line_content: *mut c_char,
-    pub match_ranges: *mut FffMatchRange,
+    pub match_ranges: *mut FfsMatchRange,
     pub context_before: *mut *mut c_char,
     pub context_after: *mut *mut c_char,
     // -- 8-byte numeric fields --
@@ -296,12 +296,12 @@ pub struct FffGrepMatch {
     pub is_definition: bool,
 }
 
-impl FffGrepMatch {
+impl FfsGrepMatch {
     fn from_core_with_file(m: &GrepMatch, file: &FileItem, picker: &FilePicker) -> Self {
-        let ranges: Vec<FffMatchRange> = m
+        let ranges: Vec<FfsMatchRange> = m
             .match_byte_offsets
             .iter()
-            .map(|&(start, end)| FffMatchRange { start, end })
+            .map(|&(start, end)| FfsMatchRange { start, end })
             .collect();
         let (match_ranges, match_ranges_count) = vec_to_raw(ranges);
         let (context_before, context_before_count) = strings_to_raw(&m.context_before);
@@ -311,7 +311,7 @@ impl FffGrepMatch {
             None => (false, 0),
         };
 
-        FffGrepMatch {
+        FfsGrepMatch {
             relative_path: cstring_new(&file.relative_path(picker)),
             file_name: cstring_new(&file.file_name(picker)),
             git_status: cstring_new(format_git_status(file.git_status)),
@@ -366,13 +366,13 @@ impl FffGrepMatch {
     }
 }
 
-/// Grep result returned by `fff_live_grep` and `fff_multi_grep`.
+/// Grep result returned by `ffs_live_grep` and `ffs_multi_grep`.
 ///
-/// The caller must free this with `fff_free_grep_result`.
+/// The caller must free this with `ffs_free_grep_result`.
 #[repr(C)]
-pub struct FffGrepResult {
-    /// Pointer to a heap-allocated array of `FffGrepMatch` (length = `count`).
-    pub items: *mut FffGrepMatch,
+pub struct FfsGrepResult {
+    /// Pointer to a heap-allocated array of `FfsGrepMatch` (length = `count`).
+    pub items: *mut FfsGrepMatch,
     /// Number of matches in the `items` array.
     pub count: u32,
     /// Total number of matches (always equal to `count`).
@@ -389,20 +389,20 @@ pub struct FffGrepResult {
     pub regex_fallback_error: *mut c_char,
 }
 
-impl FffGrepResult {
-    /// Convert a core `GrepResult` into a heap-allocated `FffGrepResult`.
+impl FfsGrepResult {
+    /// Convert a core `GrepResult` into a heap-allocated `FfsGrepResult`.
     pub fn from_core(result: &GrepResult, picker: &FilePicker) -> *mut Self {
-        let items: Vec<FffGrepMatch> = result
+        let items: Vec<FfsGrepMatch> = result
             .matches
             .iter()
             .map(|m| {
                 let file = result.files[m.file_index];
-                FffGrepMatch::from_core_with_file(m, file, picker)
+                FfsGrepMatch::from_core_with_file(m, file, picker)
             })
             .collect();
         let (items_ptr, count) = vec_to_raw(items);
 
-        Box::into_raw(Box::new(FffGrepResult {
+        Box::into_raw(Box::new(FfsGrepResult {
             items: items_ptr,
             count,
             total_matched: result.matches.len() as u32,
@@ -418,35 +418,35 @@ impl FffGrepResult {
     }
 }
 
-/// Result envelope returned by all `fff_*` functions.
+/// Result envelope returned by all `ffs_*` functions.
 ///
-/// Heap-allocated — the caller must free it with `fff_free_result`.
+/// Heap-allocated — the caller must free it with `ffs_free_result`.
 ///
 /// Depending on the function, the payload is delivered through different fields:
 ///
 /// | Function                   | Payload field | Type                          |
 /// |----------------------------|---------------|-------------------------------|
-/// | `fff_create_instance`      | `handle`      | opaque instance pointer       |
-/// | `ffs_search`               | `handle`      | `*mut FffSearchResult`        |
-/// | `fff_live_grep`            | `handle`      | `*mut FffGrepResult`          |
-/// | `fff_multi_grep`           | `handle`      | `*mut FffGrepResult`          |
-/// | `fff_get_scan_progress`    | `handle`      | `*mut FffScanProgress`        |
-/// | `fff_health_check`         | `handle`      | `*mut c_char` (JSON string)   |
-/// | `fff_get_historical_query` | `handle`      | `*mut c_char` (string or null)|
-/// | `fff_wait_for_scan`        | `int_value`   | 1 = completed, 0 = timed out  |
-/// | `fff_track_query`          | `int_value`   | 1 = success, 0 = failure      |
-/// | `fff_refresh_git_status`   | `int_value`   | number of files updated       |
-/// | `fff_scan_files`           | (none)        | success flag only             |
-/// | `fff_restart_index`        | (none)        | success flag only             |
+/// | `ffs_create_instance`      | `handle`      | opaque instance pointer       |
+/// | `ffs_search`               | `handle`      | `*mut FfsSearchResult`        |
+/// | `ffs_live_grep`            | `handle`      | `*mut FfsGrepResult`          |
+/// | `ffs_multi_grep`           | `handle`      | `*mut FfsGrepResult`          |
+/// | `ffs_get_scan_progress`    | `handle`      | `*mut FfsScanProgress`        |
+/// | `ffs_health_check`         | `handle`      | `*mut c_char` (JSON string)   |
+/// | `ffs_get_historical_query` | `handle`      | `*mut c_char` (string or null)|
+/// | `ffs_wait_for_scan`        | `int_value`   | 1 = completed, 0 = timed out  |
+/// | `ffs_track_query`          | `int_value`   | 1 = success, 0 = failure      |
+/// | `ffs_refresh_git_status`   | `int_value`   | number of files updated       |
+/// | `ffs_scan_files`           | (none)        | success flag only             |
+/// | `ffs_restart_index`        | (none)        | success flag only             |
 ///
 /// On failure, `success` is false and `error` contains the message.
 ///
-/// **Important:** `fff_free_result` frees `error` but does **not** free `handle`.
+/// **Important:** `ffs_free_result` frees `error` but does **not** free `handle`.
 /// The caller must free the handle with the appropriate function
-/// (`fff_destroy`, `fff_free_search_result`, `fff_free_grep_result`,
-///  `fff_free_string`, etc.).
+/// (`ffs_destroy`, `ffs_free_search_result`, `ffs_free_grep_result`,
+///  `ffs_free_string`, etc.).
 #[repr(C)]
-pub struct FffResult {
+pub struct FfsResult {
     /// Whether the operation succeeded.
     pub success: bool,
     /// Error message on failure. Null on success.
@@ -457,10 +457,10 @@ pub struct FffResult {
     pub int_value: i64,
 }
 
-impl FffResult {
+impl FfsResult {
     /// Create a successful result with no payload, returned as heap pointer.
     pub fn ok_empty() -> *mut Self {
-        Box::into_raw(Box::new(FffResult {
+        Box::into_raw(Box::new(FfsResult {
             success: true,
             error: ptr::null_mut(),
             handle: ptr::null_mut(),
@@ -470,7 +470,7 @@ impl FffResult {
 
     /// Create a successful result with an integer value.
     pub fn ok_int(value: i64) -> *mut Self {
-        Box::into_raw(Box::new(FffResult {
+        Box::into_raw(Box::new(FfsResult {
             success: true,
             error: ptr::null_mut(),
             handle: ptr::null_mut(),
@@ -480,7 +480,7 @@ impl FffResult {
 
     /// Create a successful result carrying an opaque pointer (handle, typed struct, or string).
     pub fn ok_handle(handle: *mut c_void) -> *mut Self {
-        Box::into_raw(Box::new(FffResult {
+        Box::into_raw(Box::new(FfsResult {
             success: true,
             error: ptr::null_mut(),
             handle,
@@ -489,10 +489,10 @@ impl FffResult {
     }
 
     /// Create a successful result carrying a C string in the `handle` field.
-    /// The caller must free it with `fff_free_string`.
+    /// The caller must free it with `ffs_free_string`.
     pub fn ok_string(s: &str) -> *mut Self {
         let cstr = CString::new(s).unwrap_or_default().into_raw();
-        Box::into_raw(Box::new(FffResult {
+        Box::into_raw(Box::new(FfsResult {
             success: true,
             error: ptr::null_mut(),
             handle: cstr as *mut c_void,
@@ -502,7 +502,7 @@ impl FffResult {
 
     /// Create an error result, returned as heap pointer.
     pub fn err(error: &str) -> *mut Self {
-        Box::into_raw(Box::new(FffResult {
+        Box::into_raw(Box::new(FfsResult {
             success: false,
             error: CString::new(error).unwrap_or_default().into_raw(),
             handle: ptr::null_mut(),
@@ -513,18 +513,18 @@ impl FffResult {
 
 /// A directory item returned by `ffs_search_directories`.
 ///
-/// All string fields are heap-allocated and owned by the parent `FffDirSearchResult`.
-/// Free the entire result with `fff_free_dir_search_result`.
+/// All string fields are heap-allocated and owned by the parent `FfsDirSearchResult`.
+/// Free the entire result with `ffs_free_dir_search_result`.
 #[repr(C)]
-pub struct FffDirItem {
+pub struct FfsDirItem {
     pub relative_path: *mut c_char,
     pub dir_name: *mut c_char,
     pub max_access_frecency: i32,
 }
 
-impl FffDirItem {
+impl FfsDirItem {
     pub fn from_item(item: &DirItem, picker: &FilePicker) -> Self {
-        FffDirItem {
+        FfsDirItem {
             relative_path: cstring_new(&item.relative_path(picker)),
             dir_name: cstring_new(&item.dir_name(picker)),
             max_access_frecency: item.max_access_frecency(),
@@ -547,13 +547,13 @@ impl FffDirItem {
 
 /// Directory search result returned by `ffs_search_directories`.
 ///
-/// The caller must free this with `fff_free_dir_search_result`.
+/// The caller must free this with `ffs_free_dir_search_result`.
 #[repr(C)]
-pub struct FffDirSearchResult {
-    /// Pointer to a heap-allocated array of `FffDirItem` (length = `count`).
-    pub items: *mut FffDirItem,
-    /// Pointer to a heap-allocated array of `FffScore` (length = `count`).
-    pub scores: *mut FffScore,
+pub struct FfsDirSearchResult {
+    /// Pointer to a heap-allocated array of `FfsDirItem` (length = `count`).
+    pub items: *mut FfsDirItem,
+    /// Pointer to a heap-allocated array of `FfsScore` (length = `count`).
+    pub scores: *mut FfsScore,
     /// Number of items/scores in the arrays.
     pub count: u32,
     /// Total number of directories that matched the query.
@@ -562,21 +562,21 @@ pub struct FffDirSearchResult {
     pub total_dirs: u32,
 }
 
-impl FffDirSearchResult {
-    /// Convert a core `DirSearchResult` into a heap-allocated `FffDirSearchResult`.
+impl FfsDirSearchResult {
+    /// Convert a core `DirSearchResult` into a heap-allocated `FfsDirSearchResult`.
     pub fn from_core(result: &DirSearchResult, picker: &FilePicker) -> *mut Self {
-        let items: Vec<FffDirItem> = result
+        let items: Vec<FfsDirItem> = result
             .items
             .iter()
-            .map(|i| FffDirItem::from_item(i, picker))
+            .map(|i| FfsDirItem::from_item(i, picker))
             .collect();
-        let scores: Vec<FffScore> = result.scores.iter().map(FffScore::from).collect();
+        let scores: Vec<FfsScore> = result.scores.iter().map(FfsScore::from).collect();
         let count = items.len() as u32;
 
         let (items_ptr, _) = vec_to_raw(items);
         let (scores_ptr, _) = vec_to_raw(scores);
 
-        Box::into_raw(Box::new(FffDirSearchResult {
+        Box::into_raw(Box::new(FfsDirSearchResult {
             items: items_ptr,
             scores: scores_ptr,
             count,
@@ -589,9 +589,9 @@ impl FffDirSearchResult {
 /// A single item in a mixed (files + directories) search result.
 ///
 /// `item_type`: 0 = file, 1 = directory.
-/// All string fields are heap-allocated and owned by the parent `FffMixedSearchResult`.
+/// All string fields are heap-allocated and owned by the parent `FfsMixedSearchResult`.
 #[repr(C)]
-pub struct FffMixedItem {
+pub struct FfsMixedItem {
     /// 0 = file, 1 = directory.
     pub item_type: u8,
     pub relative_path: *mut c_char,
@@ -611,10 +611,10 @@ pub struct FffMixedItem {
     pub is_binary: bool,
 }
 
-impl FffMixedItem {
+impl FfsMixedItem {
     pub fn from_mixed_ref(item: &MixedItemRef<'_>, picker: &FilePicker) -> Self {
         match item {
-            MixedItemRef::File(file) => FffMixedItem {
+            MixedItemRef::File(file) => FfsMixedItem {
                 item_type: 0,
                 relative_path: cstring_new(&file.relative_path(picker)),
                 display_name: cstring_new(&file.file_name(picker)),
@@ -626,7 +626,7 @@ impl FffMixedItem {
                 total_frecency_score: file.total_frecency_score() as i64,
                 is_binary: file.is_binary(),
             },
-            MixedItemRef::Dir(dir) => FffMixedItem {
+            MixedItemRef::Dir(dir) => FfsMixedItem {
                 item_type: 1,
                 relative_path: cstring_new(&dir.relative_path(picker)),
                 display_name: cstring_new(&dir.dir_name(picker)),
@@ -660,13 +660,13 @@ impl FffMixedItem {
 
 /// Mixed search result returned by `ffs_search_mixed`.
 ///
-/// The caller must free this with `fff_free_mixed_search_result`.
+/// The caller must free this with `ffs_free_mixed_search_result`.
 #[repr(C)]
-pub struct FffMixedSearchResult {
-    /// Pointer to a heap-allocated array of `FffMixedItem` (length = `count`).
-    pub items: *mut FffMixedItem,
-    /// Pointer to a heap-allocated array of `FffScore` (length = `count`).
-    pub scores: *mut FffScore,
+pub struct FfsMixedSearchResult {
+    /// Pointer to a heap-allocated array of `FfsMixedItem` (length = `count`).
+    pub items: *mut FfsMixedItem,
+    /// Pointer to a heap-allocated array of `FfsScore` (length = `count`).
+    pub scores: *mut FfsScore,
     /// Number of items/scores in the arrays.
     pub count: u32,
     /// Total number of items (files + dirs) that matched the query.
@@ -676,46 +676,46 @@ pub struct FffMixedSearchResult {
     /// Total number of indexed directories.
     pub total_dirs: u32,
     /// Location parsed from the query string.
-    pub location: FffLocation,
+    pub location: FfsLocation,
 }
 
-impl FffMixedSearchResult {
-    /// Convert a core `MixedSearchResult` into a heap-allocated `FffMixedSearchResult`.
+impl FfsMixedSearchResult {
+    /// Convert a core `MixedSearchResult` into a heap-allocated `FfsMixedSearchResult`.
     pub fn from_core(result: &MixedSearchResult, picker: &FilePicker) -> *mut Self {
-        let items: Vec<FffMixedItem> = result
+        let items: Vec<FfsMixedItem> = result
             .items
             .iter()
-            .map(|i| FffMixedItem::from_mixed_ref(i, picker))
+            .map(|i| FfsMixedItem::from_mixed_ref(i, picker))
             .collect();
-        let scores: Vec<FffScore> = result.scores.iter().map(FffScore::from).collect();
+        let scores: Vec<FfsScore> = result.scores.iter().map(FfsScore::from).collect();
         let count = items.len() as u32;
 
         let (items_ptr, _) = vec_to_raw(items);
         let (scores_ptr, _) = vec_to_raw(scores);
 
-        Box::into_raw(Box::new(FffMixedSearchResult {
+        Box::into_raw(Box::new(FfsMixedSearchResult {
             items: items_ptr,
             scores: scores_ptr,
             count,
             total_matched: result.total_matched as u32,
             total_files: result.total_files as u32,
             total_dirs: result.total_dirs as u32,
-            location: FffLocation::from(result.location.as_ref()),
+            location: FfsLocation::from(result.location.as_ref()),
         }))
     }
 }
 
-/// Scan progress returned by `fff_get_scan_progress`.
-/// The caller must free this with `fff_free_scan_progress`.
+/// Scan progress returned by `ffs_get_scan_progress`.
+/// The caller must free this with `ffs_free_scan_progress`.
 #[repr(C)]
-pub struct FffScanProgress {
+pub struct FfsScanProgress {
     pub scanned_files_count: u64,
     pub is_scanning: bool,
     pub is_watcher_ready: bool,
     pub is_warmup_complete: bool,
 }
 
-impl From<ffs::file_picker::ScanProgress> for FffScanProgress {
+impl From<ffs::file_picker::ScanProgress> for FfsScanProgress {
     fn from(p: ffs::file_picker::ScanProgress) -> Self {
         Self {
             scanned_files_count: p.scanned_files_count as u64,

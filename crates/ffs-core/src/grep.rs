@@ -19,7 +19,7 @@ pub use ffs_grep::{
     lines::{self, LineStep},
     matcher::{Match, Matcher, NoError},
 };
-use ffs_query_parser::{Constraint, FFFQuery, GrepConfig, QueryParser};
+use ffs_query_parser::{Constraint, FfsQuery, GrepConfig, QueryParser};
 use rayon::prelude::*;
 use smallvec::SmallVec;
 use std::path::Path;
@@ -415,7 +415,7 @@ impl GrepContext<'_, '_> {
 /// `grep_matcher::Matcher` trait required by `grep-searcher`.
 ///
 /// When `is_multiline` is false (the common case), we report `\n` as the
-/// line terminator. This enables the **fast** search path in `fff-searcher`:
+/// line terminator. This enables the **fast** search path in `ffs-searcher`:
 /// the searcher calls `find()` once on the entire remaining buffer, letting
 /// the regex DFA skip non-matching content in a single pass.
 ///
@@ -1849,7 +1849,7 @@ fn fuzzy_grep_search<'a>(
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn grep_search<'a>(
     files: &'a [FileItem],
-    query: &FFFQuery<'_>,
+    query: &FfsQuery<'_>,
     options: &GrepSearchOptions,
     budget: &ContentCacheBudget,
     bigram_index: Option<&BigramFilter>,
@@ -2245,7 +2245,7 @@ pub(crate) fn grep_search<'a>(
     result
 }
 
-pub fn parse_grep_query(query: &str) -> FFFQuery<'_> {
+pub fn parse_grep_query(query: &str) -> FfsQuery<'_> {
     let parser = QueryParser::new(GrepConfig);
     parser.parse(query)
 }

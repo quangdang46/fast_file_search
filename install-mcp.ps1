@@ -1,30 +1,30 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    FFF MCP Server installer for Windows.
+    ffs MCP Server installer for Windows.
 .DESCRIPTION
     Pipe usage:
         irm https://raw.githubusercontent.com/dmtrKovalenko/ffs.nvim/main/install-mcp.ps1 | iex
     Direct usage (supports params):
         iwr https://.../install-mcp.ps1 -OutFile install-mcp.ps1; .\install-mcp.ps1 -Version v0.1.2
     Env-var fallbacks (for the piped form):
-        $env:FFF_MCP_VERSION, $env:FFF_MCP_INSTALL_DIR
+        $env:FFS_MCP_VERSION, $env:FFS_MCP_INSTALL_DIR
 .PARAMETER Version
     Release tag to install (e.g. 'v0.1.2'). Default: latest release containing a Windows MCP asset.
 .PARAMETER InstallDir
-    Target install directory. Default: $env:LOCALAPPDATA\fff-mcp\bin.
+    Target install directory. Default: $env:LOCALAPPDATA\ffs-mcp\bin.
 .PARAMETER PathScope
     How to persist PATH: 'User' (set user env var, default), 'Profile' (append to $PROFILE *nix-style), 'None' (do not persist).
-    Env-var fallback: $env:FFF_MCP_PATH_SCOPE.
+    Env-var fallback: $env:FFS_MCP_PATH_SCOPE.
 #>
 param(
-    [string]$Version = $env:FFF_MCP_VERSION,
-    [string]$InstallDir = $env:FFF_MCP_INSTALL_DIR,
+    [string]$Version = $env:FFS_MCP_VERSION,
+    [string]$InstallDir = $env:FFS_MCP_INSTALL_DIR,
     [ValidateSet('User', 'Profile', 'None')]
     [string]$PathScope
 )
 if (-not $PathScope) {
-    $PathScope = if ($env:FFF_MCP_PATH_SCOPE) { $env:FFF_MCP_PATH_SCOPE } else { 'User' }
+    $PathScope = if ($env:FFS_MCP_PATH_SCOPE) { $env:FFS_MCP_PATH_SCOPE } else { 'User' }
 }
 
 $ErrorActionPreference = 'Stop'
@@ -33,8 +33,8 @@ $ErrorActionPreference = 'Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 
 $Repo = 'dmtrKovalenko/ffs.nvim'
-$BinaryName = 'fff-mcp'
-if (-not $InstallDir) { $InstallDir = Join-Path $env:LOCALAPPDATA 'fff-mcp\bin' }
+$BinaryName = 'ffs-mcp'
+if (-not $InstallDir) { $InstallDir = Join-Path $env:LOCALAPPDATA 'ffs-mcp\bin' }
 
 function Write-Info    { param($m) Write-Host $m -ForegroundColor Blue }
 function Write-Success { param($m) Write-Host $m -ForegroundColor DarkYellow }
@@ -53,7 +53,7 @@ function Get-Target {
 function Get-LatestReleaseTag {
     param([string]$Target)
     $asset = "$BinaryName-$Target.exe"
-    $headers = @{ 'User-Agent' = 'fff-mcp-installer' }
+    $headers = @{ 'User-Agent' = 'ffs-mcp-installer' }
     if ($env:GITHUB_TOKEN) { $headers['Authorization'] = "Bearer $env:GITHUB_TOKEN" }
 
     $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases" -Headers $headers
@@ -137,7 +137,7 @@ function Add-ToUserPath {
 function Add-ToProfilePath {
     param([string]$Dir)
     $profilePath = $PROFILE.CurrentUserAllHosts
-    $line = "`$env:PATH += ';$Dir'  # added by fff-mcp installer"
+    $line = "`$env:PATH += ';$Dir'  # added by ffs-mcp installer"
     if (Test-Path $profilePath) {
         $existing = Get-Content $profilePath -Raw -ErrorAction SilentlyContinue
         if ($existing -and $existing.Contains($Dir)) { return }
@@ -164,7 +164,7 @@ function Show-SetupInstructions {
     $foundAny = $false
 
     Write-Host ""
-    Write-Success "FFF MCP Server installed successfully!"
+    Write-Success "ffs MCP Server installed successfully!"
     Write-Host ""
     Write-Info "Setup with your AI coding assistant:"
     Write-Host ""
@@ -174,15 +174,15 @@ function Show-SetupInstructions {
         Write-Success "[Claude Code] detected"
         Write-Host ""
         Write-Host "Global (recommended):"
-        Write-Host "claude mcp add -s user fff -- $BinaryPath"
+        Write-Host "claude mcp add -s user ffs -- $BinaryPath"
         Write-Host ""
         Write-Host "Or project-level .mcp.json (uses PATH):"
         Write-Host @'
 {
   "mcpServers": {
-    "fff": {
+    "ffs": {
       "type": "stdio",
-      "command": "fff-mcp",
+      "command": "ffs-mcp",
       "args": []
     }
   }
@@ -198,9 +198,9 @@ function Show-SetupInstructions {
         Write-Host @'
 {
   "mcp": {
-    "fff": {
+    "ffs": {
       "type": "local",
-      "command": ["fff-mcp"],
+      "command": ["ffs-mcp"],
       "enabled": true
     }
   }
@@ -212,7 +212,7 @@ function Show-SetupInstructions {
     if (Get-Command codex -ErrorAction SilentlyContinue) {
         $foundAny = $true
         Write-Success "[Codex] detected"
-        Write-Host "codex mcp add fff -- fff-mcp"
+        Write-Host "codex mcp add ffs -- ffs-mcp"
         Write-Host ""
     }
 
@@ -225,8 +225,8 @@ function Show-SetupInstructions {
     Write-Host "Binary: $BinaryPath"
     Write-Host "Docs:   https://github.com/$Repo"
     Write-Host ""
-    Write-Info "Tip: Add this to your CLAUDE.md or AGENTS.md to make AI use fff for all searches:"
-    Write-Host '"Use the fff MCP tools for all file search operations instead of default tools."'
+    Write-Info "Tip: Add this to your CLAUDE.md or AGENTS.md to make AI use ffs for all searches:"
+    Write-Host '"use the ffs MCP tools for all file search operations instead of default tools."'
 }
 
 function Main {
@@ -236,9 +236,9 @@ function Main {
     $isUpdate = Test-Path $existing
 
     if ($isUpdate) {
-        Write-Info "Updating FFF MCP Server..."
+        Write-Info "Updating ffs MCP Server..."
     } else {
-        Write-Info "Installing FFF MCP Server..."
+        Write-Info "Installing ffs MCP Server..."
     }
     Write-Host ""
     Write-Info "Detected platform: $target"
@@ -253,7 +253,7 @@ function Main {
 
     if ($isUpdate) {
         Write-Host ""
-        Write-Success "FFF MCP Server updated to $tag!"
+        Write-Success "ffs MCP Server updated to $tag!"
         Write-Host ""
     } else {
         Set-Path -Dir $InstallDir -Scope $PathScope

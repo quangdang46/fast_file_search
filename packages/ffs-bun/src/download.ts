@@ -1,5 +1,5 @@
 /**
- * Binary resolution utilities for fff
+ * Binary resolution utilities for ffs
  *
  * Resolves the native library from:
  * 1. Platform-specific npm package (e.g. @ff-labs/ffs-bin-darwin-arm64)

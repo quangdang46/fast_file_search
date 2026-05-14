@@ -1,7 +1,7 @@
 {
   "name": "@ff-labs/ffs-bin-win32-x64",
   "version": "0.0.0",
-  "description": "fff native binary for Windows x64",
+  "description": "ffs native binary for Windows x64",
   "os": ["win32"],
   "cpu": ["x64"],
   "main": "ffs_c.dll",
@@ -13,6 +13,6 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/dmtrKovalenko/ffs.nvim.git",
-    "directory": "packages/fff-bin-win32-x64"
+    "directory": "packages/ffs-bin-win32-x64"
   }
 }

@@ -7,7 +7,7 @@ fn load_picker(path: &std::path::Path) -> FilePicker {
     let mut picker = FilePicker::new(ffs::FilePickerOptions {
         base_path: path.to_string_lossy().to_string(),
         enable_mmap_cache: false,
-        mode: ffs::FFFMode::Neovim,
+        mode: ffs::FfsMode::Neovim,
         ..Default::default()
     })
     .expect("Failed to create FilePicker");

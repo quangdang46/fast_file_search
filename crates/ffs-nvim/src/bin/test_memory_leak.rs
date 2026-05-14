@@ -1,4 +1,4 @@
-use ffs::file_picker::{FFFMode, FilePicker};
+use ffs::file_picker::{FfsMode, FilePicker};
 use ffs::{FuzzySearchOptions, PaginationArgs, QueryParser, SharedFilePicker, SharedFrecency};
 use std::env;
 use std::io::{self, Write};
@@ -72,7 +72,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         env::current_dir()?.to_str().unwrap_or(".").to_string()
     };
 
-    println!("🧪 FFF.nvim Memory Leak Test (Using Crate)");
+    println!("🧪 ffs.nvim Memory Leak Test (Using Crate)");
     println!("==========================================");
     println!("Test directory: {}", base_path);
     println!();
@@ -89,7 +89,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ffs::FilePickerOptions {
             base_path: base_path.clone(),
             enable_mmap_cache: false,
-            mode: FFFMode::Neovim,
+            mode: FfsMode::Neovim,
             ..Default::default()
         },
     )?;

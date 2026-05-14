@@ -3,7 +3,7 @@ name = "ffs-cli"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-description = "Command line interface for scry — unified code search and read tool."
+description = "Command line interface for ffs — unified code search and read tool."
 
 [[bin]]
 name = "ffs"

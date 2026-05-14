@@ -22,7 +22,7 @@ use std::process::Command;
 use std::time::{Duration, Instant};
 use tempfile::TempDir;
 
-use ffs_search::file_picker::{FFFMode, FilePicker};
+use ffs_search::file_picker::{FfsMode, FilePicker};
 use ffs_search::grep::{GrepMode, GrepSearchOptions, parse_grep_query};
 use ffs_search::{
     FilePickerOptions, PaginationArgs, QueryParser, SharedFilePicker, SharedFrecency,
@@ -66,7 +66,7 @@ fn make_watched_picker(base: &Path) -> (SharedFilePicker, SharedFrecency) {
         FilePickerOptions {
             base_path: base.to_string_lossy().to_string(),
             enable_mmap_cache: false,
-            mode: FFFMode::Neovim,
+            mode: FfsMode::Neovim,
             watch: true,
             ..Default::default()
         },

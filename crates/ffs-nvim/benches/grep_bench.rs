@@ -1,5 +1,5 @@
 use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
-use ffs::file_picker::{FFFMode, FilePicker};
+use ffs::file_picker::{FfsMode, FilePicker};
 use ffs::{
     FilePickerOptions, GrepMode, GrepSearchOptions, SharedFilePicker, SharedFrecency,
     parse_grep_query,
@@ -44,7 +44,7 @@ fn setup() -> &'static TestData {
                 base_path: path,
                 enable_mmap_cache: true,
                 enable_content_indexing: true,
-                mode: FFFMode::Neovim,
+                mode: FfsMode::Neovim,
                 ..Default::default()
             },
         )
@@ -83,7 +83,7 @@ fn setup_cold() -> SharedFilePicker {
             base_path: path,
             enable_mmap_cache: false,
             enable_content_indexing: false,
-            mode: FFFMode::Neovim,
+            mode: FfsMode::Neovim,
             watch: false,
             ..Default::default()
         },

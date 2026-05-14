@@ -54,7 +54,7 @@ fn bench_index_file(c: &mut Criterion) {
     group.throughput(Throughput::Bytes(RUST_SOURCE.len() as u64));
     group.bench_function("rust_small", |b| {
         b.iter_with_setup(SymbolIndex::new, |idx| {
-            let path = PathBuf::from("/tmp/scry_bench.rs");
+            let path = PathBuf::from("/tmp/ffs_bench.rs");
             idx.index_file(
                 black_box(&path),
                 SystemTime::UNIX_EPOCH,
@@ -69,7 +69,7 @@ fn bench_symbol_index_lookup(c: &mut Criterion) {
     let index = SymbolIndex::new();
     let mtime = SystemTime::UNIX_EPOCH;
     for i in 0..1000 {
-        let path = PathBuf::from(format!("/tmp/scry_bench_{i}.rs"));
+        let path = PathBuf::from(format!("/tmp/ffs_bench_{i}.rs"));
         index.index_file(&path, mtime, RUST_SOURCE);
     }
 

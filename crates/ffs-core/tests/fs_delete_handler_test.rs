@@ -63,7 +63,7 @@ fn raw_notify_nonrecursive_detects_deletion() {
     )
     .unwrap();
 
-    // Watch ONLY the root dir NonRecursively (like fff does)
+    // Watch ONLY the root dir NonRecursively (like ffs does)
     watcher
         .watch(dir.as_path(), RecursiveMode::NonRecursive)
         .unwrap();
@@ -128,7 +128,7 @@ fn raw_notify_nonrecursive_detects_deletion() {
 }
 
 /// Same test but with MULTIPLE NonRecursive watches (base + src + .git)
-/// to match what fff actually does. Each watch() call stops/restarts the FSEvents stream.
+/// to match what ffs actually does. Each watch() call stops/restarts the FSEvents stream.
 #[test]
 fn raw_notify_multi_nonrecursive_detects_deletion() {
     let (dir, _tmp) = setup_temp_git_repo();
@@ -219,7 +219,7 @@ fn raw_notify_multi_nonrecursive_detects_deletion() {
     );
 }
 
-/// Test with debouncer (matching exactly what fff uses)
+/// Test with debouncer (matching exactly what ffs uses)
 #[test]
 fn debounced_nonrecursive_detects_deletion() {
     use notify_debouncer_full::{DebounceEventResult, NoCache, new_debouncer_opt};
@@ -251,7 +251,7 @@ fn debounced_nonrecursive_detects_deletion() {
         )
         .unwrap();
 
-    // Watch like fff does
+    // Watch like ffs does
     debouncer
         .watch(dir.as_path(), RecursiveMode::NonRecursive)
         .unwrap();

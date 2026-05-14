@@ -1,4 +1,4 @@
-//! End-to-end tests for `scry impact <symbol>` (B6). Builds tiny synthetic
+//! End-to-end tests for `ffs impact <symbol>` (B6). Builds tiny synthetic
 //! workspaces with explicit direct/imports/transitive shapes and pins the
 //! resulting ranking + reasons.
 
@@ -17,7 +17,7 @@ fn run(root: &Path, args: &[&str]) -> Value {
     cmd.args(["--root", root.to_str().unwrap(), "--format", "json"]);
     cmd.arg("impact");
     cmd.args(args);
-    let out = cmd.output().expect("run scry impact");
+    let out = cmd.output().expect("run ffs impact");
     assert!(
         out.status.success(),
         "stderr: {}",

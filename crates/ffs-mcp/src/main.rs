@@ -1,22 +1,22 @@
-//! FFF MCP Server — high-performance file finder for AI code assistants.
+//! ffs MCP Server — high-performance file finder for AI code assistants.
 //!
 //! Drop-in replacement for AI code assistant file search tools (Glob/Grep).
 //! Provides frecency-ranked, fuzzy-matched, git-aware file finding and
 //! code search via the Model Context Protocol (MCP).
 //!
-//! Uses `fff-core` directly (zero FFI overhead) for all search operations.
+//! Uses `ffs-core` directly (zero FFI overhead) for all search operations.
 
 mod cursor;
 mod healthcheck;
 mod output;
-mod scry_tools;
+mod engine_tools;
 mod server;
 mod update_check;
 
 use clap::Parser;
 use ffs::file_picker::FilePicker;
 use ffs::frecency::FrecencyTracker;
-use ffs::{FFFMode, SharedFilePicker, SharedFrecency};
+use ffs::{FfsMode, SharedFilePicker, SharedFrecency};
 use git2::Repository;
 use mimalloc::MiMalloc;
 use rmcp::{ServiceExt, transport::stdio};
@@ -26,7 +26,7 @@ use server::FfsServer;
 static GLOBAL: MiMalloc = MiMalloc;
 
 pub const MCP_INSTRUCTIONS: &str = concat!(
-    "FFF is a fast file finder with frecency-ranked results (frequent/recent files first, git-dirty files boosted).\n",
+    "ffs is a fast file finder with frecency-ranked results (frequent/recent files first, git-dirty files boosted).\n",
     "\n",
     "## Which Tool Should I Use?\n",
     "\n",
@@ -101,9 +101,9 @@ pub const MCP_INSTRUCTIONS: &str = concat!(
     "  !generated/ - exclude generated code",
 );
 
-/// FFF MCP Server — high-performance file finder for AI code assistants.
+/// ffs MCP Server — high-performance file finder for AI code assistants.
 #[derive(Parser)]
-#[command(name = "ffs-mcp", version = concat!(env!("CARGO_PKG_VERSION"), " (", env!("FFF_GIT_HASH"), ")"))]
+#[command(name = "ffs-mcp", version = concat!(env!("CARGO_PKG_VERSION"), " (", env!("FFS_GIT_HASH"), ")"))]
 pub(crate) struct Args {
     /// Base directory to index. Defaults to the current working directory.
     #[arg(value_name = "PATH")]
@@ -153,8 +153,8 @@ pub(crate) struct Args {
     /// Maximum number of files whose content is kept persistently in memory.
     /// Files beyond this limit are still searchable via temporary mmaps that
     /// are released after each grep. Defaults to 30 000.
-    /// Also settable via the FFF_MAX_CACHED_FILES environment variable.
-    #[arg(long = "max-cached-files", env = "FFF_MAX_CACHED_FILES")]
+    /// Also settable via the FFS_MAX_CACHED_FILES environment variable.
+    #[arg(long = "max-cached-files", env = "FFS_MAX_CACHED_FILES")]
     max_cached_files: Option<usize>,
 
     /// Run a health check and print diagnostic information, then exit.
@@ -179,9 +179,9 @@ fn resolve_defaults(args: &mut Args) {
         let home = dirs_home();
         let is_windows = cfg!(target_os = "windows");
         args.log_file = Some(if is_windows {
-            format!("{}\\AppData\\Local\\fff_mcp.log", home)
+            format!("{}\\AppData\\Local\\ffs_mcp.log", home)
         } else {
-            format!("{}/.cache/fff_mcp.log", home)
+            format!("{}/.cache/ffs_mcp.log", home)
         });
     }
 }
@@ -267,7 +267,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             enable_mmap_cache: !args.no_warmup,
             enable_content_indexing,
             watch: !args.no_watch,
-            mode: FFFMode::Ai,
+            mode: FfsMode::Ai,
             cache_budget: args
                 .max_cached_files
                 .map(ffs::ContentCacheBudget::new_for_repo),

@@ -1,11 +1,11 @@
 /**
- * End-to-end tests for the fff-node package.
+ * End-to-end tests for the ffs-node package.
  *
- * Indexes the fff.nvim repository itself so the test suite is fully
+ * Indexes the ffs.nvim repository itself so the test suite is fully
  * self-contained — no external projects required.
  *
  * Requires:
- *   - A built Rust library (cargo build --release -p fff-c)
+ *   - A built Rust library (cargo build --release -p ffs-c)
  *   - A compiled TS dist  (cd packages/ffs-node && npx tsc)
  *
  * Run:
@@ -73,13 +73,13 @@ describe("ffs-node", { concurrency: 1 }, () => {
       );
     });
 
-    it("finds crates/fff-c/src/lib.rs", () => {
+    it("finds crates/ffs-c/src/lib.rs", () => {
       const r = finder.fileSearch("lib.rs", { pageSize: 20 });
       assert.ok(r.ok);
       const paths = r.value.items.map((i) => i.relativePath);
       assert.ok(
-        paths.some((p) => p.includes("fff-c") && p.endsWith("lib.rs")),
-        `expected fff-c/src/lib.rs, got: ${paths}`,
+        paths.some((p) => p.includes("ffs-c") && p.endsWith("lib.rs")),
+        `expected ffs-c/src/lib.rs, got: ${paths}`,
       );
     });
 
@@ -131,29 +131,29 @@ describe("ffs-node", { concurrency: 1 }, () => {
   });
 
   describe("grep", { concurrency: 1 }, () => {
-    it("finds FffResult in Rust sources", () => {
+    it("finds FfsResult in Rust sources", () => {
       // Constrain to .rs files so the assertion doesn't depend on result ordering
       // or content-indexing timing for other file types.
-      const rustResults = finder.grep("*.rs FffResult", { mode: "plain" });
+      const rustResults = finder.grep("*.rs FfsResult", { mode: "plain" });
       assert.ok(rustResults.ok, `grep failed: ${!rustResults.ok ? rustResults.error : ""}`);
       assert.ok(rustResults.value.items.length > 0, "expected at least one .rs match");
       assert.ok(rustResults.value.items.some((m) => m.relativePath.endsWith(".rs")));
 
-      const cResults = finder.grep("!**/*.{js,ts,rs} FffResult", { mode: "plain" });
+      const cResults = finder.grep("!**/*.{js,ts,rs} FfsResult", { mode: "plain" });
       assert.ok(cResults.ok, `grep failed: ${!cResults.ok ? cResults.error : ""}`);
       assert.ok(cResults.value.items.length > 0, "expected at least one non-js/ts/rs match");
       assert.ok(cResults.value.items.some((m) => m.relativePath.endsWith(".h")));
     });
 
     it("match items contain all required fields", () => {
-      const r = finder.grep("FffResult", { mode: "plain" });
+      const r = finder.grep("FfsResult", { mode: "plain" });
       assert.ok(r.ok);
       const m = r.value.items[0];
       assert.equal(typeof m.relativePath, "string");
       assert.equal(typeof m.lineNumber, "number");
       assert.ok(m.lineNumber > 0, "lineNumber is 1-based");
       assert.equal(typeof m.lineContent, "string");
-      assert.ok(m.lineContent.includes("FffResult"));
+      assert.ok(m.lineContent.includes("FfsResult"));
       assert.equal(typeof m.col, "number");
       assert.equal(typeof m.byteOffset, "number");
       assert.ok(Array.isArray(m.matchRanges));
@@ -207,7 +207,7 @@ describe("ffs-node", { concurrency: 1 }, () => {
   describe("multiGrep", { concurrency: 1 }, () => {
     it("finds lines matching any of the C FFI function names", () => {
       const r = finder.multiGrep({
-        patterns: ["fff_create_instance", "fff_destroy", "fff_search"],
+        patterns: ["ffs_create_instance", "ffs_destroy", "ffs_search"],
       });
       assert.ok(r.ok, `multiGrep failed: ${!r.ok ? r.error : ""}`);
       assert.ok(r.value.items.length > 0);
@@ -252,7 +252,7 @@ describe("ffs-node", { concurrency: 1 }, () => {
   });
 
   it("create rejects a non-existent path", () => {
-    const r = FileFinder.create({ basePath: "/nonexistent/fff-test-path" });
+    const r = FileFinder.create({ basePath: "/nonexistent/ffs-test-path" });
     assert.ok(!r.ok);
     assert.ok(
       r.error.toLowerCase().includes("invalid path") ||

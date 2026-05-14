@@ -192,7 +192,7 @@ function M.apply_highlights(item, ctx, item_idx, buf, ns_id, line_idx, line_cont
         local has_cterm = border_fg_cterm ~= '' and cursor_bg_cterm ~= ''
 
         if has_gui or has_cterm then
-          local temp_hl_name = 'FFFGitBorderSelected_' .. item_idx
+          local temp_hl_name = 'FFSGitBorderSelected_' .. item_idx
           local hl_opts = {}
           if has_gui then
             hl_opts.fg = border_fg_gui

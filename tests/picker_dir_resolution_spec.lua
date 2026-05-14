@@ -1,11 +1,11 @@
 ---@diagnostic disable: undefined-field, missing-fields
--- Regression test for https://github.com/dmtrKovalenko/fff.nvim/issues/389
+-- Regression test for https://github.com/dmtrKovalenko/ffs.nvim/issues/389
 -- When find_files_in_dir(dir) runs with dir != neovim's cwd, the Rust indexer
 -- reports paths relative to `dir`, but the Lua side used to resolve them
 -- against neovim's cwd when calling :edit / preview / quickfix — so files
 -- opened as phantom buffers and previews showed "No preview available".
 
-local fff_rust = require('ffs.rust')
+local ffs_rust = require('ffs.rust')
 local picker_ui = require('ffs.picker_ui')
 local file_picker = require('ffs.file_picker')
 
@@ -37,7 +37,7 @@ local function wait_for_reindex(expected_dir, timeout_ms)
   local expected = norm(expected_dir)
   local deadline = vim.uv.hrtime() + timeout_ms * 1e6
   while vim.uv.hrtime() < deadline do
-    local ok, health = pcall(fff_rust.health_check, expected)
+    local ok, health = pcall(ffs_rust.health_check, expected)
     if ok and health and health.file_picker and health.file_picker.base_path then
       if norm(health.file_picker.base_path) == expected then return true end
     end
@@ -48,7 +48,7 @@ end
 
 local function wait_for_scan(expected_dir, timeout_ms)
   assert.is_true(wait_for_reindex(expected_dir, timeout_ms), 'reindex to ' .. expected_dir .. ' did not complete')
-  fff_rust.wait_for_initial_scan(timeout_ms)
+  ffs_rust.wait_for_initial_scan(timeout_ms)
 end
 
 describe('picker find_files_in_dir path resolution (issue #389)', function()
@@ -66,24 +66,24 @@ describe('picker find_files_in_dir path resolution (issue #389)', function()
     fd:write('-- issue #389 regression fixture\nreturn true\n')
     fd:close()
 
-    -- Clear the DirChanged autocmd that a previous test run (e.g. fff_core_spec)
+    -- Clear the DirChanged autocmd that a previous test run (e.g. ffs_core_spec)
     -- may have installed.  Without this, the :cd below triggers a scheduled
     -- change_indexing_directory(other_cwd) that races with our explicit
     -- change_indexing_directory(target_dir) and overwrites the FILE_PICKER.
-    pcall(vim.api.nvim_del_augroup_by_name, 'fff_file_tracking')
+    pcall(vim.api.nvim_del_augroup_by_name, 'ffs_file_tracking')
 
     vim.cmd('cd ' .. vim.fn.fnameescape(other_cwd))
-    -- Equivalent to require('fff').setup({}) — just seeds vim.g.fff — but
-    -- avoids the top-level fff module lookup which plenary's sandboxed
+    -- Equivalent to require('ffs').setup({}) — just seeds vim.g.ffs — but
+    -- avoids the top-level ffs module lookup which plenary's sandboxed
     -- require can miss depending on package.path.
-    vim.g.fff = {}
+    vim.g.ffs = {}
     file_picker.setup()
   end)
 
   after_each(function()
     pcall(picker_ui.close)
-    pcall(fff_rust.stop_background_monitor)
-    pcall(fff_rust.cleanup_file_picker)
+    pcall(ffs_rust.stop_background_monitor)
+    pcall(ffs_rust.cleanup_file_picker)
     if sandbox_root then vim.fn.delete(sandbox_root, 'rf') end
   end)
 

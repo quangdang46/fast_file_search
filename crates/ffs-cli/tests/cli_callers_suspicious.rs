@@ -1,4 +1,4 @@
-//! End-to-end tests for `scry callers --hops N` telemetry (B4):
+//! End-to-end tests for `ffs callers --hops N` telemetry (B4):
 //! `suspicious_hops` lights up when a name resolves to definitions in two
 //! distinct package roots at the same hop. `auto_hubs_promoted` lights up
 //! when a single name fires more hits in a hop than `--hub-guard` allows.
@@ -20,7 +20,7 @@ fn run(root: &Path, extra: &[&str]) -> Value {
     cmd.args(["--root", root.to_str().unwrap(), "--format", "json"]);
     cmd.args(["callers"]);
     cmd.args(extra);
-    let out = cmd.output().expect("run scry callers");
+    let out = cmd.output().expect("run ffs callers");
     assert!(
         out.status.success(),
         "stderr: {}",
@@ -114,7 +114,7 @@ fn telemetry_renders_text_sections_when_nonempty() {
         .args(["--root", tmp.path().to_str().unwrap()])
         .args(["callers", "dup", "--hops", "2"])
         .output()
-        .expect("run scry callers --hops 2");
+        .expect("run ffs callers --hops 2");
     assert!(out.status.success());
     let s = String::from_utf8(out.stdout).unwrap();
     assert!(

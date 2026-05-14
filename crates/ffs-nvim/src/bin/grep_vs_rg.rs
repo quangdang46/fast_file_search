@@ -1,7 +1,7 @@
 use ffs::file_picker::FilePicker;
-/// FFF vs ripgrep comparison benchmark
+/// ffs vs ripgrep comparison benchmark
 ///
-/// Demonstrates why a persistent in-process search engine (fff) is fundamentally
+/// Demonstrates why a persistent in-process search engine (ffs) is fundamentally
 /// faster than shelling out to ripgrep on every keystroke (telescope/fzf-lua).
 ///
 /// Each query is run N iterations to show the real-world advantage:
@@ -9,9 +9,9 @@ use ffs::file_picker::FilePicker;
 /// - rg:  fork/exec + directory traversal + gitignore parsing + file opens per invocation
 ///
 /// Sections:
-///   1. Raw engine speed — fff count-only vs rg --count-matches (N iterations)
-///   2. Full results     — fff collect-all vs rg full line output (N iterations)
-///   3. First-page       — fff paginated (50 results) vs rg telescope-style
+///   1. Raw engine speed — ffs count-only vs rg --count-matches (N iterations)
+///   2. Full results     — ffs collect-all vs rg full line output (N iterations)
+///   3. First-page       — ffs paginated (50 results) vs rg telescope-style
 ///      (spawn, stream 50 lines, kill) — the real UI scenario (N iterations)
 ///
 /// The rg commands use telescope's default vimgrep_arguments:
@@ -32,7 +32,7 @@ fn create_picker(path: &Path) -> FilePicker {
     let mut picker = FilePicker::new(ffs::FilePickerOptions {
         base_path: path.to_string_lossy().to_string(),
         enable_mmap_cache: false,
-        mode: ffs::FFFMode::Neovim,
+        mode: ffs::FfsMode::Neovim,
         ..Default::default()
     })
     .expect("Failed to create FilePicker");
@@ -156,8 +156,8 @@ fn bytecount(bytes: &[u8], needle: u8) -> usize {
     bytes.iter().filter(|&&b| b == needle).count()
 }
 
-/// fff full: collects all GrepMatch structs (what the UI uses).
-fn run_fff_full(picker: &FilePicker, query: &str) -> (usize, Duration) {
+/// ffs full: collects all GrepMatch structs (what the UI uses).
+fn run_ffs_full(picker: &FilePicker, query: &str) -> (usize, Duration) {
     let parsed = parse_grep_query(query);
     let options = GrepSearchOptions {
         max_file_size: 10 * 1024 * 1024,
@@ -179,8 +179,8 @@ fn run_fff_full(picker: &FilePicker, query: &str) -> (usize, Duration) {
     (result.matches.len(), elapsed)
 }
 
-/// fff paginated: first 50 results only (real UI scenario).
-fn run_fff_page(picker: &FilePicker, query: &str) -> (usize, Duration) {
+/// ffs paginated: first 50 results only (real UI scenario).
+fn run_ffs_page(picker: &FilePicker, query: &str) -> (usize, Duration) {
     let parsed = parse_grep_query(query);
     let options = GrepSearchOptions {
         max_file_size: 10 * 1024 * 1024,
@@ -278,7 +278,7 @@ fn main() {
         .map(|n| n.get())
         .unwrap_or(4);
 
-    eprintln!("=== FFF vs ripgrep (telescope-style) ===");
+    eprintln!("=== ffs vs ripgrep (telescope-style) ===");
     eprintln!("Repo:       {:?}", canonical);
     eprintln!("rg:         {}", rg_ver.lines().next().unwrap_or("?"));
     eprintln!("Threads:    {} (rg -j{} = rayon default)", threads, threads);
@@ -291,9 +291,9 @@ fn main() {
     let non_binary = files.iter().filter(|f| !f.is_binary()).count();
     eprintln!("  {} files ({} searchable)\n", files.len(), non_binary);
 
-    eprintln!("[2/5] Warming caches (fff mmap + OS page cache)...");
+    eprintln!("[2/5] Warming caches (ffs mmap + OS page cache)...");
     for q in &["return", "mutex", "struct", "include", "if", "int"] {
-        let _ = run_fff_page(&picker, q);
+        let _ = run_ffs_page(&picker, q);
         let _ = run_rg_count(&canonical, q, true, threads);
     }
     eprintln!("  mmap cache: warmed\n");
@@ -318,25 +318,25 @@ fn main() {
     ];
 
     eprintln!(
-        "\n[4/5] Full results: fff (collect all) vs rg (full line output) ({} iters, showing min)\n",
+        "\n[4/5] Full results: ffs (collect all) vs rg (full line output) ({} iters, showing min)\n",
         iters
     );
     eprintln!(
         "  {:<22} | {:>9} {:>10} | {:>9} {:>10} | {:>7}",
-        "Query", "fff min", "count", "rg min", "count", "fff/rg"
+        "Query", "ffs min", "count", "rg min", "count", "ffs/rg"
     );
     eprintln!(
         "  {:-<22}-+-{:-<9}-{:-<10}-+-{:-<9}-{:-<10}-+-{:-<7}",
         "", "", "", "", "", ""
     );
 
-    let mut fff_full_total = Duration::ZERO;
+    let mut ffs_full_total = Duration::ZERO;
     let mut rg_full_total = Duration::ZERO;
 
     for (name, query, ci) in &queries {
         let q = *query;
         let ci = *ci;
-        let fs = run_n(|| run_fff_full(&picker, q), iters);
+        let fs = run_n(|| run_ffs_full(&picker, q), iters);
         let rs = run_n(|| run_rg_lines(&canonical, q, ci, threads), iters);
 
         eprintln!(
@@ -349,18 +349,18 @@ fn main() {
             ratio_str(fs.min, rs.min),
         );
 
-        fff_full_total += fs.min;
+        ffs_full_total += fs.min;
         rg_full_total += rs.min;
     }
 
     eprintln!(
         "  {:<22} | {:>9} {:>10} | {:>9} {:>10} | {:>7}",
         "TOTAL",
-        fmt_dur(fff_full_total),
+        fmt_dur(ffs_full_total),
         "",
         fmt_dur(rg_full_total),
         "",
-        ratio_str(fff_full_total, rg_full_total),
+        ratio_str(ffs_full_total, rg_full_total),
     );
 
     eprintln!(
@@ -371,20 +371,20 @@ fn main() {
     eprintln!("  rg:  telescope-style (spawn, stream 50 lines, kill) --- per-keystroke cost\n");
     eprintln!(
         "  {:<22} | {:>9} {:>10} | {:>9} {:>10} | {:>7}",
-        "Query", "fff min", "matches", "rg min", "matches", "fff/rg"
+        "Query", "ffs min", "matches", "rg min", "matches", "ffs/rg"
     );
     eprintln!(
         "  {:-<22}-+-{:-<9}-{:-<10}-+-{:-<9}-{:-<10}-+-{:-<7}",
         "", "", "", "", "", ""
     );
 
-    let mut fff_page_total = Duration::ZERO;
+    let mut ffs_page_total = Duration::ZERO;
     let mut rg_page_total = Duration::ZERO;
 
     for (name, query, ci) in &queries {
         let q = *query;
         let ci = *ci;
-        let fs = run_n(|| run_fff_page(&picker, q), iters);
+        let fs = run_n(|| run_ffs_page(&picker, q), iters);
         let rs = run_n(|| run_rg_page(&canonical, q, ci, 50, threads), iters);
 
         eprintln!(
@@ -397,18 +397,18 @@ fn main() {
             ratio_str(fs.min, rs.min),
         );
 
-        fff_page_total += fs.min;
+        ffs_page_total += fs.min;
         rg_page_total += rs.min;
     }
 
     eprintln!(
         "  {:<22} | {:>9} {:>10} | {:>9} {:>10} | {:>7}",
         "TOTAL",
-        fmt_dur(fff_page_total),
+        fmt_dur(ffs_page_total),
         "",
         fmt_dur(rg_page_total),
         "",
-        ratio_str(fff_page_total, rg_page_total),
+        ratio_str(ffs_page_total, rg_page_total),
     );
 
     eprintln!(
@@ -417,22 +417,22 @@ fn main() {
     );
     eprintln!(
         "  {:>25} | {:>12} | {:>12} | {:>7}",
-        "", "fff", "rg", "speedup"
+        "", "ffs", "rg", "speedup"
     );
     eprintln!("  {:->25}-+-{:->12}-+-{:->12}-+-{:->7}", "", "", "", "");
     eprintln!(
         "  {:>25} | {:>12} | {:>12} | {:>7}",
         "full results (collect)",
-        fmt_dur(fff_full_total),
+        fmt_dur(ffs_full_total),
         fmt_dur(rg_full_total),
-        ratio_str(fff_full_total, rg_full_total),
+        ratio_str(ffs_full_total, rg_full_total),
     );
     eprintln!(
         "  {:>25} | {:>12} | {:>12} | {:>7}",
         "first-page (UI latency)",
-        fmt_dur(fff_page_total),
+        fmt_dur(ffs_page_total),
         fmt_dur(rg_page_total),
-        ratio_str(fff_page_total, rg_page_total),
+        ratio_str(ffs_page_total, rg_page_total),
     );
 
     eprintln!();

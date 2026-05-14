@@ -1,4 +1,4 @@
-// `scry refs <name>` — definitions + single-hop usages in one shot.
+// `ffs refs <name>` — definitions + single-hop usages in one shot.
 // Definitions come from the symbol index (full list, no pagination).
 // Usages reuse the `callers --hops 1` text-confirm pass; pagination
 // applies to usages only so the defs block is always complete.

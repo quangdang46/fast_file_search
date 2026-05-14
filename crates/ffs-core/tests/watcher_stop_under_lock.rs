@@ -23,7 +23,7 @@ use std::sync::mpsc;
 use std::time::Duration;
 use tempfile::TempDir;
 
-use ffs_search::file_picker::{FFFMode, FilePicker};
+use ffs_search::file_picker::{FfsMode, FilePicker};
 use ffs_search::{FilePickerOptions, SharedFilePicker, SharedFrecency};
 
 /// Run `f` on a worker thread, require it to finish within `timeout`,
@@ -61,7 +61,7 @@ fn make_watched_picker(base: &std::path::Path) -> (SharedFilePicker, SharedFrece
             base_path: base.to_string_lossy().to_string(),
             enable_mmap_cache: false,
             enable_content_indexing: false,
-            mode: FFFMode::Neovim,
+            mode: FfsMode::Neovim,
             watch: true,
             ..Default::default()
         },

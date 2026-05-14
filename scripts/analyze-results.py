@@ -83,82 +83,82 @@ def load_stream_trace(concept_name, mode, iteration):
 
 
 print("=" * 90)
-print("  FFF MCP vs Native — All Concepts Summary")
+print("  ffs MCP vs Native — All Concepts Summary")
 print("=" * 90)
 
-total_fff_cost = 0
+total_ffs_cost = 0
 total_nat_cost = 0
-fff_wins = 0
+ffs_wins = 0
 nat_wins = 0
 ties = 0
 
 concept_data = []
 
 for i, name in enumerate(CONCEPT_NAMES):
-    fff_results = load_iter_results(name, "fff")
+    ffs_results = load_iter_results(name, "ffs")
     nat_results = load_iter_results(name, "native")
 
-    if not fff_results and not nat_results:
+    if not ffs_results and not nat_results:
         continue
 
-    fff_avg_cost = sum(r.get("total_cost_usd", 0) for r in fff_results) / max(len(fff_results), 1)
+    ffs_avg_cost = sum(r.get("total_cost_usd", 0) for r in ffs_results) / max(len(ffs_results), 1)
     nat_avg_cost = sum(r.get("total_cost_usd", 0) for r in nat_results) / max(len(nat_results), 1)
-    fff_avg_turns = sum(r.get("num_turns", 0) for r in fff_results) / max(len(fff_results), 1)
+    ffs_avg_turns = sum(r.get("num_turns", 0) for r in ffs_results) / max(len(ffs_results), 1)
     nat_avg_turns = sum(r.get("num_turns", 0) for r in nat_results) / max(len(nat_results), 1)
-    fff_avg_wall = sum(r.get("wall_ms", 0) for r in fff_results) / max(len(fff_results), 1) / 1000
+    ffs_avg_wall = sum(r.get("wall_ms", 0) for r in ffs_results) / max(len(ffs_results), 1) / 1000
     nat_avg_wall = sum(r.get("wall_ms", 0) for r in nat_results) / max(len(nat_results), 1) / 1000
 
-    if fff_avg_cost < nat_avg_cost * 0.95:
-        winner = "FFF"
-        fff_wins += 1
-    elif nat_avg_cost < fff_avg_cost * 0.95:
+    if ffs_avg_cost < nat_avg_cost * 0.95:
+        winner = "ffs"
+        ffs_wins += 1
+    elif nat_avg_cost < ffs_avg_cost * 0.95:
         winner = "NATIVE"
         nat_wins += 1
     else:
         winner = "TIE"
         ties += 1
 
-    total_fff_cost += fff_avg_cost
+    total_ffs_cost += ffs_avg_cost
     total_nat_cost += nat_avg_cost
 
     concept_data.append({
         "num": i + 1,
         "name": name,
-        "fff_cost": fff_avg_cost,
+        "ffs_cost": ffs_avg_cost,
         "nat_cost": nat_avg_cost,
-        "fff_turns": fff_avg_turns,
+        "ffs_turns": ffs_avg_turns,
         "nat_turns": nat_avg_turns,
-        "fff_wall": fff_avg_wall,
+        "ffs_wall": ffs_avg_wall,
         "nat_wall": nat_avg_wall,
-        "fff_n": len(fff_results),
+        "ffs_n": len(ffs_results),
         "nat_n": len(nat_results),
         "winner": winner,
     })
 
 # Print table
-print(f"\n  {'#':>2} {'Concept':<28} {'FFF $':>8} {'Nat $':>8} {'FFF T':>5} {'Nat T':>5} {'FFF s':>6} {'Nat s':>6} {'N':>3} {'Winner':>8}")
+print(f"\n  {'#':>2} {'Concept':<28} {'ffs $':>8} {'Nat $':>8} {'ffs T':>5} {'Nat T':>5} {'ffs s':>6} {'Nat s':>6} {'N':>3} {'Winner':>8}")
 print(f"  {'─'*2} {'─'*28} {'─'*8} {'─'*8} {'─'*5} {'─'*5} {'─'*6} {'─'*6} {'─'*3} {'─'*8}")
 
 for d in concept_data:
-    savings = (1 - d["fff_cost"] / d["nat_cost"]) * 100 if d["nat_cost"] > 0 else 0
-    print(f"  {d['num']:>2} {d['name']:<28} ${d['fff_cost']:.4f} ${d['nat_cost']:.4f} {d['fff_turns']:>5.1f} {d['nat_turns']:>5.1f} {d['fff_wall']:>5.0f}s {d['nat_wall']:>5.0f}s {d['fff_n']:>3} {d['winner']:>8}")
+    savings = (1 - d["ffs_cost"] / d["nat_cost"]) * 100 if d["nat_cost"] > 0 else 0
+    print(f"  {d['num']:>2} {d['name']:<28} ${d['ffs_cost']:.4f} ${d['nat_cost']:.4f} {d['ffs_turns']:>5.1f} {d['nat_turns']:>5.1f} {d['ffs_wall']:>5.0f}s {d['nat_wall']:>5.0f}s {d['ffs_n']:>3} {d['winner']:>8}")
 
-print(f"\n  Score: FFF {fff_wins} | Native {nat_wins} | Tie {ties}")
-print(f"  Total avg cost: FFF ${total_fff_cost:.4f} | Native ${total_nat_cost:.4f}")
+print(f"\n  Score: ffs {ffs_wins} | Native {nat_wins} | Tie {ties}")
+print(f"  Total avg cost: ffs ${total_ffs_cost:.4f} | Native ${total_nat_cost:.4f}")
 if total_nat_cost > 0:
-    print(f"  Overall savings: {(1 - total_fff_cost / total_nat_cost) * 100:+.1f}%")
+    print(f"  Overall savings: {(1 - total_ffs_cost / total_nat_cost) * 100:+.1f}%")
 
 # Show problematic concepts (where native wins by >20%)
 print(f"\n{'─' * 90}")
-print("  Concepts where fff loses (native wins by >5%):")
+print("  Concepts where ffs loses (native wins by >5%):")
 for d in concept_data:
     if d["winner"] == "NATIVE":
-        pct = (d["fff_cost"] / d["nat_cost"] - 1) * 100
-        print(f"    #{d['num']} {d['name']}: fff is {pct:+.0f}% more expensive")
+        pct = (d["ffs_cost"] / d["nat_cost"] - 1) * 100
+        print(f"    #{d['num']} {d['name']}: ffs is {pct:+.0f}% more expensive")
         # Show tool traces for the worst iteration
-        traces = load_stream_trace(d["name"], "fff", 1)
+        traces = load_stream_trace(d["name"], "ffs", 1)
         if traces:
-            print(f"      fff trace: {' → '.join(t['name'].replace('mcp__fff__','') for t in traces)}")
+            print(f"      ffs trace: {' → '.join(t['name'].replace('mcp__ffs__','') for t in traces)}")
         traces = load_stream_trace(d["name"], "native", 1)
         if traces:
             print(f"      nat trace: {' → '.join(t['name'] for t in traces)}")

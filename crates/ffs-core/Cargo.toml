@@ -27,7 +27,7 @@ default = []
 # Enable C FFI exports
 ffi = []
 # Call mi_collect(true) after large allocator churn (bigram build).
-# Requires mimalloc to be the global allocator (linked by fff-nvim).
+# Requires mimalloc to be the global allocator (linked by ffs-nvim).
 mimalloc-collect = ["dep:libmimalloc-sys"]
 # Use zlob (Zig-compiled C globbing library) for glob matching.
 # Requires Zig to be installed. When disabled, falls back to globset (pure Rust).

@@ -45,17 +45,17 @@
 //!
 //! Run it explicitly with:
 //! ```sh
-//! RUSTFLAGS="--cfg stress" cargo test -p fff-search --test fuzz_git_watcher_stress -- --nocapture
+//! RUSTFLAGS="--cfg stress" cargo test -p ffs-search --test fuzz_git_watcher_stress -- --nocapture
 //! ```
 //!
 //! Or increase coverage via env:
 //! ```sh
-//! FFF_STRESS_CASES=8 FFF_STRESS_MAX_OPS=60 \
-//!     RUSTFLAGS="--cfg stress" cargo test -p fff-search --test fuzz_git_watcher_stress -- --nocapture
+//! FFS_STRESS_CASES=8 FFS_STRESS_MAX_OPS=60 \
+//!     RUSTFLAGS="--cfg stress" cargo test -p ffs-search --test fuzz_git_watcher_stress -- --nocapture
 //! ```
 
 #![cfg(stress)]
-use ffs_search::file_picker::{FFFMode, FilePicker};
+use ffs_search::file_picker::{FfsMode, FilePicker};
 use ffs_search::grep::{GrepMode, GrepSearchOptions, parse_grep_query};
 use ffs_search::{
     FilePickerOptions, FuzzySearchOptions, PaginationArgs, QueryParser, SharedFilePicker,
@@ -87,21 +87,21 @@ const CONVERGE_POLL: Duration = Duration::from_millis(50);
 const PER_OP_SETTLE: Duration = Duration::from_millis(10);
 
 fn stress_cases() -> u32 {
-    std::env::var("FFF_STRESS_CASES")
+    std::env::var("FFS_STRESS_CASES")
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(2)
 }
 
 fn stress_max_ops() -> usize {
-    std::env::var("FFF_STRESS_MAX_OPS")
+    std::env::var("FFS_STRESS_MAX_OPS")
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(40)
 }
 
 fn stress_min_ops() -> usize {
-    std::env::var("FFF_STRESS_MIN_OPS")
+    std::env::var("FFS_STRESS_MIN_OPS")
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(20)
@@ -235,7 +235,7 @@ proptest! {
     }
 }
 
-/// Deterministic scenario keyed off `FFF_STRESS_SEED` (or
+/// Deterministic scenario keyed off `FFS_STRESS_SEED` (or
 /// [`DEFAULT_STRESS_SEED`] if the env var is not set). Runs the same
 /// proptest `ops_strategy()` but uses a ChaCha RNG seeded by the expanded
 /// u64, so the exact case sequence is reproducible across machines and CI
@@ -245,8 +245,8 @@ proptest! {
 /// re-run the failing case locally via:
 ///
 /// ```sh
-/// RUSTFLAGS="--cfg stress" FFF_STRESS_SEED=0xDEADBEEFCAFEBABE \
-///     cargo test -p fff-search --test fuzz_git_watcher_stress seeded -- --nocapture
+/// RUSTFLAGS="--cfg stress" FFS_STRESS_SEED=0xDEADBEEFCAFEBABE \
+///     cargo test -p ffs-search --test fuzz_git_watcher_stress seeded -- --nocapture
 /// ```
 #[test]
 fn stress_seeded() {
@@ -285,9 +285,9 @@ fn stress_seeded() {
     }
 }
 
-/// Parse `FFF_STRESS_SEED` as either decimal or `0x`-prefixed hex.
+/// Parse `FFS_STRESS_SEED` as either decimal or `0x`-prefixed hex.
 fn parse_stress_seed() -> u64 {
-    match std::env::var("FFF_STRESS_SEED") {
+    match std::env::var("FFS_STRESS_SEED") {
         Ok(raw) => {
             let trimmed = raw.trim();
             if let Some(hex) = trimmed
@@ -295,11 +295,11 @@ fn parse_stress_seed() -> u64 {
                 .or_else(|| trimmed.strip_prefix("0X"))
             {
                 u64::from_str_radix(hex, 16)
-                    .unwrap_or_else(|e| panic!("FFF_STRESS_SEED={raw:?} is not valid hex: {e}"))
+                    .unwrap_or_else(|e| panic!("FFS_STRESS_SEED={raw:?} is not valid hex: {e}"))
             } else {
                 trimmed
                     .parse::<u64>()
-                    .unwrap_or_else(|e| panic!("FFF_STRESS_SEED={raw:?} is not a valid u64: {e}"))
+                    .unwrap_or_else(|e| panic!("FFS_STRESS_SEED={raw:?} is not a valid u64: {e}"))
             }
         }
         Err(_) => DEFAULT_STRESS_SEED,
@@ -334,7 +334,7 @@ fn run_stress_scenario(ops: &[AbstractOp]) {
     let _ = tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                // Default to DEBUG for fff crates so CI failures on
+                // Default to DEBUG for ffs crates so CI failures on
                 // flaky OSes (Windows) include the watcher/event trail
                 // without needing to re-run with RUST_LOG set.
                 .unwrap_or_else(|_| {
@@ -404,7 +404,7 @@ fn seed_repo(base: &Path) {
     fs::write(base.join(".gitignore"), "*.log\ntmp/\n").unwrap();
 
     git(base, &["init", "-b", "main"]);
-    git(base, &["config", "user.email", "fuzz@fff.test"]);
+    git(base, &["config", "user.email", "fuzz@ffs.test"]);
     git(base, &["config", "user.name", "fuzz"]);
     // Disable rename detection noise — libgit2 still computes ranks, but
     // keeping the porcelain behaviour deterministic helps with diff reading.
@@ -811,15 +811,15 @@ fn probe_single_file_status(shared: &SharedFilePicker, relative: &str) -> Option
 // its attention across every live file over the course of a scenario.
 static PROBE_COUNTER: AtomicU64 = AtomicU64::new(0);
 
-/// Read a file on disk and pull out the `FFF_STRESS_MARKER_<hex>` token
+/// Read a file on disk and pull out the `FFS_STRESS_MARKER_<hex>` token
 /// that [`content_for`] embedded in it. Returns `None` for files we never
 /// wrote (seed README.md, .gitignore) — the caller skips the grep probe
 /// in that case but still runs the fuzzy probe.
 fn extract_marker(abs: &Path) -> Option<String> {
     let content = fs::read_to_string(abs).ok()?;
-    let start = content.find("FFF_STRESS_MARKER_")?;
-    // Marker is exactly `FFF_STRESS_MARKER_` + 8 hex chars.
-    const MARKER_LEN: usize = "FFF_STRESS_MARKER_".len() + 8;
+    let start = content.find("FFS_STRESS_MARKER_")?;
+    // Marker is exactly `FFS_STRESS_MARKER_` + 8 hex chars.
+    const MARKER_LEN: usize = "FFS_STRESS_MARKER_".len() + 8;
     if start + MARKER_LEN > content.len() {
         return None;
     }
@@ -1140,11 +1140,11 @@ fn get_baseline_status_from_git(base: &Path) -> Vec<Live> {
 /// (which hits the bigram index / mmap cache / overflow content store —
 /// code paths the empty-query fuzzy enumeration never touches).
 ///
-/// Format: `FFF_STRESS_MARKER_<32-bit hex>` — namespaced so a repo
+/// Format: `FFS_STRESS_MARKER_<32-bit hex>` — namespaced so a repo
 /// search for "MARKER" finds nothing from this test outside files we
 /// wrote ourselves, which keeps the grep assertion unambiguous.
 fn marker_for(seed: u32) -> String {
-    format!("FFF_STRESS_MARKER_{seed:08x}")
+    format!("FFS_STRESS_MARKER_{seed:08x}")
 }
 
 fn content_for(seed: u32, name: &str) -> String {
@@ -1173,7 +1173,7 @@ fn start_watched_picker(base: &Path) -> (SharedFilePicker, SharedFrecency) {
             base_path: base.to_string_lossy().to_string(),
             enable_mmap_cache: false,
             enable_content_indexing: false,
-            mode: FFFMode::Neovim,
+            mode: FfsMode::Neovim,
             watch: true,
             ..Default::default()
         },
@@ -1200,9 +1200,9 @@ fn wait_ready(p: &SharedFilePicker) {
 fn git_env() -> [(&'static str, &'static str); 4] {
     [
         ("GIT_AUTHOR_NAME", "fuzz"),
-        ("GIT_AUTHOR_EMAIL", "fuzz@fff.test"),
+        ("GIT_AUTHOR_EMAIL", "fuzz@ffs.test"),
         ("GIT_COMMITTER_NAME", "fuzz"),
-        ("GIT_COMMITTER_EMAIL", "fuzz@fff.test"),
+        ("GIT_COMMITTER_EMAIL", "fuzz@ffs.test"),
     ]
 }
 
@@ -1277,7 +1277,7 @@ fn stress_merge_conflict_convergence() {
     let _ = tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                // Default to DEBUG for fff crates so CI failures on
+                // Default to DEBUG for ffs crates so CI failures on
                 // flaky OSes (Windows) include the watcher/event trail
                 // without needing to re-run with RUST_LOG set.
                 .unwrap_or_else(|_| {
@@ -1489,7 +1489,7 @@ fn seed_conflict_repo(base: &Path) {
     )
     .unwrap();
     git(base, &["init", "-b", "main"]);
-    git(base, &["config", "user.email", "fuzz@fff.test"]);
+    git(base, &["config", "user.email", "fuzz@ffs.test"]);
     git(base, &["config", "user.name", "fuzz"]);
     // Conflict behaviour must be deterministic regardless of merge.tool.
     git(base, &["config", "merge.conflictstyle", "merge"]);

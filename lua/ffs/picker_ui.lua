@@ -276,7 +276,7 @@ end
 local function build_window_configs(layout, config)
   local border_chars, t_junctions = get_border_chars()
   local prompt_position = get_prompt_position()
-  local title = ' ' .. (config.title or 'FFFiles') .. ' '
+  local title = ' ' .. (config.title or 'Files') .. ' '
 
   -- List border: when prompt at bottom, list has top+sides (no bottom); when top, T-junctions at top
   local list_border = prompt_position == 'bottom'
@@ -589,7 +589,7 @@ M.state = {
     grep_next_file_offset = 0,
   },
 
-  config = nil, -- @type FFFConfig|nil
+  config = nil, -- @type FfsConfig|nil
 
   -- Custom renderer (optional, defaults to file_renderer if not provided)
   renderer = nil,
@@ -1311,7 +1311,7 @@ function M.load_page_at_index(new_page_index, adjust_cursor_fn)
 
   if not ok then
     vim.notify('Error in paginated search: ' .. tostring(results), vim.log.levels.ERROR)
-    vim.notify('FFF ERROR: Paginated search failed: ' .. tostring(results))
+    vim.notify('ffs ERROR: Paginated search failed: ' .. tostring(results))
     return false
   end
 
@@ -2554,7 +2554,7 @@ function M.select(action)
     if query and query ~= '' then
       local config = conf.get()
       if config.history and config.history.enabled then
-        local fff = require('ffs.core').ensure_initialized()
+        local ffs = require('ffs.core').ensure_initialized()
         -- Track in background thread (non-blocking, handled by Rust)
         if mode == 'grep' then
           pcall(ffs.track_grep_query, query)

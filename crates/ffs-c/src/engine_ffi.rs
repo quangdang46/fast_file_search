@@ -1,15 +1,15 @@
-//! Scry C ABI surface — additive layer on top of the existing `fff_*` exports.
+//! Engine C ABI surface — additive layer on top of the existing `ffs_*` exports.
 //!
-//! Existing FFI surface (`fff_create_instance`, `fff_destroy`, `ffs_search_*`,
-//! `ffs_grep`, `fff_multi_grep`, …) is byte-for-byte unchanged. The new
-//! `fff_scry_*` exports give C-FFI consumers (Bun, Node.js, Python, Ruby, …)
+//! Existing FFI surface (`ffs_create_instance`, `ffs_destroy`, `ffs_search_*`,
+//! `ffs_grep`, `ffs_multi_grep`, …) is byte-for-byte unchanged. The new
+//! `ffs_engine_*` exports give C-FFI consumers (Bun, Node.js, Python, Ruby, …)
 //! access to the symbol index, dispatch, and token-budgeted read APIs.
 //!
 //! Memory model:
-//! - `fff_scry_engine_new` returns an opaque `*mut FfsEngine`. Free with
-//!   `fff_scry_engine_free`.
+//! - `ffs_engine_new` returns an opaque `*mut FfsEngine`. Free with
+//!   `ffs_engine_free`.
 //! - Every function returning `*mut FfsResponse` requires the caller to
-//!   free it with `fff_free_scry_response`.
+//!   free it with `ffs_engine_free_response`.
 
 use std::ffi::{CStr, CString, c_char};
 use std::path::Path;
@@ -57,7 +57,7 @@ fn make_response(payload: String) -> *mut FfsResponse {
 
 fn make_error(msg: &str) -> *mut FfsResponse {
     let cstring = CString::new(msg.to_owned()).unwrap_or_else(|_| {
-        CString::new("scry_ffi: malformed error message").expect("static string")
+        CString::new("engine_ffi: malformed error message").expect("static string")
     });
     let payload_len = cstring.as_bytes().len();
     let raw = cstring.into_raw();
@@ -68,12 +68,12 @@ fn make_error(msg: &str) -> *mut FfsResponse {
     }))
 }
 
-/// Build a new scry engine and run the unified scan over `root`.
+/// Build a new engine and run the unified scan over `root`.
 ///
 /// ## Safety
 /// `root` must be a NUL-terminated UTF-8 string.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn fff_scry_engine_new(
+pub unsafe extern "C" fn ffs_engine_new(
     root: *const c_char,
     total_token_budget: u64,
 ) -> *mut FfsEngine {
@@ -100,9 +100,9 @@ pub unsafe extern "C" fn fff_scry_engine_new(
 /// Re-run the unified scan over the engine's root, refreshing all caches.
 ///
 /// ## Safety
-/// `engine` must be a valid pointer from `fff_scry_engine_new`.
+/// `engine` must be a valid pointer from `ffs_engine_new`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn fff_scry_engine_rebuild(engine: *mut FfsEngine) -> i32 {
+pub unsafe extern "C" fn ffs_engine_rebuild(engine: *mut FfsEngine) -> i32 {
     if engine.is_null() {
         return -1;
     }
@@ -115,9 +115,9 @@ pub unsafe extern "C" fn fff_scry_engine_rebuild(engine: *mut FfsEngine) -> i32 
 /// Free a `FfsEngine`.
 ///
 /// ## Safety
-/// `engine` must be a valid pointer from `fff_scry_engine_new`.
+/// `engine` must be a valid pointer from `ffs_engine_new`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn fff_scry_engine_free(engine: *mut FfsEngine) {
+pub unsafe extern "C" fn ffs_engine_free(engine: *mut FfsEngine) {
     if engine.is_null() {
         return;
     }
@@ -127,10 +127,10 @@ pub unsafe extern "C" fn fff_scry_engine_free(engine: *mut FfsEngine) {
 /// Free a `FfsResponse`.
 ///
 /// ## Safety
-/// `response` must be a valid pointer returned by any `fff_scry_*` call that
+/// `response` must be a valid pointer returned by any `ffs_engine_*` call that
 /// returns `*mut FfsResponse`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn fff_free_scry_response(response: *mut FfsResponse) {
+pub unsafe extern "C" fn ffs_engine_free_response(response: *mut FfsResponse) {
     if response.is_null() {
         return;
     }
@@ -140,12 +140,12 @@ pub unsafe extern "C" fn fff_free_scry_response(response: *mut FfsResponse) {
     }
 }
 
-/// Dispatch a free-form query through the scry engine. Result is JSON.
+/// Dispatch a free-form query through the engine. Result is JSON.
 ///
 /// ## Safety
 /// `engine` must be a valid pointer; `query` must be a NUL-terminated UTF-8 string.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn fff_scry_dispatch(
+pub unsafe extern "C" fn ffs_engine_dispatch(
     engine: *mut FfsEngine,
     query: *const c_char,
 ) -> *mut FfsResponse {
@@ -201,9 +201,9 @@ pub unsafe extern "C" fn fff_scry_dispatch(
 ///
 /// ## Safety
 /// `engine` and `name` must satisfy the same constraints as
-/// `fff_scry_dispatch`.
+/// `ffs_engine_dispatch`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn fff_scry_symbol(
+pub unsafe extern "C" fn ffs_engine_symbol(
     engine: *mut FfsEngine,
     name: *const c_char,
 ) -> *mut FfsResponse {
@@ -245,9 +245,9 @@ pub unsafe extern "C" fn fff_scry_symbol(
 ///
 /// ## Safety
 /// `engine`, `path`, and `filter` (when non-null) must satisfy the same
-/// constraints as `fff_scry_dispatch`.
+/// constraints as `ffs_engine_dispatch`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn fff_scry_read(
+pub unsafe extern "C" fn ffs_engine_read(
     engine: *mut FfsEngine,
     path: *const c_char,
     budget: u64,
@@ -296,10 +296,10 @@ pub unsafe extern "C" fn fff_scry_read(
     make_response(json.to_string())
 }
 
-// Shell out to the scry CLI binary (current_exe) and produce a response from
-// stdout. Used by the additive `fff_scry_refs` / `_flow` / `_impact` exports.
+// Shell out to the ffs CLI binary (current_exe) and produce a response from
+// stdout. Used by the additive `ffs_engine_refs` / `_flow` / `_impact` exports.
 // Returns `make_error` on subprocess failure so the FFI shape is uniform.
-fn run_scry_subprocess(subcommand: &str, root: &Path, args: &[String]) -> *mut FfsResponse {
+fn run_engine_subprocess(subcommand: &str, root: &Path, args: &[String]) -> *mut FfsResponse {
     let exe = match std::env::current_exe() {
         Ok(p) => p,
         Err(e) => return make_error(&format!("current_exe failed: {e}")),
@@ -318,21 +318,21 @@ fn run_scry_subprocess(subcommand: &str, root: &Path, args: &[String]) -> *mut F
             make_response(String::from_utf8_lossy(&out.stdout).into_owned())
         }
         Ok(out) => make_error(&format!(
-            "scry {subcommand} exited {}: {}",
+            "ffs {subcommand} exited {}: {}",
             out.status,
             String::from_utf8_lossy(&out.stderr)
         )),
-        Err(e) => make_error(&format!("spawn scry {subcommand} failed: {e}")),
+        Err(e) => make_error(&format!("spawn ffs {subcommand} failed: {e}")),
     }
 }
 
-/// Run `scry refs <name>` against the engine's root. JSON payload follows the
+/// Run `ffs refs <name>` against the engine's root. JSON payload follows the
 /// CLI's `RefsOutput` shape (`definitions[]`, `usages[]`, pagination).
 ///
 /// ## Safety
 /// `engine` must be a valid pointer; `name` must be a NUL-terminated UTF-8 string.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn fff_scry_refs(
+pub unsafe extern "C" fn ffs_engine_refs(
     engine: *mut FfsEngine,
     name: *const c_char,
     limit: u64,
@@ -354,16 +354,16 @@ pub unsafe extern "C" fn fff_scry_refs(
         args.push("--offset".into());
         args.push(offset.to_string());
     }
-    run_scry_subprocess("refs", &e.root, &args)
+    run_engine_subprocess("refs", &e.root, &args)
 }
 
-/// Run `scry flow <name>` against the engine's root. JSON payload follows the
+/// Run `ffs flow <name>` against the engine's root. JSON payload follows the
 /// CLI's `FlowOutput` shape (one card per definition).
 ///
 /// ## Safety
 /// `engine` must be a valid pointer; `name` must be a NUL-terminated UTF-8 string.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn fff_scry_flow(
+pub unsafe extern "C" fn ffs_engine_flow(
     engine: *mut FfsEngine,
     name: *const c_char,
     limit: u64,
@@ -400,16 +400,16 @@ pub unsafe extern "C" fn fff_scry_flow(
         args.push("--budget".into());
         args.push(budget.to_string());
     }
-    run_scry_subprocess("flow", &e.root, &args)
+    run_engine_subprocess("flow", &e.root, &args)
 }
 
-/// Run `scry impact <name>` against the engine's root. JSON payload follows
+/// Run `ffs impact <name>` against the engine's root. JSON payload follows
 /// the CLI's `ImpactOutput` shape (ranked `results[]`).
 ///
 /// ## Safety
 /// `engine` must be a valid pointer; `name` must be a NUL-terminated UTF-8 string.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn fff_scry_impact(
+pub unsafe extern "C" fn ffs_engine_impact(
     engine: *mut FfsEngine,
     name: *const c_char,
     limit: u64,
@@ -441,5 +441,5 @@ pub unsafe extern "C" fn fff_scry_impact(
         args.push("--hub-guard".into());
         args.push(hub_guard.to_string());
     }
-    run_scry_subprocess("impact", &e.root, &args)
+    run_engine_subprocess("impact", &e.root, &args)
 }

@@ -3,7 +3,7 @@ name = "ffs-budget"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-description = "Token-budget aware filters, smart truncation, and footer-preserving trimming for scry."
+description = "Token-budget aware filters, smart truncation, and footer-preserving trimming for ffs."
 
 [dependencies]
 once_cell = { workspace = true }

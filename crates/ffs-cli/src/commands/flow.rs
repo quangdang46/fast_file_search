@@ -1,4 +1,4 @@
-// `scry flow <name>` — single-hit drill-down envelope per definition.
+// `ffs flow <name>` — single-hit drill-down envelope per definition.
 // For each definition site of `name`, emit one "card" combining:
 //   def metadata + header + budget-capped body excerpt
 //   + top-N direct callees (resolved to defs) + top-N single-hop callers.

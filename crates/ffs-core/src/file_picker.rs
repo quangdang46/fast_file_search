@@ -1,6 +1,6 @@
 //! Core file picker: filesystem indexing, background watching, and fuzzy search.
 //!
-//! [`FilePicker`] is the central component of fff-search. It:
+//! [`FilePicker`] is the central component of ffs-search. It:
 //!
 //! 1. **Indexes** a directory tree in a background thread, collecting every
 //!    non-ignored file into a path-sorted `Vec<FileItem>`.
@@ -30,7 +30,7 @@
 //! The background scanner and watcher acquire write locks only when mutating
 //! the file index, so read-heavy search workloads rarely contend.
 
-use crate::FFFStringStorage;
+use crate::FfsStringStorage;
 use crate::background_watcher::{BackgroundWatcher, is_git_file};
 use crate::bigram_filter::{BigramFilter, BigramOverlay};
 use crate::error::Error;
@@ -48,7 +48,7 @@ use crate::types::{
     ContentCacheBudget, DirItem, DirSearchResult, FileItem, MixedItemRef, MixedSearchResult,
     PaginationArgs, Score, ScoringContext, SearchResult,
 };
-use ffs_query_parser::FFFQuery;
+use ffs_query_parser::FfsQuery;
 use git2::{Repository, Status};
 use rayon::prelude::*;
 use std::fmt::Debug;
@@ -100,15 +100,15 @@ pub(crate) static BACKGROUND_THREAD_POOL: LazyLock<rayon::ThreadPool> = LazyLock
 });
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum FFFMode {
+pub enum FfsMode {
     #[default]
     Neovim,
     Ai,
 }
 
-impl FFFMode {
+impl FfsMode {
     pub fn is_ai(self) -> bool {
-        self == FFFMode::Ai
+        self == FfsMode::Ai
     }
 }
 
@@ -421,7 +421,7 @@ impl FileItem {
         tracker: &FrecencyTracker,
         arena: ArenaPtr,
         base_path: &Path,
-        mode: FFFMode,
+        mode: FfsMode,
     ) -> Result<(), Error> {
         let mut abs_buf = [0u8; crate::simd_path::PATH_BUF_SIZE];
         let abs = self.write_absolute_path(arena, base_path, &mut abs_buf);
@@ -441,7 +441,7 @@ pub struct FilePickerOptions {
     /// Build content index after the initial scan for faster content-aware filtering.
     pub enable_content_indexing: bool,
     /// Mode of the picker impact the way file watcher events are handled and the scoring logic
-    pub mode: FFFMode,
+    pub mode: FfsMode,
     /// Explicit cache budget. When `None`, the budget is auto-computed from
     /// the repo size after the initial scan completes.
     pub cache_budget: Option<ContentCacheBudget>,
@@ -455,7 +455,7 @@ impl Default for FilePickerOptions {
             base_path: ".".into(),
             enable_mmap_cache: false,
             enable_content_indexing: false,
-            mode: FFFMode::default(),
+            mode: FfsMode::default(),
             cache_budget: None,
             watch: true,
         }
@@ -463,7 +463,7 @@ impl Default for FilePickerOptions {
 }
 
 pub struct FilePicker {
-    pub mode: FFFMode,
+    pub mode: FfsMode,
     pub base_path: PathBuf,
     sync_data: FileSync,
     pub(crate) signals: ScanSignals,
@@ -493,7 +493,7 @@ impl std::fmt::Debug for FilePicker {
     }
 }
 
-impl FFFStringStorage for &FilePicker {
+impl FfsStringStorage for &FilePicker {
     #[inline]
     fn arena_for(&self, file: &FileItem) -> crate::simd_path::ArenaPtr {
         self.sync_data.arena_for_file(file)
@@ -527,7 +527,7 @@ impl FilePicker {
         self.watch
     }
 
-    pub fn mode(&self) -> FFFMode {
+    pub fn mode(&self) -> FfsMode {
         self.mode
     }
 
@@ -847,12 +847,12 @@ impl FilePicker {
 
     /// Perform fuzzy search on files with a pre-parsed query.
     ///
-    /// The query should be parsed using [`FFFQuery`]::parse() before calling
+    /// The query should be parsed using [`FfsQuery`]::parse() before calling
     /// this function. If a [`QueryTracker`] is provided, the search will
     /// automatically look up the last selected file for this query and boost it
     pub fn fuzzy_search<'q>(
         &self,
-        query: &'q FFFQuery<'q>,
+        query: &'q FfsQuery<'q>,
         query_tracker: Option<&QueryTracker>,
         options: FuzzySearchOptions<'q>,
     ) -> SearchResult<'_> {
@@ -953,7 +953,7 @@ impl FilePicker {
     /// Returns directories ranked by fuzzy match quality + frecency.
     pub fn fuzzy_search_directories<'q>(
         &self,
-        query: &'q FFFQuery<'q>,
+        query: &'q FfsQuery<'q>,
         options: FuzzySearchOptions<'q>,
     ) -> DirSearchResult<'_> {
         let dirs = self.get_dirs();
@@ -1020,7 +1020,7 @@ impl FilePicker {
     /// text instead of becoming a `PathSegment` constraint.
     pub fn fuzzy_search_mixed<'q>(
         &self,
-        query: &'q FFFQuery<'q>,
+        query: &'q FfsQuery<'q>,
         query_tracker: Option<&QueryTracker>,
         options: FuzzySearchOptions<'q>,
     ) -> MixedSearchResult<'_> {
@@ -1139,7 +1139,7 @@ impl FilePicker {
     ///
     /// If `options.abort_signal` is set it overrides the picker's internal
     /// cancellation flag, giving the caller full control over when to stop.
-    pub fn grep(&self, query: &FFFQuery<'_>, options: &GrepSearchOptions) -> GrepResult<'_> {
+    pub fn grep(&self, query: &FfsQuery<'_>, options: &GrepSearchOptions) -> GrepResult<'_> {
         let overlay_guard = self.sync_data.bigram_overlay.as_ref().map(|o| o.read());
         let arena = self.arena_base_ptr();
         let overflow_arena = self.sync_data.overflow_arena_ptr();
@@ -1195,7 +1195,7 @@ impl FilePicker {
     #[doc(hidden)]
     pub fn grep_original(
         &self,
-        query: &FFFQuery<'_>,
+        query: &FfsQuery<'_>,
         options: &GrepSearchOptions,
     ) -> GrepResult<'_> {
         let arena = self.arena_base_ptr();
@@ -1785,7 +1785,7 @@ impl FileSync {
         git_workdir: Option<PathBuf>,
         synced_files_count: &Arc<AtomicUsize>,
         shared_frecency: &SharedFrecency,
-        mode: FFFMode,
+        mode: FfsMode,
     ) -> Result<FileSync, Error> {
         use ignore::WalkBuilder;
 

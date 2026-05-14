@@ -90,7 +90,7 @@ impl std::ops::Index<Match> for str {
     }
 }
 
-/// A line terminator (always a single byte for fff — no CRLF support needed).
+/// A line terminator (always a single byte for ffs — no CRLF support needed).
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct LineTerminator(u8);
 

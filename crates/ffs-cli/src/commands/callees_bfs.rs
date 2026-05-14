@@ -1,4 +1,4 @@
-// Forward-graph BFS for `scry callees --depth N`. Each hop:
+// Forward-graph BFS for `ffs callees --depth N`. Each hop:
 // 1. For every name in the current frontier, look up definitions and run
 //    `collect_callees` over each definition's body to get the set of called
 //    identifiers.

@@ -15,7 +15,7 @@
 local M = {}
 
 --- @class ListRenderContext
---- @field config FffConfig User configuration
+--- @field config FfsConfig User configuration
 --- @field items table[] Array of data items to render
 --- @field cursor number Current cursor position (1-based index into items)
 --- @field win_height number Window height in lines

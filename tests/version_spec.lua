@@ -1,7 +1,7 @@
 ---@diagnostic disable: undefined-field, need-check-nil, param-type-mismatch
 local version = require('ffs.utils.version')
 
-describe('fff.utils.version', function()
+describe('ffs.utils.version', function()
   local repo_root
 
   before_each(function()

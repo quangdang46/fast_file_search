@@ -1,5 +1,5 @@
 use crate::error::Error;
-use crate::file_picker::{FFFMode, MAX_OVERFLOW_FILES};
+use crate::file_picker::{FfsMode, MAX_OVERFLOW_FILES};
 use crate::git::GitStatusCache;
 use crate::shared::{SharedFilePicker, SharedFrecency};
 use crate::sort_buffer::sort_with_buffer;
@@ -40,7 +40,7 @@ impl BackgroundWatcher {
         git_workdir: Option<PathBuf>,
         shared_picker: SharedFilePicker,
         shared_frecency: SharedFrecency,
-        mode: FFFMode,
+        mode: FfsMode,
     ) -> Result<Self, Error> {
         info!(
             "Initializing background watcher for path: {}, mode: {:?}",
@@ -62,7 +62,7 @@ impl BackgroundWatcher {
         //
         // Per-dir NonRecursive watches create one FSEvent stream per dir.
         // The per-process FSEvent cap is lower than expected in practice
-        // (4096 per process, but FFF usually is running within code editors),
+        // (4096 per process, but ffs usually is running within code editors),
         // and each failed `watch()` after the cap blocks ~40 ms on kernel retry.
         // Yes we pay for filtering events on handler phase but it is usable
         //
@@ -153,7 +153,7 @@ impl BackgroundWatcher {
 
                 tracing::info!("Background watcher is stopped");
             })
-            .expect("failed to spawn fff-watcher-owner thread");
+            .expect("failed to spawn ffs-watcher-owner thread");
 
         Ok(Self {
             debouncer,
@@ -167,7 +167,7 @@ impl BackgroundWatcher {
         git_workdir: Option<PathBuf>,
         shared_picker: SharedFilePicker,
         shared_frecency: SharedFrecency,
-        mode: FFFMode,
+        mode: FfsMode,
         use_recursive: bool,
         watch_tx: mpsc::Sender<PathBuf>,
     ) -> Result<Debouncer, Error> {
@@ -398,7 +398,7 @@ fn handle_debounced_events(
     git_workdir: &Option<PathBuf>,
     shared_picker: &SharedFilePicker,
     shared_frecency: &SharedFrecency,
-    mode: FFFMode,
+    mode: FfsMode,
 ) -> Vec<PathBuf> {
     // this will be called very often, we have to minimiy the lock time for file picker
     let repo = git_workdir.as_ref().and_then(|p| Repository::open(p).ok());

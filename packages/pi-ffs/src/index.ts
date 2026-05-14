@@ -1,7 +1,7 @@
 /**
- * pi-ffs: FFF-powered file search extension for pi
+ * pi-ffs: ffs-powered file search extension for pi
  *
- * Overrides built-in `find` and `grep` tools with FFF and can also replace
+ * Overrides built-in `find` and `grep` tools with ffs and can also replace
  * @-mention autocomplete suggestions in the interactive editor.
  */
 
@@ -32,9 +32,9 @@ const DEFAULT_FIND_LIMIT = 30;
 const GREP_MAX_LINE_LENGTH = 500;
 const MENTION_MAX_RESULTS = 20;
 
-type FffMode = "tools-and-ui" | "tools-only" | "override";
+type FfsMode = "tools-and-ui" | "tools-only" | "override";
 
-const VALID_MODES: FffMode[] = ["tools-and-ui", "tools-only", "override"];
+const VALID_MODES: FfsMode[] = ["tools-and-ui", "tools-only", "override"];
 
 interface ToolNames {
   grep: string;
@@ -42,10 +42,10 @@ interface ToolNames {
   multiGrep: string;
 }
 
-const FFF_TOOL_NAMES: ToolNames = {
-  grep: "ffgrep",
-  find: "fffind",
-  multiGrep: "fff-multi-grep",
+const FFS_TOOL_NAMES: ToolNames = {
+  grep: "ffsgrep",
+  find: "ffsfind",
+  multiGrep: "ffs-multi-grep",
 };
 const OVERRIDE_TOOL_NAMES: ToolNames = {
   grep: "grep",
@@ -53,8 +53,8 @@ const OVERRIDE_TOOL_NAMES: ToolNames = {
   multiGrep: "multi_grep",
 };
 
-function resolveToolNames(mode: FffMode): ToolNames {
-  return mode === "override" ? OVERRIDE_TOOL_NAMES : FFF_TOOL_NAMES;
+function resolveToolNames(mode: FfsMode): ToolNames {
+  return mode === "override" ? OVERRIDE_TOOL_NAMES : FFS_TOOL_NAMES;
 }
 
 // ---------------------------------------------------------------------------
@@ -65,7 +65,7 @@ const cursorCache = new Map<string, GrepCursor>();
 let cursorCounter = 0;
 
 function storeCursor(cursor: GrepCursor): string {
-  const id = `fff_c${++cursorCounter}`;
+  const id = `ffs_c${++cursorCounter}`;
   cursorCache.set(id, cursor);
   if (cursorCache.size > 200) {
     const first = cursorCache.keys().next().value;
@@ -122,7 +122,7 @@ const WARM_FRECENCY = 20;
 // git-dirty (most actionable — file is changing right now) beats frecency
 // (historically often-touched). Keeping one function ensures the two tools
 // never drift in how they surface git/frecency signal.
-export function fffFileAnnotation(item: {
+export function ffsFileAnnotation(item: {
   gitStatus?: string;
   totalFrecencyScore?: number;
   accessFrecencyScore?: number;
@@ -139,7 +139,7 @@ export function fffFileAnnotation(item: {
   return "";
 }
 
-// fff-core native definition classifier (byte-level scanner in Rust) is enabled
+// ffs-core native definition classifier (byte-level scanner in Rust) is enabled
 // via GrepOptions.classifyDefinitions. Each GrepMatch carries isDefinition for
 // downstream consumers; pi-ffs does NOT use it to re-sort.
 //
@@ -162,7 +162,7 @@ function formatGrepOutput(result: GrepResult): string {
     if (match.relativePath !== currentFile) {
       if (lines.length > 0) lines.push("");
       currentFile = match.relativePath;
-      lines.push(`${currentFile}${fffFileAnnotation(match)}`);
+      lines.push(`${currentFile}${ffsFileAnnotation(match)}`);
     }
 
     match.contextBefore?.forEach((line: string, i: number) => {
@@ -183,7 +183,7 @@ function formatGrepOutput(result: GrepResult): string {
 }
 
 // Weak-match threshold is derived from the query length, matching the
-// scoring formula in crates/fff-core/src/score.rs: a perfect match scores
+// scoring formula in crates/ffs-core/src/score.rs: a perfect match scores
 // `len * 16`, so we treat anything below 50% of that as scattered fuzzy noise.
 // When the top score is weak, trim output to a small sample instead of dumping
 // the full limit worth of noise into the agent's context.
@@ -225,7 +225,7 @@ function formatFindOutput(
 
   return {
     output: shown
-      .map((p) => `${p.item.relativePath}${fffFileAnnotation(p.item)}`)
+      .map((p) => `${p.item.relativePath}${ffsFileAnnotation(p.item)}`)
       .join("\n"),
     weak,
     shownCount: shown.length,
@@ -245,7 +245,7 @@ function buildAtCompletionValue(path: string): string {
   return path.includes(" ") ? `@"${path}"` : `@${path}`;
 }
 
-function createFffMentionProvider(
+function createFfsMentionProvider(
   getItems: (query: string, signal: AbortSignal) => Promise<AutocompleteItem[]>,
 ): AutocompleteProvider {
   return {
@@ -279,7 +279,7 @@ function createFffMentionProvider(
   };
 }
 
-// FffEditor is defined inside fffExtension() so it can capture `getMentionItems`
+// FfsEditor is defined inside ffsExtension() so it can capture `getMentionItems`
 // via closure rather than via a 4th constructor parameter. This makes the class
 // safe to subclass via `new SubClass(tui, theme, keybindings)` -- the pattern
 // pi-vim and pi-image-attachments use to compose editors. See:
@@ -289,7 +289,7 @@ function createFffMentionProvider(
 // Extension
 // ---------------------------------------------------------------------------
 
-export default function fffExtension(pi: ExtensionAPI) {
+export default function ffsExtension(pi: ExtensionAPI) {
   let finder: FileFinder | null = null;
   let finderCwd: string | null = null;
   // Concurrent ensureFinder() callers share the same in-flight promise so
@@ -300,28 +300,28 @@ export default function fffExtension(pi: ExtensionAPI) {
   let activeCwd = process.cwd();
 
   // Mode resolution: flag > env > default
-  let currentMode: FffMode =
-    (pi.getFlag("fff-mode") as FffMode) ??
-    (process.env.PI_FFF_MODE as FffMode) ??
+  let currentMode: FfsMode =
+    (pi.getFlag("ffs-mode") as FfsMode) ??
+    (process.env.PI_FFS_MODE as FfsMode) ??
     "tools-and-ui";
 
   const toolNames = resolveToolNames(currentMode);
 
-  // DB path resolution: flag > env > undefined (use fff-node defaults)
+  // DB path resolution: flag > env > undefined (use ffs-node defaults)
   const frecencyDbPath =
-    (pi.getFlag("fff-frecency-db") as string | undefined) ??
-    process.env.FFF_FRECENCY_DB ??
+    (pi.getFlag("ffs-frecency-db") as string | undefined) ??
+    process.env.FFS_FRECENCY_DB ??
     undefined;
   const historyDbPath =
-    (pi.getFlag("fff-history-db") as string | undefined) ??
-    process.env.FFF_HISTORY_DB ??
+    (pi.getFlag("ffs-history-db") as string | undefined) ??
+    process.env.FFS_HISTORY_DB ??
     undefined;
 
-  function getMode(): FffMode {
+  function getMode(): FfsMode {
     return currentMode;
   }
 
-  function setMode(mode: FffMode): void {
+  function setMode(mode: FfsMode): void {
     currentMode = mode;
   }
 
@@ -349,7 +349,7 @@ export default function fffExtension(pi: ExtensionAPI) {
       });
 
       if (!result.ok)
-        throw new Error(`Failed to create FFF file finder: ${result.error}`);
+        throw new Error(`Failed to create ffs file finder: ${result.error}`);
 
       finder = result.value;
       finderCwd = cwd;
@@ -399,18 +399,18 @@ export default function fffExtension(pi: ExtensionAPI) {
       });
   }
 
-  // Editor wrapper that injects FFF @-mention autocomplete alongside base provider.
-  // Defined inside fffExtension() so the class methods capture `getMentionItems`
+  // Editor wrapper that injects ffs @-mention autocomplete alongside base provider.
+  // Defined inside ffsExtension() so the class methods capture `getMentionItems`
   // via closure. Subclasses constructed as `new Sub(tui, theme, keybindings)` by
   // composability wrappers (pi-vim, pi-image-attachments) still get a working
   // mention provider because the closure binding is preserved across subclassing.
-  class FffEditor extends CustomEditor {
+  class FfsEditor extends CustomEditor {
     private baseProvider: AutocompleteProvider | undefined;
 
     override setAutocompleteProvider(provider: AutocompleteProvider): void {
       this.baseProvider = provider;
       // Create composite provider that handles @-mentions and falls back to base
-      const mentionProvider = createFffMentionProvider(getMentionItems);
+      const mentionProvider = createFfsMentionProvider(getMentionItems);
       const compositeProvider: AutocompleteProvider = {
         getSuggestions: async (lines, cursorLine, cursorCol, options) => {
           // Try @-mention first
@@ -469,27 +469,27 @@ export default function fffExtension(pi: ExtensionAPI) {
     } else {
       ctx.ui.setEditorComponent(
         (tui: any, theme: any, keybindings: any) =>
-          new FffEditor(tui, theme, keybindings),
+          new FfsEditor(tui, theme, keybindings),
       );
     }
   }
 
   // --- Flags / lifecycle ---
 
-  pi.registerFlag("fff-mode", {
-    description: "FFF mode: tools-and-ui | tools-only | override",
+  pi.registerFlag("ffs-mode", {
+    description: "ffs mode: tools-and-ui | tools-only | override",
     type: "string",
   });
 
-  pi.registerFlag("fff-frecency-db", {
+  pi.registerFlag("ffs-frecency-db", {
     description:
-      "Path to the frecency database (overrides FFF_FRECENCY_DB env)",
+      "Path to the frecency database (overrides FFS_FRECENCY_DB env)",
     type: "string",
   });
 
-  pi.registerFlag("fff-history-db", {
+  pi.registerFlag("ffs-history-db", {
     description:
-      "Path to the query history database (overrides FFF_HISTORY_DB env)",
+      "Path to the query history database (overrides FFS_HISTORY_DB env)",
     type: "string",
   });
 
@@ -500,7 +500,7 @@ export default function fffExtension(pi: ExtensionAPI) {
       await ensureFinder(activeCwd);
     } catch (e: unknown) {
       ctx.ui.notify(
-        `FFF init failed: ${e instanceof Error ? e.message : String(e)}`,
+        `ffs init failed: ${e instanceof Error ? e.message : String(e)}`,
         "error",
       );
     }
@@ -855,7 +855,7 @@ export default function fffExtension(pi: ExtensionAPI) {
 
   // --- multi_grep tool ---
   // My latest tests are showing that the multi grep tool is only harmful, trying to get rid of it
-  const enableMultiGrep = process.env.PI_FFF_MULTIGREP === "1";
+  const enableMultiGrep = process.env.PI_FFS_MULTIGREP === "1";
 
   if (enableMultiGrep) {
     const multiGrepSchema = Type.Object({
@@ -956,17 +956,17 @@ export default function fffExtension(pi: ExtensionAPI) {
 
   // --- commands ---
 
-  pi.registerCommand("fff-mode", {
+  pi.registerCommand("ffs-mode", {
     description:
-      "Show or set FFF mode: /fff-mode [tools-and-ui | tools-only | override]",
+      "Show or set ffs mode: /ffs-mode [tools-and-ui | tools-only | override]",
     handler: async (args, ctx) => {
       const arg = (args || "").trim();
 
       // No args - show current mode
       if (!arg) {
         const mode = getMode();
-        const flag = pi.getFlag("fff-mode") ?? "unset";
-        const env = process.env.PI_FFF_MODE ?? "unset";
+        const flag = pi.getFlag("ffs-mode") ?? "unset";
+        const env = process.env.PI_FFS_MODE ?? "unset";
         ctx.ui.notify(
           `Current mode: '${mode}'\nFlag: ${flag}, Env: ${env}`,
           "info",
@@ -975,15 +975,15 @@ export default function fffExtension(pi: ExtensionAPI) {
       }
 
       // Validate and set mode
-      if (!VALID_MODES.includes(arg as FffMode)) {
+      if (!VALID_MODES.includes(arg as FfsMode)) {
         ctx.ui.notify(
-          `Usage: /fff-mode [${VALID_MODES.join(" | ")}]`,
+          `Usage: /ffs-mode [${VALID_MODES.join(" | ")}]`,
           "warning",
         );
         return;
       }
 
-      const newMode = arg as FffMode;
+      const newMode = arg as FfsMode;
       const oldMode = getMode();
       setMode(newMode);
 
@@ -998,11 +998,11 @@ export default function fffExtension(pi: ExtensionAPI) {
     },
   });
 
-  pi.registerCommand("fff-health", {
-    description: "Show FFF file finder health and status",
+  pi.registerCommand("ffs-health", {
+    description: "Show ffs file finder health and status",
     handler: async (_args, ctx) => {
       if (!finder || finder.isDestroyed) {
-        ctx.ui.notify("FFF not initialized", "warning");
+        ctx.ui.notify("ffs not initialized", "warning");
         return;
       }
 
@@ -1014,7 +1014,7 @@ export default function fffExtension(pi: ExtensionAPI) {
 
       const h = health.value;
       const lines = [
-        `FFF v${h.version}`,
+        `ffs v${h.version}`,
         `Mode: ${getMode()}`,
         `Git: ${h.git.repositoryFound ? `yes (${h.git.workdir ?? "unknown"})` : "no"}`,
         `Picker: ${h.filePicker.initialized ? `${h.filePicker.indexedFiles ?? 0} files` : "not initialized"}`,
@@ -1033,11 +1033,11 @@ export default function fffExtension(pi: ExtensionAPI) {
     },
   });
 
-  pi.registerCommand("fff-rescan", {
-    description: "Trigger FFF to rescan files",
+  pi.registerCommand("ffs-rescan", {
+    description: "Trigger ffs to rescan files",
     handler: async (_args, ctx) => {
       if (!finder || finder.isDestroyed) {
-        ctx.ui.notify("FFF not initialized", "warning");
+        ctx.ui.notify("ffs not initialized", "warning");
         return;
       }
 
@@ -1047,7 +1047,7 @@ export default function fffExtension(pi: ExtensionAPI) {
         return;
       }
 
-      ctx.ui.notify("FFF rescan triggered", "info");
+      ctx.ui.notify("ffs rescan triggered", "info");
     },
   });
 }

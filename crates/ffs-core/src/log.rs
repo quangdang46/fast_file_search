@@ -1,4 +1,4 @@
-//! Shared logging utilities for FFF crates.
+//! Shared logging utilities for ffs crates.
 //!
 //! Provides file-based tracing initialization and crash handlers (panic hook
 //! + SIGSEGV signal handler) that write diagnostics to both stderr and the
@@ -66,7 +66,7 @@ pub fn install_panic_hook() {
             tracing::error!(
                 panic.message = %message,
                 panic.location = %location,
-                "PANIC occurred in FFF"
+                "PANIC occurred in ffs"
             );
 
             write_crash_report(
@@ -138,7 +138,7 @@ pub fn init_tracing(log_file_path: &str, log_level: Option<&str>) -> Result<Stri
             eprintln!("Failed to set tracing subscriber: {}", e);
         } else {
             tracing::info!(
-                "FFF tracing initialized with log file: {}",
+                "ffs tracing initialized with log file: {}",
                 log_path.display()
             );
         }

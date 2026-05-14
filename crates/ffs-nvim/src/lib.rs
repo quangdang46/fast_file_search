@@ -5,7 +5,7 @@ use ffs::frecency::FrecencyTracker;
 use ffs::path_utils::expand_tilde;
 use ffs::query_tracker::QueryTracker;
 use ffs::{
-    DbHealthChecker, Error, FFFMode, FileSearchConfig, FuzzySearchOptions, GrepConfig,
+    DbHealthChecker, Error, FfsMode, FileSearchConfig, FuzzySearchOptions, GrepConfig,
     PaginationArgs, QueryParser, Score, SearchResult, SharedFilePicker, SharedFrecency,
     SharedQueryTracker,
 };
@@ -21,8 +21,7 @@ mod hex_dump;
 mod log;
 mod lua_types;
 mod path_shortening;
-#[cfg(feature = "scry")]
-mod ffs_bindings;
+mod engine_bindings;
 
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
@@ -82,7 +81,7 @@ pub fn init_file_picker(_: &Lua, base_path: String) -> LuaResult<bool> {
             base_path,
             enable_mmap_cache: true,
             enable_content_indexing: true,
-            mode: FFFMode::Neovim,
+            mode: FfsMode::Neovim,
             ..Default::default()
         },
     )
@@ -118,7 +117,7 @@ fn reinit_file_picker_internal(path: &Path) -> Result<(), Error> {
             base_path: path.to_string_lossy().to_string(),
             enable_mmap_cache: true,
             enable_content_indexing: true,
-            mode: FFFMode::Neovim,
+            mode: FfsMode::Neovim,
             ..Default::default()
         },
     )?;
@@ -872,31 +871,30 @@ fn create_exports(lua: &Lua) -> LuaResult<LuaTable> {
     exports.set("hex_dump", lua.create_function(hex_dump::hex_dump)?)?;
     exports.set("parse_grep_query", lua.create_function(parse_grep_query)?)?;
 
-    // Additive `scry_*` exports — wrapper around `ffs-engine`. Only compiled
-    // in when the `scry` feature is enabled (off by default to keep
-    // `fff_nvim.dll` byte-for-byte identical to the pre-scry release).
-    #[cfg(feature = "scry")]
+    // Additive `engine_*` exports — wrapper around `ffs-engine`. Only compiled
+    // in when (historical note removed)
+    // 
     {
-        exports.set("scry_init", lua.create_function(scry_bindings::scry_init)?)?;
+        exports.set("engine_init", lua.create_function(engine_bindings::engine_init)?)?;
         exports.set(
-            "scry_rebuild",
-            lua.create_function(scry_bindings::scry_rebuild)?,
+            "engine_rebuild",
+            lua.create_function(engine_bindings::engine_rebuild)?,
         )?;
         exports.set(
-            "scry_dispatch",
-            lua.create_function(scry_bindings::scry_dispatch)?,
+            "engine_dispatch",
+            lua.create_function(engine_bindings::engine_dispatch)?,
         )?;
         exports.set(
-            "scry_symbol",
-            lua.create_function(scry_bindings::scry_symbol)?,
+            "engine_symbol",
+            lua.create_function(engine_bindings::engine_symbol)?,
         )?;
-        exports.set("scry_grep", lua.create_function(scry_bindings::scry_grep)?)?;
-        exports.set("scry_read", lua.create_function(scry_bindings::scry_read)?)?;
-        exports.set("scry_refs", lua.create_function(scry_bindings::scry_refs)?)?;
-        exports.set("scry_flow", lua.create_function(scry_bindings::scry_flow)?)?;
+        exports.set("engine_grep", lua.create_function(engine_bindings::engine_grep)?)?;
+        exports.set("engine_read", lua.create_function(engine_bindings::engine_read)?)?;
+        exports.set("engine_refs", lua.create_function(engine_bindings::engine_refs)?)?;
+        exports.set("engine_flow", lua.create_function(engine_bindings::engine_flow)?)?;
         exports.set(
-            "scry_impact",
-            lua.create_function(scry_bindings::scry_impact)?,
+            "engine_impact",
+            lua.create_function(engine_bindings::engine_impact)?,
         )?;
     }
 
@@ -905,7 +903,7 @@ fn create_exports(lua: &Lua) -> LuaResult<LuaTable> {
 
 // https://github.com/mlua-rs/mlua/issues/318
 #[mlua::lua_module(skip_memory_check)]
-fn fff_nvim(lua: &Lua) -> LuaResult<LuaTable> {
+fn ffs_nvim(lua: &Lua) -> LuaResult<LuaTable> {
     // Install panic hook IMMEDIATELY on module load
     // This ensures any panics are logged even if init_tracing is never called
     crate::log::install_panic_hook();

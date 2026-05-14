@@ -1,4 +1,4 @@
-//! Did-you-mean fallback for `scry symbol`.
+//! Did-you-mean fallback for `ffs symbol`.
 //!
 //! When `lookup_exact` finds zero hits, try alternate names in three layers:
 //!

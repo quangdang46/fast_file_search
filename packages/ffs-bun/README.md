@@ -1,4 +1,4 @@
-# fff - Fast File Finder
+# ffs - Fast File Search
 
 High-performance fuzzy file finder for Bun, powered by Rust. Perfect for LLM agent tools that need to search through codebases.
 
@@ -36,7 +36,7 @@ If the platform package isn't available, the postinstall script will attempt to 
 ## Quick Start
 
 ```typescript
-import { FileFinder } from "fff";
+import { FileFinder } from "@ff-labs/ffs-bun";
 
 // Initialize with a directory
 const result = FileFinder.init({ basePath: "/path/to/project" });
@@ -263,7 +263,7 @@ git clone https://github.com/dmtrKovalenko/ffs.nvim
 cd ffs.nvim
 
 # Build the C library
-cargo build --release -p fff-c
+cargo build --release -p ffs-c
 
 # The binary will be at target/release/libffs_c.{so,dylib,dll}
 ```
@@ -272,10 +272,10 @@ cargo build --release -p fff-c
 
 ```bash
 # Download binary manually (fallback if npm package unavailable)
-bunx fff download [tag]
+bunx ffs download [tag]
 
 # Show platform info and binary location
-bunx fff info
+bunx ffs info
 ```
 
 ## License

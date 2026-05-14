@@ -108,36 +108,36 @@ end
 function M.setup_highlights()
   vim.cmd([[
     " Symbol highlights
-    highlight default FFFGitStaged guifg=#10B981 ctermfg=2
-    highlight default FFFGitModified guifg=#F59E0B ctermfg=3
-    highlight default FFFGitDeleted guifg=#EF4444 ctermfg=1
-    highlight default FFFGitRenamed guifg=#8B5CF6 ctermfg=5
-    highlight default FFFGitUntracked guifg=#10B981 ctermfg=2
-    highlight default FFFGitIgnored guifg=#4B5563 ctermfg=8
+    highlight default FFSGitStaged guifg=#10B981 ctermfg=2
+    highlight default FFSGitModified guifg=#F59E0B ctermfg=3
+    highlight default FFSGitDeleted guifg=#EF4444 ctermfg=1
+    highlight default FFSGitRenamed guifg=#8B5CF6 ctermfg=5
+    highlight default FFSGitUntracked guifg=#10B981 ctermfg=2
+    highlight default FFSGitIgnored guifg=#4B5563 ctermfg=8
 
     " Thin border highlights
-    highlight default FFFGitSignStaged guifg=#10B981 ctermfg=2
-    highlight default FFFGitSignModified guifg=#F59E0B ctermfg=3
-    highlight default FFFGitSignDeleted guifg=#EF4444 ctermfg=1
-    highlight default FFFGitSignRenamed guifg=#8B5CF6 ctermfg=5
-    highlight default FFFGitSignUntracked guifg=#10B981 ctermfg=2
-    highlight default FFFGitSignIgnored guifg=#4B5563 ctermfg=8
+    highlight default FFSGitSignStaged guifg=#10B981 ctermfg=2
+    highlight default FFSGitSignModified guifg=#F59E0B ctermfg=3
+    highlight default FFSGitSignDeleted guifg=#EF4444 ctermfg=1
+    highlight default FFSGitSignRenamed guifg=#8B5CF6 ctermfg=5
+    highlight default FFSGitSignUntracked guifg=#10B981 ctermfg=2
+    highlight default FFSGitSignIgnored guifg=#4B5563 ctermfg=8
 
     " Fallback to GitSigns highlights if they exist
-    highlight default link FFFGitSignStaged GitSignsAdd
-    highlight default link FFFGitSignModified GitSignsChange
-    highlight default link FFFGitSignDeleted GitSignsDelete
-    highlight default link FFFGitSignUntracked GitSignsAdd
+    highlight default link FFSGitSignStaged GitSignsAdd
+    highlight default link FFSGitSignModified GitSignsChange
+    highlight default link FFSGitSignDeleted GitSignsDelete
+    highlight default link FFSGitSignUntracked GitSignsAdd
   ]])
 
   -- Highlighes for git signs both for selected and normal states
   local git_highlights = {
-    { 'FFFGitSignStaged', 'FFFGitSignStagedSelected', '#10B981', 2 },
-    { 'FFFGitSignModified', 'FFFGitSignModifiedSelected', '#F59E0B', 3 },
-    { 'FFFGitSignDeleted', 'FFFGitSignDeletedSelected', '#EF4444', 1 },
-    { 'FFFGitSignRenamed', 'FFFGitSignRenamedSelected', '#8B5CF6', 5 },
-    { 'FFFGitSignUntracked', 'FFFGitSignUntrackedSelected', '#10B981', 2 },
-    { 'FFFGitSignIgnored', 'FFFGitSignIgnoredSelected', '#4B5563', 8 },
+    { 'FFSGitSignStaged', 'FFSGitSignStagedSelected', '#10B981', 2 },
+    { 'FFSGitSignModified', 'FFSGitSignModifiedSelected', '#F59E0B', 3 },
+    { 'FFSGitSignDeleted', 'FFSGitSignDeletedSelected', '#EF4444', 1 },
+    { 'FFSGitSignRenamed', 'FFSGitSignRenamedSelected', '#8B5CF6', 5 },
+    { 'FFSGitSignUntracked', 'FFSGitSignUntrackedSelected', '#10B981', 2 },
+    { 'FFSGitSignIgnored', 'FFSGitSignIgnoredSelected', '#4B5563', 8 },
   }
 
   local visual_bg_gui = vim.fn.synIDattr(vim.fn.synIDtrans(vim.fn.hlID('Visual')), 'bg', 'gui')
@@ -162,7 +162,7 @@ function M.setup_highlights()
   end
 
   -- Selection highlight - use Directory/Number colors (better than green 'Added')
-  vim.cmd('highlight default link FFFSelected Directory')
+  vim.cmd('highlight default link FFSSelected Directory')
 
   local dir_fg_gui = vim.fn.synIDattr(vim.fn.synIDtrans(vim.fn.hlID('Directory')), 'fg', 'gui')
   local dir_fg_cterm = vim.fn.synIDattr(vim.fn.synIDtrans(vim.fn.hlID('Directory')), 'fg', 'cterm')
@@ -184,7 +184,7 @@ function M.setup_highlights()
   -- Create combined highlight: Directory/Number foreground + Visual background
   vim.cmd(
     string.format(
-      'highlight default FFFSelectedActive guifg=%s guibg=%s ctermfg=%s ctermbg=%s',
+      'highlight default FFSSelectedActive guifg=%s guibg=%s ctermfg=%s ctermbg=%s',
       gui_fg,
       gui_bg,
       cterm_fg,

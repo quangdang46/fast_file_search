@@ -1,7 +1,7 @@
 {
   "name": "@ff-labs/ffs-bin-darwin-x64",
   "version": "0.0.0",
-  "description": "fff native binary for macOS x64 (Intel)",
+  "description": "ffs native binary for macOS x64 (Intel)",
   "os": ["darwin"],
   "cpu": ["x64"],
   "main": "libffs_c.dylib",
@@ -13,6 +13,6 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/dmtrKovalenko/ffs.nvim.git",
-    "directory": "packages/fff-bin-darwin-x64"
+    "directory": "packages/ffs-bin-darwin-x64"
   }
 }

@@ -65,7 +65,7 @@ pub struct Args {
     pub section: bool,
 
     /// Force whole-file mode and return raw contents. Without this flag the
-    /// scry default is the agent-style outline.
+    /// ffs default is the agent-style outline.
     #[arg(long, default_value_t = false)]
     pub full: bool,
 
@@ -176,7 +176,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     // Routing:
     //   --section or `path:N`  → structural section read.
     //   --full                  → whole-file body (legacy default).
-    //   no flags, no `:N`       → outline (B0 default for the scry layer).
+    //   no flags, no `:N`       → outline (B0 default for the engine layer).
     if args.section || (line.is_some() && !args.full) {
         let line =
             line.ok_or_else(|| anyhow!("--section requires the target to be in `path:line` form"))?;

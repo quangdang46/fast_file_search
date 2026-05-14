@@ -1,5 +1,5 @@
 /*!
-Simplified grep-searcher for fff.nvim.
+Simplified grep-searcher for ffs.nvim.
 
 Provides line-oriented search over byte slices with optional multi-line support.
 Only `search_slice` is supported -- no file/reader/mmap search.

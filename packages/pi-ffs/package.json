@@ -2,15 +2,15 @@
   "name": "@ff-labs/pi-ffs",
   "public": true,
   "version": "0.6.0",
-  "description": "pi extension: FFF-powered fuzzy file and content search",
+  "description": "pi extension: ffs-powered fuzzy file and content search",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/dmtrKovalenko/ffs.nvim.git",
-    "directory": "packages/pi-fff"
+    "directory": "packages/pi-ffs"
   },
-  "homepage": "https://github.com/dmtrKovalenko/ffs.nvim/tree/main/packages/pi-fff",
+  "homepage": "https://github.com/dmtrKovalenko/ffs.nvim/tree/main/packages/pi-ffs",
   "bugs": {
     "url": "https://github.com/dmtrKovalenko/ffs.nvim/issues"
   },
@@ -18,7 +18,7 @@
     "pi",
     "pi-package",
     "pi-extension",
-    "fff",
+    "ffs",
     "search",
     "grep",
     "fuzzy-search",

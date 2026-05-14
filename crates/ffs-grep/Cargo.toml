@@ -1,6 +1,6 @@
 [package]
 name = "ffs-grep"
-description = "File grepping logic for fff"
+description = "File grepping logic for ffs"
 license = "MIT"
 authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlok.com>"]
 version = "0.7.2"

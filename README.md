@@ -1,87 +1,49 @@
-<img alt="FFF" src="./assets/logo-orange.png" width="300">
+<img alt="ffs" src="./assets/logo-orange.png" width="300">
 
 <p>
-  <i>A file search toolkit for humans and AI agents. Really fast.</i>
+  <i>A code-aware file search toolkit for humans and AI agents. Really fast.</i>
 </p>
 
-Typo-resistant path and content search, frecency-ranked file access, a background watcher, and a lightweight in-memory content index. Way faster than CLIs like ripgrep and fzf in any long-running process that searches more than once.
+Typo-resistant path and content search, frecency-ranked file access, a background watcher, a tree-sitter symbol index, bloom + bigram pre-filters, and a token-budget aware reader. One long-lived process, one walk over the repo, every consumer (CLI, MCP, Neovim, Node, Bun, C) reading from the same warm caches.
 
-Originally started as [Neovim plugin](#neovim-plugin) people loved, but it turned out that plenty of AI harnesses and code editors need the same thing: accurate, fast file search as a library. That is what fff is.
-
-A second, complementary engine called **scry** sits on top of the same core: a unified single-pass scanner that builds a symbol index, a bloom filter cache, and an outline cache in one walk, then exposes them through a sub-CLI (`scry symbol/callers/callees/read/...`), 5 extra MCP tools, an opt-in Lua module, and an opt-in C ABI. Skip to [the scry section](#scry-engine) for the details.
+Way faster than CLIs like ripgrep and fzf in any long-running process that searches more than once. Originally a [Neovim plugin](#neovim-plugin) people loved; the same Rust core now ships through every surface listed below.
 
 ---
 
 Pick what you are interested in:
 
-<details id="mcp-server">
+<details id="cli">
 <summary>
-<h2>MCP server</h2>
+<h2>CLI (<code>ffs</code>)</h2>
 </summary>
 
-Works with Claude Code, Codex, OpenCode, Cursor, Cline, and any MCP-capable client. Fewer grep roundtrips, less wasted context, faster answers.
+`ffs` is a single binary that replaces `find`, `fd`, `grep`, `rg`, `glob`, `cat`, and a handful of code-navigation tools, behind a unified subcommand surface.
 
-![Benchmark chart comparing FFF against the built-in AI file-search tools](./chart.png)
+### Sub-commands
 
-### One-line install
-
-Linux / macOS:
-
-```bash
-curl -L https://dmtrkovalenko.dev/install-ffs-mcp.sh | bash
+```
+ffs find        Find files by name (replaces `find`, `fd`).
+ffs glob        Match files by glob (replaces `glob`, shell `**`).
+ffs grep        Search file contents (replaces `grep`, `rg`).
+ffs read        Read a file with token-budget aware truncation (replaces `cat`).
+ffs outline     Render a file's structural outline (functions, classes, …).
+ffs symbol      Look up symbol definitions (tree-sitter powered).
+ffs callers     List call sites of a symbol.
+ffs callees     List symbols referenced inside a symbol body.
+ffs refs        Definitions + single-hop usages of a symbol in one shot.
+ffs flow        Drill-down envelope per definition (def + body + callees + callers).
+ffs siblings    Sibling symbols (peers in the same parent scope).
+ffs deps        File imports + the workspace files that depend on it.
+ffs impact      Rank files by how much they'd be affected if a symbol changed.
+ffs dispatch    Auto-classify a free-form query and route it to the right backend.
+ffs index       Build / refresh the on-disk indexes (Bigram, Bloom, Symbol, Outline).
+ffs map         Render the workspace as a tree annotated with file count and tokens.
+ffs overview    High-signal summary of the workspace (languages, top symbols, …).
+ffs mcp         Run as an MCP server over stdio.
+ffs guide       Print the embedded agent guide.
 ```
 
-Windows (PowerShell):
-
-```powershell
-irm https://raw.githubusercontent.com/dmtrKovalenko/ffs.nvim/main/install-mcp.ps1 | iex
-```
-
-The scripts live at [`install-mcp.sh`](./install-mcp.sh) and [`install-mcp.ps1`](./install-mcp.ps1) if you want to read them first.
-
-It prints the exact wiring instructions for your client. Once the server is connected, ask the agent to "use fff" and it picks up the `ffgrep`, `fffind`, and `fff-multi-grep` tools.
-
-### Recommended agent prompt
-
-Drop this into your project's `CLAUDE.md` or equivalent:
-
-```markdown
-For any file search or grep in the current git-indexed directory, use fff tools.
-```
-
-### What changes
-
-- Frecency memory. Files you actually open rank higher next time. Warm-up from git touch history runs automatically.
-- Definition-first hinting. Lines that look like code definitions are classified on the Rust side, no regex overhead in your prompt.
-- Smart-case with auto-fuzzy fallback. `IsOffTheRecord` finds snake_case variants; zero-match queries retry as fuzzy and surface the best approximate hits.
-- Git-aware annotations. Modified, untracked, and staged files are tagged so the agent reaches for what you are actively changing.
-
-Source: [`crates/ffs-mcp/`](./crates/ffs-mcp/).
-
-#### Optional scry tools
-
-When the MCP server is built (always, no feature flag) it also registers 5 additional tools backed by the [scry engine](#scry-engine). They are off the hot path — the existing `find_files` / `grep` / `multi_grep` are unchanged — but they let an agent ask code-aware questions instead of just file-name questions:
-
-| Tool             | What it answers                                                                                                                            |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `scry_dispatch`  | Auto-classify a free-form query (`Repository`, `find_in_dir`, `git status`, …) and route it to the right backend.                          |
-| `scry_symbol`    | Exact + prefix lookup over the symbol index built by the unified scanner (tree-sitter powered).                                            |
-| `scry_callers`   | Find call sites of a symbol. Bloom-filter narrowed candidates → literal-text confirm pass.                                                 |
-| `scry_callees`   | Symbols that the body of a definition references.                                                                                          |
-| `scry_read`      | Token-budget aware file read. Maps `--budget N` to `N × ~85% body × 4 bytes/token` and applies a comment/whitespace filter when requested. |
-
-The first call lazily builds the engine (`Engine::new` + `engine.index()`) under a `OnceCell<Arc<Engine>>` + double-checked `Mutex<()>`; every subsequent call reuses the warm caches.
-
-</details>
-
-The MCP server gives any agent a file search tool that is faster and more token-efficient than the built-in one.
-
-<details id="scry-engine">
-<summary>
-<h2>scry — code-aware sub-CLI and engine</h2>
-</summary>
-
-`scry` is the second binary shipped by this repo (alongside `fff` and the MCP server). It exposes the same Rust core that powers the MCP `scry_*` tools, but as a normal CLI you can call from a shell script or a CI step.
+Output defaults to plain text; pass `--format json` for machine-readable output. `--root <path>` overrides the working directory globally.
 
 ### Architecture
 
@@ -89,8 +51,8 @@ The MCP server gives any agent a file search tool that is faster and more token-
                 ┌─────────────────────────────────────────────────────┐
                 │  Consumers                                          │
                 │  ──────────────────────────────────────────────     │
-                │  scry CLI │ scry mcp │ fff.scry (Lua) │ fff_scry_*  │
-                │  (ffs-cli)  (ffs-mcp)   (ffs-nvim,opt)  (ffs-c,opt) │
+                │  ffs CLI │ ffs-mcp │ ffs.nvim │ @ff-labs/ffs-node    │
+                │ (ffs-cli)  (ffs-mcp)  (ffs-nvim)  / ffs-bun / -c     │
                 └───────────────────────┬─────────────────────────────┘
                                         │
                                         ▼
@@ -103,31 +65,31 @@ The MCP server gives any agent a file search tool that is faster and more token-
                           ▼                   ▼               ▼
                 ┌──────────────┐    ┌────────────────┐    ┌──────────┐
                 │ ffs-symbol   │    │ ffs-budget     │    │ ffs-core │
-                │  scanner     │    │  tokens, filter│    │  (existing
-                │  bigram +    │    │  truncate w/   │    │  fuzzy / │
-                │  bloom cache │    │  preserved     │    │  grep /  │
-                │  outline     │    │  header+footer │    │  walker) │
+                │  scanner     │    │  tokens, filter│    │  (fuzzy/ │
+                │  bigram +    │    │  truncate w/   │    │  grep/   │
+                │  bloom cache │    │  preserved     │    │  walker) │
+                │  outline     │    │  header+footer │    │          │
                 └──────────────┘    └────────────────┘    └──────────┘
                                 ▲
                                 │ single-pass UnifiedScanner walks
                                 │ the repo once, populates all caches
 ```
 
-Read top to bottom: every consumer calls into the same `Engine`. The engine ties three single-purpose crates together (`ffs-symbol`, `ffs-budget`, `ffs-core`) and runs `UnifiedScanner` once at index time to populate the caches all four lookup paths read from. Lua + C surfaces are opt-in (off by default, see [Optional `fff.scry` Lua module](#optional-fff-scry-lua-module) and [Optional scry FFI (`fff_scry_*`)](#optional-scry-ffi-fff_scry_)).
+Read top to bottom: every consumer calls into the same `Engine`. `UnifiedScanner` runs once at index time and populates the symbol index, the bloom + bigram caches, and the outline cache that all four lookup paths read from.
 
-### What it does
+### What the index actually contains
 
-A single pass over the repo (`scry index`) builds three caches at once:
+A single pass over the repo (`ffs index`) builds three caches at once:
 
 - **Symbol index** — tree-sitter AST scan of every supported file, recording every definition with `kind` (function, struct, class, …), `path`, and `line`.
-- **Bloom filter cache** — per-file 64-bit bloom of every identifier in the file. Used as the first stage of a 2-stage `PreFilterStack` (bigram → bloom → literal-text confirm) so symbol/caller/callee queries don't have to walk every file.
-- **Outline cache** — comment/header/footer-aware byte slice for every file, used by `scry read --budget` and by the agent-facing token-budget reader.
+- **Bloom filter cache** — per-file 64-bit bloom of every identifier in the file. First stage of a 2-stage `PreFilterStack` (bigram → bloom → literal-text confirm) so symbol/caller/callee queries don't have to walk every file.
+- **Outline cache** — comment/header/footer-aware byte slice for every file, used by `ffs read --budget` and the agent-facing token-budget reader.
 
 Once the index is warm, every subcommand reuses it. There is no second walk.
 
 ### Query path
 
-The 2-stage `PreFilterStack` is what makes `scry symbol`, `scry callers`, and `scry callees` cheap on large repos:
+The pre-filter stack is what makes `ffs symbol`, `ffs callers`, and `ffs callees` cheap on large repos:
 
 ```
    query: "UnifiedScanner"
@@ -158,28 +120,11 @@ The 2-stage `PreFilterStack` is what makes `scry symbol`, `scry callers`, and `s
    └─────────────────────────────────────────────┘
 ```
 
-Stages 1 and 2 are pure metadata lookups; the expensive `String::contains` only ever runs on the survivors. On the fff repo (3.3k symbols across 229 files) a typical `scry callers` query inspects fewer than 30 files.
-
-### Sub-commands
-
-```
-scry find      | Find files by name (replaces `find`, `fd`).
-scry glob      | Match files by glob (replaces `glob`, shell `**`).
-scry grep      | Search file contents (replaces `grep`, `rg`).
-scry read      | Read a file with token-budget aware truncation (replaces `cat`).
-scry symbol    | Look up symbol definitions (NEW, tree-sitter powered).
-scry callers   | List call sites of a symbol (NEW).
-scry callees   | List symbols referenced in a symbol body (NEW).
-scry dispatch  | Auto-classify a free-form query and route it.
-scry index     | Build / refresh the on-disk indexes (Bigram, Bloom, Symbol, Outline).
-scry mcp       | Run as MCP server over stdio (replaces agent built-ins Grep/Glob/Read).
-```
-
-The novel pieces are **`symbol`**, **`callers`**, **`callees`**, **`read --budget`**, and **`dispatch`**. The rest are convenience wrappers over the existing ffs-search core.
+Stages 1 and 2 are pure metadata lookups; the expensive `String::contains` only ever runs on the survivors. On this repo (3.3k symbols across 229 files) a typical `ffs callers` query inspects fewer than 30 files.
 
 ### Token-budgeted read
 
-The killer feature for AI harnesses. `scry read path --budget 5000 --filter minimal`:
+The killer feature for AI harnesses. `ffs read path --budget 5000 --filter minimal`:
 
 1. Converts the budget: `tokens × 0.85 × 4 bytes/token` ≈ `17_000` bytes.
 2. Loads the file, applies the requested `--filter` level (`none`, `minimal`, `aggressive`) to drop comments / whitespace while preserving doc-comments and the file header.
@@ -189,25 +134,86 @@ The classifier and apply-preserving-footer logic live in [`crates/ffs-budget/`](
 
 ### Build and run
 
-`scry` is part of the default workspace build:
-
 ```bash
-make build                      # builds fff, scry, MCP server, ffs_nvim, fff_c
-./target/release/scry index     # one-time warm-up, ~200 ms on a 10k-file repo
-./target/release/scry symbol UnifiedScanner
-./target/release/scry callers UnifiedScanner
-./target/release/scry read crates/ffs-engine/src/lib.rs --budget 5000 --filter minimal
-./target/release/scry dispatch 'where is the user controller'
-./target/release/scry mcp       # JSON-RPC over stdio with the 5 scry_* tools
+make build                      # builds ffs, ffs-mcp, ffs_nvim, libffs_c
+./target/release/ffs index      # one-time warm-up, ~200 ms on a 10k-file repo
+./target/release/ffs symbol UnifiedScanner
+./target/release/ffs callers UnifiedScanner
+./target/release/ffs read crates/ffs-engine/src/lib.rs --budget 5000 --filter minimal
+./target/release/ffs dispatch 'where is the user controller'
+./target/release/ffs mcp        # JSON-RPC over stdio
 ```
-
-Output format defaults to plain text; pass `--format json` for machine-readable output.
 
 Source: [`crates/ffs-cli/`](./crates/ffs-cli/), [`crates/ffs-engine/`](./crates/ffs-engine/), [`crates/ffs-symbol/`](./crates/ffs-symbol/), [`crates/ffs-budget/`](./crates/ffs-budget/).
 
 </details>
 
-`scry` is the code-aware companion to fff: same core, three new caches (symbol / bloom / outline), an extra sub-CLI, and an opt-in Lua/C surface for the same engine.
+The single `ffs` binary is the primary entry point. Everything else is a thin wrapper around the same core.
+
+<details id="mcp-server">
+<summary>
+<h2>MCP server</h2>
+</summary>
+
+Works with Claude Code, Codex, OpenCode, Cursor, Cline, and any MCP-capable client. Fewer grep roundtrips, less wasted context, faster answers.
+
+![Benchmark chart comparing ffs against the built-in AI file-search tools](./chart.png)
+
+### One-line install
+
+Linux / macOS:
+
+```bash
+curl -L https://dmtrkovalenko.dev/install-ffs-mcp.sh | bash
+```
+
+Windows (PowerShell):
+
+```powershell
+irm https://raw.githubusercontent.com/dmtrKovalenko/ffs.nvim/main/install-mcp.ps1 | iex
+```
+
+The scripts live at [`install-mcp.sh`](./install-mcp.sh) and [`install-mcp.ps1`](./install-mcp.ps1) if you want to read them first.
+
+The installer prints the exact wiring instructions for your client. Or run the same server from a checkout with `ffs mcp`.
+
+### Recommended agent prompt
+
+Drop this into your project's `CLAUDE.md` or equivalent:
+
+```markdown
+For any file search, grep, or symbol lookup in the current git-indexed
+directory, use ffs tools.
+```
+
+### Tools registered
+
+| Tool            | What it answers                                                                                                                            |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `find_files`    | Fuzzy file-name search. Smart-case, frecency-ranked, glob constraints (`src/**/*.{ts,tsx} !test/`), git-aware.                              |
+| `grep`          | Content search. Plain / regex / fuzzy auto-detect, pagination cursor, `classifyDefinitions` flag for definition-first hinting.              |
+| `multi_grep`    | OR-logic multi-pattern content search via SIMD Aho-Corasick. Faster than regex alternation for literal text.                                |
+| `ffs_dispatch`  | Auto-classify a free-form query (path, glob, identifier, concept phrase) and route it through the engine.                                   |
+| `ffs_symbol`    | Exact + prefix lookup over the tree-sitter symbol index (16 languages).                                                                     |
+| `ffs_callers`   | Find call sites of a symbol. Bloom-filter narrowed candidates → literal-text confirm pass.                                                  |
+| `ffs_callees`   | Symbols that the body of a definition references.                                                                                           |
+| `ffs_read`      | Token-budget aware file read. Maps `maxTokens` to `~85% body × 4 bytes/token` and applies a comment/whitespace filter when requested.       |
+
+### What changes vs. built-in agent search
+
+- Frecency memory. Files you actually open rank higher next time. Warm-up from git touch history runs automatically.
+- Definition-first hinting. Lines that look like code definitions are classified on the Rust side, no regex overhead in your prompt.
+- Smart-case with auto-fuzzy fallback. `IsOffTheRecord` finds snake_case variants; zero-match queries retry as fuzzy and surface the best approximate hits.
+- Git-aware annotations. Modified, untracked, and staged files are tagged so the agent reaches for what you are actively changing.
+- Code-aware tools. `ffs_symbol` / `ffs_callers` / `ffs_callees` let an agent ask code questions instead of just file-name questions.
+
+The first call to any `ffs_*` tool lazily builds the engine (`Engine::new` + `engine.index()`) under a `OnceCell<Arc<Engine>>` + double-checked `Mutex<()>`; every subsequent call reuses the warm caches.
+
+Source: [`crates/ffs-mcp/`](./crates/ffs-mcp/).
+
+</details>
+
+The MCP server gives any agent a file-search and code-navigation surface that is faster and more token-efficient than the built-in one.
 
 <details id="pi-extension">
 <summary>
@@ -222,32 +228,33 @@ pi install npm:@ff-labs/pi-ffs
 
 ### Modes
 
-Three operating modes, switchable at runtime with `/fff-mode`:
+Three operating modes, switchable at runtime with `/ffs-mode`:
 
 | Mode                     | What it does                                                                      |
 | ------------------------ | --------------------------------------------------------------------------------- |
-| `tools-and-ui` (default) | Adds `ffgrep` and `fffind` tools, replaces `@`-mention autocomplete with FFF.     |
+| `tools-and-ui` (default) | Adds `ffsgrep` and `ffsfind` tools, replaces `@`-mention autocomplete with ffs.     |
 | `tools-only`             | Only tool injection. Keeps pi's native editor autocomplete.                       |
-| `override`               | Replaces pi's built-in `grep`, `find`, and `multi_grep` with FFF implementations. |
+| `override`               | Replaces pi's built-in `grep`, `find`, and `multi_grep` with ffs implementations. |
 
-Env vars: `PI_FFF_MODE`, `FFF_FRECENCY_DB`, `FFF_HISTORY_DB`. Flags: `--fff-mode`, `--fff-frecency-db`, `--fff-history-db`.
+Env vars: `PI_FFS_MODE`, `FFS_FRECENCY_DB`, `FFS_HISTORY_DB`. Flags: `--ffs-mode`, `--ffs-frecency-db`, `--ffs-history-db`.
 
 ### Agent-facing tools
 
-- `ffgrep`. Content search. Accepts `path`, `exclude` (comma, space, or array; leading `!` optional), `caseSensitive`, `context`, and cursor pagination. Auto-detects regex, falls back to fuzzy on zero exact matches, rejects `.*`-style wildcard-only patterns up front.
-- `fffind`. Path and filename search. Matches the whole repo-relative path, not just the filename. Frecency-aware. The weak-match detector flags scattered fuzzy noise before it floods the agent's context.
+- `ffsgrep`. Content search. Accepts `path`, `exclude` (comma, space, or array; leading `!` optional), `caseSensitive`, `context`, and cursor pagination. Auto-detects regex, falls back to fuzzy on zero exact matches, rejects `.*`-style wildcard-only patterns up front.
+- `ffsfind`. Path and filename search. Matches the whole repo-relative path, not just the filename. Frecency-aware. The weak-match detector flags scattered fuzzy noise before it floods the agent's context.
+- `ffs-multi-grep`. OR-logic multi-pattern content search via Aho-Corasick.
 
 ### Commands
 
-- `/fff-mode [tools-and-ui | tools-only | override]`. Show or switch the mode.
-- `/fff-health`. Picker, frecency, and git integration status.
-- `/fff-rescan`. Force a rescan.
+- `/ffs-mode [tools-and-ui | tools-only | override]`. Show or switch the mode.
+- `/ffs-health`. Picker, frecency, and git integration status.
+- `/ffs-rescan`. Force a rescan.
 
 Source: [`packages/pi-ffs/`](./packages/pi-ffs/).
 
 </details>
 
-The Pi extension swaps pi's native tools for FFF implementations and feeds the interactive editor's `@`-mention autocomplete from the frecency-ranked index.
+The Pi extension swaps pi's native tools for ffs implementations and feeds the interactive editor's `@`-mention autocomplete from the frecency-ranked index.
 
 <details id="neovim-plugin">
 <summary>
@@ -267,7 +274,7 @@ https://github.com/user-attachments/assets/5d0e1ce9-642c-4c44-aa88-01b05bb86abb
   'dmtrKovalenko/ffs.nvim',
   build = function()
     -- downloads a prebuilt binary or falls back to cargo build
-    require("fff.download").download_or_build_binary()
+    require("ffs.download").download_or_build_binary()
   end,
   -- for nixos:
   -- build = "nix run .#release",
@@ -279,14 +286,14 @@ https://github.com/user-attachments/assets/5d0e1ce9-642c-4c44-aa88-01b05bb86abb
   },
   lazy = false, -- the plugin lazy-initialises itself
   keys = {
-    { "ff", function() require('fff').find_files() end, desc = 'FFFind files' },
-    { "fg", function() require('fff').live_grep() end, desc = 'LiFFFe grep' },
+    { "ff", function() require('ffs').find_files() end, desc = 'Find files' },
+    { "fg", function() require('ffs').live_grep() end, desc = 'Live grep' },
     { "fz",
-      function() require('fff').live_grep({ grep = { modes = { 'fuzzy', 'plain' } } }) end,
-      desc = 'Live fffuzy grep',
+      function() require('ffs').live_grep({ grep = { modes = { 'fuzzy', 'plain' } } }) end,
+      desc = 'Live fuzzy grep',
     },
     { "fc",
-      function() require('fff').live_grep({ query = vim.fn.expand("<cword>") }) end,
+      function() require('ffs').live_grep({ query = vim.fn.expand("<cword>") }) end,
       desc = 'Search current word',
     },
   },
@@ -303,48 +310,50 @@ vim.api.nvim_create_autocmd('PackChanged', {
     local name, kind = ev.data.spec.name, ev.data.kind
     if name == 'ffs.nvim' and (kind == 'install' or kind == 'update') then
       if not ev.data.active then vim.cmd.packadd('ffs.nvim') end
-      require('fff.download').download_or_build_binary()
+      require('ffs.download').download_or_build_binary()
     end
   end,
 })
 
-vim.g.fff = {
+vim.g.ffs = {
   lazy_sync = true,
   debug = { enabled = true, show_scores = true },
 }
 
-vim.keymap.set('n', 'ff', function() require('fff').find_files() end, { desc = 'FFFind files' })
+vim.keymap.set('n', 'ff', function() require('ffs').find_files() end, { desc = 'Find files' })
 ```
 
 ### Public API
 
 ```lua
-require('fff').find_files()                        -- find files in current repo
-require('fff').live_grep()                         -- live content grep
-require('fff').scan_files()                        -- force rescan
-require('fff').refresh_git_status()                -- refresh git status
-require('fff').find_files_in_dir(path)             -- find in a specific dir
-require('fff').change_indexing_directory(new_path) -- change root
+require('ffs').find_files()                        -- find files in current repo
+require('ffs').live_grep()                         -- live content grep
+require('ffs').scan_files()                        -- force rescan
+require('ffs').refresh_git_status()                -- refresh git status
+require('ffs').find_files_in_dir(path)             -- find in a specific dir
+require('ffs').change_indexing_directory(new_path) -- change root
 ```
 
 ### Commands
 
-- `:FFFScan`. Rescan files.
-- `:FFFRefreshGit`. Refresh git status.
-- `:FFFClearCache [all|frecency|files]`. Clear caches.
-- `:FFFHealth`. Health check.
-- `:FFFDebug [on|off|toggle]`. Toggle the scoring display.
-- `:FFFOpenLog`. Open `~/.local/state/nvim/log/fff.log`.
+- `:FFSScan`. Rescan files.
+- `:FFSRefreshGit`. Refresh git status.
+- `:FFSClearCache [all|frecency|files]`. Clear caches.
+- `:FFSHealth`. Health check.
+- `:FFSDebug [on|off|toggle]`. Toggle the scoring display.
+- `:FFSOpenLog`. Open `~/.local/state/nvim/log/ffs.log`.
+
+
 
 ### Configuration
 
 Defaults are sensible. Override only what you care about.
 
 ```lua
-require('fff').setup({
+require('ffs').setup({
   base_path = vim.fn.getcwd(),
   prompt = '> ',
-  title = 'FFFiles',
+  title = 'Files',
   max_results = 100,
   max_threads = 4,
   lazy_sync = true,
@@ -399,7 +408,7 @@ require('fff').setup({
   },
   history = {
     enabled = true,
-    db_path = vim.fn.stdpath('data') .. '/fff_queries',
+    db_path = vim.fn.stdpath('data') .. '/ffs_queries',
     min_combo_count = 3,
     combo_boost_score_multiplier = 100,
   },
@@ -417,7 +426,7 @@ require('fff').setup({
   debug = { enabled = false, show_scores = false },
   logging = {
     enabled = true,
-    log_file = vim.fn.stdpath('log') .. '/fff.log',
+    log_file = vim.fn.stdpath('log') .. '/ffs.log',
     log_level = 'info',
   },
 })
@@ -430,8 +439,8 @@ require('fff').setup({
 Per-call override:
 
 ```lua
-require('fff').live_grep({ grep = { modes = { 'fuzzy', 'plain' } } })
-require('fff').live_grep({ query = 'search term' }) -- pre-fill
+require('ffs').live_grep({ grep = { modes = { 'fuzzy', 'plain' } } })
+require('ffs').live_grep({ query = 'search term' }) -- pre-fill
 ```
 
 ### Constraints
@@ -461,48 +470,42 @@ Sign-column indicators are on by default. To color filename text by git status, 
 
 ### File filtering
 
-FFF honours `.gitignore`. For picker-only ignores that do not touch git, add a sibling `.ignore` file:
+ffs honours `.gitignore`. For picker-only ignores that do not touch git, add a sibling `.ignore` file:
 
 ```gitignore
 *.md
 docs/archive/**/*.md
 ```
 
-Run `:FFFScan` to force a rescan.
+Run `:FFSScan` to force a rescan.
 
 ### Troubleshooting
 
-- `:FFFHealth` verifies picker init, optional dependencies, and DB connectivity.
-- `:FFFOpenLog` opens the log file.
+- `:FFSHealth` verifies picker init, optional dependencies, and DB connectivity.
+- `:FFSOpenLog` opens the log file.
 
-### Optional `fff.scry` Lua module
+### Code-aware Lua module (`ffs.engine`)
 
-The Neovim cdylib (`ffs_nvim`) ships with an **opt-in** `scry` Cargo feature that exposes the [scry engine](#scry-engine) directly to Lua. The default build does not include it — `make build` produces a binary symbol-identical to the pre-scry release. To enable it:
-
-```bash
-cargo build --release -p ffs-nvim --features scry
-```
-
-Once enabled, the wrapper at [`lua/ffs/scry.lua`](./lua/ffs/scry.lua) gives you:
+The Neovim cdylib (`ffs_nvim`) bundles the symbol index, dispatch, and budgeted read directly. The wrapper at [`lua/ffs/engine.lua`](./lua/ffs/engine.lua) gives you:
 
 ```lua
-local scry = require('fff.scry')
-scry.init(vim.fn.getcwd())                                    -- one-time index
-for _, hit in ipairs(scry.symbol('FilePicker')) do
+local engine = require('ffs.engine')
+engine.init(vim.fn.getcwd())                                  -- one-time index
+for _, hit in ipairs(engine.symbol('FilePicker')) do
   print(hit.path, hit.line, hit.kind)
 end
-local res = scry.read('lua/ffs/main.lua', 5000, 'minimal')    -- token-budget read
-print(scry.dispatch('UnifiedScanner'))                        -- auto-classify
-scry.rebuild()                                                -- refresh caches
+local res = engine.read('lua/ffs/main.lua', 5000, 'minimal')  -- token-budget read
+print(engine.dispatch('UnifiedScanner'))                      -- auto-classify
+engine.rebuild()                                              -- refresh caches
 ```
 
-If the loaded `ffs_nvim` cdylib was built without `--features scry`, the module raises a clear error explaining how to rebuild. Inputs are validated with `vim.validate()`.
+Inputs are validated with `vim.validate()`.
 
-The existing ffs.nvim picker API (`require('fff').find_files()`, etc.) is **unchanged** in either build mode.
+The standard `require('ffs').find_files()` picker API is **unchanged** in either build mode.
 
 </details>
 
-The best file search picker for neovim. Period. Faster and more intuitive queries, frecency ranking, definition classification and much more.
+The best file search picker for Neovim. Period. Faster and more intuitive queries, frecency ranking, definition classification, and a code-aware extension behind a single feature flag.
 
 <details id="node-sdk">
 <summary>
@@ -512,7 +515,7 @@ The best file search picker for neovim. Period. Faster and more intuitive querie
 ```bash
 npm install @ff-labs/ffs-node
 # or
-bun add @ff-labs/ffs-node
+bun add @ff-labs/ffs-bun
 ```
 
 ```ts
@@ -534,11 +537,11 @@ const hits = finder.value.grep("GetOffTheRecordProfile", {
 finder.value.destroy();
 ```
 
-Every method returns a `Result<T>` (`{ ok: true, value } | { ok: false, error }`). Full type reference: [`packages/fff-node/src/types.ts`](./packages/fff-node/src/types.ts).
+Every method returns a `Result<T>` (`{ ok: true, value } | { ok: false, error }`). Full type reference: [`packages/ffs-node/src/types.ts`](./packages/ffs-node/src/types.ts).
 
 </details>
 
-TypeScript wrapper over the C library for nodejs and bun. Build custom agent tools, CLIs, or IDE integrations on top of FFF.
+TypeScript wrapper over the C library for Node.js and Bun. Build custom agent tools, CLIs, or IDE integrations on top of ffs.
 
 <details id="rust-crate">
 <summary>
@@ -547,18 +550,18 @@ TypeScript wrapper over the C library for nodejs and bun. Build custom agent too
 
 ### Add the dependency
 
-FFF is written in Rust, so this is the lowest-overhead way to use it.
+ffs is written in Rust, so this is the lowest-overhead way to use it.
 
 ```toml
 [dependencies]
-ffs-search = "0.6"
+ffs-search = "0.7"
 ```
 
-Full API documentation: [docs.rs/ffs-search](https://docs.rs/ffs-search/latest/fff_search/).
+Full API documentation: [docs.rs/ffs-search](https://docs.rs/ffs-search).
 
 </details>
 
-Native rust crate that is performing all the search. Stable and well documented.
+Native Rust crate that powers all the search. Stable and well documented.
 
 <details id="c-library">
 <summary>
@@ -575,7 +578,7 @@ make build-c-lib
 cargo build --release -p ffs-c --features zlob
 ```
 
-The output is a `cdylib` (`libffs_c.so` / `libffs_c.dylib` / `ffs_c.dll`). The header lives at [`crates/ffs-c/include/fff.h`](./crates/ffs-c/include/fff.h).
+The output is a `cdylib` (`libffs_c.so` / `libffs_c.dylib` / `ffs_c.dll`). The header lives at [`crates/ffs-c/include/ffs.h`](./crates/ffs-c/include/ffs.h).
 
 Prebuilt binaries for every version, including every commit on main, are on the [releases page](https://github.com/dmtrKovalenko/ffs.nvim/releases). The same binaries also ship inside the `@ff-labs/ffs-bin-*` npm packages.
 
@@ -592,12 +595,12 @@ make install PREFIX=$HOME/.local
 make install DESTDIR=/tmp/pkgroot PREFIX=/usr
 ```
 
-Drops `libffs_c.{so,dylib,dll}` into `$(PREFIX)/lib` and the header into `$(PREFIX)/include/fff.h`. Remove with `make uninstall`, which honours the same `PREFIX` and `DESTDIR`.
+Drops `libffs_c.{so,dylib,dll}` into `$(PREFIX)/lib` and the header into `$(PREFIX)/include/ffs.h`. Remove with `make uninstall`, which honours the same `PREFIX` and `DESTDIR`.
 
 Link against it after install:
 
 ```bash
-cc my_app.c -lfff_c -o my_app
+cc my_app.c -lffs_c -o my_app
 ```
 
 Ensure `$(PREFIX)/lib` is on your runtime library search path (`LD_LIBRARY_PATH` on Linux, `DYLD_LIBRARY_PATH` on macOS, or an entry in `/etc/ld.so.conf.d/`).
@@ -605,11 +608,11 @@ Ensure `$(PREFIX)/lib` is on your runtime library search path (`LD_LIBRARY_PATH`
 ### Minimal example
 
 ```c
-#include <fff.h>
+#include <ffs.h>
 #include <stdio.h>
 
 int main(void) {
-    FffResult *res = fff_create_instance(
+    FfsResult *res = ffs_create_instance(
         ".",        // base_path
         "",         // frecency_db_path (empty = default)
         "",         // history_db_path
@@ -621,52 +624,32 @@ int main(void) {
     );
     if (!res->success) {
         fprintf(stderr, "init failed: %s\n", res->error);
-        fff_free_result(res);
+        ffs_free_result(res);
         return 1;
     }
     void *handle = res->handle;
-    fff_free_result(res);
+    ffs_free_result(res);
 
     // Search
-    FffResult *search = fff_search(handle, "main.rs", "", 0, 0, 20, 100, 3);
-    // ... read FffSearchResult from search->handle, then fff_free_search_result()
+    FfsResult *search = ffs_search(handle, "main.rs", "", 0, 0, 20, 100, 3);
+    // ... read FfsSearchResult from search->handle, then ffs_free_search_result()
 
-    fff_destroy(handle);
+    ffs_destroy(handle);
     return 0;
 }
 ```
 
+> Function and type names follow the symbols emitted in [`crates/ffs-c/include/ffs.h`](./crates/ffs-c/include/ffs.h); always treat that header as the source of truth.
+
 ### Notes
 
-- Every function returning `FffResult*` allocates with Rust's `Box`. Free with `fff_free_result`, do not use malloc's free
+- Every function returning `FfsResult*` allocates with Rust's `Box`. Free it with the corresponding `ffs_free_*` helper, not `malloc`'s `free`.
 - Payloads (search results, grep results, scan progress) have their own dedicated free functions listed in the header.
-- C strings returned in the `handle` field (e.g. from `fff_get_base_path`) are freed with `fff_free_string`.
+- C strings returned in the `handle` field are freed with `ffs_free_string`.
 
-### Optional scry FFI (`fff_scry_*`)
+### Code-aware FFI (`ffs_engine_*`)
 
-The C library has an opt-in `scry` Cargo feature that adds a second, code-aware surface backed by the [scry engine](#scry-engine). The default build excludes it — pre-scry consumers see a byte-identical ABI:
-
-```bash
-cargo build --release -p ffs-c --features scry
-cc my_app.c -DFFF_SCRY -lfff_c -o my_app
-```
-
-When `FFF_SCRY` is defined, `fff.h` exposes 7 extra functions:
-
-```c
-struct FffScryEngine *fff_scry_engine_new(const char *root, uint64_t total_token_budget);
-int32_t                fff_scry_engine_rebuild(struct FffScryEngine *engine);
-void                   fff_scry_engine_free(struct FffScryEngine *engine);
-
-struct FffScryResponse *fff_scry_dispatch(struct FffScryEngine *engine, const char *query);
-struct FffScryResponse *fff_scry_symbol  (struct FffScryEngine *engine, const char *name);
-struct FffScryResponse *fff_scry_read    (struct FffScryEngine *engine, const char *path,
-                                          uint64_t budget, const char *filter);
-
-void                   fff_free_scry_response(struct FffScryResponse *response);
-```
-
-`FffScryResponse` carries a JSON payload + length + status code. Callers free it with `fff_free_scry_response`. The new types and functions are wrapped in `#if defined(FFF_SCRY)` in [`crates/ffs-c/include/fff.h`](./crates/ffs-c/include/fff.h), so the default include surface is unchanged when the feature is off.
+The C library exports a code-aware surface backed by the engine: engine creation, dispatch, symbol lookup, callers/callees, and budgeted reads. Functions and types are listed in [`crates/ffs-c/include/ffs.h`](./crates/ffs-c/include/ffs.h) under the `ffs_engine_*` prefix (e.g. `ffs_engine_new`, `ffs_engine_dispatch`, `ffs_engine_symbol`, `ffs_engine_read`).
 
 Source: [`crates/ffs-c/`](./crates/ffs-c/).
 
@@ -676,61 +659,61 @@ Stable C ABI. Bind from C/C++, Zig, Go via cgo, Python via ctypes, or anything w
 
 ---
 
-## What is FFF and why use it over ripgrep or fzf?
+## What is ffs and why use it over ripgrep or fzf?
 
-FFF is a file search library, not a CLI. Ripgrep and fzf are great tools, but they are command-line programs: every call forks a new process, re-reads `.gitignore`, re-stats directories, and rebuilds whatever state it needs in memory before it can answer. That is fine when you grep once from a shell. It is bad when an editor or an AI agent wants to run hundreds of searches per session.
+ffs is a file-search library, not a CLI. Ripgrep and fzf are great tools, but they are command-line programs: every call forks a new process, re-reads `.gitignore`, re-stats directories, and rebuilds whatever state it needs in memory before it can answer. That is fine when you grep once from a shell. It is bad when an editor or an AI agent wants to run hundreds of searches per session.
 
-FFF keeps the index and the file cache resident in one long-lived process and exposes the same Rust core through four thin layers: a native crate (`ffs-search`), a C library (`libffs_c`), a Node/Bun SDK (`@ff-labs/ffs-node`), and an MCP server. You call `FileFinder.create()` once, then every subsequent search hits warm memory. On a 500k-file Chromium checkout, that is the difference between 3-9 **SECONDS** per ripgrep spawn and sub-10 ms per FFF query.
+ffs keeps the index, file cache, and symbol index resident in one long-lived process and exposes the same Rust core through five thin layers: a native crate (`ffs-search`), a C library (`libffs_c`), a Node/Bun SDK (`@ff-labs/ffs-node` / `@ff-labs/ffs-bun`), an MCP server (`ffs-mcp`), and the unified `ffs` CLI. You initialise once, then every subsequent search hits warm memory. On a 500k-file Chromium checkout, that is the difference between 3-9 **seconds** per ripgrep spawn and sub-10 ms per ffs query.
 
-Algorithm for fuzzy matching is much more comprehensive than fzf's algorithm it is **typo-resistant** and we provide a query language with additional constraint parsing for prefiltering e.g. "*.rs !test/ shcema" is a perfectly valid query for fff, but fzf wouldn't find anything even for a single typo in "shcema".
+The fuzzy-matching algorithm is much more comprehensive than fzf's: it is **typo-resistant** and exposes a query language with constraint parsing for prefiltering. `*.rs !test/ shcema` is a valid query for ffs, but fzf wouldn't find anything even with a single typo in `shcema`.
 
 ### Why a programmatic API matters
 
 - No process spawn. Every call stays in-process and avoids the fork, exec, argv parsing, and stdout pipe setup that dominates short `rg` invocations.
-- One FS walk, metadata collection, and parse of `.gitignore`. The ignore walker runs once at scan time and the result is reused for every search.
+- One FS walk, one metadata collection, one parse of `.gitignore`. The ignore walker runs once at scan time and the result is reused for every search.
 - Results come back as typed objects, not text you have to re-parse. The SDK gives you `{ relativePath, lineNumber, lineContent, gitStatus, totalFrecencyScore, isDefinition, ... }` directly.
-- Cursor pagination that survives across calls. Ripgrep has no concept of "page 2 of these matches"; FFF does.
-- A long-lived process opens up optimisations that a one-shot CLI cannot apply: warm caches, incremental re-indexing, cross-query frecency, and shared SIMD state.
+- Cursor pagination that survives across calls. Ripgrep has no concept of "page 2 of these matches"; ffs does.
+- A long-lived process opens up optimisations a one-shot CLI cannot apply: warm caches, incremental re-indexing, cross-query frecency, shared SIMD state.
 
 ### What the core actually does
 
-- **Frecency-ranked fuzzy matching.** Every indexed file carries an access score and a modification score. Searches rank files you have opened recently and frequently above cold results. This is the same idea as VS Code's recently-opened list, but applied to every search result, not just a sidebar.
+- **Frecency-ranked fuzzy matching.** Every indexed file carries an access score and a modification score. Searches rank files you have opened recently and frequently above cold results.
 - **Typo-resistant matching for both paths and content.** Smith-Waterman fuzzy scoring is available on the grep path; path search uses SIMD-accelerated fuzzy matching (via the [`frizbee`](https://github.com/saghm/frizbee)-derived core) that survives dropped characters and reorderings.
 - **Content grep with three modes.** Plain literal (SIMD memmem), regex (the Rust `regex` crate), and fuzzy (Smith-Waterman per line). Auto-detects which mode to use from the pattern, falls back to fuzzy when a plain search returns zero hits.
 - **Multi-pattern OR search.** SIMD Aho-Corasick for "find any of these 20 identifiers at once", which is faster than regex alternation and a lot faster than 20 separate ripgrep runs.
+- **Code-aware queries.** Tree-sitter symbol index, bigram + bloom pre-filter stack, callers / callees / dependents / impact ranking. All built in one pass via `UnifiedScanner`.
 - **Background file watcher.** The index updates as files change. You never pay for a rescan on the hot path.
-- **Git status awareness.** Modified, staged, untracked, and ignored states are cached and returned with every result, so callers can sort or filter them without shelling out to git. The watcher talks to libgit2 directly instead of spawning the `git` CLI.
+- **Git status awareness.** Modified, staged, untracked, and ignored states are cached and returned with every result, so callers can sort or filter without shelling out to git. The watcher talks to libgit2 directly instead of spawning the `git` CLI.
 - **Definition classifier.** A byte-level scanner on the Rust side tags lines that start with `struct`, `fn`, `class`, `def`, `impl`, and friends.
 
 ### Performance choices that matter
 
-- Efficient memory allocator and memory allocation strategy (see next paragraph). By default we use `mimaloc`
-- Parallel multi thread search pipeline that is not contaganted by the orchistration logic
-- SIMD first algorithms for everything. Efficinet & non-allocating sorting.
-- Platform specific optimizations for FS ([getdents64](https://linux.die.net/man/2/getdents64), NTFS api on windows and others)
-- Lightweight on the flight content index for realtime even typo resistant grep
-- Memory mapped content cache. We store some of the files in virtual memory (the amount is limited)
-- Single contiguous arena storage of string chunks. Significantly reduces the amount of memory to work with and dramatically increases CPU cache hits.
+- Efficient memory allocator and allocation strategy. By default we use `mimalloc`.
+- Parallel multi-thread search pipeline that is not contaminated by the orchestration logic.
+- SIMD-first algorithms across the board. Efficient, non-allocating sorting.
+- Platform-specific optimisations for the FS layer ([getdents64](https://linux.die.net/man/2/getdents64), the NTFS API on Windows, and others).
+- Lightweight on-the-fly content index for realtime, even typo-resistant grep.
+- Memory-mapped content cache. Some files are stored in virtual memory (the amount is bounded).
+- Single contiguous arena for string chunks. Significantly reduces working-set memory and dramatically improves CPU cache behaviour.
 
 ### Memory allocation
 
-Yes, fff fundamentally requires more memory than calling a single child process. That is the primary source of the speedup. In practice, alongside one of the most popular file search pickers for Neovim, [fff ends up using less RAM than a burst of ripgrep invocations](https://x.com/neogoose_btw/status/2041606853155811442).
+Yes, ffs fundamentally requires more memory than spawning a single child process. That is the primary source of the speedup. In practice, alongside one of the most popular file pickers for Neovim, ffs ends up using less RAM than a burst of ripgrep invocations.
 
-
-FFF also keeps a content index, around 360 bytes per indexed file, so roughly 36 MB for a 100k-file repo. Not every file is indexed - binaries, oversized files, and anything not eligible for grep are skipped. If even that footprint is too much, the index can be backed by a memory-mapped file instead of anonymous RAM.
+ffs also keeps a content index, around 360 bytes per indexed file, so roughly 36 MB for a 100k-file repo. Not every file is indexed — binaries, oversized files, and anything not eligible for grep are skipped. If even that footprint is too much, the index can be backed by a memory-mapped file instead of anonymous RAM.
 
 ### What this means in practice
 
-If you are building an agent, an IDE extension, a pre-commit check, or any long-running tool that searches the same repository many times, calling FFF as a library is dramatically cheaper than shelling out to ripgrep. The tradeoff is real memory: FFF keeps the index in RAM and warms the content cache. On a 14k-file repo that costs about 26 MB resident. On a 500k-file repo like Chromium, expect a few hundred MB. In exchange, every single search is enriched with git status, frecency ranking, file metadata, timestamps of last access and edit and so on.
+If you are building an agent, an IDE extension, a pre-commit check, or any long-running tool that searches the same repository many times, calling ffs as a library is dramatically cheaper than shelling out to ripgrep. The tradeoff is real memory: ffs keeps the index in RAM and warms the content cache. On a 14k-file repo that costs about 26 MB resident. On a 500k-file repo like Chromium, expect a few hundred MB. In exchange, every single search is enriched with git status, frecency ranking, file metadata, timestamps of last access and edit, and so on.
 
-If you are running one grep from a terminal, `rg` is still the right tool. If you run dozens of them inside the same process, FFF will pay for itself starting from the second call. If you work on AI agent fff will finish preparation work before your AI will have a chance to call it.
+If you are running one grep from a terminal, `rg` is still the right tool. If you run dozens of them inside the same process, ffs will pay for itself starting from the second call. If you work on an AI agent, ffs will finish preparation work before your AI has a chance to call it.
 
 ### How it compares
 
-- **ripgrep**: FFF uses the same underlying regex engine and more advanced plain text matching algorithms. Stores content index and file tree. Main wins on repeated-search workloads. Loses on "grep once from bash and exit."
-- **fzf**: FFF's path search is fuzzy like fzf, but it is also frecency-aware and git-aware, and ships a more typo-tolerant algorithm. fzf is a pure match-and-filter tool; FFF ranks results by how often you actually open them.
-- **Telescope / fzf-lua / snacks.picker**: FFF ships its own Neovim picker with the same ranking the MCP server and SDK use. The picker is optional; the core is the same.
-- **Tantivy or other full-text search engines**: different class of tool. Tantivy indexes documents for query-time scoring at scale. FFF is scoped to one repository and optimised for sub-10 ms response. It does not persist an inverted index on disk.
+- **ripgrep**: ffs uses the same underlying regex engine and more advanced plain-text matching. Stores a content index and a file tree. Main wins on repeated-search workloads. Loses on "grep once from bash and exit."
+- **fzf**: ffs's path search is fuzzy like fzf, but it is also frecency-aware and git-aware, and ships a more typo-tolerant algorithm. fzf is a pure match-and-filter tool; ffs ranks results by how often you actually open them.
+- **Telescope / fzf-lua / snacks.picker**: ffs ships its own Neovim picker with the same ranking the MCP server and SDK use. The picker is optional; the core is the same.
+- **Tantivy or other full-text search engines**: different class of tool. Tantivy indexes documents for query-time scoring at scale. ffs is scoped to one repository and optimised for sub-10 ms response. It does not persist an inverted index on disk.
 
 ---
 
@@ -738,32 +721,33 @@ If you are running one grep from a terminal, `rg` is still the right tool. If yo
 
 **Core (file search):**
 
-- `crates/ffs-search`, `crates/ffs-grep`, `crates/ffs-query-parser` - Rust core.
-- `crates/ffs-c` - C FFI used by every language binding.
-- `crates/ffs-nvim` - Lua/mlua bindings for the Neovim plugin.
-- `crates/ffs-mcp` - MCP server binary.
+- `crates/ffs-core` (publishes as `ffs-search`) — Rust core (fuzzy, grep, walker, watcher).
+- `crates/ffs-grep`, `crates/ffs-query-parser` — supporting libraries.
+- `crates/ffs-c` — C FFI used by every language binding.
+- `crates/ffs-nvim` — Lua/mlua bindings for the Neovim plugin.
+- `crates/ffs-mcp` — MCP server binary (`ffs-mcp`).
 
-**scry engine (code-aware layer):**
+**Code-aware layer:**
 
-- `crates/ffs-symbol` - tree-sitter symbol scanner + bigram / bloom filter caches.
-- `crates/ffs-budget` - token-budget reader, comment/whitespace filter levels, header/footer-preserving truncation.
-- `crates/ffs-engine` - unified scanner that builds the symbol / bloom / outline caches in one pass + dispatch / classify / ranking helpers.
-- `crates/ffs-cli` - the `scry` binary. Subcommands: `find`, `glob`, `grep`, `read`, `symbol`, `callers`, `callees`, `dispatch`, `index`, `mcp`.
+- `crates/ffs-symbol` — tree-sitter symbol scanner + bigram / bloom filter caches.
+- `crates/ffs-budget` — token-budget reader, comment/whitespace filter levels, header/footer-preserving truncation.
+- `crates/ffs-engine` — unified scanner that builds the symbol / bloom / outline caches in one pass + dispatch / classify / ranking helpers.
+- `crates/ffs-cli` — the `ffs` binary. All subcommands (`find`, `glob`, `grep`, `read`, `outline`, `symbol`, `callers`, `callees`, `refs`, `flow`, `siblings`, `deps`, `impact`, `dispatch`, `index`, `map`, `overview`, `mcp`, `guide`).
 
 **Language SDKs and editor integration:**
 
-- `packages/fff-node` - Node.js SDK (`@ff-labs/ffs-node`).
-- `packages/fff-bun` - Bun SDK (`@ff-labs/ffs-node`).
-- `packages/pi-ffs` - pi extension (`@ff-labs/pi-ffs`).
-- `lua/` - Neovim-side plugin code (`lua/ffs/scry.lua` is the optional scry wrapper).
+- `packages/ffs-node` — Node.js SDK (`@ff-labs/ffs-node`).
+- `packages/ffs-bun` — Bun SDK (`@ff-labs/ffs-bun`).
+- `packages/pi-ffs` — pi extension (`@ff-labs/pi-ffs`).
+- `lua/ffs/` — Neovim-side plugin code (`lua/ffs/engine.lua` is the code-aware wrapper).
 
 ## Benchmark infrastructure
 
-The scry layer ships criterion benchmarks for every cache. Three CI workflows track them:
+The code-aware layer ships criterion benchmarks for every cache. Three CI workflows track them:
 
-- **`bench-smoke`** (every PR, in `.github/workflows/rust.yml`) - `cargo bench --no-run -p ffs-symbol -p ffs-budget -p ffs-engine`. Compile-only; catches API breakage in the bench targets without paying for full runs.
-- **`bench-track`** (`.github/workflows/bench-track.yml`) - `workflow_dispatch` + weekly cron (Sunday 02:00 UTC). Runs the full criterion suite end-to-end and uploads `target/criterion` as a 30-day artifact.
-- **`flamegraph`** (`.github/workflows/flamegraph.yml`) - `workflow_dispatch` only. Profiles a configurable bench (defaults to `dispatch_bench` in `ffs-engine`) under `cargo flamegraph` and uploads the SVG.
+- **`bench-smoke`** (every PR, in `.github/workflows/rust.yml`) — `cargo bench --no-run -p ffs-symbol -p ffs-budget -p ffs-engine`. Compile-only; catches API breakage in the bench targets without paying for full runs.
+- **`bench-track`** (`.github/workflows/bench-track.yml`) — `workflow_dispatch` + weekly cron (Sunday 02:00 UTC). Runs the full criterion suite end-to-end and uploads `target/criterion` as a 30-day artifact.
+- **`flamegraph`** (`.github/workflows/flamegraph.yml`) — `workflow_dispatch` only. Profiles a configurable bench (defaults to `dispatch_bench` in `ffs-engine`) under `cargo flamegraph` and uploads the SVG.
 
 The bench binaries themselves live under `crates/ffs-{symbol,budget,engine}/benches/` (`bloom`, `symbol`, `filter`, `truncate`, `dispatch`, …).
 

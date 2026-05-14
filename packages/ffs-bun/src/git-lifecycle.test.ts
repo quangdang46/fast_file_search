@@ -131,7 +131,7 @@ describe.skipIf(process.platform === "win32")("Git lifecycle integration", () =>
     // Create temp directory and initialise a git repo with two committed files.
     // Use realpathSync to resolve symlinks (macOS /var -> /private/var) so
     // that git2's resolved workdir paths match the file picker's base_path.
-    tmpDir = realpathSync(mkdtempSync(join(tmpdir(), "fff-git-test-")));
+    tmpDir = realpathSync(mkdtempSync(join(tmpdir(), "ffs-git-test-")));
 
     git(tmpDir, "init", "-b", "main");
     // Need at least one commit for status to work properly

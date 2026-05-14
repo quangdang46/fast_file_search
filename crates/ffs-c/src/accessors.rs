@@ -1,8 +1,8 @@
-//! Stable accessor functions for `fff-c` FFI struct fields.
+//! Stable accessor functions for `ffs-c` FFI struct fields.
 //!
 //! # Why this exists
 //!
-//! `fff-c` exposes its result types as plain `#[repr(C)]` structs. External
+//! `ffs-c` exposes its result types as plain `#[repr(C)]` structs. External
 //! consumers (Emacs Lisp via `emacs-ffi`, Python `ctypes`, etc.) that access
 //! fields by hardcoding byte offsets break silently whenever the struct layout
 //! changes — a new field shifts every subsequent offset with no compile-time
@@ -14,10 +14,10 @@
 //! # Usage from Emacs Lisp (example)
 //!
 //! ```elisp
-//! (define-ffi-function fff--grep-match-line-content
-//!   "ffs_grep_match_get_line_content" :pointer [:pointer] fff--library)
+//! (define-ffi-function ffs--grep-match-line-content
+//!   "ffs_grep_match_get_line_content" :pointer [:pointer] ffs--library)
 //!
-//! (ffi-get-c-string (fff--grep-match-line-content match-ptr))
+//! (ffi-get-c-string (ffs--grep-match-line-content match-ptr))
 //! ```
 //!
 //! # Array iteration
@@ -29,20 +29,20 @@
 use std::ffi::c_char;
 use std::ptr;
 
-use crate::ffi_types::{FffFileItem, FffGrepMatch, FffGrepResult, FffMatchRange, FffSearchResult};
+use crate::ffi_types::{FfsFileItem, FfsGrepMatch, FfsGrepResult, FfsMatchRange, FfsSearchResult};
 
-// ── FffFileItem ──────────────────────────────────────────────────────────────
+// ── FfsFileItem ──────────────────────────────────────────────────────────────
 
 /// Returns the relative path of a file item (e.g. `"src/main.rs"`).
 ///
 /// Returns null if `item` is null. The returned pointer is valid for the
-/// lifetime of the owning `FffSearchResult`; do not free it directly.
+/// lifetime of the owning `FfsSearchResult`; do not free it directly.
 ///
 /// ## Safety
-/// `item` must be a valid `FffFileItem` pointer or null.
+/// `item` must be a valid `FfsFileItem` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn fff_file_item_get_relative_path(
-    item: *const FffFileItem,
+pub unsafe extern "C" fn ffs_file_item_get_relative_path(
+    item: *const FfsFileItem,
 ) -> *const c_char {
     if item.is_null() {
         return ptr::null();
@@ -55,9 +55,9 @@ pub unsafe extern "C" fn fff_file_item_get_relative_path(
 /// Returns null if `item` is null. Do not free the returned pointer.
 ///
 /// ## Safety
-/// `item` must be a valid `FffFileItem` pointer or null.
+/// `item` must be a valid `FfsFileItem` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn fff_file_item_get_file_name(item: *const FffFileItem) -> *const c_char {
+pub unsafe extern "C" fn ffs_file_item_get_file_name(item: *const FfsFileItem) -> *const c_char {
     if item.is_null() {
         return ptr::null();
     }
@@ -70,9 +70,9 @@ pub unsafe extern "C" fn fff_file_item_get_file_name(item: *const FffFileItem) -
 /// Do not free the returned pointer.
 ///
 /// ## Safety
-/// `item` must be a valid `FffFileItem` pointer or null.
+/// `item` must be a valid `FfsFileItem` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn fff_file_item_get_git_status(item: *const FffFileItem) -> *const c_char {
+pub unsafe extern "C" fn ffs_file_item_get_git_status(item: *const FfsFileItem) -> *const c_char {
     if item.is_null() {
         return ptr::null();
     }
@@ -82,9 +82,9 @@ pub unsafe extern "C" fn fff_file_item_get_git_status(item: *const FffFileItem) 
 /// Returns the file size in bytes. Returns `0` if `item` is null.
 ///
 /// ## Safety
-/// `item` must be a valid `FffFileItem` pointer or null.
+/// `item` must be a valid `FfsFileItem` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn fff_file_item_get_size(item: *const FffFileItem) -> u64 {
+pub unsafe extern "C" fn ffs_file_item_get_size(item: *const FfsFileItem) -> u64 {
     if item.is_null() {
         return 0;
     }
@@ -95,9 +95,9 @@ pub unsafe extern "C" fn fff_file_item_get_size(item: *const FffFileItem) -> u64
 /// Returns `0` if `item` is null.
 ///
 /// ## Safety
-/// `item` must be a valid `FffFileItem` pointer or null.
+/// `item` must be a valid `FfsFileItem` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn fff_file_item_get_modified(item: *const FffFileItem) -> u64 {
+pub unsafe extern "C" fn ffs_file_item_get_modified(item: *const FfsFileItem) -> u64 {
     if item.is_null() {
         return 0;
     }
@@ -107,9 +107,9 @@ pub unsafe extern "C" fn fff_file_item_get_modified(item: *const FffFileItem) ->
 /// Returns the combined frecency score. Returns `0` if `item` is null.
 ///
 /// ## Safety
-/// `item` must be a valid `FffFileItem` pointer or null.
+/// `item` must be a valid `FfsFileItem` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn fff_file_item_get_total_frecency_score(item: *const FffFileItem) -> i64 {
+pub unsafe extern "C" fn ffs_file_item_get_total_frecency_score(item: *const FfsFileItem) -> i64 {
     if item.is_null() {
         return 0;
     }
@@ -119,9 +119,9 @@ pub unsafe extern "C" fn fff_file_item_get_total_frecency_score(item: *const Fff
 /// Returns the access-based frecency score. Returns `0` if `item` is null.
 ///
 /// ## Safety
-/// `item` must be a valid `FffFileItem` pointer or null.
+/// `item` must be a valid `FfsFileItem` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn fff_file_item_get_access_frecency_score(item: *const FffFileItem) -> i64 {
+pub unsafe extern "C" fn ffs_file_item_get_access_frecency_score(item: *const FfsFileItem) -> i64 {
     if item.is_null() {
         return 0;
     }
@@ -131,10 +131,10 @@ pub unsafe extern "C" fn fff_file_item_get_access_frecency_score(item: *const Ff
 /// Returns the modification-based frecency score. Returns `0` if `item` is null.
 ///
 /// ## Safety
-/// `item` must be a valid `FffFileItem` pointer or null.
+/// `item` must be a valid `FfsFileItem` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn fff_file_item_get_modification_frecency_score(
-    item: *const FffFileItem,
+pub unsafe extern "C" fn ffs_file_item_get_modification_frecency_score(
+    item: *const FfsFileItem,
 ) -> i64 {
     if item.is_null() {
         return 0;
@@ -145,25 +145,25 @@ pub unsafe extern "C" fn fff_file_item_get_modification_frecency_score(
 /// Returns `true` if the file was detected as binary. Returns `false` if `item` is null.
 ///
 /// ## Safety
-/// `item` must be a valid `FffFileItem` pointer or null.
+/// `item` must be a valid `FfsFileItem` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn fff_file_item_get_is_binary(item: *const FffFileItem) -> bool {
+pub unsafe extern "C" fn ffs_file_item_get_is_binary(item: *const FfsFileItem) -> bool {
     if item.is_null() {
         return false;
     }
     unsafe { (*item).is_binary }
 }
 
-// ── FffGrepMatch ─────────────────────────────────────────────────────────────
+// ── FfsGrepMatch ─────────────────────────────────────────────────────────────
 
 /// Returns the relative path of the file containing this grep match.
 ///
 /// Returns null if `m` is null. Do not free the returned pointer.
 ///
 /// ## Safety
-/// `m` must be a valid `FffGrepMatch` pointer or null.
+/// `m` must be a valid `FfsGrepMatch` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ffs_grep_match_get_relative_path(m: *const FffGrepMatch) -> *const c_char {
+pub unsafe extern "C" fn ffs_grep_match_get_relative_path(m: *const FfsGrepMatch) -> *const c_char {
     if m.is_null() {
         return ptr::null();
     }
@@ -175,9 +175,9 @@ pub unsafe extern "C" fn ffs_grep_match_get_relative_path(m: *const FffGrepMatch
 /// Returns null if `m` is null. Do not free the returned pointer.
 ///
 /// ## Safety
-/// `m` must be a valid `FffGrepMatch` pointer or null.
+/// `m` must be a valid `FfsGrepMatch` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ffs_grep_match_get_file_name(m: *const FffGrepMatch) -> *const c_char {
+pub unsafe extern "C" fn ffs_grep_match_get_file_name(m: *const FfsGrepMatch) -> *const c_char {
     if m.is_null() {
         return ptr::null();
     }
@@ -190,9 +190,9 @@ pub unsafe extern "C" fn ffs_grep_match_get_file_name(m: *const FffGrepMatch) ->
 /// Do not free the returned pointer.
 ///
 /// ## Safety
-/// `m` must be a valid `FffGrepMatch` pointer or null.
+/// `m` must be a valid `FfsGrepMatch` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ffs_grep_match_get_git_status(m: *const FffGrepMatch) -> *const c_char {
+pub unsafe extern "C" fn ffs_grep_match_get_git_status(m: *const FfsGrepMatch) -> *const c_char {
     if m.is_null() {
         return ptr::null();
     }
@@ -204,9 +204,9 @@ pub unsafe extern "C" fn ffs_grep_match_get_git_status(m: *const FffGrepMatch) -
 /// Returns null if `m` is null. Do not free the returned pointer.
 ///
 /// ## Safety
-/// `m` must be a valid `FffGrepMatch` pointer or null.
+/// `m` must be a valid `FfsGrepMatch` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ffs_grep_match_get_line_content(m: *const FffGrepMatch) -> *const c_char {
+pub unsafe extern "C" fn ffs_grep_match_get_line_content(m: *const FfsGrepMatch) -> *const c_char {
     if m.is_null() {
         return ptr::null();
     }
@@ -217,9 +217,9 @@ pub unsafe extern "C" fn ffs_grep_match_get_line_content(m: *const FffGrepMatch)
 /// Returns `0` if `m` is null.
 ///
 /// ## Safety
-/// `m` must be a valid `FffGrepMatch` pointer or null.
+/// `m` must be a valid `FfsGrepMatch` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ffs_grep_match_get_line_number(m: *const FffGrepMatch) -> u64 {
+pub unsafe extern "C" fn ffs_grep_match_get_line_number(m: *const FfsGrepMatch) -> u64 {
     if m.is_null() {
         return 0;
     }
@@ -230,9 +230,9 @@ pub unsafe extern "C" fn ffs_grep_match_get_line_number(m: *const FffGrepMatch) 
 /// Returns `0` if `m` is null.
 ///
 /// ## Safety
-/// `m` must be a valid `FffGrepMatch` pointer or null.
+/// `m` must be a valid `FfsGrepMatch` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ffs_grep_match_get_col(m: *const FffGrepMatch) -> u32 {
+pub unsafe extern "C" fn ffs_grep_match_get_col(m: *const FfsGrepMatch) -> u32 {
     if m.is_null() {
         return 0;
     }
@@ -243,9 +243,9 @@ pub unsafe extern "C" fn ffs_grep_match_get_col(m: *const FffGrepMatch) -> u32 {
 /// Returns `0` if `m` is null.
 ///
 /// ## Safety
-/// `m` must be a valid `FffGrepMatch` pointer or null.
+/// `m` must be a valid `FfsGrepMatch` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ffs_grep_match_get_byte_offset(m: *const FffGrepMatch) -> u64 {
+pub unsafe extern "C" fn ffs_grep_match_get_byte_offset(m: *const FfsGrepMatch) -> u64 {
     if m.is_null() {
         return 0;
     }
@@ -255,9 +255,9 @@ pub unsafe extern "C" fn ffs_grep_match_get_byte_offset(m: *const FffGrepMatch) 
 /// Returns the file size in bytes for the matched file. Returns `0` if `m` is null.
 ///
 /// ## Safety
-/// `m` must be a valid `FffGrepMatch` pointer or null.
+/// `m` must be a valid `FfsGrepMatch` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ffs_grep_match_get_size(m: *const FffGrepMatch) -> u64 {
+pub unsafe extern "C" fn ffs_grep_match_get_size(m: *const FfsGrepMatch) -> u64 {
     if m.is_null() {
         return 0;
     }
@@ -268,9 +268,9 @@ pub unsafe extern "C" fn ffs_grep_match_get_size(m: *const FffGrepMatch) -> u64 
 /// Returns `0` if `m` is null.
 ///
 /// ## Safety
-/// `m` must be a valid `FffGrepMatch` pointer or null.
+/// `m` must be a valid `FfsGrepMatch` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ffs_grep_match_get_total_frecency_score(m: *const FffGrepMatch) -> i64 {
+pub unsafe extern "C" fn ffs_grep_match_get_total_frecency_score(m: *const FfsGrepMatch) -> i64 {
     if m.is_null() {
         return 0;
     }
@@ -281,9 +281,9 @@ pub unsafe extern "C" fn ffs_grep_match_get_total_frecency_score(m: *const FffGr
 /// Returns `0` if `m` is null.
 ///
 /// ## Safety
-/// `m` must be a valid `FffGrepMatch` pointer or null.
+/// `m` must be a valid `FfsGrepMatch` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ffs_grep_match_get_access_frecency_score(m: *const FffGrepMatch) -> i64 {
+pub unsafe extern "C" fn ffs_grep_match_get_access_frecency_score(m: *const FfsGrepMatch) -> i64 {
     if m.is_null() {
         return 0;
     }
@@ -294,10 +294,10 @@ pub unsafe extern "C" fn ffs_grep_match_get_access_frecency_score(m: *const FffG
 /// Returns `0` if `m` is null.
 ///
 /// ## Safety
-/// `m` must be a valid `FffGrepMatch` pointer or null.
+/// `m` must be a valid `FfsGrepMatch` pointer or null.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ffs_grep_match_get_modification_frecency_score(
-    m: *const FffGrepMatch,
+    m: *const FfsGrepMatch,
 ) -> i64 {
     if m.is_null() {
         return 0;
@@ -309,9 +309,9 @@ pub unsafe extern "C" fn ffs_grep_match_get_modification_frecency_score(
 /// Returns `0` if `m` is null.
 ///
 /// ## Safety
-/// `m` must be a valid `FffGrepMatch` pointer or null.
+/// `m` must be a valid `FfsGrepMatch` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ffs_grep_match_get_modified(m: *const FffGrepMatch) -> u64 {
+pub unsafe extern "C" fn ffs_grep_match_get_modified(m: *const FfsGrepMatch) -> u64 {
     if m.is_null() {
         return 0;
     }
@@ -323,28 +323,28 @@ pub unsafe extern "C" fn ffs_grep_match_get_modified(m: *const FffGrepMatch) -> 
 /// Use with [`ffs_grep_match_get_match_range`] to iterate the highlight spans.
 ///
 /// ## Safety
-/// `m` must be a valid `FffGrepMatch` pointer or null.
+/// `m` must be a valid `FfsGrepMatch` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ffs_grep_match_get_match_ranges_count(m: *const FffGrepMatch) -> u32 {
+pub unsafe extern "C" fn ffs_grep_match_get_match_ranges_count(m: *const FfsGrepMatch) -> u32 {
     if m.is_null() {
         return 0;
     }
     unsafe { (*m).match_ranges_count }
 }
 
-/// Returns a pointer to the `index`-th [`FffMatchRange`] highlight span.
+/// Returns a pointer to the `index`-th [`FfsMatchRange`] highlight span.
 ///
 /// Returns null if `m` is null, `index >= match_ranges_count`, or the
 /// ranges array is null. The returned pointer is valid until the owning
-/// `FffGrepResult` is freed; do not free it directly.
+/// `FfsGrepResult` is freed; do not free it directly.
 ///
 /// ## Safety
-/// `m` must be a valid `FffGrepMatch` pointer or null.
+/// `m` must be a valid `FfsGrepMatch` pointer or null.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ffs_grep_match_get_match_range(
-    m: *const FffGrepMatch,
+    m: *const FfsGrepMatch,
     index: u32,
-) -> *const FffMatchRange {
+) -> *const FfsMatchRange {
     if m.is_null() {
         return ptr::null();
     }
@@ -361,9 +361,9 @@ pub unsafe extern "C" fn ffs_grep_match_get_match_range(
 /// Use with [`ffs_grep_match_get_context_before`] to read each line.
 ///
 /// ## Safety
-/// `m` must be a valid `FffGrepMatch` pointer or null.
+/// `m` must be a valid `FfsGrepMatch` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ffs_grep_match_get_context_before_count(m: *const FffGrepMatch) -> u32 {
+pub unsafe extern "C" fn ffs_grep_match_get_context_before_count(m: *const FfsGrepMatch) -> u32 {
     if m.is_null() {
         return 0;
     }
@@ -376,10 +376,10 @@ pub unsafe extern "C" fn ffs_grep_match_get_context_before_count(m: *const FffGr
 /// context array is null. Do not free the returned pointer.
 ///
 /// ## Safety
-/// `m` must be a valid `FffGrepMatch` pointer or null.
+/// `m` must be a valid `FfsGrepMatch` pointer or null.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ffs_grep_match_get_context_before(
-    m: *const FffGrepMatch,
+    m: *const FfsGrepMatch,
     index: u32,
 ) -> *const c_char {
     if m.is_null() {
@@ -398,9 +398,9 @@ pub unsafe extern "C" fn ffs_grep_match_get_context_before(
 /// Use with [`ffs_grep_match_get_context_after`] to read each line.
 ///
 /// ## Safety
-/// `m` must be a valid `FffGrepMatch` pointer or null.
+/// `m` must be a valid `FfsGrepMatch` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ffs_grep_match_get_context_after_count(m: *const FffGrepMatch) -> u32 {
+pub unsafe extern "C" fn ffs_grep_match_get_context_after_count(m: *const FfsGrepMatch) -> u32 {
     if m.is_null() {
         return 0;
     }
@@ -413,10 +413,10 @@ pub unsafe extern "C" fn ffs_grep_match_get_context_after_count(m: *const FffGre
 /// context array is null. Do not free the returned pointer.
 ///
 /// ## Safety
-/// `m` must be a valid `FffGrepMatch` pointer or null.
+/// `m` must be a valid `FfsGrepMatch` pointer or null.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ffs_grep_match_get_context_after(
-    m: *const FffGrepMatch,
+    m: *const FfsGrepMatch,
     index: u32,
 ) -> *const c_char {
     if m.is_null() {
@@ -436,9 +436,9 @@ pub unsafe extern "C" fn ffs_grep_match_get_context_after(
 /// ambiguous without that flag.
 ///
 /// ## Safety
-/// `m` must be a valid `FffGrepMatch` pointer or null.
+/// `m` must be a valid `FfsGrepMatch` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ffs_grep_match_get_fuzzy_score(m: *const FffGrepMatch) -> u16 {
+pub unsafe extern "C" fn ffs_grep_match_get_fuzzy_score(m: *const FfsGrepMatch) -> u16 {
     if m.is_null() {
         return 0;
     }
@@ -449,9 +449,9 @@ pub unsafe extern "C" fn ffs_grep_match_get_fuzzy_score(m: *const FffGrepMatch) 
 /// Returns `false` if `m` is null.
 ///
 /// ## Safety
-/// `m` must be a valid `FffGrepMatch` pointer or null.
+/// `m` must be a valid `FfsGrepMatch` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ffs_grep_match_get_has_fuzzy_score(m: *const FffGrepMatch) -> bool {
+pub unsafe extern "C" fn ffs_grep_match_get_has_fuzzy_score(m: *const FfsGrepMatch) -> bool {
     if m.is_null() {
         return false;
     }
@@ -462,9 +462,9 @@ pub unsafe extern "C" fn ffs_grep_match_get_has_fuzzy_score(m: *const FffGrepMat
 /// Returns `false` if `m` is null.
 ///
 /// ## Safety
-/// `m` must be a valid `FffGrepMatch` pointer or null.
+/// `m` must be a valid `FfsGrepMatch` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ffs_grep_match_get_is_definition(m: *const FffGrepMatch) -> bool {
+pub unsafe extern "C" fn ffs_grep_match_get_is_definition(m: *const FfsGrepMatch) -> bool {
     if m.is_null() {
         return false;
     }
@@ -475,23 +475,23 @@ pub unsafe extern "C" fn ffs_grep_match_get_is_definition(m: *const FffGrepMatch
 /// Returns `false` if `m` is null.
 ///
 /// ## Safety
-/// `m` must be a valid `FffGrepMatch` pointer or null.
+/// `m` must be a valid `FfsGrepMatch` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ffs_grep_match_get_is_binary(m: *const FffGrepMatch) -> bool {
+pub unsafe extern "C" fn ffs_grep_match_get_is_binary(m: *const FfsGrepMatch) -> bool {
     if m.is_null() {
         return false;
     }
     unsafe { (*m).is_binary }
 }
 
-// ── FffSearchResult ──────────────────────────────────────────────────────────
+// ── FfsSearchResult ──────────────────────────────────────────────────────────
 
 /// Returns the number of items in the result. Returns `0` if `r` is null.
 ///
 /// ## Safety
-/// `r` must be a valid `FffSearchResult` pointer or null.
+/// `r` must be a valid `FfsSearchResult` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ffs_search_result_get_count(r: *const FffSearchResult) -> u32 {
+pub unsafe extern "C" fn ffs_search_result_get_count(r: *const FfsSearchResult) -> u32 {
     if r.is_null() {
         return 0;
     }
@@ -502,9 +502,9 @@ pub unsafe extern "C" fn ffs_search_result_get_count(r: *const FffSearchResult) 
 /// truncated to the page size. Returns `0` if `r` is null.
 ///
 /// ## Safety
-/// `r` must be a valid `FffSearchResult` pointer or null.
+/// `r` must be a valid `FfsSearchResult` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ffs_search_result_get_total_matched(r: *const FffSearchResult) -> u32 {
+pub unsafe extern "C" fn ffs_search_result_get_total_matched(r: *const FfsSearchResult) -> u32 {
     if r.is_null() {
         return 0;
     }
@@ -515,23 +515,23 @@ pub unsafe extern "C" fn ffs_search_result_get_total_matched(r: *const FffSearch
 /// Returns `0` if `r` is null.
 ///
 /// ## Safety
-/// `r` must be a valid `FffSearchResult` pointer or null.
+/// `r` must be a valid `FfsSearchResult` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ffs_search_result_get_total_files(r: *const FffSearchResult) -> u32 {
+pub unsafe extern "C" fn ffs_search_result_get_total_files(r: *const FfsSearchResult) -> u32 {
     if r.is_null() {
         return 0;
     }
     unsafe { (*r).total_files }
 }
 
-// ── FffGrepResult ─────────────────────────────────────────────────────────────
+// ── FfsGrepResult ─────────────────────────────────────────────────────────────
 
 /// Returns the number of matches in the result. Returns `0` if `r` is null.
 ///
 /// ## Safety
-/// `r` must be a valid `FffGrepResult` pointer or null.
+/// `r` must be a valid `FfsGrepResult` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ffs_grep_result_get_count(r: *const FffGrepResult) -> u32 {
+pub unsafe extern "C" fn ffs_grep_result_get_count(r: *const FfsGrepResult) -> u32 {
     if r.is_null() {
         return 0;
     }
@@ -542,9 +542,9 @@ pub unsafe extern "C" fn ffs_grep_result_get_count(r: *const FffGrepResult) -> u
 /// Returns `0` if `r` is null.
 ///
 /// ## Safety
-/// `r` must be a valid `FffGrepResult` pointer or null.
+/// `r` must be a valid `FfsGrepResult` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ffs_grep_result_get_total_matched(r: *const FffGrepResult) -> u32 {
+pub unsafe extern "C" fn ffs_grep_result_get_total_matched(r: *const FfsGrepResult) -> u32 {
     if r.is_null() {
         return 0;
     }
@@ -555,9 +555,9 @@ pub unsafe extern "C" fn ffs_grep_result_get_total_matched(r: *const FffGrepResu
 /// Returns `0` if `r` is null.
 ///
 /// ## Safety
-/// `r` must be a valid `FffGrepResult` pointer or null.
+/// `r` must be a valid `FfsGrepResult` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ffs_grep_result_get_total_files_searched(r: *const FffGrepResult) -> u32 {
+pub unsafe extern "C" fn ffs_grep_result_get_total_files_searched(r: *const FfsGrepResult) -> u32 {
     if r.is_null() {
         return 0;
     }
@@ -568,9 +568,9 @@ pub unsafe extern "C" fn ffs_grep_result_get_total_files_searched(r: *const FffG
 /// Returns `0` if `r` is null.
 ///
 /// ## Safety
-/// `r` must be a valid `FffGrepResult` pointer or null.
+/// `r` must be a valid `FfsGrepResult` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ffs_grep_result_get_total_files(r: *const FffGrepResult) -> u32 {
+pub unsafe extern "C" fn ffs_grep_result_get_total_files(r: *const FfsGrepResult) -> u32 {
     if r.is_null() {
         return 0;
     }
@@ -581,9 +581,9 @@ pub unsafe extern "C" fn ffs_grep_result_get_total_files(r: *const FffGrepResult
 /// Returns `0` if `r` is null.
 ///
 /// ## Safety
-/// `r` must be a valid `FffGrepResult` pointer or null.
+/// `r` must be a valid `FfsGrepResult` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ffs_grep_result_get_filtered_file_count(r: *const FffGrepResult) -> u32 {
+pub unsafe extern "C" fn ffs_grep_result_get_filtered_file_count(r: *const FfsGrepResult) -> u32 {
     if r.is_null() {
         return 0;
     }
@@ -592,12 +592,12 @@ pub unsafe extern "C" fn ffs_grep_result_get_filtered_file_count(r: *const FffGr
 
 /// Returns the file offset for the next page, or `0` if all files have been
 /// searched or `r` is null. Pass this value as `file_offset` to a subsequent
-/// `fff_live_grep` or `fff_multi_grep` call to continue pagination.
+/// `ffs_live_grep` or `ffs_multi_grep` call to continue pagination.
 ///
 /// ## Safety
-/// `r` must be a valid `FffGrepResult` pointer or null.
+/// `r` must be a valid `FfsGrepResult` pointer or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ffs_grep_result_get_next_file_offset(r: *const FffGrepResult) -> u32 {
+pub unsafe extern "C" fn ffs_grep_result_get_next_file_offset(r: *const FfsGrepResult) -> u32 {
     if r.is_null() {
         return 0;
     }
@@ -610,10 +610,10 @@ pub unsafe extern "C" fn ffs_grep_result_get_next_file_offset(r: *const FffGrepR
 /// Do not free the returned pointer.
 ///
 /// ## Safety
-/// `r` must be a valid `FffGrepResult` pointer or null.
+/// `r` must be a valid `FfsGrepResult` pointer or null.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ffs_grep_result_get_regex_fallback_error(
-    r: *const FffGrepResult,
+    r: *const FfsGrepResult,
 ) -> *const c_char {
     if r.is_null() {
         return ptr::null();
@@ -631,8 +631,8 @@ mod tests {
 
     // ── helpers ──────────────────────────────────────────────────────────────
 
-    fn make_file_item(path: &str, name: &str) -> FffFileItem {
-        FffFileItem {
+    fn make_file_item(path: &str, name: &str) -> FfsFileItem {
+        FfsFileItem {
             relative_path: CString::new(path).unwrap().into_raw(),
             file_name: CString::new(name).unwrap().into_raw(),
             git_status: ptr::null_mut(),
@@ -645,7 +645,7 @@ mod tests {
         }
     }
 
-    unsafe fn free_file_item(item: &mut FffFileItem) {
+    unsafe fn free_file_item(item: &mut FfsFileItem) {
         unsafe {
             if !item.relative_path.is_null() {
                 drop(CString::from_raw(item.relative_path));
@@ -659,8 +659,8 @@ mod tests {
         }
     }
 
-    fn make_grep_match(path: &str, line: &str) -> FffGrepMatch {
-        FffGrepMatch {
+    fn make_grep_match(path: &str, line: &str) -> FfsGrepMatch {
+        FfsGrepMatch {
             relative_path: CString::new(path).unwrap().into_raw(),
             file_name: CString::new("file.rs").unwrap().into_raw(),
             git_status: ptr::null_mut(),
@@ -686,7 +686,7 @@ mod tests {
         }
     }
 
-    unsafe fn free_grep_match(m: &mut FffGrepMatch) {
+    unsafe fn free_grep_match(m: &mut FfsGrepMatch) {
         unsafe {
             if !m.relative_path.is_null() {
                 drop(CString::from_raw(m.relative_path));
@@ -700,14 +700,14 @@ mod tests {
         }
     }
 
-    fn make_search_result(count: u32, total: u32, files: u32) -> FffSearchResult {
-        FffSearchResult {
+    fn make_search_result(count: u32, total: u32, files: u32) -> FfsSearchResult {
+        FfsSearchResult {
             items: ptr::null_mut(),
             scores: ptr::null_mut(),
             count,
             total_matched: total,
             total_files: files,
-            location: crate::ffi_types::FffLocation {
+            location: crate::ffi_types::FfsLocation {
                 tag: 0,
                 line: 0,
                 col: 0,
@@ -717,8 +717,8 @@ mod tests {
         }
     }
 
-    fn make_grep_result() -> FffGrepResult {
-        FffGrepResult {
+    fn make_grep_result() -> FfsGrepResult {
+        FfsGrepResult {
             items: ptr::null_mut(),
             count: 3,
             total_matched: 10,
@@ -734,23 +734,23 @@ mod tests {
 
     #[test]
     fn null_file_item_returns_null_or_zero() {
-        let null: *const FffFileItem = ptr::null();
+        let null: *const FfsFileItem = ptr::null();
         unsafe {
-            assert!(fff_file_item_get_relative_path(null).is_null());
-            assert!(fff_file_item_get_file_name(null).is_null());
-            assert!(fff_file_item_get_git_status(null).is_null());
-            assert_eq!(fff_file_item_get_size(null), 0);
-            assert_eq!(fff_file_item_get_modified(null), 0);
-            assert_eq!(fff_file_item_get_access_frecency_score(null), 0);
-            assert_eq!(fff_file_item_get_modification_frecency_score(null), 0);
-            assert_eq!(fff_file_item_get_total_frecency_score(null), 0);
-            assert!(!fff_file_item_get_is_binary(null));
+            assert!(ffs_file_item_get_relative_path(null).is_null());
+            assert!(ffs_file_item_get_file_name(null).is_null());
+            assert!(ffs_file_item_get_git_status(null).is_null());
+            assert_eq!(ffs_file_item_get_size(null), 0);
+            assert_eq!(ffs_file_item_get_modified(null), 0);
+            assert_eq!(ffs_file_item_get_access_frecency_score(null), 0);
+            assert_eq!(ffs_file_item_get_modification_frecency_score(null), 0);
+            assert_eq!(ffs_file_item_get_total_frecency_score(null), 0);
+            assert!(!ffs_file_item_get_is_binary(null));
         }
     }
 
     #[test]
     fn null_grep_match_returns_null_or_zero() {
-        let null: *const FffGrepMatch = ptr::null();
+        let null: *const FfsGrepMatch = ptr::null();
         unsafe {
             assert!(ffs_grep_match_get_relative_path(null).is_null());
             assert!(ffs_grep_match_get_file_name(null).is_null());
@@ -779,7 +779,7 @@ mod tests {
 
     #[test]
     fn null_search_result_returns_zero() {
-        let null: *const FffSearchResult = ptr::null();
+        let null: *const FfsSearchResult = ptr::null();
         unsafe {
             assert_eq!(ffs_search_result_get_count(null), 0);
             assert_eq!(ffs_search_result_get_total_matched(null), 0);
@@ -789,7 +789,7 @@ mod tests {
 
     #[test]
     fn null_grep_result_returns_zero_or_null() {
-        let null: *const FffGrepResult = ptr::null();
+        let null: *const FfsGrepResult = ptr::null();
         unsafe {
             assert_eq!(ffs_grep_result_get_count(null), 0);
             assert_eq!(ffs_grep_result_get_total_matched(null), 0);
@@ -806,21 +806,21 @@ mod tests {
     #[test]
     fn file_item_getters_return_correct_values() {
         let mut item = make_file_item("src/main.rs", "main.rs");
-        let p = &item as *const FffFileItem;
+        let p = &item as *const FfsFileItem;
         unsafe {
-            let path = std::ffi::CStr::from_ptr(fff_file_item_get_relative_path(p));
+            let path = std::ffi::CStr::from_ptr(ffs_file_item_get_relative_path(p));
             assert_eq!(path.to_str().unwrap(), "src/main.rs");
 
-            let name = std::ffi::CStr::from_ptr(fff_file_item_get_file_name(p));
+            let name = std::ffi::CStr::from_ptr(ffs_file_item_get_file_name(p));
             assert_eq!(name.to_str().unwrap(), "main.rs");
 
-            assert!(fff_file_item_get_git_status(p).is_null());
-            assert_eq!(fff_file_item_get_size(p), 1024);
-            assert_eq!(fff_file_item_get_modified(p), 1_700_000_000);
-            assert_eq!(fff_file_item_get_access_frecency_score(p), 10);
-            assert_eq!(fff_file_item_get_modification_frecency_score(p), 20);
-            assert_eq!(fff_file_item_get_total_frecency_score(p), 30);
-            assert!(!fff_file_item_get_is_binary(p));
+            assert!(ffs_file_item_get_git_status(p).is_null());
+            assert_eq!(ffs_file_item_get_size(p), 1024);
+            assert_eq!(ffs_file_item_get_modified(p), 1_700_000_000);
+            assert_eq!(ffs_file_item_get_access_frecency_score(p), 10);
+            assert_eq!(ffs_file_item_get_modification_frecency_score(p), 20);
+            assert_eq!(ffs_file_item_get_total_frecency_score(p), 30);
+            assert!(!ffs_file_item_get_is_binary(p));
 
             free_file_item(&mut item);
         }
@@ -829,7 +829,7 @@ mod tests {
     #[test]
     fn grep_match_getters_return_correct_values() {
         let mut m = make_grep_match("src/lib.rs", "fn hello()");
-        let p = &m as *const FffGrepMatch;
+        let p = &m as *const FfsGrepMatch;
         unsafe {
             let path = std::ffi::CStr::from_ptr(ffs_grep_match_get_relative_path(p));
             assert_eq!(path.to_str().unwrap(), "src/lib.rs");
@@ -857,7 +857,7 @@ mod tests {
     #[test]
     fn search_result_getters_return_correct_values() {
         let r = make_search_result(5, 20, 100);
-        let p = &r as *const FffSearchResult;
+        let p = &r as *const FfsSearchResult;
         unsafe {
             assert_eq!(ffs_search_result_get_count(p), 5);
             assert_eq!(ffs_search_result_get_total_matched(p), 20);
@@ -868,7 +868,7 @@ mod tests {
     #[test]
     fn grep_result_getters_return_correct_values() {
         let r = make_grep_result();
-        let p = &r as *const FffGrepResult;
+        let p = &r as *const FfsGrepResult;
         unsafe {
             assert_eq!(ffs_grep_result_get_count(p), 3);
             assert_eq!(ffs_grep_result_get_total_matched(p), 10);

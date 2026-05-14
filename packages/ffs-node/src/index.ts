@@ -1,5 +1,5 @@
 /**
- * fff - Fast File Finder
+ * ffs - Fast File Search
  *
  * High-performance fuzzy file finder for Node.js, powered by Rust.
  * Perfect for LLM agent tools that need to search through codebases.

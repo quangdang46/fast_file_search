@@ -1,4 +1,4 @@
---- FFF.nvim File Picker - High-performance file picker for Neovim
+--- ffs.nvim File Picker - High-performance file picker for Neovim
 --- Uses advanced fuzzy search algorithm with frecency scoring
 
 local M = {}

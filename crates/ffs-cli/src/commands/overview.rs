@@ -1,4 +1,4 @@
-//! `scry overview` — high-signal summary of the workspace for agents.
+//! `ffs overview` — high-signal summary of the workspace for agents.
 
 use std::collections::{BTreeMap, HashMap};
 use std::path::Path;

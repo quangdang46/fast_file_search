@@ -1,5 +1,5 @@
 /**
- * Node.js FFI bindings for the fff-c native library using ffi-rs
+ * Node.js FFI bindings for the ffs-c native library using ffi-rs
  *
  * This module uses ffi-rs to call into the Rust C library.
  * All functions follow the Result pattern for error handling.
@@ -9,12 +9,12 @@
  *
  * ## Memory management
  *
- * Every `fff_*` function returning `*mut FffResult` allocates with Rust's Box.
- * We MUST call `fff_free_result` to properly deallocate (not libc::free).
+ * Every `ffs_*` function returning `*mut FfsResult` allocates with Rust's Box.
+ * We MUST call `ffs_free_result` to properly deallocate (not libc::free).
  *
- * ## FffResult struct reading
+ * ## FfsResult struct reading
  *
- * The FffResult struct layout (#[repr(C)]):
+ * The FfsResult struct layout (#[repr(C)]):
  *   offset  0: success (bool, 1 byte + 7 padding)
  *   offset  8: data pointer (8 bytes) - *mut c_char (JSON string or null)
  *   offset 16: error pointer (8 bytes) - *mut c_char (error message or null)
@@ -26,7 +26,7 @@
  * We solve this by:
  * 1. Calling the C function with `retType: DataType.External` to get the raw pointer
  * 2. Using `restorePointer` to read the struct fields from the raw pointer
- * 3. Calling `fff_free_result` with the original raw pointer
+ * 3. Calling `ffs_free_result` with the original raw pointer
  *
  * ## Null pointer detection
  *
@@ -60,7 +60,7 @@ import type {
 } from "./types.js";
 import { createGrepCursor, err } from "./types.js";
 
-const LIBRARY_KEY = "fff_c";
+const LIBRARY_KEY = "ffs_c";
 
 /** Grep mode constants matching the C API (u8). */
 const GREP_MODE_PLAIN = 0;
@@ -83,20 +83,20 @@ function grepModeToU8(mode?: string): number {
 let isLoaded = false;
 
 /**
- * Struct type definition for FffResult used with restorePointer.
+ * Struct type definition for FfsResult used with restorePointer.
  *
  * Uses U8 for the bool success field (correct alignment with ffi-rs).
  * Uses External for ALL pointer fields to avoid hangs on null char* pointers
  * (ffi-rs hangs when trying to read DataType.String from null char*).
  */
-const FFF_RESULT_STRUCT = {
+const FFS_RESULT_STRUCT = {
   success: DataType.U8,
   error: DataType.External,
   handle: DataType.External,
   int_value: DataType.I64,
 };
 
-interface FffResultRaw {
+interface FfsResultRaw {
   success: number;
   error: JsExternal;
   handle: JsExternal;
@@ -112,7 +112,7 @@ function loadLibrary(): void {
   const binaryPath = findBinary();
   if (!binaryPath) {
     throw new Error(
-      "fff native library not found. Run `npx @ff-labs/ffs-node download` or build from source with `cargo build --release -p fff-c`",
+      "ffs native library not found. Run `npx @ff-labs/ffs-node download` or build from source with `cargo build --release -p ffs-c`",
     );
   }
 
@@ -158,7 +158,7 @@ function readCString(ptr: JsExternal): string | null {
 }
 
 /**
- * Call a C function that returns `*mut FffResult` and get both the raw pointer
+ * Call a C function that returns `*mut FfsResult` and get both the raw pointer
  * (for freeing) and the parsed struct fields.
  *
  * Step 1: Call function with `DataType.External` retType → raw pointer
@@ -168,7 +168,7 @@ function callRaw(
   funcName: string,
   paramsType: DataType[],
   paramsValue: unknown[],
-): { rawPtr: JsExternal; struct: FffResultRaw } {
+): { rawPtr: JsExternal; struct: FfsResultRaw } {
   const rawPtr = load({
     library: LIBRARY_KEY,
     funcName,
@@ -179,24 +179,24 @@ function callRaw(
   }) as JsExternal;
 
   const [structData] = restorePointer({
-    retType: [FFF_RESULT_STRUCT],
+    retType: [FFS_RESULT_STRUCT],
     paramsValue: wrapPointer([rawPtr]),
-  }) as unknown as [FffResultRaw];
+  }) as unknown as [FfsResultRaw];
 
   return { rawPtr, struct: structData };
 }
 
 /**
- * Free a FffResult pointer by calling fff_free_result.
+ * Free a FfsResult pointer by calling ffs_free_result.
  *
- * This frees the FffResult struct and its data/error strings using Rust's
+ * This frees the FfsResult struct and its data/error strings using Rust's
  * Box::from_raw and CString::from_raw. The handle field is NOT freed.
  */
 function freeResult(resultPtr: JsExternal): void {
   try {
     load({
       library: LIBRARY_KEY,
-      funcName: "fff_free_result",
+      funcName: "ffs_free_result",
       retType: DataType.Void,
       paramsType: [DataType.External],
       paramsValue: [resultPtr],
@@ -207,14 +207,14 @@ function freeResult(resultPtr: JsExternal): void {
 }
 
 /**
- * Read the FffResult envelope from a raw call. Returns the parsed struct + raw pointer.
+ * Read the FfsResult envelope from a raw call. Returns the parsed struct + raw pointer.
  * On error, frees the result and returns a Result error.
  */
 function readResultEnvelope(
   funcName: string,
   paramsType: DataType[],
   paramsValue: unknown[],
-): { rawPtr: JsExternal; struct: FffResultRaw } | Result<never> {
+): { rawPtr: JsExternal; struct: FfsResultRaw } | Result<never> {
   loadLibrary();
   const { rawPtr, struct: structData } = callRaw(funcName, paramsType, paramsValue);
 
@@ -227,7 +227,7 @@ function readResultEnvelope(
   return { rawPtr, struct: structData };
 }
 
-/** Call a function returning FffResult with void payload. */
+/** Call a function returning FfsResult with void payload. */
 function callVoidResult(
   funcName: string,
   paramsType: DataType[],
@@ -239,7 +239,7 @@ function callVoidResult(
   return { ok: true, value: undefined };
 }
 
-/** Call a function returning FffResult with int_value payload. */
+/** Call a function returning FfsResult with int_value payload. */
 function callIntResult(
   funcName: string,
   paramsType: DataType[],
@@ -252,7 +252,7 @@ function callIntResult(
   return { ok: true, value };
 }
 
-/** Call a function returning FffResult with bool in int_value. */
+/** Call a function returning FfsResult with bool in int_value. */
 function callBoolResult(
   funcName: string,
   paramsType: DataType[],
@@ -265,7 +265,7 @@ function callBoolResult(
   return { ok: true, value };
 }
 
-/** Call a function returning FffResult with a C string in handle. */
+/** Call a function returning FfsResult with a C string in handle. */
 function callStringResult(
   funcName: string,
   paramsType: DataType[],
@@ -281,7 +281,7 @@ function callStringResult(
   return { ok: true, value: str };
 }
 
-/** Call a function returning FffResult with a JSON string in handle. */
+/** Call a function returning FfsResult with a JSON string in handle. */
 function callJsonResult<T>(
   funcName: string,
   paramsType: DataType[],
@@ -302,12 +302,12 @@ function callJsonResult<T>(
   }
 }
 
-/** Free a C string via fff_free_string. */
+/** Free a C string via ffs_free_string. */
 function freeString(ptr: JsExternal): void {
   try {
     load({
       library: LIBRARY_KEY,
-      funcName: "fff_free_string",
+      funcName: "ffs_free_string",
       retType: DataType.Void,
       paramsType: [DataType.External],
       paramsValue: [ptr],
@@ -343,7 +343,7 @@ export function ffiCreate(
   loadLibrary();
 
   const { rawPtr, struct: structData } = callRaw(
-    "fff_create_instance2",
+    "ffs_create_instance2",
     [
       DataType.String, // base_path
       DataType.String, // frecency_db_path
@@ -382,7 +382,7 @@ export function ffiCreate(
     if (success) {
       const handle = structData.handle;
       if (isNullPointer(handle)) {
-        return err("fff_create_instance2 returned null handle");
+        return err("ffs_create_instance2 returned null handle");
       }
       return { ok: true, value: handle };
     } else {
@@ -401,7 +401,7 @@ export function ffiDestroy(handle: NativeHandle): void {
   loadLibrary();
   load({
     library: LIBRARY_KEY,
-    funcName: "fff_destroy",
+    funcName: "ffs_destroy",
     retType: DataType.Void,
     paramsType: [DataType.External],
     paramsValue: [handle],
@@ -412,7 +412,7 @@ export function ffiDestroy(handle: NativeHandle): void {
 // Struct type definitions for restorePointer (must match #[repr(C)] layout)
 // ---------------------------------------------------------------------------
 
-const FFF_FILE_ITEM_STRUCT = {
+const FFS_FILE_ITEM_STRUCT = {
   relative_path: DataType.External,
   file_name: DataType.External,
   git_status: DataType.External,
@@ -424,7 +424,7 @@ const FFF_FILE_ITEM_STRUCT = {
   is_binary: DataType.U8,
 };
 
-interface FffFileItemRaw {
+interface FfsFileItemRaw {
   relative_path: JsExternal;
   file_name: JsExternal;
   git_status: JsExternal;
@@ -436,7 +436,7 @@ interface FffFileItemRaw {
   is_binary: number;
 }
 
-const FFF_SCORE_STRUCT = {
+const FFS_SCORE_STRUCT = {
   total: DataType.I32,
   base_score: DataType.I32,
   filename_bonus: DataType.I32,
@@ -449,7 +449,7 @@ const FFF_SCORE_STRUCT = {
   match_type: DataType.External,
 };
 
-interface FffScoreRaw {
+interface FfsScoreRaw {
   total: number;
   base_score: number;
   filename_bonus: number;
@@ -462,13 +462,13 @@ interface FffScoreRaw {
   match_type: JsExternal;
 }
 
-const FFF_SEARCH_RESULT_STRUCT = {
+const FFS_SEARCH_RESULT_STRUCT = {
   items: DataType.External,
   scores: DataType.External,
   count: DataType.U32,
   total_matched: DataType.U32,
   total_files: DataType.U32,
-  // FffLocation inlined (flattened)
+  // FfsLocation inlined (flattened)
   location_tag: DataType.U8,
   location_line: DataType.I32,
   location_col: DataType.I32,
@@ -476,7 +476,7 @@ const FFF_SEARCH_RESULT_STRUCT = {
   location_end_col: DataType.I32,
 };
 
-interface FffSearchResultRaw {
+interface FfsSearchResultRaw {
   items: JsExternal;
   scores: JsExternal;
   count: number;
@@ -489,20 +489,20 @@ interface FffSearchResultRaw {
   location_end_col: number;
 }
 
-// FffDirItem struct (#[repr(C)]): char* (8) + char* (8) + i32 (4) + 4 padding = 24 bytes
-const FFF_DIR_ITEM_STRUCT = {
+// FfsDirItem struct (#[repr(C)]): char* (8) + char* (8) + i32 (4) + 4 padding = 24 bytes
+const FFS_DIR_ITEM_STRUCT = {
   relative_path: DataType.External,
   dir_name: DataType.External,
   max_access_frecency: DataType.I32,
 };
 
-interface FffDirItemRaw {
+interface FfsDirItemRaw {
   relative_path: JsExternal;
   dir_name: JsExternal;
   max_access_frecency: number;
 }
 
-const FFF_DIR_SEARCH_RESULT_STRUCT = {
+const FFS_DIR_SEARCH_RESULT_STRUCT = {
   items: DataType.External,
   scores: DataType.External,
   count: DataType.U32,
@@ -510,7 +510,7 @@ const FFF_DIR_SEARCH_RESULT_STRUCT = {
   total_dirs: DataType.U32,
 };
 
-interface FffDirSearchResultRaw {
+interface FfsDirSearchResultRaw {
   items: JsExternal;
   scores: JsExternal;
   count: number;
@@ -518,9 +518,9 @@ interface FffDirSearchResultRaw {
   total_dirs: number;
 }
 
-// FffMixedItem struct (#[repr(C)]): u8 (1) + 7 padding + char* (8) + char* (8) + char* (8)
+// FfsMixedItem struct (#[repr(C)]): u8 (1) + 7 padding + char* (8) + char* (8) + char* (8)
 //   + u64 (8) + u64 (8) + i64 (8) + i64 (8) + i64 (8) + bool (1) + 7 padding = 80 bytes
-const FFF_MIXED_ITEM_STRUCT = {
+const FFS_MIXED_ITEM_STRUCT = {
   item_type: DataType.U8,
   relative_path: DataType.External,
   display_name: DataType.External,
@@ -533,7 +533,7 @@ const FFF_MIXED_ITEM_STRUCT = {
   is_binary: DataType.U8,
 };
 
-interface FffMixedItemRaw {
+interface FfsMixedItemRaw {
   item_type: number;
   relative_path: JsExternal;
   display_name: JsExternal;
@@ -546,14 +546,14 @@ interface FffMixedItemRaw {
   is_binary: number;
 }
 
-const FFF_MIXED_SEARCH_RESULT_STRUCT = {
+const FFS_MIXED_SEARCH_RESULT_STRUCT = {
   items: DataType.External,
   scores: DataType.External,
   count: DataType.U32,
   total_matched: DataType.U32,
   total_files: DataType.U32,
   total_dirs: DataType.U32,
-  // FffLocation inlined (flattened)
+  // FfsLocation inlined (flattened)
   location_tag: DataType.U8,
   location_line: DataType.I32,
   location_col: DataType.I32,
@@ -561,7 +561,7 @@ const FFF_MIXED_SEARCH_RESULT_STRUCT = {
   location_end_col: DataType.I32,
 };
 
-interface FffMixedSearchResultRaw {
+interface FfsMixedSearchResultRaw {
   items: JsExternal;
   scores: JsExternal;
   count: number;
@@ -575,8 +575,8 @@ interface FffMixedSearchResultRaw {
   location_end_col: number;
 }
 
-// FffGrepMatch (144 bytes) — ordered by alignment: ptrs, u64s, u32s, u16, bools
-const FFF_GREP_MATCH_STRUCT = {
+// FfsGrepMatch (144 bytes) — ordered by alignment: ptrs, u64s, u32s, u16, bools
+const FFS_GREP_MATCH_STRUCT = {
   relative_path: DataType.External,
   file_name: DataType.External,
   git_status: DataType.External,
@@ -601,7 +601,7 @@ const FFF_GREP_MATCH_STRUCT = {
   is_definition: DataType.U8,
 };
 
-interface FffGrepMatchRaw {
+interface FfsGrepMatchRaw {
   relative_path: JsExternal;
   file_name: JsExternal;
   git_status: JsExternal;
@@ -626,7 +626,7 @@ interface FffGrepMatchRaw {
   is_definition: number;
 }
 
-const FFF_GREP_RESULT_STRUCT = {
+const FFS_GREP_RESULT_STRUCT = {
   items: DataType.External,
   count: DataType.U32,
   total_matched: DataType.U32,
@@ -637,7 +637,7 @@ const FFF_GREP_RESULT_STRUCT = {
   regex_fallback_error: DataType.External,
 };
 
-interface FffGrepResultRaw {
+interface FfsGrepResultRaw {
   items: JsExternal;
   count: number;
   total_matched: number;
@@ -648,12 +648,12 @@ interface FffGrepResultRaw {
   regex_fallback_error: JsExternal;
 }
 
-const FFF_MATCH_RANGE_STRUCT = {
+const FFS_MATCH_RANGE_STRUCT = {
   start: DataType.U32,
   end: DataType.U32,
 };
 
-interface FffMatchRangeRaw {
+interface FfsMatchRangeRaw {
   start: number;
   end: number;
 }
@@ -662,7 +662,7 @@ interface FffMatchRangeRaw {
 // Struct reading helpers
 // ---------------------------------------------------------------------------
 
-function readFileItemFromRaw(raw: FffFileItemRaw): FileItem {
+function readFileItemFromRaw(raw: FfsFileItemRaw): FileItem {
   return {
     relativePath: readCString(raw.relative_path) ?? "",
     fileName: readCString(raw.file_name) ?? "",
@@ -675,7 +675,7 @@ function readFileItemFromRaw(raw: FffFileItemRaw): FileItem {
   };
 }
 
-function readScoreFromRaw(raw: FffScoreRaw): Score {
+function readScoreFromRaw(raw: FfsScoreRaw): Score {
   return {
     total: raw.total,
     baseScore: raw.base_score,
@@ -690,7 +690,7 @@ function readScoreFromRaw(raw: FffScoreRaw): Score {
   };
 }
 
-function readDirItemFromRaw(raw: FffDirItemRaw): DirItem {
+function readDirItemFromRaw(raw: FfsDirItemRaw): DirItem {
   return {
     relativePath: readCString(raw.relative_path) ?? "",
     dirName: readCString(raw.dir_name) ?? "",
@@ -698,7 +698,7 @@ function readDirItemFromRaw(raw: FffDirItemRaw): DirItem {
   };
 }
 
-function readMixedItemFromRaw(raw: FffMixedItemRaw): MixedItem {
+function readMixedItemFromRaw(raw: FfsMixedItemRaw): MixedItem {
   if (raw.item_type === 1) {
     // Directory
     return {
@@ -759,7 +759,7 @@ function callAccessor<T>(
 function ptrOffset(base: JsExternal, bytes: number): JsExternal {
   return load({
     library: LIBRARY_KEY,
-    funcName: "fff_ptr_offset",
+    funcName: "ffs_ptr_offset",
     retType: DataType.External,
     paramsType: [DataType.External, DataType.U64],
     paramsValue: [base, bytes],
@@ -783,15 +783,15 @@ function readCStringArray(ptrArray: JsExternal, count: number): string[] {
   return result;
 }
 
-function readGrepMatchFromRaw(raw: FffGrepMatchRaw): GrepMatch {
+function readGrepMatchFromRaw(raw: FfsGrepMatchRaw): GrepMatch {
   // Read match_ranges array via pointer offsets
   const matchRanges: [number, number][] = [];
   for (let i = 0; i < raw.match_ranges_count; i++) {
-    const rangePtr = ptrOffset(raw.match_ranges, i * 8); // FffMatchRange is 8 bytes
+    const rangePtr = ptrOffset(raw.match_ranges, i * 8); // FfsMatchRange is 8 bytes
     const [rangeRaw] = restorePointer({
-      retType: [FFF_MATCH_RANGE_STRUCT],
+      retType: [FFS_MATCH_RANGE_STRUCT],
       paramsValue: wrapPointer([rangePtr]),
-    }) as unknown as [FffMatchRangeRaw];
+    }) as unknown as [FfsMatchRangeRaw];
     matchRanges.push([rangeRaw.start, rangeRaw.end]);
   }
 
@@ -829,15 +829,15 @@ function readGrepMatchFromRaw(raw: FffGrepMatchRaw): GrepMatch {
 }
 
 /**
- * Parse an FffGrepResult from `FffResult.handle`, then free native memory.
+ * Parse an FfsGrepResult from `FfsResult.handle`, then free native memory.
  */
 function parseGrepResult(rawPtr: JsExternal): Result<GrepResult> {
   loadLibrary();
 
   const [envelope] = restorePointer({
-    retType: [FFF_RESULT_STRUCT],
+    retType: [FFS_RESULT_STRUCT],
     paramsValue: wrapPointer([rawPtr]),
-  }) as unknown as [FffResultRaw];
+  }) as unknown as [FfsResultRaw];
 
   const success = envelope.success !== 0;
 
@@ -855,20 +855,20 @@ function parseGrepResult(rawPtr: JsExternal): Result<GrepResult> {
   }
 
   const [gr] = restorePointer({
-    retType: [FFF_GREP_RESULT_STRUCT],
+    retType: [FFS_GREP_RESULT_STRUCT],
     paramsValue: wrapPointer([handlePtr]),
-  }) as unknown as [FffGrepResultRaw];
+  }) as unknown as [FfsGrepResultRaw];
 
   const count = gr.count;
   const regexFallbackError = readCString(gr.regex_fallback_error) ?? undefined;
 
   const items: GrepMatch[] = [];
   for (let i = 0; i < count; i++) {
-    const rawMatch = callAccessor<FffGrepMatchRaw>(
-      "fff_grep_result_get_match",
+    const rawMatch = callAccessor<FfsGrepMatchRaw>(
+      "ffs_grep_result_get_match",
       handlePtr,
       i,
-      FFF_GREP_MATCH_STRUCT,
+      FFS_GREP_MATCH_STRUCT,
     );
     items.push(readGrepMatchFromRaw(rawMatch));
   }
@@ -876,7 +876,7 @@ function parseGrepResult(rawPtr: JsExternal): Result<GrepResult> {
   // Free native grep result
   load({
     library: LIBRARY_KEY,
-    funcName: "fff_free_grep_result",
+    funcName: "ffs_free_grep_result",
     retType: DataType.Void,
     paramsType: [DataType.External],
     paramsValue: [handlePtr],
@@ -897,16 +897,16 @@ function parseGrepResult(rawPtr: JsExternal): Result<GrepResult> {
 }
 
 /**
- * Parse an FffSearchResult from `FffResult.handle`, then free native memory.
+ * Parse an FfsSearchResult from `FfsResult.handle`, then free native memory.
  */
 function parseSearchResult(rawPtr: JsExternal): Result<SearchResult> {
   loadLibrary();
 
-  // Read FffResult envelope
+  // Read FfsResult envelope
   const [envelope] = restorePointer({
-    retType: [FFF_RESULT_STRUCT],
+    retType: [FFS_RESULT_STRUCT],
     paramsValue: wrapPointer([rawPtr]),
-  }) as unknown as [FffResultRaw];
+  }) as unknown as [FfsResultRaw];
 
   const success = envelope.success !== 0;
 
@@ -917,18 +917,18 @@ function parseSearchResult(rawPtr: JsExternal): Result<SearchResult> {
   }
 
   const handlePtr = envelope.handle;
-  // Free the FffResult envelope (does NOT free handle)
+  // Free the FfsResult envelope (does NOT free handle)
   freeResult(rawPtr);
 
   if (isNullPointer(handlePtr)) {
-    return err("fff_search returned null search result");
+    return err("ffs_search returned null search result");
   }
 
-  // Read FffSearchResult struct
+  // Read FfsSearchResult struct
   const [sr] = restorePointer({
-    retType: [FFF_SEARCH_RESULT_STRUCT],
+    retType: [FFS_SEARCH_RESULT_STRUCT],
     paramsValue: wrapPointer([handlePtr]),
-  }) as unknown as [FffSearchResultRaw];
+  }) as unknown as [FfsSearchResultRaw];
 
   const count = sr.count;
 
@@ -951,19 +951,19 @@ function parseSearchResult(rawPtr: JsExternal): Result<SearchResult> {
   const scores: Score[] = [];
 
   for (let i = 0; i < count; i++) {
-    const rawItem = callAccessor<FffFileItemRaw>(
-      "fff_search_result_get_item",
+    const rawItem = callAccessor<FfsFileItemRaw>(
+      "ffs_search_result_get_item",
       handlePtr,
       i,
-      FFF_FILE_ITEM_STRUCT,
+      FFS_FILE_ITEM_STRUCT,
     );
     items.push(readFileItemFromRaw(rawItem));
 
-    const rawScore = callAccessor<FffScoreRaw>(
-      "fff_search_result_get_score",
+    const rawScore = callAccessor<FfsScoreRaw>(
+      "ffs_search_result_get_score",
       handlePtr,
       i,
-      FFF_SCORE_STRUCT,
+      FFS_SCORE_STRUCT,
     );
     scores.push(readScoreFromRaw(rawScore));
   }
@@ -971,7 +971,7 @@ function parseSearchResult(rawPtr: JsExternal): Result<SearchResult> {
   // Free native search result
   load({
     library: LIBRARY_KEY,
-    funcName: "fff_free_search_result",
+    funcName: "ffs_free_search_result",
     retType: DataType.Void,
     paramsType: [DataType.External],
     paramsValue: [handlePtr],
@@ -990,16 +990,16 @@ function parseSearchResult(rawPtr: JsExternal): Result<SearchResult> {
 }
 
 /**
- * Parse an FffDirSearchResult from `FffResult.handle`, then free native memory.
+ * Parse an FfsDirSearchResult from `FfsResult.handle`, then free native memory.
  */
 function parseDirSearchResult(rawPtr: JsExternal): Result<DirSearchResult> {
   loadLibrary();
 
-  // Read FffResult envelope
+  // Read FfsResult envelope
   const [envelope] = restorePointer({
-    retType: [FFF_RESULT_STRUCT],
+    retType: [FFS_RESULT_STRUCT],
     paramsValue: wrapPointer([rawPtr]),
-  }) as unknown as [FffResultRaw];
+  }) as unknown as [FfsResultRaw];
 
   const success = envelope.success !== 0;
 
@@ -1010,18 +1010,18 @@ function parseDirSearchResult(rawPtr: JsExternal): Result<DirSearchResult> {
   }
 
   const handlePtr = envelope.handle;
-  // Free the FffResult envelope (does NOT free handle)
+  // Free the FfsResult envelope (does NOT free handle)
   freeResult(rawPtr);
 
   if (isNullPointer(handlePtr)) {
-    return err("fff_search_directories returned null search result");
+    return err("ffs_search_directories returned null search result");
   }
 
-  // Read FffDirSearchResult struct
+  // Read FfsDirSearchResult struct
   const [sr] = restorePointer({
-    retType: [FFF_DIR_SEARCH_RESULT_STRUCT],
+    retType: [FFS_DIR_SEARCH_RESULT_STRUCT],
     paramsValue: wrapPointer([handlePtr]),
-  }) as unknown as [FffDirSearchResultRaw];
+  }) as unknown as [FfsDirSearchResultRaw];
 
   const count = sr.count;
 
@@ -1030,19 +1030,19 @@ function parseDirSearchResult(rawPtr: JsExternal): Result<DirSearchResult> {
   const scores: Score[] = [];
 
   for (let i = 0; i < count; i++) {
-    const rawItem = callAccessor<FffDirItemRaw>(
-      "fff_dir_search_result_get_item",
+    const rawItem = callAccessor<FfsDirItemRaw>(
+      "ffs_dir_search_result_get_item",
       handlePtr,
       i,
-      FFF_DIR_ITEM_STRUCT,
+      FFS_DIR_ITEM_STRUCT,
     );
     items.push(readDirItemFromRaw(rawItem));
 
-    const rawScore = callAccessor<FffScoreRaw>(
-      "fff_dir_search_result_get_score",
+    const rawScore = callAccessor<FfsScoreRaw>(
+      "ffs_dir_search_result_get_score",
       handlePtr,
       i,
-      FFF_SCORE_STRUCT,
+      FFS_SCORE_STRUCT,
     );
     scores.push(readScoreFromRaw(rawScore));
   }
@@ -1050,7 +1050,7 @@ function parseDirSearchResult(rawPtr: JsExternal): Result<DirSearchResult> {
   // Free native dir search result
   load({
     library: LIBRARY_KEY,
-    funcName: "fff_free_dir_search_result",
+    funcName: "ffs_free_dir_search_result",
     retType: DataType.Void,
     paramsType: [DataType.External],
     paramsValue: [handlePtr],
@@ -1068,16 +1068,16 @@ function parseDirSearchResult(rawPtr: JsExternal): Result<DirSearchResult> {
 }
 
 /**
- * Parse an FffMixedSearchResult from `FffResult.handle`, then free native memory.
+ * Parse an FfsMixedSearchResult from `FfsResult.handle`, then free native memory.
  */
 function parseMixedSearchResult(rawPtr: JsExternal): Result<MixedSearchResult> {
   loadLibrary();
 
-  // Read FffResult envelope
+  // Read FfsResult envelope
   const [envelope] = restorePointer({
-    retType: [FFF_RESULT_STRUCT],
+    retType: [FFS_RESULT_STRUCT],
     paramsValue: wrapPointer([rawPtr]),
-  }) as unknown as [FffResultRaw];
+  }) as unknown as [FfsResultRaw];
 
   const success = envelope.success !== 0;
 
@@ -1088,18 +1088,18 @@ function parseMixedSearchResult(rawPtr: JsExternal): Result<MixedSearchResult> {
   }
 
   const handlePtr = envelope.handle;
-  // Free the FffResult envelope (does NOT free handle)
+  // Free the FfsResult envelope (does NOT free handle)
   freeResult(rawPtr);
 
   if (isNullPointer(handlePtr)) {
-    return err("fff_search_mixed returned null search result");
+    return err("ffs_search_mixed returned null search result");
   }
 
-  // Read FffMixedSearchResult struct
+  // Read FfsMixedSearchResult struct
   const [sr] = restorePointer({
-    retType: [FFF_MIXED_SEARCH_RESULT_STRUCT],
+    retType: [FFS_MIXED_SEARCH_RESULT_STRUCT],
     paramsValue: wrapPointer([handlePtr]),
-  }) as unknown as [FffMixedSearchResultRaw];
+  }) as unknown as [FfsMixedSearchResultRaw];
 
   const count = sr.count;
 
@@ -1122,19 +1122,19 @@ function parseMixedSearchResult(rawPtr: JsExternal): Result<MixedSearchResult> {
   const scores: Score[] = [];
 
   for (let i = 0; i < count; i++) {
-    const rawItem = callAccessor<FffMixedItemRaw>(
-      "fff_mixed_search_result_get_item",
+    const rawItem = callAccessor<FfsMixedItemRaw>(
+      "ffs_mixed_search_result_get_item",
       handlePtr,
       i,
-      FFF_MIXED_ITEM_STRUCT,
+      FFS_MIXED_ITEM_STRUCT,
     );
     items.push(readMixedItemFromRaw(rawItem));
 
-    const rawScore = callAccessor<FffScoreRaw>(
-      "fff_mixed_search_result_get_score",
+    const rawScore = callAccessor<FfsScoreRaw>(
+      "ffs_mixed_search_result_get_score",
       handlePtr,
       i,
-      FFF_SCORE_STRUCT,
+      FFS_SCORE_STRUCT,
     );
     scores.push(readScoreFromRaw(rawScore));
   }
@@ -1142,7 +1142,7 @@ function parseMixedSearchResult(rawPtr: JsExternal): Result<MixedSearchResult> {
   // Free native mixed search result
   load({
     library: LIBRARY_KEY,
-    funcName: "fff_free_mixed_search_result",
+    funcName: "ffs_free_mixed_search_result",
     retType: DataType.Void,
     paramsType: [DataType.External],
     paramsValue: [handlePtr],
@@ -1178,7 +1178,7 @@ export function ffiSearch(
 
   const rawPtr = load({
     library: LIBRARY_KEY,
-    funcName: "fff_search",
+    funcName: "ffs_search",
     retType: DataType.External,
     paramsType: [
       DataType.External, // handle
@@ -1221,7 +1221,7 @@ export function ffiSearchDirectories(
 
   const rawPtr = load({
     library: LIBRARY_KEY,
-    funcName: "fff_search_directories",
+    funcName: "ffs_search_directories",
     retType: DataType.External,
     paramsType: [
       DataType.External, // handle
@@ -1255,7 +1255,7 @@ export function ffiSearchMixed(
 
   const rawPtr = load({
     library: LIBRARY_KEY,
-    funcName: "fff_search_mixed",
+    funcName: "ffs_search_mixed",
     retType: DataType.External,
     paramsType: [
       DataType.External, // handle
@@ -1304,7 +1304,7 @@ export function ffiLiveGrep(
 
   const rawPtr = load({
     library: LIBRARY_KEY,
-    funcName: "fff_live_grep",
+    funcName: "ffs_live_grep",
     retType: DataType.External,
     paramsType: [
       DataType.External, // handle
@@ -1361,7 +1361,7 @@ export function ffiMultiGrep(
 
   const rawPtr = load({
     library: LIBRARY_KEY,
-    funcName: "fff_multi_grep",
+    funcName: "ffs_multi_grep",
     retType: DataType.External,
     paramsType: [
       DataType.External, // handle
@@ -1401,7 +1401,7 @@ export function ffiMultiGrep(
  * Trigger file scan.
  */
 export function ffiScanFiles(handle: NativeHandle): Result<void> {
-  return callVoidResult("fff_scan_files", [DataType.External], [handle]);
+  return callVoidResult("ffs_scan_files", [DataType.External], [handle]);
 }
 
 /**
@@ -1411,7 +1411,7 @@ export function ffiIsScanning(handle: NativeHandle): boolean {
   loadLibrary();
   return load({
     library: LIBRARY_KEY,
-    funcName: "fff_is_scanning",
+    funcName: "ffs_is_scanning",
     retType: DataType.Boolean,
     paramsType: [DataType.External],
     paramsValue: [handle],
@@ -1422,16 +1422,16 @@ export function ffiIsScanning(handle: NativeHandle): boolean {
  * Get the base path of the file picker.
  */
 export function ffiGetBasePath(handle: NativeHandle): Result<string | null> {
-  return callStringResult("fff_get_base_path", [DataType.External], [handle]);
+  return callStringResult("ffs_get_base_path", [DataType.External], [handle]);
 }
 
-// FffScanProgress struct definition
-const FFF_SCAN_PROGRESS_STRUCT = {
+// FfsScanProgress struct definition
+const FFS_SCAN_PROGRESS_STRUCT = {
   scanned_files_count: DataType.U64,
   is_scanning: DataType.U8,
 };
 
-interface FffScanProgressRaw {
+interface FfsScanProgressRaw {
   scanned_files_count: number;
   is_scanning: number;
 }
@@ -1443,7 +1443,7 @@ export function ffiGetScanProgress(
   handle: NativeHandle,
 ): Result<{ scannedFilesCount: number; isScanning: boolean }> {
   loadLibrary();
-  const res = readResultEnvelope("fff_get_scan_progress", [DataType.External], [handle]);
+  const res = readResultEnvelope("ffs_get_scan_progress", [DataType.External], [handle]);
   if ("ok" in res) return res;
 
   const handlePtr = res.struct.handle;
@@ -1452,9 +1452,9 @@ export function ffiGetScanProgress(
   if (isNullPointer(handlePtr)) return err("scan progress returned null");
 
   const [sp] = restorePointer({
-    retType: [FFF_SCAN_PROGRESS_STRUCT],
+    retType: [FFS_SCAN_PROGRESS_STRUCT],
     paramsValue: wrapPointer([handlePtr]),
-  }) as unknown as [FffScanProgressRaw];
+  }) as unknown as [FfsScanProgressRaw];
 
   const result = {
     scannedFilesCount: Number(sp.scanned_files_count),
@@ -1464,7 +1464,7 @@ export function ffiGetScanProgress(
   // Free native scan progress
   load({
     library: LIBRARY_KEY,
-    funcName: "fff_free_scan_progress",
+    funcName: "ffs_free_scan_progress",
     retType: DataType.Void,
     paramsType: [DataType.External],
     paramsValue: [handlePtr],
@@ -1478,7 +1478,7 @@ export function ffiGetScanProgress(
  */
 export function ffiWaitForScan(handle: NativeHandle, timeoutMs: number): Result<boolean> {
   return callBoolResult(
-    "fff_wait_for_scan",
+    "ffs_wait_for_scan",
     [DataType.External, DataType.U64],
     [handle, timeoutMs],
   );
@@ -1489,7 +1489,7 @@ export function ffiWaitForScan(handle: NativeHandle, timeoutMs: number): Result<
  */
 export function ffiRestartIndex(handle: NativeHandle, newPath: string): Result<void> {
   return callVoidResult(
-    "fff_restart_index",
+    "ffs_restart_index",
     [DataType.External, DataType.String],
     [handle, newPath],
   );
@@ -1499,7 +1499,7 @@ export function ffiRestartIndex(handle: NativeHandle, newPath: string): Result<v
  * Refresh git status.
  */
 export function ffiRefreshGitStatus(handle: NativeHandle): Result<number> {
-  return callIntResult("fff_refresh_git_status", [DataType.External], [handle]);
+  return callIntResult("ffs_refresh_git_status", [DataType.External], [handle]);
 }
 
 /**
@@ -1511,7 +1511,7 @@ export function ffiTrackQuery(
   filePath: string,
 ): Result<boolean> {
   return callBoolResult(
-    "fff_track_query",
+    "ffs_track_query",
     [DataType.External, DataType.String, DataType.String],
     [handle, query, filePath],
   );
@@ -1525,7 +1525,7 @@ export function ffiGetHistoricalQuery(
   offset: number,
 ): Result<string | null> {
   return callStringResult(
-    "fff_get_historical_query",
+    "ffs_get_historical_query",
     [DataType.External, DataType.U64],
     [handle, offset],
   );
@@ -1545,14 +1545,14 @@ export function ffiHealthCheck(
   if (handle === null) {
     // Use U64(0) as a null pointer since ffi-rs rejects null for External params
     return callJsonResult<unknown>(
-      "fff_health_check",
+      "ffs_health_check",
       [DataType.U64, DataType.String],
       [0, testPath],
     );
   }
 
   return callJsonResult<unknown>(
-    "fff_health_check",
+    "ffs_health_check",
     [DataType.External, DataType.String],
     [handle, testPath],
   );

@@ -1,6 +1,6 @@
-//! # FFF Search — High-performance file finder core
+//! # ffs-search — High-performance file finder core
 //!
-//! This crate provides the core search engine for [FFF (Fast File Finder)](https://github.com/dmtrKovalenko/fff.nvim).
+//! This crate provides the core search engine for [ffs(https://github.com/dmtrKovalenko/ffs.nvim).
 //! It includes filesystem indexing with real-time watching, fuzzy matching powered
 //! by [frizbee](https://docs.rs/neo_frizbee), frecency scoring backed by LMDB,
 //! and multi-mode grep search.
@@ -32,7 +32,7 @@
 //! use ffs_search::frecency::FrecencyTracker;
 //! use ffs_search::query_tracker::QueryTracker;
 //! use ffs_search::{
-//!     FFFMode, FilePickerOptions, FuzzySearchOptions, PaginationArgs, QueryParser,
+//!     FfsMode, FilePickerOptions, FuzzySearchOptions, PaginationArgs, QueryParser,
 //!     SharedFrecency, SharedFilePicker, SharedQueryTracker,
 //! };
 //!
@@ -56,7 +56,7 @@
 //!     shared_frecency.clone(),
 //!     FilePickerOptions {
 //!         base_path: ".".into(),
-//!         mode: FFFMode::Ai,
+//!         mode: FfsMode::Ai,
 //!         ..Default::default()
 //!     },
 //! )?;

@@ -1,5 +1,5 @@
 /**
- * fff - Fast File Finder
+ * ffs - Fast File Search
  *
  * High-performance fuzzy file finder for Bun, powered by Rust.
  * Perfect for LLM agent tools that need to search through codebases.
@@ -9,7 +9,7 @@
  *
  * @example
  * ```typescript
- * import { FileFinder } from "fff";
+ * import { FileFinder } from "@ff-labs/ffs-bun";
  *
  * // Create a file finder instance
  * const result = FileFinder.create({ basePath: "/path/to/project" });

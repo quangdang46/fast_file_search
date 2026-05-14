@@ -1,5 +1,5 @@
 use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
-use ffs::file_picker::{FFFMode, FilePicker};
+use ffs::file_picker::{FfsMode, FilePicker};
 use ffs::types::PaginationArgs;
 use ffs::{
     FilePickerOptions, FuzzySearchOptions, GrepMode, GrepSearchOptions, QueryParser,
@@ -34,7 +34,7 @@ fn init_file_picker_internal(
         FilePickerOptions {
             base_path: path.to_string(),
             enable_mmap_cache: false,
-            mode: FFFMode::Neovim,
+            mode: FfsMode::Neovim,
             ..Default::default()
         },
     )

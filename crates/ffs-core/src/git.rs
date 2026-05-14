@@ -51,7 +51,7 @@ impl GitStatusCache {
         for entry in &statuses {
             if let Some(entry_path) = entry.path() {
                 // libgit2 returns entry paths with forward slashes on every platform
-                // fff stores native paths - meaning we have forward slash issue on windows
+                // ffs stores native paths - meaning we have forward slash issue on windows
                 let full_path = crate::path_utils::normalize(repo_path.join(entry_path));
                 entries.insert(full_path, entry.status());
             }

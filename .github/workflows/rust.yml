@@ -75,17 +75,17 @@ jobs:
         shell: bash
         run: make test-stress-seeded
         env:
-          FFF_STRESS_CASES: "3"
-          FFF_STRESS_MIN_OPS: "30"
-          FFF_STRESS_MAX_OPS: "50"
+          FFS_STRESS_CASES: "3"
+          FFS_STRESS_MIN_OPS: "30"
+          FFS_STRESS_MAX_OPS: "50"
 
       - name: Stress test (random / fuzzy)
         shell: bash
         run: make test-stress-random
         env:
-          FFF_STRESS_CASES: "5"
-          FFF_STRESS_MIN_OPS: "30"
-          FFF_STRESS_MAX_OPS: "60"
+          FFS_STRESS_CASES: "5"
+          FFS_STRESS_MIN_OPS: "30"
+          FFS_STRESS_MAX_OPS: "60"
 
       - name: Upload proptest regressions on failure
         if: failure()

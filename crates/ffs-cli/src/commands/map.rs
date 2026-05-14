@@ -1,4 +1,4 @@
-//! `scry map` — render the workspace as a tree annotated with file count and
+//! `ffs map` — render the workspace as a tree annotated with file count and
 //! estimated token weight at each directory.
 
 use std::collections::{BTreeMap, HashMap};

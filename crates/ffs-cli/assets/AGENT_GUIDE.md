@@ -218,7 +218,7 @@ alphabetical. `reasons` only lists non-zero terms.
   `1` disables transitive entirely. Capped at 3.
 * `--hub-guard <N>` — stop propagating from any single name that
   produces more than N hits in one hop (default 50). Mirrors
-  `scry callers --hub-guard`.
+  `ffs callers --hub-guard`.
 * `--limit N` / `--offset N` — pagination (defaults 20/0).
 
 ### `dispatch <query>`
@@ -234,8 +234,8 @@ Run as an MCP (Model Context Protocol) server over stdio. Replaces
 agent built-ins like Grep / Glob / Read while still exposing the same
 sub-commands above.
 
-The MCP server also exposes `scry_refs`, `scry_flow`, and `scry_impact`
-tools that shell out to this CLI (`scry refs|flow|impact ... --format
+The MCP server also exposes `engine_refs`, `engine_flow`, and `engine_impact`
+tools that shell out to this CLI (`ffs refs|flow|impact ... --format
 json`) under the hood. The JSON payload is the same one documented above
 for each sub-command. Parameter names follow the MCP camelCase
 convention: `maxResults`, `calleesTop`, `callersTop`, `hubGuard`.
@@ -243,29 +243,29 @@ convention: `maxResults`, `calleesTop`, `callersTop`, `hubGuard`.
 ### `guide`
 Print this document.
 
-## Lua / C bindings for scry tools
+## Lua / C bindings for engine tools
 
 The same `refs` / `flow` / `impact` sub-commands are also reachable from
 the Neovim plugin and the C FFI behind the additive `ffs` features:
 
-* **Lua** (`require('fff.scry')`, built with `--features scry`):
-    * `scry.refs(name, limit?, offset?)`
-    * `scry.flow(name, { limit, offset, callees_top, callers_top, budget })`
-    * `scry.impact(name, { limit, offset, hops, hub_guard })`
+* **Lua** (`require('ffs.engine')`, built with `--features engine`):
+    * `engine.refs(name, limit?, offset?)`
+    * `engine.flow(name, { limit, offset, callees_top, callers_top, budget })`
+    * `engine.impact(name, { limit, offset, hops, hub_guard })`
   Each returns the raw JSON payload as a string (so callers can decode
   it with `vim.json.decode` on demand).
 
-* **C ABI** (`fff_scry_*` exports, guarded by `FFF_SCRY`):
-    * `fff_scry_refs(engine, name, limit, offset)`
-    * `fff_scry_flow(engine, name, limit, offset, callees_top, callers_top, budget)`
-    * `fff_scry_impact(engine, name, limit, offset, hops, hub_guard)`
-  Returns the same `FffScryResponse` envelope as `fff_scry_dispatch`;
-  free it with `fff_free_scry_response`.
+* **C ABI** (`ffs_engine_*` exports, guarded by `FFS_CODE`):
+    * `ffs_engine_refs(engine, name, limit, offset)`
+    * `ffs_engine_flow(engine, name, limit, offset, callees_top, callers_top, budget)`
+    * `ffs_engine_impact(engine, name, limit, offset, hops, hub_guard)`
+  Returns the same `FfsEngineResponse` envelope as `ffs_engine_dispatch`;
+  free it with `ffs_engine_free_response`.
 
 Implementation note: the wrappers spawn `ffs` as a subprocess via
 `std::env::current_exe()`, so the loading binary must itself be the
-`ffs` CLI (the MCP server runs as `scry mcp`, the Neovim plugin loads
-this crate from the scry binary, etc.). The default builds keep the
+`ffs` CLI (the MCP server runs as `ffs mcp`, the Neovim plugin loads
+this crate from the ffs binary, etc.). The default builds keep the
 exports off; enable with the `ffs` Cargo feature.
 
 ## Conventions and tips

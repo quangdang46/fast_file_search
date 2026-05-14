@@ -1,8 +1,8 @@
-//! Scry tool helpers for the MCP server: lazily-built `ffs-engine` shared
-//! across all `scry_*` tool calls and the parameter / response shapes.
+//! Engine tool helpers for the MCP server: lazily-built `ffs-engine` shared
+//! across all `engine_*` tool calls and the parameter / response shapes.
 //!
-//! Existing FFF tools (`find_files`, `grep`, `multi_grep`) are untouched.
-//! The scry tools are additive: they expose the symbol index, call-graph,
+//! Existing ffs tools (`find_files`, `grep`, `multi_grep`) are untouched.
+//! The engine tools are additive: they expose the symbol index, call-graph,
 //! and token-budgeted read APIs from `ffs-engine` to MCP clients.
 
 use std::path::{Path, PathBuf};
@@ -18,7 +18,7 @@ use ffs_engine::{Engine, EngineConfig, PreFilterStack};
 use ffs_symbol::symbol_index::SymbolLocation;
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
-pub struct ScryDispatchParams {
+pub struct EngineDispatchParams {
     /// Free-form query. Auto-classified into file-path / glob / symbol / concept routing.
     pub query: String,
     /// Token budget for the response (default 25000).
@@ -30,7 +30,7 @@ pub struct ScryDispatchParams {
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
-pub struct ScrySymbolParams {
+pub struct EngineSymbolParams {
     /// Symbol name to look up. Trailing `*` switches to prefix search.
     pub name: String,
     /// Maximum hits returned (default 50).
@@ -39,7 +39,7 @@ pub struct ScrySymbolParams {
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
-pub struct ScryCallParams {
+pub struct EngineCallParams {
     /// Symbol name whose callers (or callees) should be located.
     pub name: String,
     /// Maximum hits returned (default 100).
@@ -48,7 +48,7 @@ pub struct ScryCallParams {
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
-pub struct ScryRefsParams {
+pub struct EngineRefsParams {
     /// Symbol name to find definitions + single-hop usages for.
     pub name: String,
     /// Maximum usages returned (default 100). Definitions are always full.
@@ -59,7 +59,7 @@ pub struct ScryRefsParams {
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
-pub struct ScryFlowParams {
+pub struct EngineFlowParams {
     /// Symbol name to drill down on.
     pub name: String,
     /// Maximum cards returned (default 10). One card per definition.
@@ -78,7 +78,7 @@ pub struct ScryFlowParams {
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
-pub struct ScryImpactParams {
+pub struct EngineImpactParams {
     /// Symbol name to score impact for.
     pub name: String,
     /// Maximum rows returned (default 20).
@@ -88,13 +88,13 @@ pub struct ScryImpactParams {
     pub offset: Option<f64>,
     /// BFS depth for the transitive signal (default 3, capped at 3).
     pub hops: Option<f64>,
-    /// Hub-guard threshold mirroring `scry callers` (default 50).
+    /// Hub-guard threshold mirroring `ffs callers` (default 50).
     #[serde(rename = "hubGuard")]
     pub hub_guard: Option<f64>,
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
-pub struct ScryReadParams {
+pub struct EngineReadParams {
     /// Path to read, relative to the repository root or absolute.
     /// `path:line` is accepted; the line marker is currently informational.
     pub path: String,
@@ -105,9 +105,9 @@ pub struct ScryReadParams {
     pub filter: Option<String>,
 }
 
-/// Lazy holder for the shared `Engine`. The first scry call spends the cold
+/// Lazy holder for the shared `Engine`. The first engine call spends the cold
 /// scan; subsequent calls hit the warm caches.
-pub struct ScryEngineHolder {
+pub struct EngineHolder {
     engine: OnceCell<Arc<Engine>>,
     // Default token budget propagated to every Engine that we build.
     // We rebuild the engine if the cwd or token budget materially differs,
@@ -115,13 +115,13 @@ pub struct ScryEngineHolder {
     init_lock: Mutex<()>,
 }
 
-impl Default for ScryEngineHolder {
+impl Default for EngineHolder {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl ScryEngineHolder {
+impl EngineHolder {
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -340,24 +340,24 @@ pub fn format_dispatch(result: &DispatchResult) -> String {
             classified,
             pattern,
         } => format!(
-            "[glob] '{}' (pattern={pattern}) — use scry_find/scry_grep for full results\n",
+            "[glob] '{}' (pattern={pattern}) — use engine_grep for full results\n",
             classified.raw,
         ),
         DispatchResult::FilePath { classified, path } => {
             format!("[file-path] '{}' -> {}\n", classified.raw, path.display(),)
         }
         DispatchResult::ContentFallback { classified } => format!(
-            "[concept] '{}' — fall back to scry_grep for content search\n",
+            "[concept] '{}' — fall back to engine_grep for content search\n",
             classified.raw,
         ),
     }
 }
 
-// Invoke `scry <subcommand>` against `root` and return stdout. The MCP server
-// runs inside the scry binary, so `current_exe()` is the scry binary itself.
-// Used by the additive `scry_refs` / `scry_flow` / `scry_impact` tools that
+// Invoke `ffs <subcommand>` against `root` and return stdout. The MCP server
+// runs inside the ffs binary, so `current_exe()` is the ffs binary itself.
+// Used by the additive `engine_refs` / `engine_flow` / `engine_impact` tools that
 // were too heavy to reimplement directly on top of the shared engine.
-pub fn run_scry_subprocess(
+pub fn run_engine_subprocess(
     subcommand: &str,
     root: &Path,
     args: &[String],
@@ -375,7 +375,7 @@ pub fn run_scry_subprocess(
     let out = cmd.output()?;
     if !out.status.success() {
         return Err(std::io::Error::other(format!(
-            "scry {subcommand} exited {}: {}",
+            "ffs {subcommand} exited {}: {}",
             out.status,
             String::from_utf8_lossy(&out.stderr)
         )));
@@ -389,16 +389,16 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn scry_refs_params_parse_minimal() {
-        let p: ScryRefsParams = serde_json::from_value(json!({ "name": "foo" })).unwrap();
+    fn engine_refs_params_parse_minimal() {
+        let p: EngineRefsParams = serde_json::from_value(json!({ "name": "foo" })).unwrap();
         assert_eq!(p.name, "foo");
         assert!(p.max_results.is_none());
         assert!(p.offset.is_none());
     }
 
     #[test]
-    fn scry_refs_params_parse_full() {
-        let p: ScryRefsParams =
+    fn engine_refs_params_parse_full() {
+        let p: EngineRefsParams =
             serde_json::from_value(json!({ "name": "foo", "maxResults": 25, "offset": 50 }))
                 .unwrap();
         assert_eq!(p.max_results, Some(25.0));
@@ -406,8 +406,8 @@ mod tests {
     }
 
     #[test]
-    fn scry_flow_params_parse_full() {
-        let p: ScryFlowParams = serde_json::from_value(json!({
+    fn engine_flow_params_parse_full() {
+        let p: EngineFlowParams = serde_json::from_value(json!({
             "name": "bar",
             "maxResults": 3,
             "offset": 1,
@@ -423,8 +423,8 @@ mod tests {
     }
 
     #[test]
-    fn scry_impact_params_parse_full() {
-        let p: ScryImpactParams = serde_json::from_value(json!({
+    fn engine_impact_params_parse_full() {
+        let p: EngineImpactParams = serde_json::from_value(json!({
             "name": "baz",
             "maxResults": 10,
             "offset": 0,
@@ -438,8 +438,8 @@ mod tests {
     }
 
     #[test]
-    fn scry_refs_params_rejects_missing_name() {
-        let r: Result<ScryRefsParams, _> = serde_json::from_value(json!({ "maxResults": 1 }));
+    fn engine_refs_params_rejects_missing_name() {
+        let r: Result<EngineRefsParams, _> = serde_json::from_value(json!({ "maxResults": 1 }));
         assert!(r.is_err());
     }
 }

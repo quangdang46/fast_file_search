@@ -67,7 +67,7 @@ function M.read_base_version(repo_root)
   return nil
 end
 
----@class FFFVersionInfo
+---@class FFSVersionInfo
 ---@field version string semver version (e.g. "0.4.0" or "0.4.1-nightly.abc1234")
 ---@field release_tag string GitHub release tag for download URLs
 ---@field is_release boolean true for tagged stable releases
@@ -97,7 +97,7 @@ end
 ---   other branch (PR / feature)  → {base+1}-dev.{sha},       npm_tag = "dev"
 ---
 ---@param repo_root string absolute path to the repository root
----@return FFFVersionInfo|nil info
+---@return FFSVersionInfo|nil info
 ---@return string|nil err
 function M.resolve(repo_root)
   local tag = git(repo_root, 'describe', '--exact-match', '--tags', '--match', 'v*', 'HEAD')

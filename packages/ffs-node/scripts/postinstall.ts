@@ -14,7 +14,7 @@ async function main() {
   // Check if binary is already available (npm package or dev build)
   const existing = findBinary();
   if (existing) {
-    console.log(`fff: Native library found at ${existing}`);
+    console.log(`ffs: Native library found at ${existing}`);
     return;
   }
 
@@ -27,20 +27,20 @@ async function main() {
   }
 
   console.log(
-    `fff: Platform package ${packageName} not found, falling back to GitHub download...`,
+    `ffs: Platform package ${packageName} not found, falling back to GitHub download...`,
   );
 
   try {
     const tag = await downloadBinary();
-    console.log(`fff: Native library installed successfully! (${tag})`);
+    console.log(`ffs: Native library installed successfully! (${tag})`);
   } catch (error) {
-    console.error("fff: Failed to download native library:", error);
+    console.error("ffs: Failed to download native library:", error);
     console.error("");
-    console.error("fff: You can build from source instead:");
-    console.error("  cargo build --release -p fff-c");
+    console.error("ffs: You can build from source instead:");
+    console.error("  cargo build --release -p ffs-c");
     console.error("");
     console.error(
-      "fff: Or run `npx @ff-labs/ffs-node download` after fixing network issues.",
+      "ffs: Or run `npx @ff-labs/ffs-node download` after fixing network issues.",
     );
     // Don't exit with error - allow install to complete
     // The error will surface when the user tries to use the library

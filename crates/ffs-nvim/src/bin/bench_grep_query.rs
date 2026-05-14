@@ -115,7 +115,7 @@ fn main() {
     let mut picker = FilePicker::new(ffs::FilePickerOptions {
         base_path: canonical.to_string_lossy().to_string(),
         enable_mmap_cache: false,
-        mode: ffs::FFFMode::Neovim,
+        mode: ffs::FfsMode::Neovim,
         ..Default::default()
     })
     .expect("Failed to create FilePicker");

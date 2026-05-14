@@ -1,4 +1,4 @@
-use ffs::file_picker::{FFFMode, FilePicker};
+use ffs::file_picker::{FfsMode, FilePicker};
 use ffs::{FuzzySearchOptions, PaginationArgs, QueryParser, SharedFilePicker, SharedFrecency};
 use std::env;
 use std::thread;
@@ -171,7 +171,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         env::current_dir()?.to_str().unwrap_or(".").to_string()
     };
 
-    println!("🧪 FFF.nvim Jemalloc Memory Profiler");
+    println!("🧪 ffs.nvim Jemalloc Memory Profiler");
     println!("====================================");
     println!("Test directory: {}", base_path);
     println!();
@@ -188,7 +188,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ffs::FilePickerOptions {
             base_path: base_path.clone(),
             enable_mmap_cache: false,
-            mode: FFFMode::Neovim,
+            mode: FfsMode::Neovim,
             ..Default::default()
         },
     )?;

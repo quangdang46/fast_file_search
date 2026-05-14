@@ -1,4 +1,4 @@
-//! End-to-end tests for `scry callers --count-by` (B3). Verifies that the
+//! End-to-end tests for `ffs callers --count-by` (B3). Verifies that the
 //! aggregation field is opt-in (omitted by default → byte-identical legacy
 //! behaviour) and that `caller` / `file` group keys produce sensible counts
 //! on a synthetic three-call graph spread across two files.
@@ -50,7 +50,7 @@ fn run(root: &Path, extra: &[&str]) -> Value {
     cmd.args(["--root", root.to_str().unwrap(), "--format", "json"]);
     cmd.args(["callers", "target"]);
     cmd.args(extra);
-    let out = cmd.output().expect("run scry callers");
+    let out = cmd.output().expect("run ffs callers");
     assert!(
         out.status.success(),
         "stderr: {}",
@@ -106,7 +106,7 @@ fn count_by_text_appends_aggregated_section() {
         .args(["--root", tmp.path().to_str().unwrap()])
         .args(["callers", "target", "--count-by", "file"])
         .output()
-        .expect("run scry callers --count-by file");
+        .expect("run ffs callers --count-by file");
     assert!(out.status.success());
     let stdout = String::from_utf8(out.stdout).expect("utf8");
     assert!(stdout.contains("Aggregated:"));

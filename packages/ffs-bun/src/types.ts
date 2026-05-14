@@ -51,7 +51,7 @@ export interface InitOptions {
   /** enables optimizations for AI agent assistants. Provide as true if running via mcp/agent */
   aiMode?: boolean;
   /**
-   * Path to the tracing log file. When set, the shared FFF tracing subscriber
+   * Path to the tracing log file. When set, the shared ffs tracing subscriber
    * is installed on first init and file output is written here. Omit to leave
    * logging uninitialized.
    */

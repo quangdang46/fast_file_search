@@ -371,7 +371,7 @@ mod tests {
 
     #[test]
     fn test_query_tracking() {
-        let temp_dir = env::temp_dir().join("fff_test_query_tracking_new");
+        let temp_dir = env::temp_dir().join("ffs_test_query_tracking_new");
         let _ = std::fs::remove_dir_all(&temp_dir);
 
         let mut tracker = QueryTracker::open(temp_dir.to_str().unwrap()).unwrap();

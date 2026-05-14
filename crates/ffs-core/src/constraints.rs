@@ -571,7 +571,7 @@ mod tests {
             "libswscale/aarch64"
         ));
         assert!(path_contains_segment(
-            "crates\\fff-core\\src\\grep.rs",
+            "crates\\ffs-core\\src\\grep.rs",
             "ffs-core/src"
         ));
 
@@ -758,8 +758,8 @@ mod tests {
                 file_name: "lib.ts",
             },
             TestItem {
-                relative_path: "include/fff.h",
-                file_name: "fff.h",
+                relative_path: "include/ffs.h",
+                file_name: "ffs.h",
             },
         ];
 
@@ -773,7 +773,7 @@ mod tests {
         );
         assert!(paths.contains(&"src/lib.ts"), "ts file should be included");
         assert!(
-            paths.contains(&"include/fff.h"),
+            paths.contains(&"include/ffs.h"),
             "h file should be included"
         );
     }

@@ -3,8 +3,8 @@
 
 use std::sync::OnceLock;
 
-const REPO: &str = "dmtrKovalenko/fff.nvim";
-const BUILD_HASH: &str = env!("FFF_GIT_HASH");
+const REPO: &str = "dmtrKovalenko/ffs.nvim";
+const BUILD_HASH: &str = env!("FFS_GIT_HASH");
 
 /// Holds the result of the update check (empty string = up to date or check failed).
 static UPDATE_NOTICE: OnceLock<String> = OnceLock::new();
@@ -44,7 +44,7 @@ fn compare_versions(build_hash: &str, release_tag: &str) -> String {
     }
 
     format!(
-        "\n[fff update available: `curl -fsSL https://raw.githubusercontent.com/{REPO}/main/install-mcp.sh | bash`]\n"
+        "\n[ffs update available: `curl -fsSL https://raw.githubusercontent.com/{REPO}/main/install-mcp.sh | bash`]\n"
     )
 }
 

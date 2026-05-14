@@ -5,13 +5,13 @@ use std::path::Path;
 /// Load real source files from the repository as benchmark haystacks.
 /// Falls back to concatenating all .rs files under crates/ if specific files are missing.
 fn load_real_files() -> Vec<(&'static str, Vec<u8>)> {
-    let manifest_dir = env!("CARGO_MANIFEST_DIR"); // crates/fff-core
+    let manifest_dir = env!("CARGO_MANIFEST_DIR"); // crates/ffs-core
     let repo_root = Path::new(manifest_dir).parent().unwrap().parent().unwrap();
 
     let files: &[(&str, &str)] = &[
         ("grep.rs/80KB", "crates/ffs-core/src/grep.rs"),
         ("file_picker.rs/53KB", "crates/ffs-core/src/file_picker.rs"),
-        ("picker_ui.lua/96KB", "lua/fff/picker_ui.lua"),
+        ("picker_ui.lua/96KB", "lua/ffs/picker_ui.lua"),
     ];
 
     let mut result = Vec::new();

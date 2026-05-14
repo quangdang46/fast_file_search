@@ -61,7 +61,7 @@ function M.resolve_config_value(config_value, terminal_width, terminal_height, v
       return result
     else
       if not success then
-        vim.notify('FFF: Error in ' .. error_context .. ' function: ' .. tostring(result), vim.log.levels.WARN)
+        vim.notify('ffs: Error in ' .. error_context .. ' function: ' .. tostring(result), vim.log.levels.WARN)
       end
       return fallback
     end

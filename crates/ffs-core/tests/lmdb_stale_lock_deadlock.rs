@@ -6,7 +6,7 @@
 //! during `QueryTracker::open()` or frecency `track_access()`.
 //!
 //! In production this manifests as neovim hanging on startup:
-//!   require('fff.core').ensure_initialized()
+//!   require('ffs.core').ensure_initialized()
 //!   → init_db() → QueryTracker::open() → write_txn() → HANGS
 //!
 //! Or during normal use when BufEnter fires:
@@ -144,7 +144,7 @@ fn lmdb_reopen_finds_existing_databases() {
 /// test harness and runs as a child worker instead. This avoids fork() in a
 /// multi-threaded parent — which copies mutex/allocator state from threads
 /// that no longer exist in the child and can deadlock heed/libc.
-const CHILD_MODE_ENV: &str = "FFF_PARALLEL_OPEN_CLOSE_CHILD";
+const CHILD_MODE_ENV: &str = "FFS_PARALLEL_OPEN_CLOSE_CHILD";
 
 /// Runs before the test harness when `CHILD_MODE_ENV` is set. Re-exec of
 /// the test binary lets us start child workers without forking from a

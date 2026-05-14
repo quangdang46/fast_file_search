@@ -12,7 +12,7 @@ fn warn(label: &str, detail: &str) {
 }
 
 pub fn run_healthcheck(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
-    let version = concat!(env!("CARGO_PKG_VERSION"), " (", env!("FFF_GIT_HASH"), ")");
+    let version = concat!(env!("CARGO_PKG_VERSION"), " (", env!("FFS_GIT_HASH"), ")");
     println!("ffs-mcp {version}\n");
 
     let mut all_ok = true;

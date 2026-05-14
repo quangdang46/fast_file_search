@@ -1,7 +1,7 @@
 use super::db_healthcheck::DbHealthChecker;
 use super::lmdb::{LmdbStore, is_map_full};
 use crate::error::{Error, Result};
-use crate::file_picker::FFFMode;
+use crate::file_picker::FfsMode;
 use crate::git::is_modified_status;
 use crate::shared::SharedFrecency;
 use heed::types::{Bytes, SerdeBincode};
@@ -290,7 +290,7 @@ impl FrecencyTracker {
             .map_err(Error::DbCommit)
     }
 
-    pub fn get_access_score(&self, file_path: &Path, mode: FFFMode) -> i64 {
+    pub fn get_access_score(&self, file_path: &Path, mode: FfsMode) -> i64 {
         let accesses = self
             .get_accesses(file_path)
             .ok()
@@ -341,7 +341,7 @@ impl FrecencyTracker {
         &self,
         modified_time: u64,
         git_status: Option<git2::Status>,
-        mode: FFFMode,
+        mode: FfsMode,
     ) -> i64 {
         let is_modified_git_status = git_status.is_some_and(is_modified_status);
         if !is_modified_git_status {
@@ -385,7 +385,7 @@ impl FrecencyTracker {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::file_picker::FFFMode;
+    use crate::file_picker::FfsMode;
 
     fn calculate_test_frecency_score(access_timestamps: &[u64], current_time: u64) -> i64 {
         let mut total_frecency = 0.0;
@@ -454,7 +454,7 @@ mod tests {
 
     #[test]
     fn test_modification_score_interpolation() {
-        let temp_dir = std::env::temp_dir().join("fff_test_interpolation");
+        let temp_dir = std::env::temp_dir().join("ffs_test_interpolation");
         let _ = std::fs::remove_dir_all(&temp_dir);
         let tracker = FrecencyTracker::open(temp_dir.to_str().unwrap()).unwrap();
 
@@ -463,35 +463,35 @@ mod tests {
 
         // At 5 minutes: should interpolate between 16 and 8 points
         let five_minutes_ago = current_time - (5 * 60);
-        let score = tracker.get_modification_score(five_minutes_ago, git_status, FFFMode::Neovim);
+        let score = tracker.get_modification_score(five_minutes_ago, git_status, FfsMode::Neovim);
 
         // Expected: 16 - (8 * 3 / 13) = 16 - 1 = 15 points
         // (time_offset = 5-2 = 3, time_range = 15-2 = 13, points_diff = 16-8 = 8)
         assert_eq!(score, 15, "5 minutes should interpolate to 15 points");
 
         let two_minutes_ago = current_time - (2 * 60);
-        let score = tracker.get_modification_score(two_minutes_ago, git_status, FFFMode::Neovim);
+        let score = tracker.get_modification_score(two_minutes_ago, git_status, FfsMode::Neovim);
         assert_eq!(score, 16, "2 minutes should be exactly 16 points");
 
         let fifteen_minutes_ago = current_time - (15 * 60);
         let score =
-            tracker.get_modification_score(fifteen_minutes_ago, git_status, FFFMode::Neovim);
+            tracker.get_modification_score(fifteen_minutes_ago, git_status, FfsMode::Neovim);
         assert_eq!(score, 8, "15 minutes should be exactly 8 points");
 
         // At 12 hours: should interpolate between 4 and 2 points
         let twelve_hours_ago = current_time - (12 * 60 * 60);
-        let score = tracker.get_modification_score(twelve_hours_ago, git_status, FFFMode::Neovim);
+        let score = tracker.get_modification_score(twelve_hours_ago, git_status, FfsMode::Neovim);
         // Expected: 4 - (2 * 11 / 23) = 4 - 0 = 4 points (integer division)
         // (time_offset = 12-1 = 11 hours, time_range = 24-1 = 23 hours, points_diff = 4-2 = 2)
         assert_eq!(score, 4, "12 hours should interpolate to 4 points");
 
         // at 18 hours for more significant interpolation
         let eighteen_hours_ago = current_time - (18 * 60 * 60);
-        let score = tracker.get_modification_score(eighteen_hours_ago, git_status, FFFMode::Neovim);
+        let score = tracker.get_modification_score(eighteen_hours_ago, git_status, FfsMode::Neovim);
         // Expected: 4 - (2 * 17 / 23) = 4 - 1 = 3 points
         assert_eq!(score, 3, "18 hours should interpolate to 3 points");
 
-        let score = tracker.get_modification_score(five_minutes_ago, None, FFFMode::Neovim);
+        let score = tracker.get_modification_score(five_minutes_ago, None, FfsMode::Neovim);
         assert_eq!(score, 0, "No git status should return 0");
 
         let _ = std::fs::remove_dir_all(&temp_dir);

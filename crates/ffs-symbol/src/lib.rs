@@ -1,4 +1,4 @@
-//! Symbol indexing and AST-driven outline extraction for scry.
+//! Symbol indexing and AST-driven outline extraction for ffs.
 //!
 //! Three primary services exposed by this crate:
 //!

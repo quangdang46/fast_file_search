@@ -1,8 +1,8 @@
-//! FFF MCP server — tool definitions and handlers.
+//! ffs MCP server — tool definitions and handlers.
 //!
 //! Uses the `rmcp` crate's `#[tool_router]` / `#[tool_handler]` macros
 //! for declarative tool registration. Each tool method directly calls
-//! `fff-core` APIs (no C FFI overhead).
+//! `ffs-core` APIs (no C FFI overhead).
 
 use std::borrow::Cow;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -10,9 +10,9 @@ use std::sync::{Arc, Mutex};
 
 use crate::cursor::CursorStore;
 use crate::output::{GrepFormatter, OutputMode, file_suffix};
-use crate::scry_tools::{
-    ScryCallParams, ScryDispatchParams, ScryEngineHolder, ScryFlowParams, ScryImpactParams,
-    ScryReadParams, ScryRefsParams, ScrySymbolParams,
+use crate::engine_tools::{
+    EngineCallParams, EngineDispatchParams, EngineHolder, EngineFlowParams, EngineImpactParams,
+    EngineReadParams, EngineRefsParams, EngineSymbolParams,
 };
 use ffs::grep::{GrepMode, GrepSearchOptions, has_regex_metacharacters};
 use ffs::types::FileItem;
@@ -191,7 +191,7 @@ pub struct FfsServer {
     frecency: SharedFrecency,
     cursor_store: Arc<Mutex<CursorStore>>,
     update_notice_sent: Arc<AtomicBool>,
-    scry_engine: Arc<ScryEngineHolder>,
+    engine: Arc<EngineHolder>,
     tool_router: ToolRouter<Self>,
 }
 
@@ -202,7 +202,7 @@ impl FfsServer {
             frecency,
             cursor_store: Arc::new(Mutex::new(CursorStore::new())),
             update_notice_sent: Arc::new(AtomicBool::new(false)),
-            scry_engine: Arc::new(ScryEngineHolder::new()),
+            engine: Arc::new(EngineHolder::new()),
             tool_router: Self::tool_router(),
         }
     }
@@ -457,8 +457,8 @@ impl FfsServer {
         };
 
         let parser = QueryParser::default();
-        let fff_query = parser.parse(query);
-        let result = picker.fuzzy_search(&fff_query, None, make_opts(page_offset));
+        let ffs_query = parser.parse(query);
+        let result = picker.fuzzy_search(&ffs_query, None, make_opts(page_offset));
         let total_files = result.total_files;
 
         // Auto-retry with fewer terms if 3+ words return 0 results
@@ -581,32 +581,32 @@ impl FfsServer {
 
     #[tool(
         name = "ffs_dispatch",
-        description = "Auto-classify a free-form query (file path, glob, identifier, or concept phrase) and route it through the scry engine. Use when you don't know whether the input is a file, a symbol, or a content query."
+        description = "Auto-classify a free-form query (file path, glob, identifier, or concept phrase) and route it through the engine. Use when you don't know whether the input is a file, a symbol, or a content query."
     )]
-    fn scry_dispatch(
+    fn engine_dispatch(
         &self,
-        Parameters(params): Parameters<ScryDispatchParams>,
+        Parameters(params): Parameters<EngineDispatchParams>,
     ) -> Result<CallToolResult, ErrorData> {
         let root = self.picker_base_path()?;
         let max_tokens = normalize_max_results(params.max_tokens, 25_000) as u64;
         let _max_results = normalize_max_results(params.max_results, 50);
-        let engine = self.scry_engine.get_or_build(&root, max_tokens);
+        let engine = self.engine.get_or_build(&root, max_tokens);
         let result = engine.dispatch(&params.query, &root);
-        let text = crate::scry_tools::format_dispatch(&result);
+        let text = crate::engine_tools::format_dispatch(&result);
         Ok(CallToolResult::success(vec![Content::text(text)]))
     }
 
     #[tool(
         name = "ffs_symbol",
-        description = "Look up a symbol definition by exact name (or by prefix when the name ends with '*'). Backed by the scry tree-sitter symbol index over 16 languages."
+        description = "Look up a symbol definition by exact name (or by prefix when the name ends with '*'). Backed by the tree-sitter symbol index over 16 languages."
     )]
-    fn scry_symbol(
+    fn engine_symbol(
         &self,
-        Parameters(params): Parameters<ScrySymbolParams>,
+        Parameters(params): Parameters<EngineSymbolParams>,
     ) -> Result<CallToolResult, ErrorData> {
         let root = self.picker_base_path()?;
         let max_results = normalize_max_results(params.max_results, 50);
-        let engine = self.scry_engine.get_or_build(&root, 25_000);
+        let engine = self.engine.get_or_build(&root, 25_000);
         let name = params.name.trim();
         let text = if let Some(prefix) = name.strip_suffix('*') {
             let mut hits = engine.handles.symbols.lookup_prefix(prefix);
@@ -628,7 +628,7 @@ impl FfsServer {
         } else {
             let mut hits = engine.handles.symbols.lookup_exact(name);
             hits.truncate(max_results);
-            crate::scry_tools::format_symbol_hits(&hits, name)
+            crate::engine_tools::format_symbol_hits(&hits, name)
         };
         Ok(CallToolResult::success(vec![Content::text(text)]))
     }
@@ -637,15 +637,15 @@ impl FfsServer {
         name = "ffs_callers",
         description = "Find all call sites of `name` in the workspace, narrowed by the bigram + bloom pre-filter stack and confirmed with a literal text scan. Excludes definition lines."
     )]
-    fn scry_callers(
+    fn engine_callers(
         &self,
-        Parameters(params): Parameters<ScryCallParams>,
+        Parameters(params): Parameters<EngineCallParams>,
     ) -> Result<CallToolResult, ErrorData> {
         let root = self.picker_base_path()?;
         let max_results = normalize_max_results(params.max_results, 100);
-        let engine = self.scry_engine.get_or_build(&root, 25_000);
-        let hits = crate::scry_tools::find_call_sites(&engine, &root, &params.name, max_results);
-        let text = crate::scry_tools::format_call_hits(&hits, "callers");
+        let engine = self.engine.get_or_build(&root, 25_000);
+        let hits = crate::engine_tools::find_call_sites(&engine, &root, &params.name, max_results);
+        let text = crate::engine_tools::format_call_hits(&hits, "callers");
         Ok(CallToolResult::success(vec![Content::text(text)]))
     }
 
@@ -653,15 +653,15 @@ impl FfsServer {
         name = "ffs_callees",
         description = "Find all symbols referenced inside the body of `name` (i.e. the symbols `name` calls). Definitions are scanned via the symbol index; tokens that resolve to known definitions are emitted."
     )]
-    fn scry_callees(
+    fn engine_callees(
         &self,
-        Parameters(params): Parameters<ScryCallParams>,
+        Parameters(params): Parameters<EngineCallParams>,
     ) -> Result<CallToolResult, ErrorData> {
         let root = self.picker_base_path()?;
         let max_results = normalize_max_results(params.max_results, 100);
-        let engine = self.scry_engine.get_or_build(&root, 25_000);
-        let hits = crate::scry_tools::find_callee_sites(&engine, &root, &params.name, max_results);
-        let text = crate::scry_tools::format_call_hits(&hits, "callees");
+        let engine = self.engine.get_or_build(&root, 25_000);
+        let hits = crate::engine_tools::find_callee_sites(&engine, &root, &params.name, max_results);
+        let text = crate::engine_tools::format_call_hits(&hits, "callees");
         Ok(CallToolResult::success(vec![Content::text(text)]))
     }
 
@@ -669,14 +669,14 @@ impl FfsServer {
         name = "ffs_read",
         description = "Read a file with token-budget-aware truncation. The body is filtered (none / minimal / aggressive), then clipped to fit `maxTokens` (default 25000). The footer '[truncated to budget]' is preserved when the budget runs out."
     )]
-    fn scry_read(
+    fn engine_read(
         &self,
-        Parameters(params): Parameters<ScryReadParams>,
+        Parameters(params): Parameters<EngineReadParams>,
     ) -> Result<CallToolResult, ErrorData> {
         let root = self.picker_base_path()?;
         let max_tokens = normalize_max_results(params.max_tokens, 25_000) as u64;
-        let level = crate::scry_tools::parse_filter_level(params.filter.as_deref());
-        let engine = self.scry_engine.get_or_build(&root, max_tokens);
+        let level = crate::engine_tools::parse_filter_level(params.filter.as_deref());
+        let engine = self.engine.get_or_build(&root, max_tokens);
 
         let path_part = params
             .path
@@ -708,11 +708,11 @@ impl FfsServer {
 
     #[tool(
         name = "ffs_refs",
-        description = "List all definitions of `name` plus single-hop usages in one shot. Returns JSON with `definitions[]`, `usages[]`, and pagination metadata. Mirrors `scry refs` from the CLI."
+        description = "List all definitions of `name` plus single-hop usages in one shot. Returns JSON with `definitions[]`, `usages[]`, and pagination metadata. Mirrors `ffs refs` from the CLI."
     )]
-    fn scry_refs(
+    fn engine_refs(
         &self,
-        Parameters(params): Parameters<ScryRefsParams>,
+        Parameters(params): Parameters<EngineRefsParams>,
     ) -> Result<CallToolResult, ErrorData> {
         let root = self.picker_base_path()?;
         let limit = normalize_max_results(params.max_results, 100);
@@ -724,18 +724,18 @@ impl FfsServer {
             "--offset".into(),
             offset.to_string(),
         ];
-        let text = crate::scry_tools::run_scry_subprocess("refs", &root, &args)
-            .map_err(|e| ErrorData::internal_error(format!("scry refs failed: {e}"), None))?;
+        let text = crate::engine_tools::run_engine_subprocess("refs", &root, &args)
+            .map_err(|e| ErrorData::internal_error(format!("ffs refs failed: {e}"), None))?;
         Ok(CallToolResult::success(vec![Content::text(text)]))
     }
 
     #[tool(
         name = "ffs_flow",
-        description = "Drill-down envelope per definition: def metadata + body excerpt + top-N callees + top-N callers. Returns JSON cards with pagination. Mirrors `scry flow` from the CLI."
+        description = "Drill-down envelope per definition: def metadata + body excerpt + top-N callees + top-N callers. Returns JSON cards with pagination. Mirrors `ffs flow` from the CLI."
     )]
-    fn scry_flow(
+    fn engine_flow(
         &self,
-        Parameters(params): Parameters<ScryFlowParams>,
+        Parameters(params): Parameters<EngineFlowParams>,
     ) -> Result<CallToolResult, ErrorData> {
         let root = self.picker_base_path()?;
         let limit = normalize_max_results(params.max_results, 10);
@@ -756,8 +756,8 @@ impl FfsServer {
             "--budget".into(),
             budget.to_string(),
         ];
-        let text = crate::scry_tools::run_scry_subprocess("flow", &root, &args)
-            .map_err(|e| ErrorData::internal_error(format!("scry flow failed: {e}"), None))?;
+        let text = crate::engine_tools::run_engine_subprocess("flow", &root, &args)
+            .map_err(|e| ErrorData::internal_error(format!("ffs flow failed: {e}"), None))?;
         Ok(CallToolResult::success(vec![Content::text(text)]))
     }
 
@@ -765,9 +765,9 @@ impl FfsServer {
         name = "ffs_impact",
         description = "Rank workspace files by how much they'd be affected if `name` changed. Score = direct*3 + imports*2 + transitive*1. Returns JSON `results[]` sorted by score desc."
     )]
-    fn scry_impact(
+    fn engine_impact(
         &self,
-        Parameters(params): Parameters<ScryImpactParams>,
+        Parameters(params): Parameters<EngineImpactParams>,
     ) -> Result<CallToolResult, ErrorData> {
         let root = self.picker_base_path()?;
         let limit = normalize_max_results(params.max_results, 20);
@@ -788,8 +788,8 @@ impl FfsServer {
             "--hub-guard".into(),
             hub_guard.to_string(),
         ];
-        let text = crate::scry_tools::run_scry_subprocess("impact", &root, &args)
-            .map_err(|e| ErrorData::internal_error(format!("scry impact failed: {e}"), None))?;
+        let text = crate::engine_tools::run_engine_subprocess("impact", &root, &args)
+            .map_err(|e| ErrorData::internal_error(format!("ffs impact failed: {e}"), None))?;
         Ok(CallToolResult::success(vec![Content::text(text)]))
     }
 }

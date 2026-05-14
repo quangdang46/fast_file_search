@@ -1,4 +1,4 @@
-//! `scry callees <symbol>` — given a symbol's body, list which other indexed
+//! `ffs callees <symbol>` — given a symbol's body, list which other indexed
 //! symbols are referenced inside it. With `--depth > 1` the search becomes a
 //! BFS over the callee graph (mirror of `callers --hops N`).
 

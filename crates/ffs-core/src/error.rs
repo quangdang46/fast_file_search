@@ -8,7 +8,7 @@ pub enum Error {
     #[error("Invalid path {0}")]
     InvalidPath(std::path::PathBuf),
     #[error(
-        "Can not run certain FFF features in a file system root or home directories. Consider smaller per-project directories."
+        "Can not run certain ffs features in a file system root or home directories. Consider smaller per-project directories."
     )]
     FilesystemRoot(std::path::PathBuf),
     #[error("File picker not initialized")]

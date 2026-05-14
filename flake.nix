@@ -53,7 +53,7 @@
           pname = cargoToml.package.name;
           version = cargoToml.package.version;
           # cleanCargoSource strips non-rust files; we need to keep the
-          # AGENT_GUIDE.md asset that fff-cli pulls in via include_str!.
+          # AGENT_GUIDE.md asset that ffs-cli pulls in via include_str!.
           src = pkgs.lib.cleanSourceWith {
             src = ./.;
             filter =

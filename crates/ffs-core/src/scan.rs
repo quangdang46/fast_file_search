@@ -33,7 +33,7 @@ use crate::background_watcher::BackgroundWatcher;
 use crate::bigram_filter::BigramOverlay;
 use crate::bigram_filter::build_bigram_index;
 use crate::error::Error;
-use crate::file_picker::{BACKGROUND_THREAD_POOL, FFFMode, warmup_mmaps};
+use crate::file_picker::{BACKGROUND_THREAD_POOL, FfsMode, warmup_mmaps};
 use crate::git::GitStatusCache;
 use crate::shared::{SharedFilePicker, SharedFrecency};
 use crate::types::ContentCacheBudget;
@@ -74,7 +74,7 @@ pub(crate) struct ScanJob {
     shared_picker: SharedFilePicker,
     shared_frecency: SharedFrecency,
     base_path: PathBuf,
-    mode: FFFMode,
+    mode: FfsMode,
     signals: ScanSignals,
     config: ScanConfig,
     /// Walker-maintained counter backing `get_scan_progress` on the UI
@@ -130,7 +130,7 @@ impl ScanJob {
         shared_picker: SharedFilePicker,
         shared_frecency: SharedFrecency,
         base_path: PathBuf,
-        mode: FFFMode,
+        mode: FfsMode,
         signals: ScanSignals,
         scanned_files_counter: Arc<AtomicUsize>,
         config: ScanConfig,
@@ -152,7 +152,7 @@ impl ScanJob {
         std::thread::Builder::new()
             .name("ffs-scan".into())
             .spawn(move || self.run())
-            .expect("failed to spawn fff-scan thread")
+            .expect("failed to spawn ffs-scan thread")
     }
 
     fn run(self) {
@@ -418,7 +418,7 @@ fn apply_git_status_and_frecency(
     shared_picker: &SharedFilePicker,
     shared_frecency: &SharedFrecency,
     git_handle: std::thread::JoinHandle<Option<GitStatusCache>>,
-    mode: FFFMode,
+    mode: FfsMode,
 ) {
     let git_cache = match git_handle.join() {
         Ok(Some(cache)) => cache,
