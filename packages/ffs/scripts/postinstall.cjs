@@ -73,18 +73,21 @@ function fetch(url, redirects = 5) {
 
 async function getReleaseTag() {
   // Pin to package.json version. CI publishes nightly builds tagged
-  // `nightly-<sha>` and proper releases tagged `v<semver>`. We try
-  // `v<version>` first, then fall back to the latest release.
+  // `<semver>-nightly.<sha>` (no v prefix) and proper releases tagged
+  // `v<semver>`. Try both, then fall back to the latest release.
   const pkg = require("../package.json");
   const version = pkg.version;
-  try {
-    const data = await fetch(
-      `https://api.github.com/repos/${REPO}/releases/tags/v${version}`,
-    );
-    const json = JSON.parse(data.toString("utf8"));
-    if (json && json.tag_name) return json.tag_name;
-  } catch {
-    // fall through
+  const candidates = [`v${version}`, version];
+  for (const tag of candidates) {
+    try {
+      const data = await fetch(
+        `https://api.github.com/repos/${REPO}/releases/tags/${tag}`,
+      );
+      const json = JSON.parse(data.toString("utf8"));
+      if (json && json.tag_name) return json.tag_name;
+    } catch {
+      // fall through to next candidate
+    }
   }
   const data = await fetch(
     `https://api.github.com/repos/${REPO}/releases/latest`,
