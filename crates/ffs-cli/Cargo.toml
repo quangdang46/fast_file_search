@@ -28,6 +28,10 @@ clap_complete = "4.5"
 ignore = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+regex = { workspace = true }
+rayon = { workspace = true }
+memchr = { workspace = true }
+memmap2 = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

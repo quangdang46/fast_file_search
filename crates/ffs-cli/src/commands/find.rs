@@ -24,6 +24,14 @@ pub struct Args {
     /// Search in an additional directory. May be given multiple times.
     #[arg(long)]
     pub scope: Vec<PathBuf>,
+
+    /// Force fuzzy / typo-resistant matching from the start (skip exact pass).
+    #[arg(long)]
+    pub fuzzy: bool,
+
+    /// Disable the zero-match fuzzy fallback. Pure substring only.
+    #[arg(long)]
+    pub no_fuzzy: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -33,6 +41,11 @@ struct FindResult {
     total: usize,
     offset: usize,
     has_more: bool,
+    /// Set when the result came from the fuzzy fallback rather than an exact
+    /// substring match. Lets agents reason about confidence.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    fuzzy_fallback: bool,
+    schema: &'static str,
 }
 
 fn resolve_scopes(scopes: &[PathBuf], root: &Path) -> Vec<PathBuf> {
@@ -59,13 +72,23 @@ fn resolve_scopes(scopes: &[PathBuf], root: &Path) -> Vec<PathBuf> {
 }
 
 pub(crate) fn search_matches(scopes: &[PathBuf], needle: &str) -> Vec<String> {
-    let needle_lower = needle.to_lowercase();
+    let smart_case = needle.chars().any(|c| c.is_uppercase());
+    let needle_norm = if smart_case {
+        needle.to_string()
+    } else {
+        needle.to_lowercase()
+    };
     let mut seen: HashSet<String> = HashSet::new();
     let mut all: Vec<String> = Vec::new();
     for scope in scopes {
         for p in super::walk_files(scope) {
             let Some(s) = p.to_str() else { continue };
-            if s.to_lowercase().contains(&needle_lower) && seen.insert(s.to_string()) {
+            let hit = if smart_case {
+                s.contains(needle_norm.as_str())
+            } else {
+                s.to_lowercase().contains(needle_norm.as_str())
+            };
+            if hit && seen.insert(s.to_string()) {
                 all.push(s.to_string());
             }
         }
@@ -74,9 +97,57 @@ pub(crate) fn search_matches(scopes: &[PathBuf], needle: &str) -> Vec<String> {
     all
 }
 
+/// SIMD-backed typo-resistant fuzzy search across paths. Uses `neo_frizbee`
+/// Smith-Waterman scoring (same algorithm the Neovim picker uses) with
+/// `max_typos=Some(2)` so single-character typos like `isntall.sh -> install.sh`
+/// still match. Returns results sorted by score (highest first).
+pub(crate) fn fuzzy_search_matches(scopes: &[PathBuf], needle: &str) -> Vec<String> {
+    let mut all_paths: Vec<String> = Vec::new();
+    let mut seen: HashSet<String> = HashSet::new();
+    for scope in scopes {
+        for p in super::walk_files(scope) {
+            if let Some(s) = p.to_str() {
+                if seen.insert(s.to_string()) {
+                    all_paths.push(s.to_string());
+                }
+            }
+        }
+    }
+
+    if all_paths.is_empty() {
+        return Vec::new();
+    }
+
+    let haystacks: Vec<&str> = all_paths.iter().map(String::as_str).collect();
+    let threads = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(2)
+        .min(8);
+    let config = neo_frizbee::Config {
+        max_typos: Some(2),
+        sort: true,
+        ..Default::default()
+    };
+    let matches = neo_frizbee::match_list_parallel(needle, &haystacks, &config, threads);
+    matches
+        .into_iter()
+        .filter_map(|m| all_paths.get(m.index as usize).cloned())
+        .collect()
+}
+
 pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     let resolved_scopes = resolve_scopes(&args.scope, root);
-    let all = search_matches(&resolved_scopes, &args.needle);
+
+    let (all, fuzzy_fallback) = if args.fuzzy {
+        (fuzzy_search_matches(&resolved_scopes, &args.needle), true)
+    } else {
+        let exact = search_matches(&resolved_scopes, &args.needle);
+        if exact.is_empty() && !args.no_fuzzy {
+            (fuzzy_search_matches(&resolved_scopes, &args.needle), true)
+        } else {
+            (exact, false)
+        }
+    };
 
     let page = Page::paginate(all, args.offset, args.limit);
     let payload = FindResult {
@@ -85,9 +156,14 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         offset: page.offset,
         has_more: page.has_more,
         matches: page.items,
+        fuzzy_fallback,
+        schema: "v1",
     };
     super::emit(format, &payload, |p| {
         let mut out = String::new();
+        if p.fuzzy_fallback && !p.matches.is_empty() {
+            out.push_str("# fuzzy fallback (no exact match)\n");
+        }
         for m in &p.matches {
             out.push_str(m);
             out.push('\n');
@@ -115,6 +191,8 @@ mod tests {
             limit: 50,
             offset: 0,
             scope: vec![],
+            fuzzy: false,
+            no_fuzzy: false,
         };
         run(args, root, OutputFormat::Json).unwrap();
         // Json emit writes to stdout; just assert it doesn't panic.
