@@ -1,43 +1,335 @@
-*ffs.nvim.txt*  Code-aware file search toolkit for Neovim
+*ffs.nvim.txt*
+                              For Neovim >= 0.10.0    Last change: 2026 May 15
 
 ==============================================================================
-INTRODUCTION                                                       *ffs.nvim*
+Table of Contents                                 *ffs.nvim-table-of-contents*
 
-ffs.nvim is the Neovim plugin frontend for ffs — a typo-resistant,
-frecency-ranked file and content search toolkit with an integrated
-tree-sitter symbol index, bloom + bigram pre-filters, and a
-token-budget aware reader.
+  - Install                                                 |ffs.nvim-install|
+  - Quick start                                         |ffs.nvim-quick-start|
+  - Subcommands                                         |ffs.nvim-subcommands|
+  - MCP server                                           |ffs.nvim-mcp-server|
+  - Why ffs                                                 |ffs.nvim-why-ffs|
+  - Other surfaces                                   |ffs.nvim-other-surfaces|
+  - Build from source                             |ffs.nvim-build-from-source|
+  - Repository layout                             |ffs.nvim-repository-layout|
+  - Contributing                                       |ffs.nvim-contributing|
+  - License                                                 |ffs.nvim-license|
+A code-aware file search CLI for humans and AI agents. Really fast.ffs replaces `find`, `fd`, `grep`, `rg`, `glob`, and `cat` with a single
+typo-resistant, frecency-ranked binary, and adds tree-sitter powered
+code-navigation (`symbol`, `callers`, `callees`, `refs`, `flow`, `impact`) and
+a token-budget aware file reader for AI agents.
 
-See README.md in the repository for the full documentation. Vim help
-output is regenerated automatically from README.md by the panvimdoc
-CI workflow on feature branches; this stub will be replaced when
-that workflow next runs.
+------------------------------------------------------------------------------
 
-==============================================================================
-QUICK REFERENCE                                              *ffs.nvim-quick*
+INSTALL                                                     *ffs.nvim-install*
 
-Public Lua API:
+>bash
+    curl -fsSL "https://raw.githubusercontent.com/quangdang46/fast_file_search/main/install.sh?$(date +%s)" | bash
+<
 
-    require('ffs').find_files()                    Open the file picker.
-    require('ffs').live_grep()                     Open the live-grep picker.
-    require('ffs').scan_files()                    Force a rescan.
-    require('ffs').refresh_git_status()            Refresh git status.
+That’s it. The script detects your platform, fetches the matching binary from
+GitHub Releases
+<https://github.com/quangdang46/fast_file_search/releases/latest>, verifies the
+SHA-256 sidecar, and atomically installs to `~/.local/bin/ffs`.
 
-User commands:
 
-    :FFSFind [path|query]                          Open picker.
-    :FFSScan                                       Force rescan.
-    :FFSRefreshGit                                 Refresh git status.
-    :FFSClearCache [all|frecency|files]            Clear caches.
-    :FFSHealth                                     Health check.
-    :FFSDebug [on|off|toggle]                      Toggle scoring display.
-    :FFSOpenLog                                    Open log file.
+SUPPORTED PLATFORMS ~
 
-Code-aware Lua module:
+- Linux x86_64 / aarch64 (musl-linked, portable across glibc versions)
+- macOS x86_64 / aarch64
+- Windows x86_64 / aarch64 (run install.sh from Git Bash or WSL)
 
-    require('ffs.engine').init(root)
-    require('ffs.engine').dispatch(query)
-    require('ffs.engine').symbol(name)
-    require('ffs.engine').read(path, budget, filter)
+------------------------------------------------------------------------------
+
+QUICK START                                             *ffs.nvim-quick-start*
+
+>bash
+    ffs --help
+    ffs index                                  # one-time warm-up (~200ms on a 10k-file repo)
+    ffs find UnifiedScanner
+    ffs grep '\bTODO\b' --root crates/
+    ffs symbol FilePicker
+    ffs callers UnifiedScanner
+    ffs read crates/ffs-engine/src/lib.rs --budget 5000 --filter minimal
+    ffs dispatch 'where is the user controller'
+    ffs map --depth 3
+    ffs mcp                                    # run as MCP server over stdio
+<
+
+`ffs index` writes a tree-sitter symbol-index cache to `<repo>/.ffs/`.
+Subsequent `ffs symbol`/`callers`/`refs`/`flow`/`siblings`/`impact` invocations
+skip the re-parse and load the cache directly — sub-200 ms on a
+Linux-kernel-sized repo. The cache is invalidated automatically on schema
+bumps, git HEAD changes, or significant file-count drift. Add `.ffs/` to your
+`.gitignore` (the repository’s own `.gitignore` already does this).
+
+
+SUBCOMMANDS                                             *ffs.nvim-subcommands*
+
+>
+    ffs find        Find files by name (replaces find, fd)
+    ffs glob        Match files by glob (replaces glob, shell **)
+    ffs grep        Search file contents (replaces grep, rg)
+    ffs read        Read a file with token-budget aware truncation (replaces cat)
+    ffs outline     Render a file's structural outline
+    ffs symbol      Look up symbol definitions (tree-sitter powered)
+    ffs callers     List call sites of a symbol
+    ffs callees     List symbols referenced inside a symbol body
+    ffs refs        Definitions + single-hop usages of a symbol in one shot
+    ffs flow        Drill-down envelope per definition (def + body + callees + callers)
+    ffs siblings    Sibling symbols (peers in the same parent scope)
+    ffs deps        File imports + the workspace files that depend on it
+    ffs impact      Rank files by how much they'd be affected if a symbol changed
+    ffs dispatch    Auto-classify a free-form query and route it to the right backend
+    ffs index       Build / refresh the on-disk indexes (Bigram, Bloom, Symbol, Outline)
+    ffs map         Render the workspace as a tree annotated with file count and tokens
+    ffs overview    High-signal summary of the workspace (languages, top symbols, …)
+    ffs mcp         Run as an MCP server over stdio
+    ffs guide       Print the embedded agent guide
+<
+
+Pass `--format json` for machine-readable output. Use `--root <path>` to
+override the working directory globally.
+
+------------------------------------------------------------------------------
+
+MCP SERVER                                               *ffs.nvim-mcp-server*
+
+`ffs mcp` (or the standalone `ffs-mcp` binary) speaks JSON-RPC over stdio and
+registers 16 tools that any MCP-capable agent (Claude Code, Codex, OpenCode,
+Cursor, Cline, …) can call:
+
+
+AUTO-INSTALL + REGISTRATION ~
+
+`install.sh` does both jobs in one shot: it installs the `ffs` binary **and**
+registers `ffs mcp` as a server with every detected MCP-capable provider. MCP
+registration is on by default — pass `--no-mcp` to skip. Re-runs are
+idempotent — it diffs against existing entries instead of clobbering
+unrelated tools.
+
+>bash
+    # Install ffs + auto-register with every detected provider (default).
+    curl -fsSL https://raw.githubusercontent.com/quangdang46/fast_file_search/main/install.sh \
+      | bash
+    
+    # Binary only — no MCP registration.
+    curl -fsSL https://raw.githubusercontent.com/quangdang46/fast_file_search/main/install.sh \
+      | bash -s -- --no-mcp
+    
+    # Only register with a subset.
+    curl -fsSL https://raw.githubusercontent.com/quangdang46/fast_file_search/main/install.sh \
+      | bash -s -- --mcp-providers cursor,opencode
+    
+    # ffs already on PATH? Skip the binary install and just register.
+    curl -fsSL https://raw.githubusercontent.com/quangdang46/fast_file_search/main/install.sh \
+      | bash -s -- --mcp-only
+    
+    # Preview the writes without touching disk.
+    curl -fsSL https://raw.githubusercontent.com/quangdang46/fast_file_search/main/install.sh \
+      | bash -s -- --mcp-dry-run
+    
+    # Remove ffs from every provider config (binary stays).
+    curl -fsSL https://raw.githubusercontent.com/quangdang46/fast_file_search/main/install.sh \
+      | bash -s -- --mcp-uninstall
+<
+
+Supported providers: **Claude Code**, **Codex**, **Cursor**, **Cline**,
+**OpenCode**, **Continue**. Providers with no installed agent are silently
+skipped, and providers that need `jq` (Cursor, Cline, OpenCode) auto-skip when
+`jq` is missing instead of aborting the install. Run `bash install.sh --help`
+for the full flag list (`--mcp-name`, `--dest`, `--version`, `--quiet`, …).
+The legacy `install-mcp.sh` URL still works — it forwards to `install.sh`
+with the matching flags.
+
+
+TOOLS REGISTERED ~
+
+  ------------------------------------------------------------------------------
+  Tool             What it answers
+  ---------------- -------------------------------------------------------------
+  ffs_find         Fuzzy file-name search. Smart-case, frecency-ranked, glob
+                   constraints, git-aware.
+
+  ffs_grep         Content search. Plain / regex / fuzzy auto-detect, pagination
+                   cursor, definition-first hinting.
+
+  ffs_multi_grep   OR-logic multi-pattern content search via SIMD Aho-Corasick.
+
+  ffs_dispatch     Auto-classify a free-form query (path, glob, identifier,
+                   concept) and route through the engine.
+
+  ffs_symbol       Exact + prefix lookup over the tree-sitter symbol index (16
+                   languages).
+
+  ffs_callers      Find call sites of a symbol. Bloom-filter narrowed candidates
+                   → literal-text confirm pass.
+
+  ffs_callees      Symbols referenced inside the body of a definition.
+
+  ffs_refs         Definitions + single-hop usages of a symbol in one shot.
+                   Mirrors ffs refs from the CLI.
+
+  ffs_flow         Drill-down envelope per definition: def metadata + body
+                   excerpt + top-N callees + top-N callers.
+
+  ffs_impact       Rank workspace files by how much they’d be affected if name
+                   changed.
+
+  ffs_outline      Structural outline of a file (functions, classes, top-level
+                   decls). Agent-friendly default view.
+
+  ffs_siblings     Peers of a symbol in its parent scope — surfaces the rest of
+                   the impl/class around a method.
+
+  ffs_deps         A file’s imports plus the workspace files that depend on it.
+                   Blast-radius estimate for changes.
+
+  ffs_map          Workspace tree annotated with file count and per-directory
+                   token estimate.
+
+  ffs_overview     High-signal repo summary: languages, top-defined symbols,
+                   entry-point candidates.
+
+  ffs_read         Token-budget aware file read. Maps maxTokens to
+                   ~85% body × 4 bytes/token, applies filters.
+  ------------------------------------------------------------------------------
+Recommended agent prompt — drop into `CLAUDE.md` (or equivalent):
+
+>markdown
+    For any file search, grep, or symbol lookup in the current git-indexed
+    directory, use ffs tools.
+<
+
+------------------------------------------------------------------------------
+
+WHY FFS                                                     *ffs.nvim-why-ffs*
+
+- **Typo-resistant fuzzy matching** for both paths and content. `*.rs !test/ shcema`
+    is a valid query; even with a typo in `shcema` it still finds matches.
+- **Frecency-ranked.** Files you open often rank higher next time. Warm-up uses
+    git touch history.
+- **Tree-sitter symbol index** across 16 languages — answer code questions, not
+    just file-name questions.
+- **Bigram + Bloom pre-filter stack.** `ffs callers SomeSymbol` typically inspects
+    fewer than 30 files on a 10k-file repo.
+- **Token-budget aware reader** for AI agents. `ffs read path --budget 5000` clips
+    the body but always preserves the file header and a `[truncated to budget]`
+    footer so the agent knows the output was clipped.
+- **One long-lived process when used via library/MCP.** No per-call subprocess
+    spawn, no re-reading `.gitignore`, no rebuilding state. After the first call
+    every subsequent search hits warm memory.
+
+On a 500k-file Chromium checkout, that is the difference between 3-9
+**seconds** per ripgrep spawn and sub-10 ms per ffs query.
+
+------------------------------------------------------------------------------
+
+OTHER SURFACES                                       *ffs.nvim-other-surfaces*
+
+The same Rust core powers four other entry points. See each subdirectory for
+details.
+
+  ----------------------------------------------------------------------------
+  Surface                 Path                         What it is
+  ----------------------- ---------------------------- -----------------------
+  Neovim plugin           lua/ffs/ + plugin/ffs.lua    High-performance file
+                                                       picker with live grep,
+                                                       frecency ranking, and
+                                                       tree-sitter-aware
+                                                       preview.
+
+  MCP server              crates/ffs-mcp/ +            Drop-in replacement for
+                          install-mcp.sh               the built-in
+                                                       file-search tools in
+                                                       Claude Code, Codex,
+                                                       OpenCode, Cursor,
+                                                       Cline, and other
+                                                       MCP-capable agents.
+
+  Node SDK                packages/ffs-node/           TypeScript wrapper over
+                                                       the C library for
+                                                       Node.js.
+
+  Bun SDK                 packages/ffs-bun/            TypeScript wrapper over
+                                                       the C library for Bun.
+
+  Pi extension            packages/pi-ffs/             pi extension that swaps
+                                                       native find/grep for
+                                                       ffs.
+
+  C ABI                   crates/ffs-c/ +              Stable C library — bind
+                          crates/ffs-c/include/ffs.h   from C/C++, Zig, Go via
+                                                       cgo, Python via ctypes.
+
+  Rust crate              crates/ffs-core/ (ffs-search Native Rust SDK.
+                          on crates.io)                
+  ----------------------------------------------------------------------------
+------------------------------------------------------------------------------
+
+BUILD FROM SOURCE                                 *ffs.nvim-build-from-source*
+
+>bash
+    git clone https://github.com/quangdang46/fast_file_search.git
+    cd fast_file_search
+    cargo build --release -p ffs-cli --features zlob
+    ./target/release/ffs --version
+<
+
+`zlob` enables a Zig-compiled glob matcher; requires Zig at build time. Without
+it, ffs falls back to `globset` (pure Rust). Drop `--features zlob` if you
+don’t have Zig installed.
+
+The full workspace (`make build`) also produces: - `target/release/ffs-mcp` —
+MCP server binary - `target/release/libffs_c.{so,dylib,dll}` — C FFI library
+- `target/release/libffs_nvim.{so,dylib,dll}` — Neovim cdylib
+
+------------------------------------------------------------------------------
+
+REPOSITORY LAYOUT                                 *ffs.nvim-repository-layout*
+
+>
+    crates/
+      ffs-core/         # Rust core SDK (publishes as `ffs-search`)
+      ffs-cli/          # the `ffs` binary
+      ffs-mcp/          # MCP server (`ffs-mcp` binary)
+      ffs-c/            # C FFI library (libffs_c, header in include/ffs.h)
+      ffs-nvim/         # mlua bindings for the Neovim plugin
+      ffs-engine/       # unified scanner + dispatch + ranking
+      ffs-symbol/       # tree-sitter symbol index, bloom + bigram filters
+      ffs-budget/       # token-budget reader, comment/whitespace filters
+      ffs-grep/         # SIMD literal/regex grep
+      ffs-query-parser/ # query language parser (constraints, fuzzy, regex modes)
+    lua/ffs/            # Neovim plugin code
+    plugin/ffs.lua      # Neovim auto-load
+    packages/
+      ffs/              # @ffs-cli/ffs npm wrapper around the CLI binary
+      ffs-node/         # @ffs-cli/ffs-node Node SDK
+      ffs-bun/          # @ffs-cli/ffs-bun Bun SDK
+      pi-ffs/           # @ffs-cli/pi-ffs Pi extension
+      ffs-bin-*/        # @ffs-cli/ffs-bin-* prebuilt native libs (per-platform)
+    install.sh          # CLI installer (this README's curl|bash target)
+    install-mcp.sh      # MCP server installer
+    .github/workflows/
+      release.yaml      # cross-compile + GitHub Releases on push to main and v* tags
+      rust.yml          # fmt + clippy + test on every PR
+      …
+<
+
+------------------------------------------------------------------------------
+
+CONTRIBUTING                                           *ffs.nvim-contributing*
+
+PRs welcome. Run `make check` before submitting: - `make format` (rustfmt +
+stylua + biome) - `make lint` (clippy + luacheck + biome) - `make test`
+
+Agentic coding tools are welcome to be used; human review is mandatory.
+
+
+LICENSE                                                     *ffs.nvim-license*
+
+MIT <./LICENSE> — open source forever.
+
+Generated by panvimdoc <https://github.com/kdheepak/panvimdoc>
 
 vim:tw=78:ts=8:noet:ft=help:norl:

@@ -19,32 +19,6 @@ That's it. The script detects your platform, fetches the matching
 binary from [GitHub Releases](https://github.com/quangdang46/fast_file_search/releases/latest),
 verifies the SHA-256 sidecar, and atomically installs to `~/.local/bin/ffs`.
 
-### Flags
-
-```bash
-# Pin a version
-curl -fsSL https://raw.githubusercontent.com/quangdang46/fast_file_search/main/install.sh \
-  | bash -s -- --version v0.1.0
-
-# System-wide install (needs sudo)
-curl -fsSL https://raw.githubusercontent.com/quangdang46/fast_file_search/main/install.sh \
-  | sudo bash -s -- --system
-
-# Auto-update PATH in ~/.bashrc and ~/.zshrc
-curl -fsSL https://raw.githubusercontent.com/quangdang46/fast_file_search/main/install.sh \
-  | bash -s -- --easy-mode
-
-# Build from source instead of downloading
-curl -fsSL https://raw.githubusercontent.com/quangdang46/fast_file_search/main/install.sh \
-  | bash -s -- --from-source
-
-# Uninstall
-curl -fsSL https://raw.githubusercontent.com/quangdang46/fast_file_search/main/install.sh \
-  | bash -s -- --uninstall
-```
-
-Run `bash install.sh --help` after cloning the repo to see all flags.
-
 ### Supported platforms
 
 - Linux x86_64 / aarch64 (musl-linked, portable across glibc versions)
@@ -67,6 +41,13 @@ ffs dispatch 'where is the user controller'
 ffs map --depth 3
 ffs mcp                                    # run as MCP server over stdio
 ```
+
+`ffs index` writes a tree-sitter symbol-index cache to `<repo>/.ffs/`. Subsequent
+`ffs symbol`/`callers`/`refs`/`flow`/`siblings`/`impact` invocations skip the
+re-parse and load the cache directly — sub-200 ms on a Linux-kernel-sized repo.
+The cache is invalidated automatically on schema bumps, git HEAD changes, or
+significant file-count drift. Add `.ffs/` to your `.gitignore` (the
+repository's own `.gitignore` already does this).
 
 ## Subcommands
 
@@ -99,10 +80,53 @@ the working directory globally.
 
 ## MCP server
 
-`ffs mcp` (or the standalone `ffs-mcp` binary, installed via
-[`install-mcp.sh`](./install-mcp.sh)) speaks JSON-RPC over stdio and registers
-16 tools that any MCP-capable agent (Claude Code, Codex, OpenCode, Cursor,
-Cline, …) can call:
+`ffs mcp` (or the standalone `ffs-mcp` binary) speaks JSON-RPC over stdio
+and registers 16 tools that any MCP-capable agent (Claude Code, Codex,
+OpenCode, Cursor, Cline, …) can call:
+
+### Auto-install + registration
+
+`install.sh` does both jobs in one shot: it installs the `ffs` binary
+**and** registers `ffs mcp` as a server with every detected MCP-capable
+provider. MCP registration is on by default — pass `--no-mcp` to skip.
+Re-runs are idempotent — it diffs against existing entries instead of
+clobbering unrelated tools.
+
+```bash
+# Install ffs + auto-register with every detected provider (default).
+curl -fsSL https://raw.githubusercontent.com/quangdang46/fast_file_search/main/install.sh \
+  | bash
+
+# Binary only — no MCP registration.
+curl -fsSL https://raw.githubusercontent.com/quangdang46/fast_file_search/main/install.sh \
+  | bash -s -- --no-mcp
+
+# Only register with a subset.
+curl -fsSL https://raw.githubusercontent.com/quangdang46/fast_file_search/main/install.sh \
+  | bash -s -- --mcp-providers cursor,opencode
+
+# ffs already on PATH? Skip the binary install and just register.
+curl -fsSL https://raw.githubusercontent.com/quangdang46/fast_file_search/main/install.sh \
+  | bash -s -- --mcp-only
+
+# Preview the writes without touching disk.
+curl -fsSL https://raw.githubusercontent.com/quangdang46/fast_file_search/main/install.sh \
+  | bash -s -- --mcp-dry-run
+
+# Remove ffs from every provider config (binary stays).
+curl -fsSL https://raw.githubusercontent.com/quangdang46/fast_file_search/main/install.sh \
+  | bash -s -- --mcp-uninstall
+```
+
+Supported providers: **Claude Code**, **Codex**, **Cursor**, **Cline**,
+**OpenCode**, **Continue**. Providers with no installed agent are
+silently skipped, and providers that need `jq` (Cursor, Cline, OpenCode)
+auto-skip when `jq` is missing instead of aborting the install. Run
+`bash install.sh --help` for the full flag list (`--mcp-name`, `--dest`,
+`--version`, `--quiet`, …). The legacy `install-mcp.sh` URL still works
+— it forwards to `install.sh` with the matching flags.
+
+### Tools registered
 
 | Tool            | What it answers                                                                                  |
 | --------------- | ------------------------------------------------------------------------------------------------ |

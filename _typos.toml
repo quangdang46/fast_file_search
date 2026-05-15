@@ -15,6 +15,12 @@ thm = "thm"
 comparsion = "comparsion"
 modfiers = "modfiers"
 shcema = "shcema"
+# Intentional typo in `ffs find` fuzzy-fallback doc comment / tests to
+# demonstrate that "isntall.sh" resolves to "install.sh".
+isntall = "isntall"
+# Vietnamese: word meaning "change/replace". Appears in design docs and
+# inline commit-message context.
+thay = "thay"
 
 [default]
 extend-ignore-re = [

@@ -84,6 +84,30 @@ impl Engine {
         }
     }
 
+    /// Build an engine that reuses a pre-loaded symbol index — used by the
+    /// on-disk cache path so we skip the (expensive) tree-sitter parse pass.
+    /// Bloom + outline caches start empty and rebuild lazily.
+    #[must_use]
+    pub fn with_symbols(config: EngineConfig, symbols: Arc<SymbolIndex>) -> Self {
+        let scanner = UnifiedScanner::with_symbols(symbols);
+        let handles = EngineHandles {
+            bloom: scanner.bloom.clone(),
+            symbols: scanner.symbols.clone(),
+            outlines: scanner.outlines.clone(),
+        };
+        let guard = MemoryGuard::new(
+            scanner.bloom.clone(),
+            scanner.symbols.clone(),
+            scanner.outlines.clone(),
+        );
+        Self {
+            config,
+            handles,
+            guard,
+            scanner,
+        }
+    }
+
     /// Run the unified scanner over `root`, then apply the matching budget rules.
     pub fn index(&self, root: &Path) -> ScanReport {
         let report = self.scanner.scan(root);

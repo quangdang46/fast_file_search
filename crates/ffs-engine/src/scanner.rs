@@ -83,6 +83,20 @@ impl UnifiedScanner {
         }
     }
 
+    /// Construct a scanner that reuses an externally-owned symbol index. The
+    /// bloom and outline caches are still fresh — callers expect those to be
+    /// rebuilt lazily from file content, while the symbol index is the
+    /// expensive piece we want to load from disk.
+    #[must_use]
+    pub fn with_symbols(symbols: Arc<SymbolIndex>) -> Self {
+        Self {
+            bloom: Arc::new(BloomFilterCache::new()),
+            symbols,
+            outlines: Arc::new(OutlineCache::new()),
+            progress: Arc::new(ScanProgress::default()),
+        }
+    }
+
     /// Scan the given root, populating all three indexes. Honors `.gitignore`.
     pub fn scan(&self, root: &Path) -> ScanReport {
         let entries = self.collect_entries(root);

@@ -17,7 +17,6 @@ use clap::Parser;
 use ignore::WalkBuilder;
 use serde::Serialize;
 
-use ffs_engine::Engine;
 use ffs_symbol::lang::detect_file_type;
 use ffs_symbol::types::{FileType, Lang};
 
@@ -70,8 +69,7 @@ struct ImpactOutput {
 
 pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     let root_canon = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
-    let engine = Engine::default();
-    engine.index(&root_canon);
+    let engine = crate::cache::load_or_build_engine(&root_canon);
 
     let files = super::walk_files(&root_canon);
     let candidates: Vec<CandidateFile> = files
