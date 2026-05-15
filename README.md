@@ -99,6 +99,33 @@ the working directory globally.
 
 ---
 
+## MCP server
+
+`ffs mcp` (or the standalone `ffs-mcp` binary, installed via
+[`install-mcp.sh`](./install-mcp.sh)) speaks JSON-RPC over stdio and registers
+8 tools that any MCP-capable agent (Claude Code, Codex, OpenCode, Cursor,
+Cline, …) can call:
+
+| Tool            | What it answers                                                                                  |
+| --------------- | ------------------------------------------------------------------------------------------------ |
+| `find_files`    | Fuzzy file-name search. Smart-case, frecency-ranked, glob constraints, git-aware.                |
+| `grep`          | Content search. Plain / regex / fuzzy auto-detect, pagination cursor, definition-first hinting.  |
+| `multi_grep`    | OR-logic multi-pattern content search via SIMD Aho-Corasick.                                     |
+| `ffs_dispatch`  | Auto-classify a free-form query (path, glob, identifier, concept) and route through the engine.  |
+| `ffs_symbol`    | Exact + prefix lookup over the tree-sitter symbol index (16 languages).                          |
+| `ffs_callers`   | Find call sites of a symbol. Bloom-filter narrowed candidates → literal-text confirm pass.       |
+| `ffs_callees`   | Symbols referenced inside the body of a definition.                                              |
+| `ffs_read`      | Token-budget aware file read. Maps `maxTokens` to `~85% body × 4 bytes/token`, applies filters.  |
+
+Recommended agent prompt — drop into `CLAUDE.md` (or equivalent):
+
+```markdown
+For any file search, grep, or symbol lookup in the current git-indexed
+directory, use ffs tools.
+```
+
+---
+
 ## Why ffs
 
 - **Typo-resistant fuzzy matching** for both paths and content. `*.rs !test/ shcema`
