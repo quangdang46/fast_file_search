@@ -939,7 +939,7 @@ impl FfsServer {
         let parsed_constraints = parser.parse(constraint_query);
         let constraints = parsed_constraints.constraints.as_slice();
 
-        let result = picker.ffs_multi_grep(&patterns_refs, constraints, &options);
+        let result = picker.multi_grep(&patterns_refs, constraints, &options);
         let file_refs: Vec<&FileItem> = result.files.to_vec();
 
         if result.matches.is_empty() && file_offset == 0 {

@@ -1,7 +1,7 @@
 //! Engine tool helpers for the MCP server: lazily-built `ffs-engine` shared
 //! across all `engine_*` tool calls and the parameter / response shapes.
 //!
-//! Existing ffs tools (`ffs_find`, `grep`, `ffs_multi_grep`) are untouched.
+//! Existing ffs tools (`ffs_find`, `ffs_grep`, `ffs_multi_grep`) are untouched.
 //! The engine tools are additive: they expose the symbol index, call-graph,
 //! and token-budgeted read APIs from `ffs-engine` to MCP clients.
 
