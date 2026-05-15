@@ -8,15 +8,19 @@
 #   curl -fsSL https://raw.githubusercontent.com/quangdang46/fast_file_search/main/install.sh | bash -s -- --uninstall
 #
 # Flags:
-#   --dest <dir>      install location (default ~/.local/bin)
-#   --system          install to /usr/local/bin (needs sudo)
-#   --version <tag>   pin to a specific release tag (e.g. v0.1.0); default: latest
-#   --easy-mode       auto-append PATH export to ~/.bashrc and ~/.zshrc
-#   --verify          run `ffs --version` after install as a self-test
-#   --from-source     skip download, build with cargo (slow)
-#   --quiet, -q       silence informational output
-#   --uninstall       remove the binary and the easy-mode PATH lines
-#   -h, --help        show this help and exit
+#   --dest <dir>            install location (default ~/.local/bin)
+#   --system                install to /usr/local/bin (needs sudo)
+#   --version <tag>         pin to a specific release tag (e.g. v0.1.0); default: latest
+#   --easy-mode             auto-append PATH export to ~/.bashrc and ~/.zshrc
+#   --verify                run `ffs --version` after install as a self-test
+#   --from-source           skip download, build with cargo (slow)
+#   --mcp                   also download ffs-mcp and auto-register with every detected
+#                           AI assistant (Claude Code, Codex, Cursor, Cline, OpenCode, Continue)
+#   --mcp-providers <list>  restrict --mcp to comma-separated subset of providers
+#   --mcp-dry-run           run --mcp registration in dry-run mode (no files modified)
+#   --quiet, -q             silence informational output
+#   --uninstall             remove the binary and the easy-mode PATH lines
+#   -h, --help              show this help and exit
 
 set -euo pipefail
 umask 022
@@ -32,6 +36,9 @@ EASY=0
 VERIFY=0
 FROM_SOURCE=0
 UNINSTALL=0
+MCP=0
+MCP_PROVIDERS="all"
+MCP_DRY_RUN=0
 MAX_RETRIES=3
 DOWNLOAD_TIMEOUT=120
 LOCK_DIR="/tmp/${BINARY_NAME}-install.lock.d"
@@ -72,6 +79,10 @@ while [ $# -gt 0 ]; do
         --from-source)   FROM_SOURCE=1;      shift;;
         --quiet|-q)      QUIET=1;            shift;;
         --uninstall)     UNINSTALL=1;        shift;;
+        --mcp)           MCP=1;              shift;;
+        --mcp-providers) MCP=1; MCP_PROVIDERS="$2"; shift 2;;
+        --mcp-providers=*) MCP=1; MCP_PROVIDERS="${1#*=}"; shift;;
+        --mcp-dry-run)   MCP=1; MCP_DRY_RUN=1;  shift;;
         -h|--help)       usage;;
         *) log_warn "Unknown flag: $1"; shift;;
     esac
@@ -290,6 +301,16 @@ main() {
     if [ "$VERIFY" -eq 1 ]; then
         log_info "Running self-test..."
         "$DEST/$BINARY_NAME" --version || die "Self-test failed"
+    fi
+
+    if [ "$MCP" -eq 1 ]; then
+        log_info "Auto-registering MCP server with AI assistants..."
+        local mcp_url="https://raw.githubusercontent.com/${OWNER}/${REPO}/main/install-mcp.sh"
+        local mcp_args="--providers $MCP_PROVIDERS"
+        [ "$MCP_DRY_RUN" -eq 1 ] && mcp_args="$mcp_args --dry-run"
+        if ! curl -fsSL "$mcp_url" | bash -s -- $mcp_args; then
+            log_warn "MCP auto-install failed; see install-mcp.sh --help to retry manually."
+        fi
     fi
 
     echo ""
