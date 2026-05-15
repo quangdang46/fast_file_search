@@ -1,641 +1,546 @@
-# PLAN.md — `fff` + `scry` → `ffs` (Fast File Search) Unification
+# PLAN.md — Cải thiện `ffs` (fast_file_search)
 
-## Context
-
-This project is dual-identity: **fff.nvim** (the Neovim file picker) and **scry** (the
-unified code-search CLI/MCP layer built on top). The codebase currently lives in
-`crates/fff-*` and `lua/fff/` but the CLI binary, MCP server, and agent-facing layer
-are already named `scry`.
-
-This plan renames **everything** to `ffs` (Fast File Search) — the single unified brand.
-
----
-
-## Naming Reference
-
-| Old | New | Type |
-|---|---|---|
-| `fff.nvim` | `ffs.nvim` | Product name |
-| `scry` (CLI) | `ffs` | CLI binary |
-| `scry` (MCP) | `ffs` | MCP server |
-| `fff-search` (package) | `ffs-search` | Rust crate package |
-| `fff-*` (crates) | `ffs-*` | Crate directories |
-| `scry-*` (crates) | `ffs-*` | Crate directories |
-| `lua/fff/` | `lua/ffs/` | Lua module directory |
-| `@ff-labs/fff-*` | `@ff-labs/ffs-*` | NPM packages |
+Tham chiếu nguồn:
+- Báo cáo kiểm thử v0.7.3 (xem `REPORT.md` đính kèm chat) — Linux kernel 93k files, hyperfine warmup=2 runs=5.
+- Repo: `quangdang46/fast_file_search` (fork của `dmtrKovalenko/fff.nvim`).
+- Code-base hiện tại — đã đọc:
+  - `crates/ffs-cli/src/commands/grep.rs` (toàn bộ logic CLI grep)
+  - `crates/ffs-cli/src/commands/find.rs`
+  - `crates/ffs-cli/src/commands/index.rs`
+  - `crates/ffs-cli/src/commands/mod.rs::walk_files`
+  - `crates/ffs-engine/src/dispatch.rs::Engine::index`
+  - `install-mcp.sh` (fork) và `install-mcp.sh` (upstream fff.nvim)
+- Reference design:
+  - `dmtrKovalenko/fff.nvim` (upstream — đặc biệt `crates/fff-mcp/`, `pi-fff` extension, frecency DB)
+  - `BurntSushi/ripgrep` (parallel walker + SIMD + early-exit)
+  - `helix-editor/nucleo` (fuzzy matcher, lock-free streaming)
+  - `openai/codex` CLI `codex mcp add` UX
+  - Anthropic `claude mcp add -s user`
+  - Cursor `~/.cursor/mcp.json` / `.cursor/mcp.json`
+  - OpenCode `~/.config/opencode/opencode.json` (`mcp.*.command`)
+  - Cline VSCode extension `cline_mcp_settings.json` (workspace state)
+  - Continue.dev `~/.continue/config.json` hoặc `.continue/mcpServers/*.yaml`
 
 ---
 
-## What Can Change vs. What Cannot Change
+## 0. Executive summary
 
-### CANNOT CHANGE (ABI / API contracts — break nothing)
+Có **6 vấn đề lớn** cần fix. Thứ tự ưu tiên theo impact:
 
-| Layer | What | Why |
-|---|---|---|
-| **C FFI** | All `fff_*` function symbols (`fff_create_instance`, `fff_search`, etc.) in `fff.h` / `libfff_c` | Public ABI used by Bun, Node.js, Python, Ruby consumers |
-| **C header** | `fff.h`, `FFF_C_H` guard, all `Fff*` C types (`FffResult`, `FffSearchResult`, etc.) | Same — byte-for-byte contract |
-| **Neovim Lua require paths** | `require('fff')` entry point, all `require('fff.*')` calls | Plugin users reference these directly in configs |
-| **Neovim user commands** | `:FFFFind`, `:FFFScan`, `:FFFRefreshGit`, `:FFFClearCache`, `:FFFHealth`, `:FFFDebug`, `:FFFOpenLog` | User keybindings rely on these |
-| **Neovim global variables** | `vim.g.fff` config, `vim.g.fff_loaded`, `vim.g.fff_file_tracking` | Persist across sessions, documented in user configs |
-| **Neovim highlight groups** | All `FFF*` highlights (`FFFSelected`, `FFFGitModified`, etc.) | User configs reference these directly |
-| **Rust external crate deps** | `fff = { package = "fff-search", ... }` (the `package = "fff-search"` alias) | Changing this breaks all `use fff::*` imports |
-
-### CAN CHANGE (everything else is fair game)
-
-- Crate directory names (`crates/fff-core/` → `crates/ffs-core/`, etc.)
-- Cargo.toml `[package]` name fields
-- Rust internal module names
-- Rust internal struct/enum/function names (`FffFileItem` → `FfsFileItem`)
-- Lua directory name (`lua/fff/` → `lua/ffs/`) — but `lua/fff.lua` stays as compat shim
-- NPM package names (`@ff-labs/fff-*` → `@ff-labs/ffs-*`)
-- GitHub repository URL (`dmtrKovalenko/fff.nvim` → `dmtrKovalenko/ffs.nvim`)
-- CI artifact names (`libfff_c.so` → `libffs_c.so`)
-- Makefile targets and install paths
-- Feature flag names (the `scry` feature stays — it's internal)
-- Internal workspace dependencies
-- `_typos.toml` `defaultdict-case` entries
-- `AGENTS.md`, `README.md`, documentation
-
-### PARTIALLY CONSTRAINED
-
-- **Rust crate aliases in Cargo.toml**: `fff = { package = "fff-search", ... }`.
-  The **package name** (`fff-search`) is the ABI name for `use fff::*` imports.
-  To rename crate to `ffs-search`, update the alias: `ffs = { package = "ffs-search", ... }`.
-  Then fix all `use fff::` → `use ffs::` internally.
-
----
-
-## Scope Summary
-
-| Category | Count | Notes |
-|---|---|---|
-| Crate directory renames | 10 dirs | `fff-core`, `fff-grep`, `fff-query-parser`, `fff-c`, `fff-nvim`, `fff-mcp`, `fff-engine`, `fff-symbol`, `fff-budget`, `fff-cli` |
-| Total `fff` refs in `.rs` files | ~746 | Internal renames |
-| Total `fff/scry` refs in config/doc | ~1,178 | CI, Makefile, npm, GitHub URLs |
-| C FFI `fff_*` functions | ~50 | CANNOT RENAME — ABI |
-| C types `Fff*` | ~15 | CANNOT RENAME — ABI |
-| Lua `require('fff.*')` paths | 20+ modules | CANNOT RENAME — user contract |
-| NPM packages | 6 | `fff-node`, `fff-bun`, `fff-bin-*` |
-| Rust crate package names | 10 | `fff-search`, `fff-grep`, etc. |
-
----
-
-## Phase 1 — Workspace Setup
-
-**Goal**: Rename crate directories and update `Cargo.toml` workspace root before touching any source.
-
-### 1.1 Rename crate directories
-
-```bash
-mv crates/fff-core        crates/ffs-core
-mv crates/fff-c           crates/ffs-c
-mv crates/fff-cli         crates/ffs-cli
-mv crates/fff-grep        crates/ffs-grep
-mv crates/fff-query-parser crates/ffs-query-parser
-mv crates/fff-engine      crates/ffs-engine
-mv crates/fff-nvim         crates/ffs-nvim
-mv crates/fff-mcp          crates/ffs-mcp
-mv crates/fff-symbol       crates/ffs-symbol
-mv crates/fff-budget       crates/ffs-budget
-```
-
-### 1.2 Update root `Cargo.toml`
-
-```toml
-[workspace]
-members = [
-  "crates/ffs-core",
-  "crates/ffs-c",
-  "crates/ffs-cli",
-  "crates/ffs-grep",
-  "crates/ffs-query-parser",
-  "crates/ffs-engine",
-  "crates/ffs-nvim",
-  "crates/ffs-mcp",
-  "crates/ffs-symbol",
-  "crates/ffs-budget",
-]
-
-[workspace.dependencies]
-ffs-grep = { version = "0.7.2", path = "crates/ffs-grep" }
-ffs-query-parser = { version = "0.7.2", path = "crates/ffs-query-parser", default-features = false }
-ffs-symbol = { version = "0.1.0", path = "crates/ffs-symbol" }
-ffs-budget = { version = "0.1.0", path = "crates/ffs-budget" }
-ffs-engine = { version = "0.1.0", path = "crates/ffs-engine" }
-```
-
-Also update `notify-debouncer-full` package override (currently `fff-notify-debouncer-full`).
-
-### 1.3 Update each crate's `Cargo.toml` `[package]` name
-
-| Old crate dir | New crate dir | Old `[package].name` | New `[package].name` |
+| # | Vấn đề | Impact ước tính | Effort |
 |---|---|---|---|
-| `fff-core` | `ffs-core` | `fff-search` | `ffs-search` |
-| `fff-c` | `ffs-c` | `fff-c` | `ffs-c` |
-| `fff-cli` | `ffs-cli` | `fff-cli` | `ffs-cli` |
-| `fff-grep` | `ffs-grep` | `fff-grep` | `ffs-grep` |
-| `fff-query-parser` | `ffs-query-parser` | `fff-query-parser` | `ffs-query-parser` |
-| `fff-engine` | `ffs-engine` | `fff-engine` | `ffs-engine` |
-| `fff-nvim` | `ffs-nvim` | `fff-nvim` | `ffs-nvim` |
-| `fff-mcp` | `ffs-mcp` | `fff-mcp` | `ffs-mcp` |
-| `fff-symbol` | `ffs-symbol` | `fff-symbol` | `ffs-symbol` |
-| `fff-budget` | `ffs-budget` | `fff-budget` | `ffs-budget` |
+| P1 | `ffs grep` chỉ làm substring, không phải regex; chạy single-thread sequential | Sửa xong: `ffs grep` ≈ `rg` (≤1.5×) thay vì 7× chậm hơn | M |
+| P2 | `ffs index` không persist trên đĩa → mỗi CLI invoc rebuild ~80s trên repo lớn | Sửa xong: `ffs symbol/callers/flow` từ 80s → 50-200ms | L |
+| P3 | `ffs find` không fuzzy/typo-resistant ở CLI (chỉ `.contains()`) | Match README quảng cáo, parity với MCP | S |
+| P4 | Thiếu **auto-install MCP cho 6 provider** (Claude Code, Codex, Cursor, Cline, OpenCode, Continue) — hiện chỉ in instruction copy-paste | UX: 1 lệnh cài xong toàn bộ tooling | M |
+| P5 | `ffs find/glob` chậm hơn GNU `find` 2-2.5× do `walk_files` không dùng parallel walker | Speed-up ~2× cho file-name search | S |
+| P6 | `--help`/README sai lệch với hành vi thật (regex, fuzzy, on-disk index) | Trust + docs | XS |
 
-### 1.4 Update all internal crate dependency aliases
+**Effort guide:** XS = < 1 ngày, S = 1-3 ngày, M = 1 tuần, L = 2 tuần.
 
-In each dependent crate's `Cargo.toml`, change:
-
-```toml
-# OLD
-fff = { package = "fff-search", path = "../fff-core", ... }
-fff-query-parser = { path = "../fff-query-parser", ... }
-fff-engine = { workspace = true }
-fff-symbol = { workspace = true }
-fff-budget = { workspace = true }
-fff-grep = { workspace = true }
-
-# NEW
-ffs = { package = "ffs-search", path = "../ffs-core", ... }
-ffs-query-parser = { path = "../ffs-query-parser", ... }
-ffs-engine = { workspace = true }
-ffs-symbol = { workspace = true }
-ffs-budget = { workspace = true }
-ffs-grep = { workspace = true }
-```
-
-Affected crates: `ffs-core`, `ffs-c`, `ffs-cli`, `ffs-nvim`, `ffs-mcp`, `ffs-engine`.
-
-### 1.5 Verify build
-
-```bash
-cargo build --release -p ffs-c --features zlob
-cargo build --release -p ffs-nvim
-```
-
-All internal `use fff::*` imports will break — that's expected. Phase 2 fixes them.
+Tổng quan kỹ thuật: các crate `ffs-grep` (SIMD), `ffs-symbol` (bigram + Bloom), `regex 1.11`, `aho-corasick`, `memchr`, `heed` (LMDB), `rayon`, `memmap2`, `ignore`, `neo_frizbee` **đã có sẵn trong workspace**. Vấn đề chính: **CLI commands không gọi đến các crate này**. Hầu hết fix là wiring chứ không phải invent mới.
 
 ---
 
-## Phase 2 — Rust Internal Renames
+## 1. P1 — Sửa `ffs grep`: regex thật + parallel + early-exit
 
-**Goal**: Fix all internal `use fff::*` imports and rename internal Rust symbols.
+### 1.1 Root cause
 
-### 2.1 Fix all `use` imports across all crates
+Toàn bộ implementation của `ffs grep` (CLI) nằm trong `crates/ffs-cli/src/commands/grep.rs` chỉ 91 dòng:
 
-Pattern replacements (apply across all `.rs` files in `crates/ffs-*`):
-
-| Old | New |
-|---|---|
-| `use fff_search::` | `use ffs_search::` |
-| `use fff_core::` | `use ffs_core::` |
-| `use fff_grep::` | `use ffs_grep::` |
-| `use fff_query_parser::` | `use ffs_query_parser::` |
-| `use fff_engine::` | `use ffs_engine::` |
-| `use fff_symbol::` | `use ffs_symbol::` |
-| `use fff_budget::` | `use ffs_budget::` |
-| `use fff_mcp::` | `use ffs_mcp::` |
-
-Also update all `mod` declarations that reference old crate paths.
-
-### 2.2 Rename internal Rust types and structs
-
-| Old | New | Notes |
-|---|---|---|
-| `FffFileItem` | `FfsFileItem` | Internal only — NOT the C FFI type |
-| `FffSearchResult` | `FfsSearchResult` | Internal only |
-| `FffGrepResult` | `FfsGrepResult` | Internal only |
-| `FffGrepMatch` | `FfsGrepMatch` | Internal only |
-| `FffScore` | `FfsScore` | Internal only |
-| `FffScanProgress` | `FfsScanProgress` | Internal only |
-| `FILE_PICKER` (global) | `FILE_PICKER` | Keep — global state |
-| `FRECENCY` (global) | `FRECENCY` | Keep — global state |
-| `FilePicker` | `FilePicker` | Keep — core type |
-| `FrecencyDb` | `FrecencyDb` | Keep — database type |
-
-**IMPORTANT**: Do NOT rename:
-- `Fff*` C FFI types in `ffs-c/src/ffi_types.rs` (those map to `fff.h`)
-- Any `#[repr(C)]` structs that correspond to `fff.h` types
-
-### 2.3 C FFI — rename internal holder structs
-
-| Old | New | Notes |
-|---|---|---|
-| `FffScryEngine` | `FfsEngine` | Internal Rust holder — rename |
-| `FffScryResponse` | `FfsResponse` | Internal Rust holder — rename |
-| `fff_scry_engine_new` | keep | C ABI — do not rename |
-| `fff_scry_*` functions | keep | C ABI — do not rename |
-
-### 2.4 Verify build
-
-```bash
-cargo build --release -p ffs-nvim
-make build
-```
-
----
-
-## Phase 3 — Lua Migration
-
-**Goal**: Rename `lua/fff/` → `lua/ffs/` with a compatibility shim at `lua/fff.lua`.
-
-### 3.1 Strategy: Move implementation, keep shim
-
-```
-lua/fff.lua          ← KEEP (thin compat shim, re-exports to ffs.main)
-lua/fff/             ← KEEP as compat shim directory (re-export all modules)
-lua/ffs/             ← NEW implementation home (was lua/fff/)
-  main.lua
-  core.lua
-  conf.lua
-  picker_ui.lua
-  scry.lua          ← wraps Rust ffs_* exports
-  rust/init.lua      ← loads libfff_nvim.so (keep DLL name for now)
-  ...
-```
-
-### 3.2 `lua/fff.lua` compat shim
-
-```lua
--- lua/fff.lua (unchanged — public contract)
-return require('fff.main')
-```
-
-All `lua/fff/*.lua` files become thin re-exports from `lua/ffs/*.lua`.
-
-### 3.3 Database paths in `lua/ffs/conf.lua`
-
-```lua
--- OLD
-db_path = vim.fn.stdpath('cache') .. '/fff_nvim',
-db_path = vim.fn.stdpath('data') .. '/fff_queries',
-log_file = vim.fn.stdpath('log') .. '/fff.log',
-
--- NEW
-db_path = vim.fn.stdpath('cache') .. '/ffs_nvim',
-db_path = vim.fn.stdpath('data') .. '/ffs_queries',
-log_file = vim.fn.stdpath('log') .. '/ffs.log',
-```
-
-Frecency/history paths in `lua/ffs/core.lua`:
-```lua
--- OLD
-'/fff_frecency', '/fff_history'
--- NEW
-'/ffs_frecency', '/ffs_history'
-```
-
-### 3.4 `lua/fff/rust/init.lua` → `lua/ffs/rust/init.lua`
-
-The DLL loader loads `libfff_nvim.so`. **Keep this name unchanged** — it is
-the compiled artifact filename, not the API. Users don't reference it directly.
-Rename in a future step if desired.
-
-### 3.5 `plugin/fff.lua` → `plugin/ffs.lua`
-
-Rename the plugin file. The internal `vim.g.fff_loaded` can become `vim.g.ffs_loaded`
-or stay as-is (it's internal). The user commands (`FFFFind`, etc.) and
-`vim.g.fff` config stay unchanged.
-
-### 3.6 Neovim user commands — keep all `FFF*` names
-
-`:FFFFind`, `:FFFScan`, `:FFFRefreshGit`, `:FFFClearCache`, `:FFFHealth`,
-`:FFFDebug`, `:FFFOpenLog` — all **cannot** be renamed (user keybindings).
-
-### 3.7 Neovim highlight groups — keep all `FFF*` names
-
-`FFFSelected`, `FFFGitStaged`, etc. — **cannot** be renamed (user configs).
-
-### 3.8 `lua/fff/scry.lua` → `lua/ffs/scry.lua`
-
-This file wraps Rust `scry_*` FFI functions. It stays as `require('fff.scry')`
-for the compat shim, but the implementation moves to `lua/ffs/scry.lua`.
-
-### 3.9 `lua/fff/health.lua`
-
-```lua
--- Keep
-vim.health.start('fff.nvim')
--- Also add
-vim.health.start('ffs.nvim')
-```
-
----
-
-## Phase 4 — C FFI / Header
-
-### 4.1 Rename header file
-
-```
-crates/ffs-c/include/fff.h → crates/ffs-c/include/ffs.h
-```
-
-Update `cbindgen.toml`:
-```toml
-[package]
-name = "ffs-c"
-header = "include/ffs.h"
-# guard stays "FFF_C_H" — changing it breaks ABI compat
-```
-
-Update `Makefile`:
-```makefile
-cbindgen --config crates/ffs-c/cbindgen.toml --crate ffs-c --output crates/ffs-c/include/ffs.h
-install -m 0644 crates/ffs-c/include/ffs.h $(DESTDIR)$(INCLUDEDIR)/ffs.h
-install -m 0644 crates/ffs-c/include/ffs.h $(DESTDIR)$(INCLUDEDIR)/fff.h  # backward compat alias
-```
-
-### 4.2 Library artifact names in Makefile
-
-```makefile
-# OLD
-install -m 0755 target/release/libfff_c.dylib ...
-install -m 0755 target/release/libfff_c.so ...
-install -m 0755 target/release/fff_c.dll ...
-
-# NEW
-install -m 0755 target/release/libffs_c.dylib ...
-install -m 0755 target/release/libffs_c.so ...
-install -m 0755 target/release/ffs_c.dll ...
-```
-
----
-
-## Phase 5 — CLI Binary & MCP Server
-
-### 5.1 CLI binary name
-
-In `crates/ffs-cli/Cargo.toml`:
-```toml
-[[bin]]
-name = "ffs"   # was "scry"
-path = "src/main.rs"
-```
-
-Update `crates/ffs-cli/src/main.rs`:
 ```rust
-.about("Fast File Search (FFS) — unified code search and read tool.")
-.long_version(env!("CARGO_PKG_VERSION"))
+// crates/ffs-cli/src/commands/grep.rs:37-71 (rút gọn)
+let files = super::walk_files(root);           // sequential walker
+let needle = if args.case_sensitive { args.needle.clone() }
+             else { args.needle.to_lowercase() };
+for path in &files {                            // single-thread loop
+    let Ok(content) = std::fs::read_to_string(path) else { continue };
+    for (lineno, line) in content.lines().enumerate() {
+        let haystack = if args.case_sensitive { Cow::Borrowed(line) }
+                       else { Cow::Owned(line.to_lowercase()) }; // alloc per line!
+        if haystack.contains(&needle) {        // literal substring only
+            hits.push(GrepHit { ... });
+            if hits.len() >= args.limit { break; }
+        }
+    }
+}
 ```
 
-All CLI subcommands already have user-facing names (`find`, `grep`, `symbol`, `callers`,
-`refs`, `flow`, etc.) — no change needed there.
+Vấn đề cụ thể:
+1. `haystack.contains(&needle)` — không phải regex. Mọi metachar (`^`, `$`, `[]`, `\s`, `|`, `.*`) bị xử lý như literal.
+2. Single-thread `for path in &files` — 2 vCPU / 8 core đều idle.
+3. `to_lowercase()` allocate `String` cho từng dòng — GC pressure cao.
+4. `std::fs::read_to_string` — không mmap, không streaming, copy toàn bộ file vào heap.
+5. **Không gọi `ffs-grep` crate hoặc `ffs-engine`** (đã có Bigram pre-filter, SIMD, Aho-Corasick) — đây là điều **shocking nhất**. CLI `ffs grep` không xài 1 thuật toán nào của project.
 
-Update `crates/ffs-cli/assets/AGENT_GUIDE.md` header:
-```markdown
-# ffs — agent guide
+### 1.2 Phương án
+
+**Wiring lại CLI grep qua `ffs-grep` crate** (workspace đã có, MCP đang dùng):
+
+```rust
+// crates/ffs-cli/src/commands/grep.rs (sketch)
+use ffs_grep::{GrepEngine, GrepMode, GrepRequest};
+use ffs_engine::Engine;
+
+pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
+    // Detect regex vs literal automatically (giống rg --auto-mode hoặc nhánh
+    // dispatch.rs đã có sẵn). Heuristic: nếu needle có metachar chưa escape →
+    // compile regex; lỗi compile → fallback literal.
+    let mode = detect_grep_mode(&args.needle, args.regex_explicit);
+    let engine = Engine::with_index_root(root);          // mmap-load index
+    let req = GrepRequest {
+        needle: args.needle.clone(),
+        mode,
+        case_sensitive: args.case_sensitive,
+        limit: args.limit,
+        max_count_per_file: args.max_count.unwrap_or(usize::MAX),
+        paths: vec![root.into()],
+    };
+    let hits = engine.grep(&req)?;                       // parallel internally
+    // emit ...
+}
+
+fn detect_grep_mode(needle: &str, regex_explicit: bool) -> GrepMode {
+    if regex_explicit { return GrepMode::Regex; }
+    // Strict heuristic — copy from ffs-engine/dispatch.rs::classify
+    let has_meta = needle.bytes().any(|b| matches!(b,
+        b'^' | b'$' | b'[' | b']' | b'(' | b')' | b'{' | b'}'
+        | b'*' | b'+' | b'?' | b'|' | b'\\' | b'.'
+    ));
+    if has_meta && regex::Regex::new(needle).is_ok() {
+        GrepMode::Regex
+    } else {
+        GrepMode::Literal
+    }
+}
 ```
 
-### 5.2 MCP server
+Khuyên thêm flags để parity với rg / fix tính minh bạch:
+- `-r`/`--regex` (explicit regex)
+- `-F`/`--fixed-strings` (explicit literal — để tắt auto-detect)
+- `-w`/`--word-regexp` (word boundary)
+- `--multi <patterns>` (multi-pattern OR — gọi `ffs_multi_grep` đã có ở MCP)
+- `-A/-B/-C <n>` context lines
+- `-l` files-with-matches mode
+- `--max-count <n>` per-file early-exit (đã có trong rg)
 
-In `crates/ffs-mcp/src/main.rs`, update module name and binary name:
-```toml
-[[bin]]
-name = "ffs-mcp"   # was "fff-mcp"
+### 1.3 Tham khảo hiệu suất
+
+Ripgrep nhanh nhờ (nguồn: BurntSushi blog, ripgrep FAQ):
+1. **Parallel walker** — `ignore::WalkBuilder::threads(N).build_parallel()` (hiện `walk_files` của ffs dùng `.build()` single-thread).
+2. **SIMD memmem** cho literal — `memchr` crate đã trong deps.
+3. **Aho-Corasick** cho multi-pattern OR — đã trong deps.
+4. **`regex` crate** với DFA + lazy DFA + Pike VM — auto-fallback.
+5. **mmap cho file ≥ ~64 KB**, đọc thường cho file nhỏ — `memmap2` đã trong deps.
+6. **Skip binary files** — đã có `bindet` trong deps.
+7. **Reuse buffer per thread** — không alloc lowercase mỗi line.
+8. **Early termination** sau khi đủ `--limit` — yêu cầu atomic counter + thread cancellation.
+
+### 1.4 Expected outcome
+
+Benchmark trên Linux kernel 93k files (mục tiêu, đo lại sau fix):
+
+| Pattern | Hiện tại | Mục tiêu | Ghi chú |
+|---|---|---|---|
+| `EXPORT_SYMBOL_GPL` (common) | 3.21 s | ≤ 700 ms | Trong khoảng 1.5× của `rg` (449 ms) |
+| `kobject_create_and_add` (rare) | 2.98 s | ≤ 600 ms | Bigram pre-filter cắt ≥ 90% file candidate |
+| `kobject_create_and_add --limit 10` | 722 ms | ≤ 40 ms | Atomic limit + early-exit per-thread |
+
+---
+
+## 2. P2 — Persistent on-disk index
+
+### 2.1 Root cause
+
+`Engine::index` trong `crates/ffs-engine/src/dispatch.rs:88` chỉ build trong RAM rồi vứt khi process exit:
+
+```rust
+pub fn index(&self, root: &Path) -> ScanReport {
+    let report = self.scanner.scan(root);  // build in-memory
+    self.guard(...);                        // apply budget
+    report                                  // (no fs write)
+}
 ```
 
-Update `crates/ffs-cli/src/commands/mcp.rs`:
+Không tìm thấy bất kỳ `serialize`/`save_to_disk`/`persist`/`on_disk` nào trong `ffs-engine` lẫn `ffs-symbol`. `--help` của `ffs index` ghi "Build / refresh the **on-disk** indexes (Bigram, Bloom, Symbol, Outline)" — sai lệch hành vi.
+
+Hệ quả thực đo:
+- `ffs index` Linux kernel cold = 79 s, re-run = 81 s (không hề tận dụng kết quả lần trước).
+- Mỗi `ffs symbol` CLI = ~79 s (= chi phí re-index).
+
+### 2.2 Phương án — LMDB-backed index store
+
+Dùng `heed` (đã có trong workspace dependency, đang được dùng cho frecency DB) làm storage layer. Lý do chọn LMDB:
+- Memory-mapped, zero-copy đọc → khởi động ms-scale.
+- Single-writer multi-reader → an toàn khi `ffs index` đang refresh và `ffs grep` đang đọc.
+- Battle-tested, đã trong project, không add dep mới.
+
+**Layout đề xuất** (lưu tại `<root>/.ffs/` hoặc `$XDG_CACHE_HOME/ffs/<repo-fingerprint>/`):
+
+```
+.ffs/
+├── meta.db                # version, fingerprint, last_indexed_ns, file_count
+├── files.db               # path_id (u32) -> { path, mtime_ns, size, blake3, lang }
+├── path_trie.bin          # sorted path list + bigram index cho ffs find
+├── symbols.db             # symbol_name -> [(path_id, line, kind, parent_id)]
+├── symbols_kind.db        # kind -> [(symbol_name, path_id)]
+├── bigram.bin             # 2-gram → roaring bitmap of path_ids (cho grep pre-filter)
+├── bloom.bin              # per-file 32 KB Bloom filter (cho callers/refs narrowing)
+├── outline.db             # path_id -> serialized outline (postcard)
+└── frecency.db            # đã tồn tại
+```
+
+Format: dùng `postcard` (no_std, compact) hoặc `bincode` 2.0 cho serde. Roaring bitmap dùng `roaring` crate cho bigram inverted index — đây là format mà rg-internals & lucene cùng dùng.
+
+**Invalidation** — incremental refresh:
+1. Mở `meta.db`. So sánh `git rev-parse HEAD` (nếu là git repo) và mtime của thư mục root.
+2. Walk file system → so file path + mtime với `files.db`.
+   - File mới / mtime thay đổi → re-index file đó.
+   - File đã xóa → tombstone trong `files.db`, dọn dẹp ở `bigram.bin` qua compaction định kỳ.
+3. Lazy: nếu một query hit path đã tombstone, fallback fresh-walk path đó.
+
+**Mode chạy ngầm** — daemon (optional, phase 2):
+- `ffs serve --root . --watch` chạy background, dùng `notify` crate (đã có chain qua `ffs-core/src/background_watcher.rs`) để auto-refresh.
+- CLI subcommand check `.ffs/socket` → nếu có daemon, dispatch qua Unix socket; nếu không, fallback CLI in-process.
+- Tham khảo: `nucleo` worker thread + snapshot pattern (helix-editor).
+
+### 2.3 Compat & rollout
+
+- `ffs index --force` để rebuild from scratch.
+- `ffs index --no-cache` để verify behavior cũ.
+- Add `.ffs/` vào `.gitignore` mặc định khi init (tương tự `.ripgreprc` không-commit).
+- Schema version trong `meta.db` — bump version khi format thay đổi, tự rebuild khi mismatch.
+
+### 2.4 Expected outcome
+
+| Lệnh | Hiện tại (Linux kernel) | Mục tiêu warm | Ghi chú |
+|---|---|---|---|
+| `ffs index` cold | 79 s | 79 s (giữ nguyên) | Lần đầu vẫn phải walk + parse |
+| `ffs index` warm (no changes) | 81 s | < 500 ms | Mtime scan + load meta |
+| `ffs symbol` | 79 s | < 50 ms | Hash lookup trong `symbols.db` |
+| `ffs callers` | ~80 s | < 200 ms | Bloom prefilter + literal confirm |
+| `ffs flow` | ~80 s | < 200 ms | Same as callers + outline read |
+| `ffs grep` rare pattern | 3 s | < 200 ms | Bigram inverted index narrow → SIMD verify |
+
+---
+
+## 3. P3 — `ffs find` fuzzy / typo-resistant CLI
+
+### 3.1 Root cause
+
+`crates/ffs-cli/src/commands/find.rs:61-75`:
+
+```rust
+fn search_matches(scopes: &[PathBuf], needle: &str) -> Vec<String> {
+    let needle_lower = needle.to_lowercase();
+    for scope in scopes {
+        for p in super::walk_files(scope) {
+            if s.to_lowercase().contains(&needle_lower) { ... }
+        }
+    }
+}
+```
+
+Substring match thuần. Không xài `neo_frizbee` (workspace dep, dùng trong Neovim plugin) lẫn smart-case auto-fuzzy fallback mà README quảng cáo.
+
+### 3.2 Phương án
+
+Pipeline ba lớp, fallback theo thứ tự:
+
+1. **Smart-case literal substring** (như hiện tại nhưng tôn trọng case khi needle có uppercase).
+2. **CamelCase / snake_case expansion** — `IsOffTheRecord` cũng match `is_off_the_record.rs`. Tham khảo: pi-fff implementation (đã có in fff.nvim).
+3. **Fuzzy fallback** — nếu zero match: chạy `nucleo-matcher` (hoặc `neo_frizbee` đã có) với threshold-based filter. Tag prefix `(fuzzy)` trong text output để minh bạch.
+
+Add flags:
+- `--fuzzy` / `--no-fuzzy` (override auto-detect)
+- `--smart-case` (default on) / `--ignore-case` / `--case-sensitive`
+- Frecency boost flag `--frecency` để rank theo `lua/ffs/rust/frecency.rs` (đã tồn tại).
+
+### 3.3 Expected outcome
+
+- `ffs find isntall.sh` → match `install.sh` (fuzzy fallback, distance ≤ 2).
+- `ffs find IsOffTheRecord` → match `is_off_the_record.{rs,c,py}` (camel/snake expansion).
+- Pattern thuần ASCII không metachar không bị slowdown đáng kể (literal pass đầu vẫn O(n)).
+
+---
+
+## 4. P4 — Auto-install MCP cho 6 provider
+
+### 4.1 Hiện trạng
+
+`install-mcp.sh` hiện tại:
+1. Download binary `ffs-mcp` ✓
+2. Detect tools (Claude Code, OpenCode, Codex) ✓
+3. **Chỉ in command để user copy-paste** ✗ — không tự chạy.
+4. Không hỗ trợ Cursor, Cline, Continue.
+5. Repo URL trong script vẫn trỏ về `dmtrKovalenko/ffs.nvim` (sót lại từ fork) — phải update sang `quangdang46/fast_file_search`.
+
+### 4.2 Phương án — auto-install matrix
+
+Sửa `install-mcp.sh` thành **idempotent installer** thật sự. Mỗi provider có method auto cụ thể:
+
+| Provider | Detect | Auto-install method | Config path | Source |
+|---|---|---|---|---|
+| **Claude Code** | `command -v claude` | `claude mcp add -s user ffs -- "$BIN"` | `~/.claude/settings.json` | docs.anthropic.com / `claude mcp add --help` |
+| **Codex (OpenAI)** | `command -v codex` | `codex mcp add ffs -- "$BIN"` | `~/.codex/config.toml` | developers.openai.com/codex/mcp |
+| **Cursor** | `[ -d ~/.cursor ]` hoặc `command -v cursor` | Merge JSON vào `~/.cursor/mcp.json` qua `jq` | `~/.cursor/mcp.json` (global) hoặc `.cursor/mcp.json` (project) | cursor.com/docs/mcp |
+| **Cline** | Tìm `~/.config/Code*/User/globalStorage/saoudrizwan.claude-dev*/settings/cline_mcp_settings.json` | Merge JSON qua `jq` | cline_mcp_settings.json (workspace state) | docs.cline.bot/mcp |
+| **OpenCode** | `command -v opencode` hoặc `[ -d ~/.config/opencode ]` | Merge JSON vào `~/.config/opencode/opencode.json` qua `jq` | `~/.config/opencode/opencode.json` | opencode.ai/docs/mcp-servers |
+| **Continue.dev** | `[ -d ~/.continue ]` | Tạo `~/.continue/mcpServers/ffs.yaml` | `~/.continue/mcpServers/*.yaml` | docs.continue.dev/customize/deep-dives/mcp |
+| **Generic stdio MCP** | Fallback | In ra block JSON + path để user paste | — | — |
+
+### 4.3 Implementation sketch
+
+```bash
+install_for_claude_code() {
+    if ! command -v claude >/dev/null 2>&1; then return 1; fi
+    # claude mcp add idempotent — nếu trùng tên sẽ overwrite (xác minh `--help`)
+    if claude mcp list 2>/dev/null | grep -q '^ffs\s'; then
+        info "[Claude Code] ffs already registered, skipping"
+        return 0
+    fi
+    claude mcp add -s user ffs -- "$BIN" >/dev/null
+    success "[Claude Code] registered ffs → ~/.claude/settings.json"
+}
+
+install_for_cursor() {
+    local cfg="$HOME/.cursor/mcp.json"
+    [ -d "$HOME/.cursor" ] || return 1
+    mkdir -p "$(dirname "$cfg")"
+    [ -f "$cfg" ] || echo '{"mcpServers":{}}' > "$cfg"
+    # Merge using jq to preserve existing keys
+    local tmp=$(mktemp)
+    jq --arg cmd "$BIN" \
+       '.mcpServers.ffs = { "type":"stdio", "command":$cmd, "args":[] }' \
+       "$cfg" > "$tmp" && mv "$tmp" "$cfg"
+    success "[Cursor] registered ffs → $cfg"
+}
+
+install_for_codex() {
+    if ! command -v codex >/dev/null 2>&1; then return 1; fi
+    if codex mcp list 2>/dev/null | grep -q '^ffs\s'; then
+        info "[Codex] ffs already registered, skipping"
+        return 0
+    fi
+    codex mcp add ffs -- "$BIN" >/dev/null
+    success "[Codex] registered ffs → ~/.codex/config.toml"
+}
+
+install_for_continue() {
+    [ -d "$HOME/.continue" ] || return 1
+    local dst="$HOME/.continue/mcpServers/ffs.yaml"
+    mkdir -p "$(dirname "$dst")"
+    cat > "$dst" <<EOF
+name: ffs
+version: 0.1.0
+schema: v1
+mcpServers:
+  - name: ffs
+    command: $BIN
+EOF
+    success "[Continue] registered ffs → $dst"
+}
+
+install_for_opencode() {
+    local cfg="$HOME/.config/opencode/opencode.json"
+    [ -f "$cfg" ] || command -v opencode >/dev/null 2>&1 || return 1
+    mkdir -p "$(dirname "$cfg")"
+    [ -f "$cfg" ] || echo '{"$schema":"https://opencode.ai/config.json","mcp":{}}' > "$cfg"
+    local tmp=$(mktemp)
+    jq --arg cmd "$BIN" \
+       '.mcp.ffs = { "type":"local", "command":[$cmd], "enabled":true }' \
+       "$cfg" > "$tmp" && mv "$tmp" "$cfg"
+    success "[OpenCode] registered ffs → $cfg"
+}
+
+install_for_cline() {
+    # VSCode + Code-OSS + Cursor (Cline runs inside many editors)
+    for base in \
+        "$HOME/.config/Code/User/globalStorage" \
+        "$HOME/.config/Code - Insiders/User/globalStorage" \
+        "$HOME/.vscode-server/data/User/globalStorage" \
+        "$HOME/Library/Application Support/Code/User/globalStorage"; do
+        [ -d "$base" ] || continue
+        local cfg
+        cfg=$(find "$base" -maxdepth 3 -name 'cline_mcp_settings.json' 2>/dev/null | head -n1)
+        [ -n "$cfg" ] || continue
+        [ -f "$cfg" ] || echo '{"mcpServers":{}}' > "$cfg"
+        local tmp=$(mktemp)
+        jq --arg cmd "$BIN" \
+           '.mcpServers.ffs = { "command":$cmd, "args":[], "disabled":false }' \
+           "$cfg" > "$tmp" && mv "$tmp" "$cfg"
+        success "[Cline] registered ffs → $cfg"
+        return 0
+    done
+    return 1
+}
+```
+
+Flag UX cho installer:
+
+```
+install.sh
+  --mcp                   sau khi cài ffs, tự cài MCP cho tất cả provider detect được
+  --mcp-only              chỉ cài MCP, skip download binary (khi binary đã có)
+  --mcp-provider <list>   comma-separated: claude,codex,cursor,cline,opencode,continue,all
+  --mcp-name <name>       override tên MCP (default: ffs)
+  --mcp-dry-run           in command + diff config sẽ áp dụng nhưng không ghi đè
+```
+
+### 4.4 Phụ thuộc
+
+- `jq` — required cho 4/6 provider. Nếu thiếu, dùng Python fallback `python3 -c "import json,sys;..."`.
+- Bỏ qua provider nào không detect được, không fail toàn cục.
+- Idempotent — chạy lại nhiều lần phải an toàn (check `.mcpServers.ffs` đã tồn tại trước khi merge).
+
+---
+
+## 5. P5 — `ffs find/glob` cạnh tranh với GNU find
+
+### 5.1 Root cause
+
+`walk_files()` trong `crates/ffs-cli/src/commands/mod.rs:59`:
+
+```rust
+let walker = ignore::WalkBuilder::new(root)
+    .standard_filters(true)
+    .follow_links(false)
+    .build();         // ← single-threaded
+for entry in walker.flatten() { ... }
+```
+
+`ignore::WalkBuilder` hỗ trợ `.build_parallel()` (như rg) nhưng đang dùng `.build()` đồng bộ. Trên Linux kernel 93k files, walk này tốn ~80-100 ms, chiếm 70% wall-clock của `ffs find/glob`.
+
+### 5.2 Phương án
+
+```rust
+use ignore::{WalkBuilder, WalkState};
+use std::sync::Mutex;
+
+pub(crate) fn walk_files(root: &Path) -> Vec<PathBuf> {
+    let out = Mutex::new(Vec::with_capacity(8192));
+    let walker = WalkBuilder::new(root)
+        .standard_filters(true)
+        .follow_links(false)
+        .threads(num_cpus::get().min(8))     // ← cap để tránh thrash IO
+        .build_parallel();
+    walker.run(|| {
+        let out = &out;
+        Box::new(move |entry| {
+            if let Ok(e) = entry {
+                if e.file_type().map(|t| t.is_file()).unwrap_or(false) {
+                    out.lock().unwrap().push(e.into_path());
+                }
+            }
+            WalkState::Continue
+        })
+    });
+    out.into_inner().unwrap()
+}
+```
+
+Khi có on-disk index (P2): bỏ qua walk hoàn toàn, đọc `files.db` mmap → chậm hơn nữa cũng < 50 ms.
+
+### 5.3 Expected outcome
+
+- `ffs find scheduler.c` trên Linux kernel: 154 ms → < 80 ms (cạnh tranh với GNU find 63 ms).
+- `ffs glob '**/*.h'`: 102 ms → < 60 ms.
+
+---
+
+## 6. P6 — Docs & flags consistency
+
+### 6.1 Fix doc strings
+
+- `crates/ffs-cli/src/commands/grep.rs:11` — `"Substring or regex"` → đúng sau khi fix P1, không cần đổi text.
+- `crates/ffs-cli/src/commands/index.rs` — help text README/CLI "on-disk indexes" cần khớp với P2 implementation.
+- README "Typo-resistant fuzzy matching" — cần chú thích: "via MCP/library; CLI requires `--fuzzy` or zero-match fallback (post-P3)."
+
+### 6.2 JSON output schema versioning
+
+Hiện tại `--format json` chưa có `schema_version`. Thêm field này để agent có thể detect version mismatch:
+
 ```json
-{"name": "ffs", "version": env!("CARGO_PKG_VERSION")}
-```
-
-Rename tool names: `scry_*` → `ffs_*` (the `scry` feature flag stays, but the tool names
-exposed to MCP clients change):
-
-| Old | New |
-|---|---|
-| `scry_grep` | `ffs_grep` |
-| `scry_glob` | `ffs_glob` |
-| `scry_find` | `ffs_find` |
-| `scry_read` | `ffs_read` |
-| `scry_symbol` | `ffs_symbol` |
-| `scry_dispatch` | `ffs_dispatch` |
-| `scry_refs` | `ffs_refs` |
-| `scry_flow` | `ffs_flow` |
-| `scry_impact` | `ffs_impact` |
-
-### 5.3 Rust internal scry module → ffs
-
-In `crates/ffs-mcp/src/`:
-- `mod scry;` → `mod ffs;`
-- `scry.rs` → `ffs.rs`
-- `crate::scry::` → `crate::ffs::`
-
-In `crates/ffs-c/src/`:
-- `mod scry_ffi;` stays (C ABI — keep name)
-- `crate::scry_ffi::` → internal renaming as needed
-
-In `crates/ffs-nvim/src/`:
-- `mod scry_bindings;` → `mod ffs_bindings;`
-- All `scry_init`, `scry_dispatch`, etc. stay as function names (Lua ABI)
-- But the module reference in `lib.rs` changes
-
----
-
-## Phase 6 — CI / Release Artifacts
-
-### 6.1 GitHub Actions
-
-**`.github/workflows/release.yaml`** — rename all artifact patterns:
-```
-libfff_nvim.so  →  libffs_nvim.so
-libfff_nvim.dylib → libffs_nvim.dylib
-fff_nvim.dll    →  ffs_nvim.dll
-```
-
-**`.github/workflows/external-tests.yml`**:
-```
-fff_nvim.dll  →  ffs_nvim.dll
-```
-
-**`.github/workflows/panvimdoc.yaml`**:
-```
-vimdoc: ffs.nvim
-```
-
-**`.github/workflows/nix.yml`**:
-```
-nix build .#fff-nvim  →  nix build .#ffs-nvim
-```
-
-Update `flake.nix` output attribute names accordingly.
-
-### 6.2 NPM packages
-
-| Old | New |
-|---|---|
-| `@ff-labs/fff-bin-darwin-arm64` | `@ff-labs/ffs-bin-darwin-arm64` |
-| `@ff-labs/fff-bin-darwin-x64` | `@ff-labs/ffs-bin-darwin-x64` |
-| `@ff-labs/fff-bin-linux-arm64-gnu` | `@ff-labs/ffs-bin-linux-arm64-gnu` |
-| `@ff-labs/fff-bin-linux-x64-gnu` | `@ff-labs/ffs-bin-linux-x64-gnu` |
-| `@ff-labs/fff-bin-linux-x64-musl` | `@ff-labs/ffs-bin-linux-x64-musl` |
-| `@ff-labs/fff-bin-win32-arm64` | `@ff-labs/ffs-bin-win32-arm64` |
-| `@ff-labs/fff-node` | `@ff-labs/ffs-node` |
-| `@ff-labs/fff-bun` | `@ff-labs/ffs-bun` |
-| `@ff-labs/pi-fff` | `@ff-labs/pi-ffs` |
-
-Update GitHub repo URLs in all `package.json` fields:
-```json
-"url": "git+https://github.com/dmtrKovalenko/ffs.nvim.git",
-"repository": "https://github.com/dmtrKovalenko/ffs.nvim",
-"issues": "https://github.com/dmtrKovalenko/ffs.nvim/issues"
-```
-
-### 6.3 `install-mcp.sh` / `install-mcp.ps1`
-
-Update repo URL: `dmtrKovalenko/fff.nvim` → `dmtrKovalenko/ffs.nvim`
-
-### 6.4 Binary/npm references in Lua
-
-In `lua/ffs/download.lua`:
-```lua
-GITHUB_REPO = 'dmtrKovalenko/ffs.nvim'
-```
-
-In `lua/ffs/rust/init.lua` — keep `libfff_nvim` DLL name (artifact rename is Phase 6).
-
----
-
-## Phase 7 — Documentation & Metadata
-
-### 7.1 `README.md`
-
-- Project name: `fff.nvim` → `ffs.nvim`
-- Description updates
-- Logo references (`logo-dark.png` → keep filenames, update in docs)
-- GitHub URLs
-- Install instructions
-- Keep `FFF_FIND` / `:FFFFind` command docs
-
-### 7.2 `AGENTS.md` (symlinked as `CLAUDE.md`)
-
-- Project description: "FFS.nvim (Fast File Search)" not "FFF.nvim"
-- All `fff-*` file paths → `ffs-*`
-- All `lua/fff/` paths → `lua/ffs/`
-- Keep architecture description accurate
-
-### 7.3 `_typos.toml`
-
-```toml
-[defaultdict-case]
-"fff" = "ffs"
-"scry" = "ffs"
-```
-
-### 7.4 `.luacheckrc`
-
-Check for `fff`-specific entries to update.
-
-### 7.5 `doc/fff.nvim.txt` → `doc/ffs.nvim.txt`
-
-### 7.6 Package `main` fields
-
-In npm packages with `libfff_c.*` main files, rename to `libffs_c.*`.
-
----
-
-## Phase 8 — Verification
-
-### 8.1 Build
-
-```bash
-make build
-cargo test --workspace
-make lint
-make format
-```
-
-### 8.2 Lua smoke test
-
-```bash
-nvim -u empty_config.lua -l tests/fff_core_spec.lua
-nvim -u empty_config.lua -l tests/clear_cache_spec.lua
-```
-
-### 8.3 CLI smoke test
-
-```bash
-cargo run --release -p ffs-cli -- --help
-cargo run --release -p ffs-cli -- find main
-cargo run --release -p ffs-cli -- guide
-```
-
-### 8.4 MCP server smoke test
-
-```bash
-cargo run --release -p ffs-mcp -- --root .
-```
-
-### 8.5 Neovim plugin test
-
-```bash
-nvim -u ~/dev/lightsource/init.lua
-:lua require('fff').find_files()
+{ "schema": "v1", "needle": "...", "hits": [...], ... }
 ```
 
 ---
 
-## File-Level Change Inventory
+## 7. Roadmap & milestone
 
-### Crate directories (10 renames)
+### Milestone M1 — Quick wins (1 tuần)
+- P3 fuzzy `ffs find` (1-2 ngày): wire `neo_frizbee` + fallback path. Add `--fuzzy` flag.
+- P5 parallel walker (1 ngày): swap `build()` → `build_parallel()`. Cap threads = `min(num_cpus, 8)`.
+- P6 doc fixes (< 1 ngày).
+- P1 phần literal: chuyển `ffs grep` sang ffs-grep crate + rayon parallel (chưa cần on-disk index). Wire `regex` crate khi detect metachar.
 
-```
-crates/fff-core/         → crates/ffs-core/
-crates/fff-c/            → crates/ffs-c/
-crates/fff-cli/          → crates/ffs-cli/
-crates/fff-grep/         → crates/ffs-grep/
-crates/fff-query-parser/ → crates/ffs-query-parser/
-crates/fff-engine/       → crates/ffs-engine/
-crates/fff-nvim/         → crates/ffs-nvim/
-crates/fff-mcp/          → crates/ffs-mcp/
-crates/fff-symbol/       → crates/ffs-symbol/
-crates/fff-budget/        → crates/ffs-budget/
-```
+**Output M1:** ffs grep ~2× của rg (vs 7× hiện tại), find/glob ngang find, fuzzy hoạt động.
 
-### Lua directories
+### Milestone M2 — On-disk index (2 tuần)
+- P2 phase 1: LMDB schema + serialization (5 ngày).
+- P2 phase 2: incremental refresh + invalidation (3 ngày).
+- P2 phase 3: wire `symbol`/`callers`/`flow` vào load path (3 ngày).
+- P1 phase 2: ffs grep dùng bigram inverted index từ on-disk store (2 ngày).
+- Benchmark + tune.
 
-```
-lua/fff/   → lua/fff/ (shim, re-exports to ffs/)
-lua/ffs/   → new implementation home
-```
+**Output M2:** `ffs symbol` < 50 ms warm, `ffs grep` rare < 200 ms.
 
-### Plugin file
+### Milestone M3 — Auto-install MCP (3-5 ngày)
+- P4 implement 6 provider auto-install (2 ngày).
+- Test trên Linux/macOS/WSL (1 ngày — cần ít nhất Claude Code + Codex + Cursor để verify).
+- Add `--mcp-dry-run`, `--mcp-provider`, idempotency tests (1 ngày).
+- README section "One-liner setup".
 
-```
-plugin/fff.lua → plugin/ffs.lua
-```
+**Output M3:** `curl ... | bash -s -- --mcp` cài binary + tự đăng ký với mọi AI tool có trên máy.
 
-### C header
+### Milestone M4 — Optional daemon mode (2 tuần, deferred)
+- `ffs serve` Unix socket / Windows named pipe.
+- File watcher tích hợp với on-disk index.
+- CLI subcommand auto-dispatch qua daemon nếu phát hiện.
 
-```
-crates/ffs-c/include/fff.h → crates/ffs-c/include/ffs.h
-```
-
-### Key file groups needing targeted edits
-
-| Group | Files | Action |
-|---|---|---|
-| Crate Cargo.tomls (10) | `crates/*/Cargo.toml` | Package name + internal deps |
-| Rust source (155 files) | `crates/*/src/**/*.rs` | Fix `use fff_*::` imports + internal type renames |
-| Lua impl | `lua/fff/*.lua` (moved to `lua/ffs/`) | Fix `require('fff.*')` → `require('ffs.*')`, update db paths |
-| Lua compat shims | `lua/fff/*.lua` (re-exports) | Re-export from `lua/ffs/*` |
-| Plugin | `plugin/fff.lua` (renamed) | Update internal references |
-| C FFI | `crates/ffs-c/src/ffi_types.rs`, `accessors.rs` | Rename internal holders only |
-| CI workflows (4 files) | `.github/workflows/*.yml` | Rename artifact patterns, nix output |
-| NPM packages (6) | `packages/*/package.json` | Rename packages + repo URLs |
-| Makefile | `Makefile` | Rename targets, install paths, cbindgen output |
-| Docs | `README.md`, `AGENTS.md`, `doc/fff.nvim.txt` | Full rebrand |
-| Config | `_typos.toml`, `.luacheckrc` | Update entries |
-| Installers | `install-mcp.sh`, `install-mcp.ps1` | Update repo URL |
-| Nix | `flake.nix` | Rename output attributes |
+**Output M4:** Parity với MCP performance trong shell-script use case.
 
 ---
 
-## Execution Order
+## 8. Risks & mitigations
 
-```
-Phase 1 (Workspace/dirs)  ──►  Phase 2 (Rust)  ──►  Phase 3 (Lua)  ──►
-Phase 4 (C FFI)          ──►  Phase 5 (CLI/MCP) ──►  Phase 6 (CI/npm)  ──►
-Phase 7 (Docs)           ──►  Phase 8 (Verify)
-```
+| Risk | Likelihood | Impact | Mitigation |
+|---|---|---|---|
+| Auto-merge JSON config của user phá settings cũ | M | H | Backup `*.bak` trước khi ghi; `--mcp-dry-run` mặc định; idempotent merge bằng `jq` (không string replace) |
+| `claude/codex mcp add` CLI flag thay đổi | M | M | Detect version qua `claude --version`; nếu CLI fail, fallback ghi trực tiếp settings.json |
+| LMDB lock conflict khi nhiều `ffs` chạy song song | L | M | LMDB native single-writer multi-reader; serialize index writes qua lock; read luôn không block |
+| On-disk index quá lớn (Linux kernel: ước ~200 MB cho 93k files) | M | L | Compression với `lz4_flex` cho outline/body content; tombstone GC định kỳ |
+| Threading regression — IO-bound box (2 vCPU) chậm hơn single-thread | L | L | `threads(min(num_cpus, 8))` + benchmark trên ≥3 môi trường (laptop, server, container) |
+| Parser regex bị abuse (catastrophic backtracking) | L | M | `regex` crate đảm bảo linear time; nếu thêm fancy-regex sau, set timeout per match |
+| Disk full khi index repo lớn | M | L | Phát hiện `ENOSPC` → in cảnh báo, fallback in-memory mode |
+| Compat với fff.nvim upstream khi rebase | M | M | Maintain a CHANGELOG `FORK_DIFF.md` ghi rõ điểm khác; sync upstream định kỳ qua merge commit |
 
-Each phase is independent and verifiable before proceeding to the next.
+---
+
+## 9. Open questions cần Trần xác nhận
+
+1. **Tên fork**: giữ `ffs` (binary name) hay đổi sang tên khác để tránh đụng `fff` upstream? PLAN này giữ `ffs`.
+2. **Backward compat**: có cần giữ behavior cũ của `ffs grep` (literal-only) đằng sau flag `--legacy-grep` không, hay break ngay từ M1?
+3. **Daemon mode** (M4): có ưu tiên không? Nếu users chủ yếu xài qua MCP thì M4 có thể bỏ — vì MCP đã là long-lived process.
+4. **Telemetry opt-in**: thu thập index time / query latency để ưu tiên hot path tiếp theo?
+5. **Min supported Rust**: hiện `rust-toolchain.toml` lock 1 phiên bản — cần verify trước khi add `heed`/`postcard`/`roaring` mới.
+6. **Schema version**: lần đầu — bắt đầu từ `v1` rồi bump khi nào break.
+
+---
+
+## 10. Tham chiếu chi tiết
+
+- ripgrep design notes: <https://github.com/BurntSushi/ripgrep/blob/master/FAQ.md>, blog "ripgrep is faster than..." <https://blog.burntsushi.net/ripgrep/>
+- nucleo matcher (background worker + lock-free streaming): <https://docs.rs/nucleo>, helix PR #7814.
+- fff.nvim upstream `crates/fff-mcp/` (cho reference logic dispatch).
+- Claude Code MCP API: <https://docs.anthropic.com/claude-code/mcp>, `claude mcp add --help`.
+- Codex MCP: <https://developers.openai.com/codex/mcp>, source `openai/codex/codex-rs/cli/src/mcp_cmd.rs`.
+- Cursor MCP: <https://cursor.com/docs/mcp>, file `~/.cursor/mcp.json`.
+- Cline MCP: <https://docs.cline.bot/mcp/adding-and-configuring-servers>.
+- OpenCode MCP: <https://opencode.ai/docs/mcp-servers>.
+- Continue MCP: <https://docs.continue.dev/customize/deep-dives/mcp>.
+- LMDB / heed crate (đã dùng cho frecency DB).
+
+---
+
+*PLAN này đề xuất; chưa implement. Yêu cầu Trần review M1/M2/M3/M4 priority và xác nhận open questions §9 trước khi bắt đầu code.*
