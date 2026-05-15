@@ -101,7 +101,7 @@ the working directory globally.
 
 `ffs mcp` (or the standalone `ffs-mcp` binary, installed via
 [`install-mcp.sh`](./install-mcp.sh)) speaks JSON-RPC over stdio and registers
-11 tools that any MCP-capable agent (Claude Code, Codex, OpenCode, Cursor,
+16 tools that any MCP-capable agent (Claude Code, Codex, OpenCode, Cursor,
 Cline, …) can call:
 
 | Tool            | What it answers                                                                                  |
@@ -116,6 +116,11 @@ Cline, …) can call:
 | `ffs_refs`      | Definitions + single-hop usages of a symbol in one shot. Mirrors `ffs refs` from the CLI.        |
 | `ffs_flow`      | Drill-down envelope per definition: def metadata + body excerpt + top-N callees + top-N callers. |
 | `ffs_impact`    | Rank workspace files by how much they'd be affected if `name` changed.                           |
+| `ffs_outline`   | Structural outline of a file (functions, classes, top-level decls). Agent-friendly default view. |
+| `ffs_siblings`  | Peers of a symbol in its parent scope — surfaces the rest of the impl/class around a method.     |
+| `ffs_deps`      | A file's imports plus the workspace files that depend on it. Blast-radius estimate for changes.  |
+| `ffs_map`       | Workspace tree annotated with file count and per-directory token estimate.                       |
+| `ffs_overview`  | High-signal repo summary: languages, top-defined symbols, entry-point candidates.                |
 | `ffs_read`      | Token-budget aware file read. Maps `maxTokens` to `~85% body × 4 bytes/token`, applies filters.  |
 
 Recommended agent prompt — drop into `CLAUDE.md` (or equivalent):

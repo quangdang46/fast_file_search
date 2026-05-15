@@ -10,8 +10,9 @@ use std::sync::{Arc, Mutex};
 
 use crate::cursor::CursorStore;
 use crate::engine_tools::{
-    EngineCallParams, EngineDispatchParams, EngineFlowParams, EngineHolder, EngineImpactParams,
-    EngineReadParams, EngineRefsParams, EngineSymbolParams,
+    EngineCallParams, EngineDepsParams, EngineDispatchParams, EngineFlowParams, EngineHolder,
+    EngineImpactParams, EngineMapParams, EngineOutlineParams, EngineOverviewParams,
+    EngineReadParams, EngineRefsParams, EngineSiblingsParams, EngineSymbolParams,
 };
 use crate::output::{GrepFormatter, OutputMode, file_suffix};
 use ffs::PaginationArgs;
@@ -791,6 +792,120 @@ impl FfsServer {
         ];
         let text = crate::engine_tools::run_engine_subprocess("impact", &root, &args)
             .map_err(|e| ErrorData::internal_error(format!("ffs impact failed: {e}"), None))?;
+        Ok(CallToolResult::success(vec![Content::text(text)]))
+    }
+
+    #[tool(
+        name = "ffs_outline",
+        description = "Render a file's structural outline (functions, classes, top-level decls). Returns the agent-friendly view by default — header line, [A-B] left column, bundled imports, indented signatures. Mirrors `ffs outline` from the CLI."
+    )]
+    fn engine_outline(
+        &self,
+        Parameters(params): Parameters<EngineOutlineParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let root = self.picker_base_path()?;
+        let style = params.style.unwrap_or_else(|| "agent".to_string());
+        let args = vec![params.path, "--style".into(), style];
+        let text = crate::engine_tools::run_engine_subprocess("outline", &root, &args)
+            .map_err(|e| ErrorData::internal_error(format!("ffs outline failed: {e}"), None))?;
+        Ok(CallToolResult::success(vec![Content::text(text)]))
+    }
+
+    #[tool(
+        name = "ffs_siblings",
+        description = "List sibling symbols (peers in the same parent scope as `name`). Useful for navigating around a definition: when you find a method, this surfaces the rest of the impl block / class. Mirrors `ffs siblings` from the CLI."
+    )]
+    fn engine_siblings(
+        &self,
+        Parameters(params): Parameters<EngineSiblingsParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let root = self.picker_base_path()?;
+        let limit = normalize_max_results(params.max_results, 100);
+        let offset = params.offset.map(|v| v.round() as usize).unwrap_or(0);
+        let mut args = vec![
+            params.name,
+            "--limit".into(),
+            limit.to_string(),
+            "--offset".into(),
+            offset.to_string(),
+        ];
+        if params.include_imports.unwrap_or(false) {
+            args.push("--include-imports".into());
+        }
+        let text = crate::engine_tools::run_engine_subprocess("siblings", &root, &args)
+            .map_err(|e| ErrorData::internal_error(format!("ffs siblings failed: {e}"), None))?;
+        Ok(CallToolResult::success(vec![Content::text(text)]))
+    }
+
+    #[tool(
+        name = "ffs_deps",
+        description = "Show a file's imports (raw + resolved) and the workspace files that depend on it. Use to understand the blast radius of changing a single file. Mirrors `ffs deps` from the CLI."
+    )]
+    fn engine_deps(
+        &self,
+        Parameters(params): Parameters<EngineDepsParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let root = self.picker_base_path()?;
+        let limit = normalize_max_results(params.max_results, 100);
+        let offset = params.offset.map(|v| v.round() as usize).unwrap_or(0);
+        let mut args = vec![
+            params.target,
+            "--limit".into(),
+            limit.to_string(),
+            "--offset".into(),
+            offset.to_string(),
+        ];
+        if params.no_dependents.unwrap_or(false) {
+            args.push("--no-dependents".into());
+        }
+        let text = crate::engine_tools::run_engine_subprocess("deps", &root, &args)
+            .map_err(|e| ErrorData::internal_error(format!("ffs deps failed: {e}"), None))?;
+        Ok(CallToolResult::success(vec![Content::text(text)]))
+    }
+
+    #[tool(
+        name = "ffs_map",
+        description = "Render the workspace as a tree annotated with file count and an LLM-token estimate per directory. Use to orient yourself in an unfamiliar repo before drilling into a subtree. Mirrors `ffs map` from the CLI."
+    )]
+    fn engine_map(
+        &self,
+        Parameters(params): Parameters<EngineMapParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let root = self.picker_base_path()?;
+        let depth = params.depth.map(|v| v.round() as u32).unwrap_or(3);
+        let symbols = params.symbols.map(|v| v.round() as u32).unwrap_or(0);
+        let mut args = vec!["--depth".into(), depth.to_string()];
+        if symbols > 0 {
+            args.push("--symbols".into());
+            args.push(symbols.to_string());
+        }
+        let text = crate::engine_tools::run_engine_subprocess("map", &root, &args)
+            .map_err(|e| ErrorData::internal_error(format!("ffs map failed: {e}"), None))?;
+        Ok(CallToolResult::success(vec![Content::text(text)]))
+    }
+
+    #[tool(
+        name = "ffs_overview",
+        description = "High-signal summary of the workspace: language breakdown, top-defined symbols, entry-point candidates. Run this first when an agent enters an unfamiliar repository. Mirrors `ffs overview` from the CLI."
+    )]
+    fn engine_overview(
+        &self,
+        Parameters(params): Parameters<EngineOverviewParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let root = self.picker_base_path()?;
+        let top_languages = normalize_max_results(params.top_languages, 10);
+        let top_symbols = normalize_max_results(params.top_symbols, 15);
+        let top_entrypoints = normalize_max_results(params.top_entrypoints, 10);
+        let args = vec![
+            "--top-languages".into(),
+            top_languages.to_string(),
+            "--top-symbols".into(),
+            top_symbols.to_string(),
+            "--top-entrypoints".into(),
+            top_entrypoints.to_string(),
+        ];
+        let text = crate::engine_tools::run_engine_subprocess("overview", &root, &args)
+            .map_err(|e| ErrorData::internal_error(format!("ffs overview failed: {e}"), None))?;
         Ok(CallToolResult::success(vec![Content::text(text)]))
     }
 }

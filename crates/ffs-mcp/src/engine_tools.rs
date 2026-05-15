@@ -105,6 +105,65 @@ pub struct EngineReadParams {
     pub filter: Option<String>,
 }
 
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct EngineOutlineParams {
+    /// Path to the file whose structural outline should be rendered.
+    pub path: String,
+    /// Rendering style: "agent" (default), "markdown", "structured", or "tabular".
+    pub style: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct EngineSiblingsParams {
+    /// Symbol whose siblings (peers in the same parent scope) should be listed.
+    pub name: String,
+    /// Maximum siblings returned (default 100).
+    #[serde(rename = "maxResults")]
+    pub max_results: Option<f64>,
+    /// Skip this many siblings before starting the page (default 0).
+    pub offset: Option<f64>,
+    /// Include `Import` entries as siblings (default false).
+    #[serde(rename = "includeImports")]
+    pub include_imports: Option<bool>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct EngineDepsParams {
+    /// File to analyse, relative to the repository root.
+    pub target: String,
+    /// Maximum dependents returned (default 100).
+    #[serde(rename = "maxResults")]
+    pub max_results: Option<f64>,
+    /// Skip this many dependents before starting the page (default 0).
+    pub offset: Option<f64>,
+    /// Skip the dependents walk; resolve imports only (default false).
+    #[serde(rename = "noDependents")]
+    pub no_dependents: Option<bool>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct EngineMapParams {
+    /// Maximum tree depth to render. Beyond this, directories show as a
+    /// single summary line (default 3).
+    pub depth: Option<f64>,
+    /// Annotate each file leaf with its top-N symbols by weight (default 0
+    /// = no annotation).
+    pub symbols: Option<f64>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct EngineOverviewParams {
+    /// How many language buckets to include (default 10).
+    #[serde(rename = "topLanguages")]
+    pub top_languages: Option<f64>,
+    /// How many of the most-defined symbol names to include (default 15).
+    #[serde(rename = "topSymbols")]
+    pub top_symbols: Option<f64>,
+    /// How many entry-point candidates to surface (default 10).
+    #[serde(rename = "topEntrypoints")]
+    pub top_entrypoints: Option<f64>,
+}
+
 /// Lazy holder for the shared `Engine`. The first engine call spends the cold
 /// scan; subsequent calls hit the warm caches.
 pub struct EngineHolder {
