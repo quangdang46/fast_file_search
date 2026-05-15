@@ -73,6 +73,10 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Setup MSBuild
+        if: contains(matrix.os, 'windows')
+        uses: microsoft/setup-msbuild@v2
+
       - name: Install Lua
         uses: leafo/gh-actions-lua@v12
 
@@ -214,6 +218,10 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Setup MSBuild
+        if: contains(matrix.os, 'windows')
+        uses: microsoft/setup-msbuild@v2
+
       - name: Install Lua
         uses: leafo/gh-actions-lua@v12
 
@@ -337,6 +345,10 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Setup MSBuild
+        if: contains(matrix.os, 'windows')
+        uses: microsoft/setup-msbuild@v2
+
       - name: Install Lua
         uses: leafo/gh-actions-lua@v12
 
@@ -432,6 +444,10 @@ jobs:
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
+
+      - name: Setup MSBuild
+        if: contains(matrix.os, 'windows')
+        uses: microsoft/setup-msbuild@v2
 
       - name: Install Lua
         uses: leafo/gh-actions-lua@v12
