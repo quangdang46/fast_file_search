@@ -135,10 +135,29 @@ impl SharedFilePicker {
         true
     }
 
-    /// Block until both the filesystem walk and post-scan indexing are
-    /// idle. When both `scanning` and `post_scan_indexing_active` are
-    /// false, no snapshot holds Arc clones of the backing buffers, so
-    /// the picker can be safely torn down.
+    /// Block until the background file watcher is ready.
+    /// Returns `true` if watcher ready, `false` on timeout.
+    pub fn wait_for_watcher(&self, timeout: Duration) -> bool {
+        let watch_ready_signal = {
+            let guard = self.0.picker.read();
+            match &*guard {
+                Some(picker) => Arc::clone(&picker.signals.watcher_ready),
+                None => return true,
+            }
+        };
+
+        let start = std::time::Instant::now();
+        while !watch_ready_signal.load(std::sync::atomic::Ordering::Acquire) {
+            if start.elapsed() >= timeout {
+                return false;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        true
+    }
+
+    /// Blocks until both the filesystem walk and post-scan indexing are done.
+    /// Returns true once scanning=false AND post_scan_indexing_active=false.
     pub fn wait_for_indexing_complete(&self, timeout: Duration) -> bool {
         let (scanning, post_scan_active) = {
             let guard = self.0.picker.read();
@@ -163,27 +182,6 @@ impl SharedFilePicker {
             }
             std::thread::sleep(Duration::from_millis(10));
         }
-    }
-
-    /// Block until the background file watcher is ready.
-    /// Returns `true` if watcher ready, `false` on timeout.
-    pub fn wait_for_watcher(&self, timeout: Duration) -> bool {
-        let watch_ready_signal = {
-            let guard = self.0.picker.read();
-            match &*guard {
-                Some(picker) => Arc::clone(&picker.signals.watcher_ready),
-                None => return true,
-            }
-        };
-
-        let start = std::time::Instant::now();
-        while !watch_ready_signal.load(std::sync::atomic::Ordering::Acquire) {
-            if start.elapsed() >= timeout {
-                return false;
-            }
-            std::thread::sleep(Duration::from_millis(10));
-        }
-        true
     }
 
     /// Trigger a full filesystem rescan without blocking the caller.

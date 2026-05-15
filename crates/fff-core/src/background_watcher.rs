@@ -593,7 +593,6 @@ fn handle_debounced_events(
         files_updated = files_to_update_git_status.len(),
         overflow_count, "File index changes applied",
     );
-
     if need_full_rescan || overflow_count > MAX_OVERFLOW_FILES {
         info!("Watcher faced limit of index overflow. Triggering rescan");
         if let Err(e) = shared_picker.trigger_full_rescan_async(shared_frecency) {
@@ -645,46 +644,54 @@ fn handle_debounced_events(
         }
     }
 
-    // Git status updates require a repository.
-    let Some(repo) = repo.as_ref() else {
-        debug!("No git repo available, skipping git status updates");
-        return new_dirs_to_watch;
-    };
+    // do not try to update the paths if we anyway going to rescan everything from scratch
+    if !need_full_rescan && (need_full_git_rescan || !files_to_update_git_status.is_empty()) {
+        let git_workdir = repo
+            .as_ref()
+            .map(|r| r.workdir().unwrap_or_else(|| r.path()).to_path_buf());
 
-    if need_full_git_rescan && !need_full_rescan {
-        info!("Triggering full git rescan");
+        let shared_picker = shared_picker.clone();
+        let shared_frecency = shared_frecency.clone();
 
-        if let Err(e) = shared_picker.refresh_git_status(shared_frecency) {
-            error!("Failed to refresh git status: {:?}", e);
-        }
-    }
+        // git status query even with a pathspec could be really slow, if we do this syncrhronously
+        // within the event handler, we actually risk of forming a snow ball of conflicting events
+        crate::file_picker::BACKGROUND_THREAD_POOL.spawn(move || {
+            let Some(git_path) = git_workdir else { return };
+            let Ok(repo) = Repository::open(&git_path) else {
+                error!("Failed to open git repo for async status update");
+                return;
+            };
 
-    // do not update the git status if the
-    if !files_to_update_git_status.is_empty() && !need_full_git_rescan {
-        info!(
-            "Fetching git status for {} files",
-            files_to_update_git_status.len()
-        );
-
-        let status = match GitStatusCache::git_status_for_paths(repo, &files_to_update_git_status) {
-            Ok(status) => status,
-            Err(e) => {
-                tracing::error!(?e, "Failed to query git status");
-                return new_dirs_to_watch;
+            if need_full_git_rescan && !need_full_rescan {
+                info!("Async: triggering full git rescan");
+                if let Err(e) = shared_picker.refresh_git_status(&shared_frecency) {
+                    error!("Failed to refresh git status: {:?}", e);
+                }
             }
-        };
 
-        if let Ok(mut guard) = shared_picker.write()
-            && let Some(ref mut picker) = *guard
-        {
-            if let Err(e) = picker.update_git_statuses(status, shared_frecency) {
-                error!("Failed to update git statuses: {:?}", e);
-            } else {
-                info!("Successfully updated git statuses in picker");
+            if !files_to_update_git_status.is_empty() {
+                let status = match GitStatusCache::git_status_for_paths(
+                    &repo,
+                    &files_to_update_git_status,
+                ) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        error!("Failed to query git status: {:?}", e);
+                        return;
+                    }
+                };
+
+                if let Ok(mut guard) = shared_picker.write()
+                    && let Some(ref mut picker) = *guard
+                {
+                    if let Err(e) = picker.update_git_statuses(status, &shared_frecency) {
+                        error!("Failed to update git statuses: {:?}", e);
+                    } else {
+                        info!("Async: git statuses updated");
+                    }
+                }
             }
-        } else {
-            error!("Failed to acquire picker lock for git status update");
-        }
+        });
     }
 
     new_dirs_to_watch

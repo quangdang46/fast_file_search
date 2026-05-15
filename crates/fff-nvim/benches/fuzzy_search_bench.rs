@@ -145,58 +145,6 @@ fn setup_once() -> Result<(SharedFilePicker, SharedFrecency), String> {
     Ok((shared_picker, shared_frecency))
 }
 
-/// Benchmark for indexing the big-repo directory
-fn bench_indexing(c: &mut Criterion) {
-    init_tracing();
-
-    let big_repo_path = PathBuf::from("./big-repo");
-    if !big_repo_path.exists() {
-        eprintln!(
-            "./big-repo directory does not exist. Run git clone https://github.com/torvalds/linux.git big-repo"
-        );
-        return;
-    }
-
-    let canonical_path = match fff::path_utils::canonicalize(&big_repo_path) {
-        Ok(p) => p,
-        Err(e) => {
-            eprintln!("⚠ Failed to canonicalize path: {}", e);
-            return;
-        }
-    };
-
-    let mut group = c.benchmark_group("indexing");
-    group.sample_size(10);
-    group.measurement_time(Duration::from_secs(20));
-
-    group.bench_function("index_big_repo", |b| {
-        b.iter(|| {
-            let sp = SharedFilePicker::default();
-            let sf = SharedFrecency::default();
-
-            let start = std::time::Instant::now();
-            init_file_picker_internal(black_box(&canonical_path.to_string_lossy()), &sp, &sf)
-                .expect("Failed to init FilePicker");
-
-            match wait_for_scan_completion(&sp, 120) {
-                Ok(file_count) => {
-                    let elapsed = start.elapsed();
-                    eprintln!("  ✓ Indexed {} files in {:?}", file_count, elapsed);
-                    cleanup_shared_state(&sp);
-                    file_count
-                }
-                Err(e) => {
-                    eprintln!("  ✗ Error: {}", e);
-                    cleanup_shared_state(&sp);
-                    0
-                }
-            }
-        });
-    });
-
-    group.finish();
-}
-
 /// Benchmark for searching with various query patterns
 fn bench_search_queries(c: &mut Criterion) {
     let (sp, _sf) = match setup_once() {
@@ -715,7 +663,6 @@ fn bench_grep_search(c: &mut Criterion) {
 
 criterion_group!(
     benches,
-    bench_indexing,
     bench_search_queries,
     bench_search_thread_scaling,
     bench_search_result_limits,

@@ -8,7 +8,7 @@ INCLUDEDIR ?= $(PREFIX)/include
 STRESS_RUSTFLAGS := --cfg stress
 FFF_STRESS_DEFAULT_SEED ?= 0xDEADBEEFCAFEBABE
 
-.PHONY: build build-c-lib install uninstall test test-rust test-lua test-version test-bun test-node prepare-bun prepare-node set-npm-version header test-stress test-stress-seeded test-stress-random
+.PHONY: build build-c-lib install uninstall test test-rust test-lua test-version test-bun test-node prepare-bun prepare-node set-npm-version header test-stress test-stress-seeded test-stress-random test-stress-repos
 
 all: format test lint
 
@@ -101,7 +101,7 @@ test: test-rust test-lua test-version test-bun test-node
 test-stress-seeded:
 	FFF_STRESS_SEED="$${FFF_STRESS_SEED:-$(FFF_STRESS_DEFAULT_SEED)}" \
 	RUSTFLAGS="$(STRESS_RUSTFLAGS)" \
-	cargo test \
+	cargo test --release \
 		-p fff-search \
 		--test fuzz_git_watcher_stress \
 		--features zlob \
@@ -109,13 +109,21 @@ test-stress-seeded:
 
 test-stress-random:
 	RUSTFLAGS="$(STRESS_RUSTFLAGS)" \
-	cargo test \
+	cargo test --release \
 		-p fff-search \
 		--test fuzz_git_watcher_stress \
 		--features zlob \
 		-- --nocapture stress_random
 
-test-stress: test-stress-seeded test-stress-random
+test-stress-repos:
+	RUSTFLAGS="$(STRESS_RUSTFLAGS)" \
+	cargo test --release \
+		-p fff-search \
+		--test fuzz_real_repos \
+		--features zlob \
+		-- --nocapture
+
+test-stress: test-stress-seeded test-stress-random test-stress-repos
 
 # Update version in a package.json, including optionalDependencies.
 # Usage: make set-npm-version PKG=packages/fff-bun VERSION=1.0.0-nightly.abc1234

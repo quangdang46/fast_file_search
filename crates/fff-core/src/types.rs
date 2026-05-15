@@ -1,7 +1,8 @@
 use std::io::Read;
 use std::path::{Path, PathBuf};
+#[cfg(not(target_os = "windows"))]
 use std::sync::OnceLock;
-use std::sync::atomic::{AtomicI32, AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicI32, AtomicU8, AtomicU64, AtomicUsize, Ordering};
 
 use crate::constraints::Constrainable;
 use crate::query_tracker::QueryMatchEntry;
@@ -46,33 +47,6 @@ impl FileSliceExt for [FileItem] {
     #[inline]
     fn live_count(&self) -> usize {
         self.iter().filter(|f| !f.is_deleted()).count()
-    }
-}
-
-/// Cached file contents — mmap on Unix, heap buffer on Windows.
-///
-/// On Windows, memory-mapped files hold the file handle open and prevent
-/// editors from saving (writing/replacing) those files. Reading into a
-/// `Vec<u8>` releases the handle immediately after the read completes.
-///
-/// The `Buffer` variant is also used on Unix for temporary (uncached) reads
-/// where the mmap/munmap syscall overhead exceeds the cost of a heap copy.
-#[derive(Debug)]
-#[allow(dead_code)] // variants are conditionally used per platform
-pub enum FileContent {
-    #[cfg(not(target_os = "windows"))]
-    Mmap(memmap2::Mmap),
-    Buffer(Vec<u8>),
-}
-
-impl std::ops::Deref for FileContent {
-    type Target = [u8];
-    fn deref(&self) -> &[u8] {
-        match self {
-            #[cfg(not(target_os = "windows"))]
-            FileContent::Mmap(m) => m,
-            FileContent::Buffer(b) => b,
-        }
     }
 }
 
@@ -238,23 +212,25 @@ pub struct FileItem {
     pub modification_frecency_score: i16,
     pub git_status: Option<git2::Status>,
     pub(crate) path: crate::simd_path::ChunkedString,
-    parent_dir: u32,
-    flags: u8,
-    content: OnceLock<FileContent>,
+    pub(crate) parent_dir_index: u32,
+    flags: AtomicU8,
+    #[cfg(not(target_os = "windows"))]
+    content: OnceLock<memmap2::Mmap>,
 }
 
 impl Clone for FileItem {
     fn clone(&self) -> Self {
         Self {
             path: self.path.clone(),
-            parent_dir: self.parent_dir,
+            parent_dir_index: self.parent_dir_index,
             size: self.size,
             modified: self.modified,
             access_frecency_score: self.access_frecency_score,
             modification_frecency_score: self.modification_frecency_score,
             git_status: self.git_status,
-            flags: self.flags,
+            flags: AtomicU8::new(self.flags.load(Ordering::Relaxed)),
             // on clone we have to reset the content lock
+            #[cfg(not(target_os = "windows"))]
             content: OnceLock::new(),
         }
     }
@@ -278,13 +254,14 @@ impl FileItem {
 
         Self {
             path,
-            parent_dir: u32::MAX,
+            parent_dir_index: u32::MAX,
             size,
             modified,
             access_frecency_score: 0,
             modification_frecency_score: 0,
             git_status,
-            flags,
+            flags: AtomicU8::new(flags),
+            #[cfg(not(target_os = "windows"))]
             content: OnceLock::new(),
         }
     }
@@ -298,14 +275,6 @@ impl FileItem {
 
     pub(crate) fn set_path(&mut self, path: crate::simd_path::ChunkedString) {
         self.path = path;
-    }
-
-    pub(crate) fn parent_dir_index(&self) -> u32 {
-        self.parent_dir
-    }
-
-    pub(crate) fn set_parent_dir(&mut self, idx: u32) {
-        self.parent_dir = idx;
     }
 
     pub fn dir_str(&self, arena: impl FFFStringStorage) -> String {
@@ -413,55 +382,164 @@ impl FileItem {
     }
 
     #[inline]
-    pub fn is_binary(&self) -> bool {
-        self.flags & FileItemFlags::BINARY != 0
+    pub(crate) fn is_likely_hot(&self) -> bool {
+        self.access_frecency_score > 0 || self.git_status.is_some()
+    }
+
+    /// Reads a fixed bytes count from the file optimized for quick speed of opening
+    #[inline]
+    pub(crate) fn read_trimmed_into_buf(
+        &self,
+        base_fd: i32,
+        base_path: &Path,
+        arena: ArenaPtr,
+        path_buf: &mut [u8; PATH_BUF_SIZE],
+        buf: &mut [u8],
+    ) -> usize {
+        #[cfg(unix)]
+        {
+            self.read_into_buf_unix(base_fd, base_path, arena, path_buf, buf)
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = base_fd;
+            self.read_into_buf_std(base_path, arena, path_buf, buf)
+        }
+    }
+
+    #[cfg(unix)]
+    fn read_into_buf_unix(
+        &self,
+        base_fd: libc::c_int,
+        base_path: &Path,
+        arena: ArenaPtr,
+        path_buf: &mut [u8; PATH_BUF_SIZE],
+        buf: &mut [u8],
+    ) -> usize {
+        let fd = if base_fd >= 0 {
+            let relative_path = self.write_relative_cstr(arena, path_buf);
+            // SAFETY: `relative_path` is NUL-terminated, `base_fd` is a
+            // valid directory descriptor owned by the caller.
+            unsafe { libc::openat(base_fd, relative_path.as_ptr(), libc::O_RDONLY) }
+        } else {
+            use std::os::unix::io::IntoRawFd;
+            let abs = self.write_absolute_path(arena, base_path, path_buf);
+            match std::fs::File::open(abs) {
+                Ok(f) => f.into_raw_fd(),
+                Err(e) => {
+                    tracing::error!(?e, "Failed to fopen file");
+                    return 0;
+                }
+            }
+        };
+        if fd < 0 {
+            return 0;
+        }
+
+        let mut filled = 0usize;
+        while filled < buf.len() {
+            // SAFETY: `fd` is an owned descriptor, `buf[filled..]` is a
+            // valid writable slice for `buf.len() - filled` bytes.
+            let n = unsafe {
+                libc::read(
+                    fd,
+                    buf[filled..].as_mut_ptr() as *mut libc::c_void,
+                    (buf.len() - filled) as libc::size_t,
+                )
+            };
+            if n <= 0 {
+                break;
+            }
+            filled += n as usize;
+        }
+
+        // SAFETY: matching close for the owned descriptor.
+        unsafe { libc::close(fd) };
+        filled
+    }
+
+    #[cfg(not(unix))]
+    fn read_into_buf_std(
+        &self,
+        base_path: &Path,
+        arena: ArenaPtr,
+        path_buf: &mut [u8; PATH_BUF_SIZE],
+        buf: &mut [u8],
+    ) -> usize {
+        let abs = self.write_absolute_path(arena, base_path, path_buf);
+        let Ok(mut f) = std::fs::File::open(abs) else {
+            return 0;
+        };
+        let mut filled = 0usize;
+        while filled < buf.len() {
+            match f.read(&mut buf[filled..]) {
+                Ok(0) => break,
+                Ok(n) => filled += n,
+                Err(_) => return 0,
+            }
+        }
+        filled
     }
 
     #[inline]
-    pub fn set_binary(&mut self, val: bool) {
+    pub fn is_binary(&self) -> bool {
+        self.flags.load(Ordering::Relaxed) & FileItemFlags::BINARY != 0
+    }
+
+    #[inline]
+    pub fn set_binary(&self, val: bool) {
         if val {
-            self.flags |= FileItemFlags::BINARY;
+            self.flags
+                .fetch_or(FileItemFlags::BINARY, Ordering::Relaxed);
         } else {
-            self.flags &= !FileItemFlags::BINARY;
+            self.flags
+                .fetch_and(!FileItemFlags::BINARY, Ordering::Relaxed);
         }
     }
 
     #[inline]
     pub fn is_deleted(&self) -> bool {
-        self.flags & FileItemFlags::DELETED != 0
+        self.flags.load(Ordering::Relaxed) & FileItemFlags::DELETED != 0
     }
 
     #[inline]
-    pub fn set_deleted(&mut self, val: bool) {
+    #[doc(hidden)]
+    /// Don't use it, use FilePicker::delete_file
+    pub fn set_deleted(&self, val: bool) {
         if val {
-            self.flags |= FileItemFlags::DELETED;
+            self.flags
+                .fetch_or(FileItemFlags::DELETED, Ordering::Relaxed);
         } else {
-            self.flags &= !FileItemFlags::DELETED;
+            self.flags
+                .fetch_and(!FileItemFlags::DELETED, Ordering::Relaxed);
         }
     }
 
     #[inline]
     pub fn is_overflow(&self) -> bool {
-        self.flags & FileItemFlags::OVERFLOW != 0
+        self.flags.load(Ordering::Relaxed) & FileItemFlags::OVERFLOW != 0
     }
 
     #[inline]
-    pub fn set_overflow(&mut self, val: bool) {
+    pub fn set_overflow(&self, val: bool) {
         if val {
-            self.flags |= FileItemFlags::OVERFLOW;
+            self.flags
+                .fetch_or(FileItemFlags::OVERFLOW, Ordering::Relaxed);
         } else {
-            self.flags &= !FileItemFlags::OVERFLOW;
+            self.flags
+                .fetch_and(!FileItemFlags::OVERFLOW, Ordering::Relaxed);
         }
     }
 }
 
 impl FileItem {
-    /// Invalidate the cached content so the next `get_content()` call creates a fresh one.
+    /// Invalidate the cached mmap content, has to be called every time the file is updated.
     ///
     /// Call this when the background watcher detects that the file has been modified.
     /// On Unix, a file that is truncated while mapped can cause SIGBUS. On Windows,
     /// the stale buffer simply won't reflect the new contents. In both cases,
     /// invalidating ensures a fresh read on the next access.
+    #[cfg(not(target_os = "windows"))]
     pub fn invalidate_mmap(&mut self, budget: &ContentCacheBudget) {
         if self.content.get().is_some() {
             budget.cached_count.fetch_sub(1, Ordering::Relaxed);
@@ -470,6 +548,9 @@ impl FileItem {
 
         self.content = OnceLock::new();
     }
+
+    #[cfg(target_os = "windows")]
+    pub fn invalidate_mmap(&mut self, _: &ContentCacheBudget) {}
 
     pub fn update_metadata(
         &mut self,
@@ -497,7 +578,23 @@ impl FileItem {
     /// of the budget should use [`get_content_for_search`].
     ///
     /// After the first call, this is lock-free (just an atomic load + pointer deref).
-    pub(crate) fn get_content(
+    ///
+    /// On Windows we never back this cache — `memmap2` would require a full
+    /// `std::fs::read` heap copy and the OS page cache already absorbs repeat
+    /// reopens. Returning `None` keeps callers on the scratch-read slow path
+    /// and avoids duplicating every indexed file on the heap.
+    #[cfg(target_os = "windows")]
+    pub(crate) fn get_cached_content(
+        &self,
+        _arena: ArenaPtr,
+        _base_path: &Path,
+        _budget: &ContentCacheBudget,
+    ) -> Option<&[u8]> {
+        None
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    pub(crate) fn get_cached_content(
         &self,
         arena: ArenaPtr,
         base_path: &Path,
@@ -507,8 +604,11 @@ impl FileItem {
             return Some(content);
         }
 
-        let max_file_size = budget.max_file_size;
-        if self.size == 0 || self.size > max_file_size {
+        // Skip caching when mmap can't pay for itself. Files under one page
+        // worth of bytes waste kernel VM structures and a per-file syscall
+        // pair — the chunked `read_into_buf` fallback is cheaper for them
+        // and hits the OS page cache on repeat reads anyway.
+        if self.size < MMAP_THRESHOLD || self.size > budget.max_file_size {
             return None;
         }
 
@@ -521,11 +621,14 @@ impl FileItem {
             return None;
         }
 
-        let content = load_file_content(&self.absolute_path(arena, base_path), self.size)?;
-        let result = self.content.get_or_init(|| content);
+        let path = self.absolute_path(arena, base_path);
+        let file = std::fs::File::open(&path).ok()?;
+        // SAFETY: the mmap is backed by the kernel page cache and reflects
+        // file updates; the only risk is SIGBUS on a concurrent truncate,
+        // which the watcher mitigates by invalidating on modification.
+        let mmap = unsafe { memmap2::Mmap::map(&file) }.ok()?;
+        let result = self.content.get_or_init(|| mmap);
 
-        // Bump counters. Slight over-count under races is fine — the budget
-        // is a soft limit and the overshoot is bounded by rayon thread count.
         budget.cached_count.fetch_add(1, Ordering::Relaxed);
         budget.cached_bytes.fetch_add(self.size, Ordering::Relaxed);
 
@@ -546,7 +649,7 @@ impl FileItem {
         budget: &ContentCacheBudget,
     ) -> Option<&'a [u8]> {
         // Fast path: persistent cache hit (zero-copy).
-        if let Some(cached) = self.get_content(arena, base_path, budget) {
+        if let Some(cached) = self.get_cached_content(arena, base_path, budget) {
             return Some(cached);
         }
 
@@ -569,35 +672,12 @@ impl FileItem {
 }
 
 /// Files smaller than one page waste the remainder when mmapped.
-/// Unused on Windows where `load_file_content` does not mmap.
+/// Files smaller than one page waste the remainder when mmapped. Unused
+/// on Windows where the persistent content cache is disabled.
 #[cfg(all(not(target_os = "windows"), target_arch = "aarch64"))]
 const MMAP_THRESHOLD: u64 = 16 * 1024;
 #[cfg(all(not(target_os = "windows"), not(target_arch = "aarch64")))]
 const MMAP_THRESHOLD: u64 = 4 * 1024;
-
-fn load_file_content(path: &Path, size: u64) -> Option<FileContent> {
-    #[cfg(not(target_os = "windows"))]
-    {
-        if size < MMAP_THRESHOLD {
-            let data = std::fs::read(path).ok()?;
-            Some(FileContent::Buffer(data))
-        } else {
-            let file = std::fs::File::open(path).ok()?;
-            // SAFETY: The mmap is backed by the kernel page cache and automatically
-            // reflects file modifications. The only risk is SIGBUS if the file is
-            // truncated while mapped.
-            let mmap = unsafe { memmap2::Mmap::map(&file) }.ok()?;
-            Some(FileContent::Mmap(mmap))
-        }
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        let _ = size;
-        let data = std::fs::read(path).ok()?;
-        Some(FileContent::Buffer(data))
-    }
-}
 
 impl Constrainable for FileItem {
     #[inline]
@@ -748,6 +828,12 @@ impl ContentCacheBudget {
         }
     }
 
+    // Byte budget
+    pub fn is_exhausted(&self) -> bool {
+        self.cached_count.load(Ordering::Relaxed) >= self.max_files
+            || self.cached_bytes.load(Ordering::Relaxed) >= self.max_bytes
+    }
+
     pub fn new_for_repo(file_count: usize) -> Self {
         let max_files = if file_count > 50_000 {
             5_000
@@ -808,45 +894,5 @@ impl ContentCacheBudget {
 impl Default for ContentCacheBudget {
     fn default() -> Self {
         Self::new_for_repo(30_000)
-    }
-}
-
-#[cfg(test)]
-impl FileItem {
-    /// Leaks a single-file arena so the pointer stays valid forever.
-    pub fn new_for_test(
-        rel_path: &str,
-        size: u64,
-        modified: u64,
-        git_status: Option<git2::Status>,
-        is_binary: bool,
-    ) -> Self {
-        let (item, _arena) =
-            Self::new_for_test_with_arena(rel_path, size, modified, git_status, is_binary);
-        item
-    }
-
-    pub(crate) fn new_for_test_with_arena(
-        rel_path: &str,
-        size: u64,
-        modified: u64,
-        git_status: Option<git2::Status>,
-        is_binary: bool,
-    ) -> (Self, ArenaPtr) {
-        let filename_start = rel_path
-            .rfind(std::path::is_separator)
-            .map(|i| i + 1)
-            .unwrap_or(0) as u16;
-        let mut item = Self::new_raw(filename_start, size, modified, git_status, is_binary);
-        let paths = [rel_path.to_string()];
-        let (store, strings) = crate::simd_path::build_chunked_path_store_from_strings(
-            &paths,
-            std::slice::from_ref(&item),
-        );
-        let cs = strings.into_iter().next().unwrap();
-        let arena = store.as_arena_ptr();
-        item.set_path(cs);
-        std::mem::forget(store);
-        (item, arena)
     }
 }

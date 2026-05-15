@@ -78,17 +78,21 @@ criterion = { version = "0.5", features = ["html_reports"] }
 rand = { version = "0.8", features = ["small_rng"] }
 
 [[bench]]
-name = "indexing_and_search"
+name = "fuzzy_search"
+path = "benches/fuzzy_search_bench.rs"
 harness = false
 
 [[bench]]
 name = "grep_bench"
+path = "benches/grep_bench.rs"
 harness = false
 
 [[bench]]
-name = "query_tracker_bench"
+name = "query_tracker"
+path = "benches/query_tracker_bench.rs"
 harness = false
 
 [[bench]]
-name = "post_scan_bench"
+name = "scan"
+path = "benches/scan_bench.rs"
 harness = false

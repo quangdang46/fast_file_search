@@ -668,9 +668,9 @@ dependencies = [
 
 [[package]]
 name = "fff-notify-debouncer-full"
-version = "0.9.3"
+version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c6f0c16164d10c082af931377766f5495440bee66a9a841bbcea1af5de8878c"
+checksum = "29a4ebea7b8a2840cd59358bbf396f6f04313ce8eae84ac79703ce80298b8731"
 dependencies = [
  "file-id",
  "log",
@@ -1535,9 +1535,9 @@ dependencies = [
 
 [[package]]
 name = "notify"
-version = "9.0.0-rc.3"
+version = "9.0.0-rc.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "783683ce6e1059e3747190a6c05688db21e07a846bf90babb351365f9133fe3e"
+checksum = "b44b771d4dd781ef14c84078693e67495da6b47f609f72e8a4da8420a861240e"
 dependencies = [
  "bitflags 2.11.0",
  "inotify",

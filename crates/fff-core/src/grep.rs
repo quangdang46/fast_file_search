@@ -1547,7 +1547,7 @@ fn fuzzy_grep_search<'a>(
     abort_signal: &AtomicBool,
     base_path: &Path,
     arena: crate::simd_path::ArenaPtr,
-    _overflow_arena: crate::simd_path::ArenaPtr,
+    overflow_arena: crate::simd_path::ArenaPtr,
 ) -> GrepResult<'a> {
     // max_typos controls how many *needle* characters can be unmatched.
     // A transposition (e.g. "shcema" → "schema") costs ~1 typo with
@@ -1655,7 +1655,12 @@ fn fuzzy_grep_search<'a>(
                     return None;
                 }
 
-                let file_bytes = file.get_content_for_search(buf, arena, base_path, budget)?;
+                let file_arena = if file.is_overflow() {
+                    overflow_arena
+                } else {
+                    arena
+                };
+                let file_bytes = file.get_content_for_search(buf, file_arena, base_path, budget)?;
 
                 // File-level prefilter: check if enough distinct needle chars
                 // exist anywhere in the file bytes.  Uses memchr for speed.
@@ -2155,9 +2160,15 @@ pub(crate) fn grep_search<'a>(
                         return true;
                     }
 
-                    // we use ptr offsets to avoid additional allocations and keep the index
                     let file_idx =
                         unsafe { (*f as *const FileItem).offset_from(base_ptr) as usize };
+
+                    // Files past the bigram boundary (unindexable base files)
+                    // are not tracked by the bigram filter — always search them.
+                    if file_idx >= overflow_start {
+                        return true;
+                    }
+
                     BigramFilter::is_candidate(candidates, file_idx)
                 });
             }
@@ -2272,6 +2283,11 @@ fn strip_file_path_constraints<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use crate::bigram_filter::BigramIndexBuilder;
+    use crate::file_picker::{FilePicker, FilePickerOptions};
+    use std::io::Write;
+    use std::sync::atomic::AtomicBool;
 
     #[test]
     fn test_unescaped_newline_detection() {
@@ -2511,11 +2527,6 @@ mod tests {
     /// unconditionally appended by the overflow loop, producing duplicates.
     #[test]
     fn test_grep_no_duplicates_with_overflow_trailing_bits() {
-        use crate::bigram_filter::{BigramIndexBuilder, BigramOverlay};
-        use crate::file_picker::{FilePicker, FilePickerOptions};
-        use std::io::Write;
-        use std::sync::atomic::AtomicBool;
-
         let dir = tempfile::tempdir().unwrap();
         // Match the picker's internal dunce-canonicalize so paths passed to
         // on_create_or_modify resolve back to the same base_path on Windows.
@@ -2555,7 +2566,7 @@ mod tests {
         }
         let mut index = consec_builder.compress(Some(0));
         index.set_skip_index(skip_builder.compress(Some(0)));
-        picker.set_bigram_index(index, BigramOverlay::new(base_count));
+        picker.set_bigram_index(index);
 
         // Add three overflow files (new after the bigram index was built),
         // all containing "unicorn".

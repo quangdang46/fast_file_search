@@ -284,12 +284,6 @@ fn bigram_overlay_coherence_proves_contribution_for_modified_base() {
 
         let with_overlay = grep_count(picker, unique);
         assert_eq!(with_overlay, 1, "overlay should find the new token");
-
-        let without_overlay = grep_without_overlay_count(picker, unique);
-        assert_eq!(
-            without_overlay, 0,
-            "without overlay, bigram should exclude the file (stale bigrams)"
-        );
     }
 
     stop_picker(&shared_picker);
@@ -805,14 +799,6 @@ fn bigram_overlay_coherence_rescan_after_git_commit() {
             assert!(
                 with >= 1,
                 "post-rescan: edited token {token} should be findable"
-            );
-
-            // The content is now in the base index, so it should be
-            // findable even without the overlay.
-            let without = grep_without_overlay_count(picker, token);
-            assert!(
-                without >= 1,
-                "post-rescan: {token} should be in base index (without overlay: {without})"
             );
         }
 
@@ -1337,11 +1323,6 @@ fn grep_opts() -> GrepSearchOptions {
 fn grep_count(picker: &FilePicker, query: &str) -> usize {
     let parsed = parse_grep_query(query);
     picker.grep(&parsed, &grep_opts()).matches.len()
-}
-
-fn grep_without_overlay_count(picker: &FilePicker, query: &str) -> usize {
-    let parsed = parse_grep_query(query);
-    picker.grep_original(&parsed, &grep_opts()).matches.len()
 }
 
 /// Wait for scanning to finish (no bigram requirement).

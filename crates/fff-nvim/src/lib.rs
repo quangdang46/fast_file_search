@@ -81,41 +81,6 @@ pub fn init_file_picker(_: &Lua, base_path: String) -> LuaResult<bool> {
     Ok(true)
 }
 
-fn reinit_file_picker_internal(path: &Path) -> Result<(), Error> {
-    // Cancel and stop the old picker's watcher under the write lock.
-    // `stop_background_monitor` is non-blocking (signals the debouncer
-    // to exit on its next tick without joining), so it's safe under
-    // the lock. In-flight watcher handlers finish naturally once we
-    // release the guard.
-    {
-        let mut guard = FILE_PICKER.write()?;
-        if let Some(ref mut picker) = *guard {
-            // Signal cancellation BEFORE stopping the watcher so any
-            // orphaned scan/post-scan threads discard their results
-            // instead of racing with the new picker.
-            picker.cancel();
-            picker.stop_background_monitor();
-        }
-        // Don't take() the picker here — leave the old one in place so
-        // searches still work until new_with_shared_state replaces it.
-    }
-
-    // Create new picker — this atomically replaces the old one via write lock
-    FilePicker::new_with_shared_state(
-        FILE_PICKER.clone(),
-        FRECENCY.clone(),
-        fff::FilePickerOptions {
-            base_path: path.to_string_lossy().to_string(),
-            enable_mmap_cache: true,
-            enable_content_indexing: true,
-            mode: FFFMode::Neovim,
-            ..Default::default()
-        },
-    )?;
-
-    Ok(())
-}
-
 pub fn restart_index_in_path(_: &Lua, new_path: String) -> LuaResult<()> {
     let path = std::path::PathBuf::from(&new_path);
     if !path.exists() {
@@ -148,10 +113,11 @@ pub fn restart_index_in_path(_: &Lua, new_path: String) -> LuaResult<()> {
                 Ok(g) => g,
                 Err(_) => return,
             };
+
             if let Some(ref picker) = *guard
                 && picker.base_path() == canonical_path
             {
-                ::tracing::info!(?canonical_path, "restart_index_in_path: same dir, skipping");
+                tracing::info!(?canonical_path, "restart_index_in_path: same dir, skipping");
                 return;
             }
         }
@@ -160,14 +126,25 @@ pub fn restart_index_in_path(_: &Lua, new_path: String) -> LuaResult<()> {
             ?canonical_path,
             "restart_index_in_path: calling reinit_file_picker_internal"
         );
-        if let Err(e) = reinit_file_picker_internal(&canonical_path) {
-            ::tracing::error!(
+
+        // this will AUTOMATICALLY drop the old picker within a write lock inside the implementation
+        // that will stop all the ongoing work and drop all the workeres
+        if let Err(e) = FilePicker::new_with_shared_state(
+            FILE_PICKER.clone(),
+            FRECENCY.clone(),
+            fff::FilePickerOptions {
+                base_path: canonical_path.to_string_lossy().to_string(),
+                enable_mmap_cache: true,
+                enable_content_indexing: true,
+                mode: FFFMode::Neovim,
+                ..Default::default()
+            },
+        ) {
+            tracing::error!(
                 ?e,
                 ?canonical_path,
                 "Failed to index directory after changing"
             );
-        } else {
-            ::tracing::info!(?canonical_path, "Successfully reindexed directory");
         }
     });
 
@@ -519,7 +496,6 @@ pub fn cleanup_file_picker(_: &Lua, _: ()) -> LuaResult<bool> {
     if let Some(picker) = file_picker.take() {
         drop(picker);
         ::tracing::info!("FilePicker cleanup completed");
-
         Ok(true)
     } else {
         Ok(false)

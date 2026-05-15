@@ -298,9 +298,9 @@ pub unsafe extern "C" fn fff_destroy(fff_handle: *mut c_void) {
     let instance = unsafe { Box::from_raw(fff_handle as *mut FffInstance) };
 
     if let Ok(mut guard) = instance.picker.write()
-        && let Some(mut picker) = guard.take()
+        && let Some(picker) = guard.take()
     {
-        picker.stop_background_monitor();
+        drop(picker);
     }
 
     if let Ok(mut guard) = instance.frecency.write() {
@@ -896,22 +896,19 @@ pub unsafe extern "C" fn fff_restart_index(
         Err(e) => return FffResult::err(&format!("Failed to canonicalize path: {}", e)),
     };
 
-    let mut guard = match inst.picker.write() {
+    let guard = match inst.picker.write() {
         Ok(g) => g,
         Err(e) => return FffResult::err(&format!("Failed to acquire file picker lock: {}", e)),
     };
 
-    let (warmup_caches, content_indexing, watch, mode) = if let Some(mut picker) = guard.take() {
-        let warmup = picker.has_mmap_cache();
-        let enable_content_indexing = picker.has_content_indexing();
-        let watch = picker.has_watcher();
-        let mode = picker.mode();
-
-        picker.stop_background_monitor();
-
-        (warmup, enable_content_indexing, watch, mode)
+    let (warmup_caches, content_indexing, watch, mode) = if let Some(ref picker) = *guard {
+        (
+            picker.has_mmap_cache(),
+            picker.has_content_indexing(),
+            picker.has_watcher(),
+            picker.mode(),
+        )
     } else {
-        // this is error state anyway
         (false, true, true, FFFMode::default())
     };
 
