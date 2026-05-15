@@ -27,7 +27,7 @@ pub use bloom::{BloomFilter, BloomFilterCache};
 pub use lang::{detect_file_type, package_root};
 pub use outline::{get_outline_entries, outline_language};
 pub use outline_cache::OutlineCache;
-pub use symbol_index::{SymbolIndex, SymbolLocation};
+pub use symbol_index::{SymbolIndex, SymbolIndexSnapshot, SymbolLocation};
 pub use treesitter::{
     definition_weight, extract_definition_name, extract_impl_trait, extract_impl_type,
     extract_implemented_interfaces, DEFINITION_KINDS,

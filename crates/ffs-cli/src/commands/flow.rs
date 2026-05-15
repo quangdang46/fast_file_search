@@ -107,8 +107,7 @@ struct FlowOutput {
 }
 
 pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
-    let engine = Engine::default();
-    engine.index(root);
+    let engine = crate::cache::load_or_build_engine(root);
 
     let defs = engine.handles.symbols.lookup_exact(&args.name);
 

@@ -88,8 +88,7 @@ fn loc_to_hit(name: &str, loc: SymbolLocation) -> SymbolHit {
 }
 
 pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
-    let engine = Engine::default();
-    engine.index(root);
+    let engine = crate::cache::load_or_build_engine(root);
 
     let names = parse_names(&args.name);
     if names.len() <= 1 {

@@ -25,5 +25,8 @@ scripts/benchmark-results/
 *.so
 *.dll
 
+# ffs on-disk symbol-index cache
+.ffs/
+
 # Instruments traces
 *.trace/

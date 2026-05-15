@@ -68,6 +68,13 @@ ffs map --depth 3
 ffs mcp                                    # run as MCP server over stdio
 ```
 
+`ffs index` writes a tree-sitter symbol-index cache to `<repo>/.ffs/`. Subsequent
+`ffs symbol`/`callers`/`refs`/`flow`/`siblings`/`impact` invocations skip the
+re-parse and load the cache directly — sub-200 ms on a Linux-kernel-sized repo.
+The cache is invalidated automatically on schema bumps, git HEAD changes, or
+significant file-count drift. Add `.ffs/` to your `.gitignore` (the
+repository's own `.gitignore` already does this).
+
 ## Subcommands
 
 ```

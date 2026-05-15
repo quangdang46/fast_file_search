@@ -1,6 +1,7 @@
 use anyhow::Result;
 use clap::{CommandFactory, Parser};
 
+mod cache;
 mod cli;
 mod commands;
 

@@ -32,6 +32,8 @@ regex = { workspace = true }
 rayon = { workspace = true }
 memchr = { workspace = true }
 memmap2 = { workspace = true }
+postcard = { version = "1", features = ["use-std"] }
+zstd = "0.13"
 
 [dev-dependencies]
 tempfile = { workspace = true }

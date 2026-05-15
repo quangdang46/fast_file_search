@@ -60,8 +60,7 @@ struct SiblingsOutput {
 }
 
 pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
-    let engine = Engine::default();
-    engine.index(root);
+    let engine = crate::cache::load_or_build_engine(root);
 
     let definitions = engine.handles.symbols.lookup_exact(&args.name);
     let mut hits: Vec<SiblingHit> = Vec::new();
