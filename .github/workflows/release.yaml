@@ -73,9 +73,9 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup MSBuild
+      - name: Setup MSVC
         if: contains(matrix.os, 'windows')
-        uses: microsoft/setup-msbuild@v2
+        uses: ilammy/msvc-dev-cmd@v1
 
       - name: Install Lua
         uses: leafo/gh-actions-lua@v12
@@ -218,9 +218,9 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup MSBuild
+      - name: Setup MSVC
         if: contains(matrix.os, 'windows')
-        uses: microsoft/setup-msbuild@v2
+        uses: ilammy/msvc-dev-cmd@v1
 
       - name: Install Lua
         uses: leafo/gh-actions-lua@v12
@@ -345,9 +345,9 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup MSBuild
+      - name: Setup MSVC
         if: contains(matrix.os, 'windows')
-        uses: microsoft/setup-msbuild@v2
+        uses: ilammy/msvc-dev-cmd@v1
 
       - name: Install Lua
         uses: leafo/gh-actions-lua@v12
@@ -445,9 +445,9 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup MSBuild
+      - name: Setup MSVC
         if: contains(matrix.os, 'windows')
-        uses: microsoft/setup-msbuild@v2
+        uses: ilammy/msvc-dev-cmd@v1
 
       - name: Install Lua
         uses: leafo/gh-actions-lua@v12
