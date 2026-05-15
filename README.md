@@ -106,9 +106,9 @@ Cline, …) can call:
 
 | Tool            | What it answers                                                                                  |
 | --------------- | ------------------------------------------------------------------------------------------------ |
-| `find_files`    | Fuzzy file-name search. Smart-case, frecency-ranked, glob constraints, git-aware.                |
-| `grep`          | Content search. Plain / regex / fuzzy auto-detect, pagination cursor, definition-first hinting.  |
-| `multi_grep`    | OR-logic multi-pattern content search via SIMD Aho-Corasick.                                     |
+| `ffs_find`    | Fuzzy file-name search. Smart-case, frecency-ranked, glob constraints, git-aware.                |
+| `ffs_grep`      | Content search. Plain / regex / fuzzy auto-detect, pagination cursor, definition-first hinting.  |
+| `ffs_multi_grep`    | OR-logic multi-pattern content search via SIMD Aho-Corasick.                                     |
 | `ffs_dispatch`  | Auto-classify a free-form query (path, glob, identifier, concept) and route through the engine.  |
 | `ffs_symbol`    | Exact + prefix lookup over the tree-sitter symbol index (16 languages).                          |
 | `ffs_callers`   | Find call sites of a symbol. Bloom-filter narrowed candidates → literal-text confirm pass.       |

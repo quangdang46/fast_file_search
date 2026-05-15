@@ -28,8 +28,8 @@ use rmcp::{ServerHandler, schemars, tool, tool_handler, tool_router};
 /// Normalize the caller-supplied `maxResults`.
 ///
 /// `None`, `Some(0)`, and non-positive / non-finite values fall back to
-/// `default`. Issue #400 reported that grep returned 0 items for
-/// `maxResults: 0` while `find_files` returned the entire dataset; treating
+/// `default`. Issue #400 reported that ffs_grep returned 0 items for
+/// `maxResults: 0` while `ffs_find` returned the entire dataset; treating
 /// 0 as "use the default" makes both tools behave consistently.
 fn normalize_max_results(raw: Option<f64>, default: usize) -> usize {
     match raw {
@@ -91,7 +91,7 @@ fn make_grep_options(
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct FindFilesParams {
     /// Fuzzy search query. Supports path prefixes and glob constraints.
-    // `pattern` alias for consistency with grep's alias and the common
+    // `pattern` alias for consistency with ffs_grep's alias and the common
     // file-search parameter name (#311).
     #[serde(alias = "pattern")]
     pub query: String,
@@ -107,8 +107,8 @@ pub struct FindFilesParams {
 pub struct GrepParams {
     /// Search text or regex query with optional constraint prefixes.
     /// Matches within single lines only — use ONE specific term, not multiple words.
-    // `pattern` alias: LLMs that have seen multi_grep (which uses `patterns`)
-    // routinely call grep with `pattern`; accept it instead of erroring out
+    // `pattern` alias: LLMs that have seen ffs_multi_grep (which uses `patterns`)
+    // routinely call ffs_grep with `pattern`; accept it instead of erroring out
     // with an unhelpful "missing field `query`" (#311).
     #[serde(alias = "pattern")]
     pub query: String,
@@ -418,14 +418,14 @@ impl FfsServer {
 impl FfsServer {
     /// Fuzzy file search by name. Searches FILE NAMES, not file contents.
     /// Use it when you need to find a file, not a definition.
-    /// Use grep instead for searching code content (definitions, usage patterns).
+    /// Use ffs_grep instead for searching code content (definitions, usage patterns).
     /// Supports fuzzy matching, path prefixes ('shc/'), and glob constraints.
     /// IMPORTANT: Keep queries SHORT — prefer 1-2 terms max.
     #[tool(
-        name = "find_files",
-        description = "Fuzzy file search by name. Searches FILE NAMES, not file contents. Use it when you need to find a file, not a definition. Use grep instead for searching code content (definitions, usage patterns). Supports fuzzy matching, path prefixes ('src/'), and glob constraints ('name **/src/*.{ts,tsx} !test/'). IMPORTANT: Keep queries SHORT — prefer 1-2 terms max. Multiple words are a waterfall (each narrows results), NOT OR. If unsure, start broad with 1 term and refine."
+        name = "ffs_find",
+        description = "Fuzzy file search by name. Searches FILE NAMES, not file contents. Use it when you need to find a file, not a definition. Use ffs_grep instead for searching code content (definitions, usage patterns). Supports fuzzy matching, path prefixes ('src/'), and glob constraints ('name **/src/*.{ts,tsx} !test/'). IMPORTANT: Keep queries SHORT — prefer 1-2 terms max. Multiple words are a waterfall (each narrows results), NOT OR. If unsure, start broad with 1 term and refine."
     )]
-    fn find_files(
+    fn ffs_find(
         &self,
         Parameters(params): Parameters<FindFilesParams>,
     ) -> Result<CallToolResult, ErrorData> {
@@ -534,7 +534,7 @@ impl FfsServer {
     /// Search file contents for text patterns. This is the DEFAULT search tool.
     /// Prefer plain text over regex. Filter files with constraints.
     #[tool(
-        name = "grep",
+        name = "ffs_grep",
         description = "Search file contents. Search for bare identifiers (e.g. 'InProgressQuote', 'ActorAuth'), NOT code syntax or regex. Filter files with constraints (e.g. '*.rs query', 'src/ query'). Use filename, directory (ending with /) or glob expressions to prefilter. See server instructions for constraint syntax and core rules."
     )]
     fn grep(
@@ -568,10 +568,10 @@ impl FfsServer {
     /// Search file contents for lines matching ANY of multiple patterns (OR logic).
     /// Patterns are literal text — NEVER escape special characters.
     #[tool(
-        name = "multi_grep",
+        name = "ffs_multi_grep",
         description = "Search file contents for lines matching ANY of multiple patterns (OR logic). IMPORTANT: This returns files where ANY query matches, NOT all patterns. Patterns are literal text — NEVER escape special characters (no \\( \\) \\. etc). Faster than regex alternation for literal text. See server instructions for constraint syntax."
     )]
-    fn multi_grep(
+    fn ffs_multi_grep(
         &self,
         Parameters(params): Parameters<MultiGrepParams>,
     ) -> Result<CallToolResult, ErrorData> {
@@ -939,7 +939,7 @@ impl FfsServer {
         let parsed_constraints = parser.parse(constraint_query);
         let constraints = parsed_constraints.constraints.as_slice();
 
-        let result = picker.multi_grep(&patterns_refs, constraints, &options);
+        let result = picker.ffs_multi_grep(&patterns_refs, constraints, &options);
         let file_refs: Vec<&FileItem> = result.files.to_vec();
 
         if result.matches.is_empty() && file_offset == 0 {
@@ -979,7 +979,7 @@ impl FfsServer {
                     }
                     .format(&mut cs);
                     return Ok(CallToolResult::success(vec![Content::text(format!(
-                        "0 multi-pattern matches. Plain grep fallback for \"{}\":\n{}",
+                        "0 multi-pattern matches. Plain ffs_grep fallback for \"{}\":\n{}",
                         pat, text
                     ))]));
                 }
@@ -1041,8 +1041,8 @@ mod tests {
 
     #[test]
     fn normalize_max_results_zero_uses_default() {
-        // Issue #400: `maxResults: 0` must not return zero items for grep
-        // while `find_files` returns the full set. Both tools now map 0 to
+        // Issue #400: `maxResults: 0` must not return zero items for ffs_grep
+        // while `ffs_find` returns the full set. Both tools now map 0 to
         // the default limit.
         assert_eq!(normalize_max_results(Some(0.0), 20), 20);
     }

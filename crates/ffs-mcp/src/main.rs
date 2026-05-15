@@ -30,9 +30,9 @@ pub const MCP_INSTRUCTIONS: &str = concat!(
     "\n",
     "## Which Tool Should I Use?\n",
     "\n",
-    "- **grep**: DEFAULT tool. Searches file CONTENTS -- definitions, usage, patterns. Use when you have a specific name or pattern.\n",
-    "- **find_files**: Explores which files/modules exist for a topic. Use when you DON'T have a specific identifier or LOOKING FOR A FILE.\n",
-    "- **multi_grep**: OR logic across multiple patterns. Use for case variants (e.g. ['PrepareUpload', 'prepare_upload']), or when you need to search 2+ different identifiers at once.\n",
+    "- **ffs_grep**: DEFAULT tool. Searches file CONTENTS -- definitions, usage, patterns. Use when you have a specific name or pattern.\n",
+    "- **ffs_find**: Explores which files/modules exist for a topic. Use when you DON'T have a specific identifier or LOOKING FOR A FILE.\n",
+    "- **ffs_multi_grep**: OR logic across multiple patterns. Use for case variants (e.g. ['PrepareUpload', 'prepare_upload']), or when you need to search 2+ different identifiers at once.\n",
     "\n",
     "## Core Rules\n",
     "\n",
@@ -47,28 +47,28 @@ pub const MCP_INSTRUCTIONS: &str = concat!(
     "\n",
     "### 2. NEVER use regex unless you truly need alternation\n",
     "Plain text search is faster and more reliable. Regex patterns like `.*`, `\\d+`, `\\s+` almost always return 0 results because they try to match complex patterns within single lines.\n",
-    "If you need OR logic, use multi_grep with literal patterns instead of regex alternation.\n",
+    "If you need OR logic, use ffs_multi_grep with literal patterns instead of regex alternation.\n",
     "\n",
     "### 3. Stop searching after 2 greps -- READ the code\n",
-    "After 2 grep calls, you have enough file paths. Read the top result to understand the code.\n",
-    "Do NOT keep grepping with variations. More greps != better understanding.\n",
+    "After 2 ffs_grep calls, you have enough file paths. Read the top result to understand the code.\n",
+    "Do NOT keep grepping with variations. More ffs_grep calls != better understanding.\n",
     "\n",
-    "### 4. Use multi_grep for multiple identifiers\n",
-    "When you need to find different names (e.g. snake_case + PascalCase, or definition + usage patterns), use ONE multi_grep call instead of sequential greps:\n",
-    "  + multi_grep(['ActorAuth', 'PopulatedActorAuth', 'actor_auth'])\n",
-    "  x grep 'ActorAuth' -> grep 'PopulatedActorAuth' -> grep 'actor_auth'  (3 calls wasted)\n",
+    "### 4. Use ffs_multi_grep for multiple identifiers\n",
+    "When you need to find different names (e.g. snake_case + PascalCase, or definition + usage patterns), use ONE ffs_multi_grep call instead of sequential ffs_grep calls:\n",
+    "  + ffs_multi_grep(['ActorAuth', 'PopulatedActorAuth', 'actor_auth'])\n",
+    "  x ffs_grep 'ActorAuth' -> ffs_grep 'PopulatedActorAuth' -> ffs_grep 'actor_auth'  (3 calls wasted)\n",
     "\n",
     "## Workflow\n",
     "\n",
-    "**Have a specific name?** -> grep the bare identifier.\n",
-    "**Need multiple name variants?** -> multi_grep with all variants in one call.\n",
-    "**Exploring a topic / finding files?** -> find_files.\n",
-    "**Got results?** -> Read the top file. Don't grep again.\n",
+    "**Have a specific name?** -> ffs_grep the bare identifier.\n",
+    "**Need multiple name variants?** -> ffs_multi_grep with all variants in one call.\n",
+    "**Exploring a topic / finding files?** -> ffs_find.\n",
+    "**Got results?** -> Read the top file. Don't ffs_grep again.\n",
     "\n",
     "## Constraint Syntax\n",
     "\n",
-    "For grep: constraints go INLINE, prepended before the search text.\n",
-    "For multi_grep: constraints go in the separate 'constraints' parameter.\n",
+    "For ffs_grep: constraints go INLINE, prepended before the search text.\n",
+    "For ffs_multi_grep: constraints go in the separate 'constraints' parameter.\n",
     "\n",
     "Constraints MUST match one of these formats:\n",
     "  Extension: '*.rs', '*.{ts,tsx}'\n",
@@ -88,7 +88,7 @@ pub const MCP_INSTRUCTIONS: &str = concat!(
     "\n",
     "## Output Format\n",
     "\n",
-    "grep results auto-expand definitions with body context (struct fields, function signatures).\n",
+    "ffs_grep results auto-expand definitions with body context (struct fields, function signatures).\n",
     "This often provides enough information WITHOUT a follow-up Read call.\n",
     "Lines marked with | are definition body context. [def] marks definition files.\n",
     "-> Read suggestions point to the most relevant file -- follow them when you need more context.\n",
@@ -138,7 +138,7 @@ pub(crate) struct Args {
     no_warmup: bool,
 
     /// Disable the content index built after the initial scan.
-    /// This makes grep calls slower but consumes less RAM (recommended to not turn off)
+    /// This makes ffs_ffs_grep calls slower but consumes less RAM (recommended to not turn off)
     no_content_indexing: bool,
 
     /// Explicitly enable content indexing even when `--no-warmup` is set.
@@ -152,7 +152,7 @@ pub(crate) struct Args {
 
     /// Maximum number of files whose content is kept persistently in memory.
     /// Files beyond this limit are still searchable via temporary mmaps that
-    /// are released after each grep. Defaults to 30 000.
+    /// are released after each ffs_grep call. Defaults to 30 000.
     /// Also settable via the FFS_MAX_CACHED_FILES environment variable.
     #[arg(long = "max-cached-files", env = "FFS_MAX_CACHED_FILES")]
     max_cached_files: Option<usize>,
