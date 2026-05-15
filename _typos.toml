@@ -1,12 +1,5 @@
 [files]
-extend-exclude = [
-    "/CHANGELOG.md",
-    "data/filetypes/base.lua",
-    # Vietnamese-language design docs from the v0.7.3 audit. typos doesn't
-    # speak Vietnamese and the common word "thay" trips it.
-    "/PLAN.md",
-    "/REMAINING.md",
-]
+extend-exclude = ["/CHANGELOG.md", "data/filetypes/base.lua"]
 
 [default.extend-words]
 noice = "noice"
