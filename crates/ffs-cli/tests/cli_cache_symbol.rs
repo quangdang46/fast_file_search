@@ -106,3 +106,42 @@ fn cache_invalidates_when_file_count_changes_substantially() {
     let (v, _) = run(tmp.path(), &["symbol", "g7"]);
     assert_eq!(v["total"].as_u64().unwrap(), 1);
 }
+
+#[test]
+fn ffs_index_writes_bigram_cache_and_grep_uses_it() {
+    let tmp = TempDir::new().unwrap();
+    write_file(tmp.path(), "src/lib.rs", "fn alpha() {}\nfn beta() {}\n");
+    write_file(tmp.path(), "src/extra.rs", "fn gamma() {}\n");
+
+    let (v, _) = run(tmp.path(), &["index"]);
+    assert!(v["bigram_cache_written"].as_bool().unwrap());
+    assert!(v["bigram_count"].as_u64().unwrap() > 0);
+    let bigram_file = tmp.path().join(".ffs/bigram.postcard.zst");
+    assert!(
+        bigram_file.exists(),
+        "bigram cache should exist after `ffs index`"
+    );
+
+    // Literal pattern that only appears in lib.rs — bigram filter must
+    // narrow the candidate list and still produce the correct hit.
+    let (v, _) = run(tmp.path(), &["grep", "alpha"]);
+    let hits = v["hits"].as_array().unwrap();
+    assert_eq!(hits.len(), 1, "expected single hit for 'alpha'");
+    assert_eq!(hits[0]["line"].as_u64().unwrap(), 1);
+
+    // Pattern that doesn't appear anywhere — bigram filter rules out
+    // every file.
+    let (v, _) = run(tmp.path(), &["grep", "deltagram"]);
+    assert_eq!(v["hits"].as_array().unwrap().len(), 0);
+}
+
+#[test]
+fn ffs_grep_works_without_bigram_cache() {
+    let tmp = TempDir::new().unwrap();
+    write_file(tmp.path(), "src/lib.rs", "fn solo() {}\n");
+    // No `ffs index` ran — bigram cache absent, grep must fall back to
+    // walk_files and still find the match.
+    let (v, _) = run(tmp.path(), &["grep", "solo"]);
+    let hits = v["hits"].as_array().unwrap();
+    assert_eq!(hits.len(), 1);
+}

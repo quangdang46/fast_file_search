@@ -11,6 +11,14 @@ use serde::Serialize;
 use crate::cli::OutputFormat;
 
 #[derive(Debug, Parser)]
+#[command(after_help = "\
+EXAMPLES:
+  ffs grep TODO                            # smart-case literal search
+  ffs grep '\\bTODO\\b' --regex            # forced regex (auto-detect would also pick this up)
+  ffs grep -F '.is_file()'                 # force literal — '.' won't be a regex wildcard
+  ffs grep --regex 'fn\\s+\\w+\\(' --root crates/  # signature-style regex over a sub-tree
+  ffs grep -w error                        # whole-word match only
+  ffs grep -l fixme                        # files-with-matches mode (one path per line)")]
 pub struct Args {
     /// Pattern. Auto-detected as a regular expression when it contains any
     /// regex metacharacter (`.`, `*`, `+`, `?`, `^`, `$`, `[`, `(`, `|`, `\`).
@@ -180,9 +188,26 @@ fn byte_to_line(haystack: &[u8], offset: usize) -> (u32, &[u8]) {
 }
 
 pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
-    let files = super::walk_files(root);
-    let total_files = files.len();
     let (matcher, mode) = Matcher::build(&args)?;
+
+    // Bigram prefilter: only safe (and helpful) for literal patterns.
+    // We try to load the persisted index; on miss we just scan everything.
+    let prefilter_paths: Option<Vec<PathBuf>> = match &matcher {
+        Matcher::Literal { needle, .. } if needle.len() >= 2 => {
+            let cache = crate::cache::CacheDir::at(root);
+            cache.load_bigram_index(root).and_then(|idx| {
+                idx.filter(needle)
+                    .map(|paths| paths.into_iter().map(PathBuf::from).collect())
+            })
+        }
+        _ => None,
+    };
+
+    let files: Vec<PathBuf> = match prefilter_paths {
+        Some(paths) => paths,
+        None => super::walk_files(root),
+    };
+    let total_files = files.len();
     let limit = args.limit;
     let max_count = if args.max_count == 0 {
         usize::MAX

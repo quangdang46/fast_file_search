@@ -24,10 +24,13 @@ use serde::{Deserialize, Serialize};
 use ffs_engine::{Engine, EngineConfig};
 use ffs_symbol::{SymbolIndex, SymbolIndexSnapshot};
 
+use crate::bigram::GrepBigram;
+
 const SCHEMA_VERSION: &str = "v1";
 const FFS_VERSION: &str = env!("CARGO_PKG_VERSION");
 const META_FILE: &str = "meta.json";
 const SYMBOL_FILE: &str = "symbol_index.postcard.zst";
+const BIGRAM_FILE: &str = "bigram.postcard.zst";
 const ZSTD_LEVEL: i32 = 19;
 
 /// Persisted alongside each cache payload — used to decide whether the cache
@@ -72,6 +75,12 @@ impl CacheDir {
         self.dir.join(META_FILE)
     }
 
+    /// Path to the bigram-index payload.
+    #[must_use]
+    pub fn bigram_path(&self) -> PathBuf {
+        self.dir.join(BIGRAM_FILE)
+    }
+
     /// Load the cached symbol index for `root`, returning `None` if the cache
     /// is missing, corrupt, or invalidated by a metadata mismatch.
     pub fn load_symbol_index(&self, root: &Path) -> Option<SymbolIndex> {
@@ -85,10 +94,55 @@ impl CacheDir {
         if !file_count_within_tolerance(root, meta.file_count) {
             return None;
         }
+        self.read_payload()
+    }
+
+    /// Like `load_symbol_index`, but only enforces that the on-disk schema
+    /// version matches. Returns `Some` even when git HEAD or file count
+    /// drifted — used by the incremental-refresh path which can re-parse
+    /// changed files instead of rebuilding from scratch.
+    pub fn load_symbol_index_stale(&self, _root: &Path) -> Option<SymbolIndex> {
+        let meta = self.read_meta().ok()?;
+        if meta.schema_version != SCHEMA_VERSION {
+            return None;
+        }
+        self.read_payload()
+    }
+
+    fn read_payload(&self) -> Option<SymbolIndex> {
         let bytes = fs::read(self.symbol_path()).ok()?;
         let decompressed = zstd::stream::decode_all(&bytes[..]).ok()?;
         let snap: SymbolIndexSnapshot = postcard::from_bytes(&decompressed).ok()?;
         Some(SymbolIndex::from_snapshot(snap))
+    }
+
+    /// Persist the bigram filter to `<root>/.ffs/bigram.postcard.zst`.
+    /// Atomic; uses the same postcard+zstd format as the symbol cache.
+    pub fn write_bigram_index(&self, idx: &GrepBigram) -> Result<()> {
+        self.ensure()?;
+        let payload = postcard::to_allocvec(idx).context("postcard serialize bigram index")?;
+        let mut compressed = Vec::with_capacity(payload.len() / 4);
+        zstd::stream::copy_encode(&payload[..], &mut compressed, ZSTD_LEVEL)
+            .context("zstd compress bigram index")?;
+        atomic_write(&self.bigram_path(), &compressed)
+    }
+
+    /// Load the bigram filter, returning `None` if it's missing, corrupt,
+    /// or invalidated by the same metadata checks as the symbol cache.
+    pub fn load_bigram_index(&self, root: &Path) -> Option<GrepBigram> {
+        let meta = self.read_meta().ok()?;
+        if meta.schema_version != SCHEMA_VERSION {
+            return None;
+        }
+        if !head_matches(root, meta.git_head.as_deref()) {
+            return None;
+        }
+        if !file_count_within_tolerance(root, meta.file_count) {
+            return None;
+        }
+        let bytes = fs::read(self.bigram_path()).ok()?;
+        let decompressed = zstd::stream::decode_all(&bytes[..]).ok()?;
+        postcard::from_bytes::<GrepBigram>(&decompressed).ok()
     }
 
     /// Snapshot `idx` to `<root>/.ffs/symbol_index.postcard.zst`, atomically
@@ -133,10 +187,54 @@ pub fn load_or_build_engine(root: &Path) -> Engine {
     if let Some(idx) = cache.load_symbol_index(root) {
         return Engine::with_symbols(EngineConfig::default(), Arc::new(idx));
     }
+    if let Some(idx) = cache.load_symbol_index_stale(root) {
+        // Stale but readable — re-parse only the files that changed.
+        refresh_symbol_index(&idx, root);
+        let _ = cache.write_symbol_index(&idx, root);
+        return Engine::with_symbols(EngineConfig::default(), Arc::new(idx));
+    }
     let engine = Engine::default();
     engine.index(root);
     let _ = cache.write_symbol_index(&engine.handles.symbols, root);
     engine
+}
+
+/// In-place incremental refresh of `idx` against the current contents of
+/// `root`. Drops symbols from files that no longer exist and re-parses
+/// files whose mtime moved since the snapshot. `SymbolIndex::index_file`
+/// is itself mtime-skip aware, so unchanged files stay free.
+pub fn refresh_symbol_index(idx: &SymbolIndex, root: &Path) {
+    use rayon::prelude::*;
+
+    let on_disk = crate::commands::walk_files(root);
+    let on_disk_set: std::collections::HashSet<&Path> =
+        on_disk.iter().map(PathBuf::as_path).collect();
+
+    let stale: Vec<PathBuf> = idx
+        .indexed_paths()
+        .into_iter()
+        .filter(|p| !on_disk_set.contains(p.as_path()))
+        .collect();
+    idx.drop_files(&stale);
+
+    on_disk.par_iter().for_each(|path| {
+        let Ok(meta) = std::fs::metadata(path) else {
+            return;
+        };
+        let mtime = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
+        if idx.mtime_for(path) == Some(mtime) {
+            return;
+        }
+        // 4 MB cap mirrors UnifiedScanner — keeps a single huge file from
+        // stalling refresh.
+        if meta.len() == 0 || meta.len() > 4 * 1024 * 1024 {
+            return;
+        }
+        let Ok(content) = std::fs::read_to_string(path) else {
+            return;
+        };
+        idx.index_file(path, mtime, &content);
+    });
 }
 
 fn head_matches(root: &Path, expected: Option<&str>) -> bool {
@@ -265,5 +363,87 @@ mod tests {
         let engine = load_or_build_engine(dir.path());
         assert_eq!(engine.handles.symbols.lookup_exact("alpha").len(), 1);
         let _ = SystemTime::now();
+    }
+
+    #[test]
+    fn load_symbol_index_stale_returns_some_when_head_changes() {
+        let (dir, idx) = build_index("fn alpha() {}\n", "lib.rs");
+        let cache = CacheDir::at(dir.path());
+        cache.write_symbol_index(&idx, dir.path()).unwrap();
+
+        // Plant a fake .git/HEAD so strict load fails the head check.
+        std::fs::create_dir_all(dir.path().join(".git")).unwrap();
+        std::fs::write(dir.path().join(".git/HEAD"), "deadbeef\n").unwrap();
+
+        assert!(cache.load_symbol_index(dir.path()).is_none());
+        assert!(cache.load_symbol_index_stale(dir.path()).is_some());
+    }
+
+    #[test]
+    fn refresh_symbol_index_drops_deleted_files_and_parses_new_ones() {
+        let dir = tempfile::tempdir().unwrap();
+        let a = dir.path().join("a.rs");
+        let b = dir.path().join("b.rs");
+        std::fs::write(&a, "fn from_a() {}\n").unwrap();
+        std::fs::write(&b, "fn from_b() {}\n").unwrap();
+
+        // Build initial index covering both files.
+        let cache = CacheDir::at(dir.path());
+        let engine = load_or_build_engine(dir.path());
+        assert_eq!(engine.handles.symbols.lookup_exact("from_a").len(), 1);
+        assert_eq!(engine.handles.symbols.lookup_exact("from_b").len(), 1);
+
+        // Delete a.rs, add c.rs, modify b.rs.
+        std::fs::remove_file(&a).unwrap();
+        std::fs::write(dir.path().join("c.rs"), "fn from_c() {}\n").unwrap();
+        // Bump mtime by rewriting b.rs with new content.
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        std::fs::write(&b, "fn from_b_v2() {}\n").unwrap();
+
+        // Force the next call to take the stale path: tamper with HEAD.
+        std::fs::create_dir_all(dir.path().join(".git")).unwrap();
+        std::fs::write(dir.path().join(".git/HEAD"), "deadbeef\n").unwrap();
+
+        // Should hit the stale-load + refresh branch.
+        let engine = load_or_build_engine(dir.path());
+        let symbols = &engine.handles.symbols;
+        assert!(
+            symbols.lookup_exact("from_a").is_empty(),
+            "deleted symbol must drop"
+        );
+        assert!(
+            symbols.lookup_exact("from_b").is_empty(),
+            "old symbol must drop"
+        );
+        assert_eq!(symbols.lookup_exact("from_b_v2").len(), 1);
+        assert_eq!(symbols.lookup_exact("from_c").len(), 1);
+
+        // Cache file should be present (rewritten by refresh path).
+        assert!(cache.symbol_path().exists());
+    }
+
+    #[test]
+    fn refresh_symbol_index_preserves_unchanged_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let stable = dir.path().join("stable.rs");
+        let touched = dir.path().join("touched.rs");
+        std::fs::write(&stable, "fn alpha() {}\n").unwrap();
+        std::fs::write(&touched, "fn beta() {}\n").unwrap();
+
+        let engine = load_or_build_engine(dir.path());
+        let stable_mtime = engine.handles.symbols.mtime_for(&stable);
+        assert!(stable_mtime.is_some());
+
+        // Modify touched.rs only. Force stale path.
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        std::fs::write(&touched, "fn beta_v2() {}\n").unwrap();
+        std::fs::create_dir_all(dir.path().join(".git")).unwrap();
+        std::fs::write(dir.path().join(".git/HEAD"), "deadbeef\n").unwrap();
+
+        let engine = load_or_build_engine(dir.path());
+        // stable.rs's mtime should be unchanged in the index (no re-parse).
+        assert_eq!(engine.handles.symbols.mtime_for(&stable), stable_mtime);
+        assert_eq!(engine.handles.symbols.lookup_exact("alpha").len(), 1);
+        assert_eq!(engine.handles.symbols.lookup_exact("beta_v2").len(), 1);
     }
 }

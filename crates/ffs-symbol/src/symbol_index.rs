@@ -205,6 +205,20 @@ impl SymbolIndex {
         self.files_indexed.store(new_files, Ordering::Relaxed);
     }
 
+    /// Snapshot the set of indexed file paths. Used by incremental refresh
+    /// to spot deletions (paths in the index that no longer exist on disk).
+    #[must_use]
+    pub fn indexed_paths(&self) -> Vec<PathBuf> {
+        self.files.iter().map(|e| e.key().clone()).collect()
+    }
+
+    /// Look up the recorded mtime for `path`, if any. Mostly useful for
+    /// callers that want to short-circuit re-parsing themselves.
+    #[must_use]
+    pub fn mtime_for(&self, path: &Path) -> Option<SystemTime> {
+        self.files.get(path).map(|e| *e.value())
+    }
+
     /// Extract symbol definitions from a file's content and add them to the index.
     /// Skips re-indexing if mtime matches a previously seen entry.
     pub fn index_file(&self, path: &Path, mtime: SystemTime, content: &str) -> usize {
