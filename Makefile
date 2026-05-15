@@ -149,6 +149,11 @@ check: format lint
 
 CRATES_TO_PUBLISH= ffs-grep ffs-query-parser ffs-search
 
+set-version:
+	@test -n "$(V)" || (echo "V is required. Usage: make set-version V=0.2.0" && exit 1)
+	cargo install cargo-edit
+	cargo set-version $(V)
+
 publish-crates:
 	@test -n "$(V)" || (echo "V is required. Usage: make publish-crates V=0.2.0" && exit 1)
 	cargo install cargo-edit

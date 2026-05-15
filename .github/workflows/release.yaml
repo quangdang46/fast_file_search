@@ -73,6 +73,16 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Install Lua
+        uses: leafo/gh-actions-lua@v12
+
+      - name: Determine version
+        id: version
+        run: lua scripts/determine-version.lua
+
+      - name: Set version
+        run: make set-version V="${{ steps.version.outputs.version }}"
+
       - name: Install Rust
         run: rustup target add ${{ matrix.target }}
 
@@ -204,6 +214,16 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Install Lua
+        uses: leafo/gh-actions-lua@v12
+
+      - name: Determine version
+        id: version
+        run: lua scripts/determine-version.lua
+
+      - name: Set version
+        run: make set-version V="${{ steps.version.outputs.version }}"
+
       - name: Install Rust
         run: rustup target add ${{ matrix.target }}
 
@@ -317,6 +337,16 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Install Lua
+        uses: leafo/gh-actions-lua@v12
+
+      - name: Determine version
+        id: version
+        run: lua scripts/determine-version.lua
+
+      - name: Set version
+        run: make set-version V="${{ steps.version.outputs.version }}"
+
       - name: Install Rust
         run: rustup target add ${{ matrix.target }}
 
@@ -402,6 +432,16 @@ jobs:
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
+
+      - name: Install Lua
+        uses: leafo/gh-actions-lua@v12
+
+      - name: Determine version
+        id: version
+        run: lua scripts/determine-version.lua
+
+      - name: Set version
+        run: make set-version V="${{ steps.version.outputs.version }}"
 
       - name: Install Rust
         run: rustup target add ${{ matrix.target }}
