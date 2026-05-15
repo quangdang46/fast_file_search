@@ -1,5 +1,12 @@
 [files]
-extend-exclude = ["/CHANGELOG.md", "data/filetypes/base.lua"]
+extend-exclude = [
+    "/CHANGELOG.md",
+    "data/filetypes/base.lua",
+    # Vietnamese-language design docs from the v0.7.3 audit. typos doesn't
+    # speak Vietnamese and the common word "thay" trips it.
+    "/PLAN.md",
+    "/REMAINING.md",
+]
 
 [default.extend-words]
 noice = "noice"
@@ -15,6 +22,12 @@ thm = "thm"
 comparsion = "comparsion"
 modfiers = "modfiers"
 shcema = "shcema"
+# Intentional typo in `ffs find` fuzzy-fallback doc comment / tests to
+# demonstrate that "isntall.sh" resolves to "install.sh".
+isntall = "isntall"
+# Vietnamese: word meaning "change/replace". Appears in design docs and
+# inline commit-message context.
+thay = "thay"
 
 [default]
 extend-ignore-re = [
