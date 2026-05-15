@@ -1,5 +1,3 @@
-<img alt="ffs" src="./assets/logo-orange.png" width="300">
-
 <p>
   <i>A code-aware file search CLI for humans and AI agents. Really fast.</i>
 </p>
