@@ -58,9 +58,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
                 (
                     "symbol_glob".to_string(),
                     hits.into_iter()
-                        .map(|(n, h)| {
-                            format!("{} @ {}:{}", n, h.path.to_string_lossy(), h.line)
-                        })
+                        .map(|(n, h)| format!("{} @ {}:{}", n, h.path.to_string_lossy(), h.line))
                         .collect(),
                 )
             }

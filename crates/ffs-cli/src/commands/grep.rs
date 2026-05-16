@@ -132,7 +132,10 @@ impl Matcher {
     /// Returns iterator of (start_byte_offset, end_byte_offset) for each
     /// match. Caller maps the start back to a line number; the end is used
     /// to render multi-line matches faithfully (bug 16).
-    fn find_iter<'a>(&'a self, haystack: &'a [u8]) -> Box<dyn Iterator<Item = (usize, usize)> + 'a> {
+    fn find_iter<'a>(
+        &'a self,
+        haystack: &'a [u8],
+    ) -> Box<dyn Iterator<Item = (usize, usize)> + 'a> {
         match self {
             Matcher::Literal {
                 needle,
@@ -143,10 +146,8 @@ impl Matcher {
                     let lower: Vec<u8> = haystack.iter().map(|b| b.to_ascii_lowercase()).collect();
                     let nlen = needle.len();
                     let finder = memmem::Finder::new(&needle).into_owned();
-                    let positions: Vec<(usize, usize)> = finder
-                        .find_iter(&lower)
-                        .map(|p| (p, p + nlen))
-                        .collect();
+                    let positions: Vec<(usize, usize)> =
+                        finder.find_iter(&lower).map(|p| (p, p + nlen)).collect();
                     Box::new(positions.into_iter())
                 } else {
                     let nlen = needle.len();
@@ -260,9 +261,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
             // of just the first line — otherwise the displayed text is
             // misleading (looks like only `foo` matched when the regex
             // really required both `foo` and `bar`).
-            let text = if end > off && end <= content.len()
-                && content[off..end].contains(&b'\n')
-            {
+            let text = if end > off && end <= content.len() && content[off..end].contains(&b'\n') {
                 let snippet = &content[off..end];
                 String::from_utf8_lossy(snippet).replace('\n', "\\n")
             } else {

@@ -414,7 +414,9 @@ fn handle_tool(state: &mut McpState, root: &Path, name: &str, args: &Value) -> R
             state.ensure_indexed(root);
             let mut hits = state.engine.handles.symbols.lookup_exact(nm);
             hits.truncate(limit);
-            Ok(text_json(serde_json::to_string(&symbol_locs_to_json(hits))?))
+            Ok(text_json(serde_json::to_string(&symbol_locs_to_json(
+                hits,
+            ))?))
         }
         "ffs_callers" => {
             let nm = get_string(args, "name")?;
@@ -436,10 +438,13 @@ fn handle_tool(state: &mut McpState, root: &Path, name: &str, args: &Value) -> R
             state.ensure_indexed(root);
             let defs = state.engine.handles.symbols.lookup_exact(nm);
             let usages = collect_callers(state, root, nm, limit);
-            Ok(text_json(json!({
-                "definitions": symbol_locs_to_json(defs),
-                "usages": usages,
-            }).to_string()))
+            Ok(text_json(
+                json!({
+                    "definitions": symbol_locs_to_json(defs),
+                    "usages": usages,
+                })
+                .to_string(),
+            ))
         }
         "ffs_flow" => {
             let nm = get_string(args, "name")?;
@@ -547,7 +552,11 @@ fn get_limit(args: &Value, default: usize) -> usize {
     // with the CLI flag.
     args.get("maxResults")
         .and_then(Value::as_u64)
-        .or_else(|| args.get("maxResults").and_then(Value::as_f64).map(|v| v.round() as u64))
+        .or_else(|| {
+            args.get("maxResults")
+                .and_then(Value::as_f64)
+                .map(|v| v.round() as u64)
+        })
         .or_else(|| args.get("limit").and_then(Value::as_u64))
         .map(|v| v as usize)
         .filter(|v| *v > 0)
@@ -667,13 +676,7 @@ fn collect_callees(state: &mut McpState, _root: &Path, name: &str, limit: usize)
                 if word.len() < 3 || word == name {
                     continue;
                 }
-                if state
-                    .engine
-                    .handles
-                    .symbols
-                    .lookup_exact(word)
-                    .is_empty()
-                {
+                if state.engine.handles.symbols.lookup_exact(word).is_empty() {
                     continue;
                 }
                 hits.push(CalleeHit {
@@ -823,8 +826,7 @@ fn list_imports(path: &Path) -> Vec<String> {
 }
 
 fn render_simple_map(root: &Path, depth: usize) -> Vec<String> {
-    let mut counts: std::collections::BTreeMap<PathBuf, usize> =
-        std::collections::BTreeMap::new();
+    let mut counts: std::collections::BTreeMap<PathBuf, usize> = std::collections::BTreeMap::new();
     for path in super::walk_files(root) {
         let rel = path.strip_prefix(root).unwrap_or(&path);
         let mut acc = PathBuf::new();

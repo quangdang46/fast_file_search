@@ -262,8 +262,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
                 (budget * 4) as usize
             };
 
-            let (final_body, kept_bytes, footer_bytes, view) = if body.len() <= body_budget_bytes
-            {
+            let (final_body, kept_bytes, footer_bytes, view) = if body.len() <= body_budget_bytes {
                 let kept = body.len();
                 (body, kept, 0usize, None)
             } else if let FileType::Code(lang) = detect_file_type(&path) {
@@ -272,8 +271,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
                     .map_err(|e| anyhow!("failed to read {}: {e}", path.display()))?;
                 let entries = get_outline_entries(&content, lang);
                 let refs = as_outline_refs(&entries);
-                let refs_slice: Vec<&dyn OutlineLike> =
-                    refs.iter().map(|b| b.as_ref()).collect();
+                let refs_slice: Vec<&dyn OutlineLike> = refs.iter().map(|b| b.as_ref()).collect();
                 let sig_text = ffs_budget::cascade::render_signatures(&refs_slice);
                 if sig_text.len() <= body_budget_bytes {
                     let kept = sig_text.len();
@@ -334,7 +332,9 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         return Err(anyhow!(
             "ffs read {}: {}",
             path.display(),
-            res.body.trim_start_matches("[error reading file: ").trim_end_matches(']')
+            res.body
+                .trim_start_matches("[error reading file: ")
+                .trim_end_matches(']')
         ));
     }
 
