@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use clap::Parser;
+use ignore::gitignore::GitignoreBuilder;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -99,12 +100,51 @@ fn handle_method(engine: &Engine, root: &Path, method: &str, params: &Value) -> 
         })),
         "tools/list" => Ok(json!({
             "tools": [
-                {"name": "ffs_grep", "description": "Search file contents (replaces Grep)."},
-                {"name": "ffs_glob", "description": "Match files by glob pattern (replaces Glob)."},
-                {"name": "ffs_find", "description": "Fuzzy file path search."},
-                {"name": "ffs_read", "description": "Read a file with token-budget aware truncation (replaces Read)."},
-                {"name": "ffs_symbol", "description": "Look up symbol definitions across the workspace."},
-                {"name": "ffs_dispatch", "description": "Auto-classify a free-form query."},
+                {
+                    "name": "ffs_grep",
+                    "description": "Search file contents (replaces Grep).",
+                    "inputSchema": object_schema(json!({
+                        "query": {"type": "string", "description": "Text to find in file contents."},
+                        "maxResults": {"type": "number", "description": "Maximum matching lines to return."}
+                    }), &["query"])
+                },
+                {
+                    "name": "ffs_glob",
+                    "description": "Match files by glob pattern (replaces Glob).",
+                    "inputSchema": object_schema(json!({
+                        "pattern": {"type": "string", "description": "Glob pattern, for example src/**/*.rs."},
+                        "maxResults": {"type": "number", "description": "Maximum matching paths to return."}
+                    }), &["pattern"])
+                },
+                {
+                    "name": "ffs_find",
+                    "description": "Fuzzy file path search.",
+                    "inputSchema": object_schema(json!({
+                        "query": {"type": "string", "description": "Path substring or fuzzy filename query."},
+                        "maxResults": {"type": "number", "description": "Maximum matching paths to return."}
+                    }), &["query"])
+                },
+                {
+                    "name": "ffs_read",
+                    "description": "Read a file with token-budget aware truncation (replaces Read).",
+                    "inputSchema": object_schema(json!({
+                        "path": {"type": "string", "description": "Relative or absolute file path."}
+                    }), &["path"])
+                },
+                {
+                    "name": "ffs_symbol",
+                    "description": "Look up symbol definitions across the workspace.",
+                    "inputSchema": object_schema(json!({
+                        "name": {"type": "string", "description": "Exact symbol name to look up."}
+                    }), &["name"])
+                },
+                {
+                    "name": "ffs_dispatch",
+                    "description": "Auto-classify a free-form query.",
+                    "inputSchema": object_schema(json!({
+                        "query": {"type": "string", "description": "Free-form search or navigation query."}
+                    }), &["query"])
+                },
             ]
         })),
         "tools/call" => {
@@ -119,13 +159,42 @@ fn handle_method(engine: &Engine, root: &Path, method: &str, params: &Value) -> 
     }
 }
 
+fn object_schema(properties: Value, required: &[&str]) -> Value {
+    json!({
+        "type": "object",
+        "properties": properties,
+        "required": required,
+        "additionalProperties": false
+    })
+}
+
 fn handle_tool(engine: &Engine, root: &Path, name: &str, args: &Value) -> Result<Value> {
     match name {
+        "ffs_grep" => {
+            let query = get_string(args, "query")?;
+            let limit = get_limit(args, 20);
+            let hits = grep_files(root, query, limit);
+            Ok(text_json(serde_json::to_string(&hits)?))
+        }
+        "ffs_glob" => {
+            let pattern = get_string(args, "pattern")?;
+            let limit = get_limit(args, 50);
+            let hits = glob_files(root, pattern, limit)?;
+            Ok(text_json(serde_json::to_string(&hits)?))
+        }
+        "ffs_find" => {
+            let query = get_string(args, "query")?;
+            let limit = get_limit(args, 50);
+            let scopes = [root.to_path_buf()];
+            let mut hits = super::find::search_matches(&scopes, query);
+            if hits.is_empty() {
+                hits = super::find::fuzzy_search_matches(&scopes, query);
+            }
+            hits.truncate(limit);
+            Ok(text_json(serde_json::to_string(&hits)?))
+        }
         "ffs_dispatch" => {
-            let query = args
-                .get("query")
-                .and_then(Value::as_str)
-                .ok_or_else(|| anyhow::anyhow!("missing query"))?;
+            let query = get_string(args, "query")?;
             let result = engine.dispatch(query, root);
             let summary = match result {
                 DispatchResult::Symbol { hits, .. } => {
@@ -142,33 +211,109 @@ fn handle_tool(engine: &Engine, root: &Path, name: &str, args: &Value) -> Result
                 }
                 DispatchResult::ContentFallback { .. } => json!({"kind": "content_fallback"}),
             };
-            Ok(json!({"content": [{"type": "text", "text": summary.to_string()}]}))
+            Ok(text_json(summary.to_string()))
         }
         "ffs_read" => {
-            let target = args
-                .get("path")
-                .and_then(Value::as_str)
-                .ok_or_else(|| anyhow::anyhow!("missing path"))?;
+            let target = get_string(args, "path")?;
             let p = if Path::new(target).is_absolute() {
                 PathBuf::from(target)
             } else {
                 root.join(target)
             };
             let res = engine.read(&p);
-            Ok(json!({"content": [{"type": "text", "text": res.body}]}))
+            Ok(text_json(res.body))
         }
         "ffs_symbol" => {
-            let nm = args
-                .get("name")
-                .and_then(Value::as_str)
-                .ok_or_else(|| anyhow::anyhow!("missing name"))?;
+            let nm = get_string(args, "name")?;
             let hits = engine.handles.symbols.lookup_exact(nm);
-            Ok(
-                json!({"content": [{"type": "text", "text": serde_json::to_string(&symbol_locs_to_json(hits))?}]}),
-            )
+            Ok(text_json(serde_json::to_string(&symbol_locs_to_json(
+                hits,
+            ))?))
         }
         other => Err(anyhow::anyhow!("unknown tool: {other}")),
     }
+}
+
+fn text_json(text: impl Into<String>) -> Value {
+    json!({"content": [{"type": "text", "text": text.into()}]})
+}
+
+fn get_string<'a>(args: &'a Value, key: &str) -> Result<&'a str> {
+    args.get(key)
+        .and_then(Value::as_str)
+        .ok_or_else(|| anyhow::anyhow!("missing {key}"))
+}
+
+fn get_limit(args: &Value, default: usize) -> usize {
+    args.get("maxResults")
+        .and_then(Value::as_f64)
+        .filter(|v| v.is_finite() && *v > 0.0)
+        .map(|v| v.round() as usize)
+        .unwrap_or(default)
+        .max(1)
+}
+
+#[derive(Debug, Serialize)]
+struct GrepHit {
+    path: String,
+    line: usize,
+    text: String,
+}
+
+fn grep_files(root: &Path, query: &str, limit: usize) -> Vec<GrepHit> {
+    let query_lower = query.to_lowercase();
+    let smart_case = query.chars().any(char::is_uppercase);
+    let mut hits = Vec::new();
+    for path in super::walk_files(root) {
+        if hits.len() >= limit {
+            break;
+        }
+        let Ok(text) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        for (line_idx, line) in text.lines().enumerate() {
+            let found = if smart_case {
+                line.contains(query)
+            } else {
+                line.to_lowercase().contains(&query_lower)
+            };
+            if found {
+                hits.push(GrepHit {
+                    path: display_path(root, &path),
+                    line: line_idx + 1,
+                    text: line.trim().to_string(),
+                });
+                if hits.len() >= limit {
+                    break;
+                }
+            }
+        }
+    }
+    hits
+}
+
+fn glob_files(root: &Path, pattern: &str, limit: usize) -> Result<Vec<String>> {
+    let mut builder = GitignoreBuilder::new(root);
+    builder.add_line(None, pattern)?;
+    let matcher = builder.build()?;
+    let mut hits = Vec::new();
+    for path in super::walk_files(root) {
+        let rel = path.strip_prefix(root).unwrap_or(&path);
+        if matcher.matched(rel, false).is_ignore() {
+            hits.push(display_path(root, &path));
+            if hits.len() >= limit {
+                break;
+            }
+        }
+    }
+    Ok(hits)
+}
+
+fn display_path(root: &Path, path: &Path) -> String {
+    path.strip_prefix(root)
+        .unwrap_or(path)
+        .to_string_lossy()
+        .to_string()
 }
 
 fn symbol_locs_to_json(hits: Vec<ffs_symbol::symbol_index::SymbolLocation>) -> Value {
@@ -202,4 +347,43 @@ fn symbol_glob_to_json(hits: Vec<(String, ffs_symbol::symbol_index::SymbolLocati
             })
             .collect(),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tools_list_includes_object_input_schemas() {
+        let td = tempfile::tempdir().unwrap();
+        let engine = Engine::default();
+        let result = handle_method(&engine, td.path(), "tools/list", &Value::Null).unwrap();
+        let tools = result["tools"].as_array().unwrap();
+
+        assert_eq!(tools.len(), 6);
+        for tool in tools {
+            assert_eq!(tool["inputSchema"]["type"], "object");
+            assert!(tool["inputSchema"]["properties"].is_object());
+            assert!(tool["inputSchema"]["required"].is_array());
+        }
+    }
+
+    #[test]
+    fn advertised_file_tools_are_callable() {
+        let td = tempfile::tempdir().unwrap();
+        let root = td.path();
+        std::fs::write(root.join("mcp.rs"), "fn mcp_schema() {}\n").unwrap();
+        let engine = Engine::default();
+        engine.index(root);
+
+        for (name, args) in [
+            ("ffs_find", json!({"query": "mcp.rs"})),
+            ("ffs_glob", json!({"pattern": "*.rs"})),
+            ("ffs_grep", json!({"query": "mcp_schema"})),
+            ("ffs_read", json!({"path": "mcp.rs"})),
+        ] {
+            let result = handle_tool(&engine, root, name, &args).unwrap();
+            assert!(result["content"][0]["text"].is_string(), "{name}");
+        }
+    }
 }
