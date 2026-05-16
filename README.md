@@ -172,8 +172,8 @@ into the same engine — there is no duplicated search logic.
                                  │
                                  ▼
 ┌──────────────────────────────────────────────────────────────────────┐
-│  Core layer (ffs-core, published as `ffs-search` on crates.io)       │
-│  ─────────────────────────────────────────────────────────────       │
+│  Core layer (ffs-core)                                               │
+│  ─────────────────────                                               │
 │  scan · file_picker · score · bigram_filter · git · frecency         │
 │  background_watcher · ignore · simd_path · constraints               │
 └──────────────────────────────────────────────────────────────────────┘
@@ -305,7 +305,7 @@ The same Rust core powers four other entry points. See each subdirectory for det
 | **Bun SDK** | [`packages/ffs-bun/`](./packages/ffs-bun/) | TypeScript wrapper over the C library for Bun. |
 | **Pi extension** | [`packages/pi-ffs/`](./packages/pi-ffs/) | [pi](https://github.com/badlogic/pi-mono) extension that swaps native `find`/`grep` for ffs. |
 | **C ABI** | [`crates/ffs-c/`](./crates/ffs-c/) + [`crates/ffs-c/include/ffs.h`](./crates/ffs-c/include/ffs.h) | Stable C library — bind from C/C++, Zig, Go via cgo, Python via ctypes. |
-| **Rust crate** | [`crates/ffs-core/`](./crates/ffs-core/) ([`ffs-search` on crates.io](https://crates.io/crates/ffs-search)) | Native Rust SDK. |
+| **Rust crate** | [`crates/ffs-core/`](./crates/ffs-core/) | Native Rust SDK. |
 
 ---
 
@@ -333,7 +333,7 @@ The full workspace (`make build`) also produces:
 
 ```
 crates/
-  ffs-core/         # Rust core SDK (publishes as `ffs-search`)
+  ffs-core/         # Rust core SDK
   ffs-cli/          # the `ffs` binary
   ffs-mcp/          # MCP server (`ffs-mcp` binary)
   ffs-c/            # C FFI library (libffs_c, header in include/ffs.h)
