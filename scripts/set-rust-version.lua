@@ -40,9 +40,7 @@ local function update_package_versions(text)
     local header = line:match('^%s*%[([^%]]+)%]')
     if header then section = header end
 
-    if section == 'package' then
-      line = line:gsub('^(%s*version%s*=%s*")[^"]+(")', '%1' .. version .. '%2')
-    end
+    if section == 'package' then line = line:gsub('^(%s*version%s*=%s*")[^"]+(")', '%1' .. version .. '%2') end
 
     out[#out + 1] = line
   end
