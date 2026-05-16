@@ -20,6 +20,27 @@ pub struct Args {
     pub budget: Option<u64>,
 }
 
+struct McpState {
+    engine: Engine,
+    indexed: bool,
+}
+
+impl McpState {
+    fn new(engine: Engine) -> Self {
+        Self {
+            engine,
+            indexed: false,
+        }
+    }
+
+    fn ensure_indexed(&mut self, root: &Path) {
+        if !self.indexed {
+            self.engine.index(root);
+            self.indexed = true;
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 struct Request {
     #[serde(default)]
@@ -46,7 +67,7 @@ pub fn run(args: Args, root: &Path) -> Result<()> {
         ..EngineConfig::default()
     };
     let engine = Engine::new(cfg);
-    engine.index(root);
+    let mut state = McpState::new(engine);
 
     let stdin = std::io::stdin();
     let mut out = std::io::stdout().lock();
@@ -72,7 +93,11 @@ pub fn run(args: Args, root: &Path) -> Result<()> {
         debug_assert!(req.jsonrpc == "2.0" || req.jsonrpc.is_empty());
 
         let id = req.id.unwrap_or(Value::Null);
-        let resp = match handle_method(&engine, root, &req.method, &req.params) {
+        // JSON-RPC 2.0 notifications have no `id`; don't respond.
+        if id.is_null() {
+            continue;
+        }
+        let resp = match handle_method(&mut state, root, &req.method, &req.params) {
             Ok(value) => Response {
                 jsonrpc: "2.0",
                 id,
@@ -82,8 +107,8 @@ pub fn run(args: Args, root: &Path) -> Result<()> {
             Err(e) => Response {
                 jsonrpc: "2.0",
                 id,
-                result: None,
                 error: Some(json!({"code": -32000, "message": e.to_string()})),
+                result: None,
             },
         };
         writeln!(out, "{}", serde_json::to_string(&resp)?)?;
@@ -91,8 +116,11 @@ pub fn run(args: Args, root: &Path) -> Result<()> {
     Ok(())
 }
 
-fn handle_method(engine: &Engine, root: &Path, method: &str, params: &Value) -> Result<Value> {
+fn handle_method(state: &mut McpState, root: &Path, method: &str, params: &Value) -> Result<Value> {
     match method {
+        // Notifications per JSON-RPC 2.0: no response sent (caller skips
+        // writing to stdout when the id is Null).
+        "notifications/initialized" => Ok(Value::Null),
         "initialize" => Ok(json!({
             "protocolVersion": "2024-11-05",
             "serverInfo": {"name": "ffs", "version": env!("CARGO_PKG_VERSION")},
@@ -153,7 +181,7 @@ fn handle_method(engine: &Engine, root: &Path, method: &str, params: &Value) -> 
                 .and_then(Value::as_str)
                 .ok_or_else(|| anyhow::anyhow!("missing tool name"))?;
             let arguments = params.get("arguments").cloned().unwrap_or(Value::Null);
-            handle_tool(engine, root, name, &arguments)
+            handle_tool(state, root, name, &arguments)
         }
         other => Err(anyhow::anyhow!("unknown method: {other}")),
     }
@@ -168,7 +196,7 @@ fn object_schema(properties: Value, required: &[&str]) -> Value {
     })
 }
 
-fn handle_tool(engine: &Engine, root: &Path, name: &str, args: &Value) -> Result<Value> {
+fn handle_tool(state: &mut McpState, root: &Path, name: &str, args: &Value) -> Result<Value> {
     match name {
         "ffs_grep" => {
             let query = get_string(args, "query")?;
@@ -195,7 +223,8 @@ fn handle_tool(engine: &Engine, root: &Path, name: &str, args: &Value) -> Result
         }
         "ffs_dispatch" => {
             let query = get_string(args, "query")?;
-            let result = engine.dispatch(query, root);
+            state.ensure_indexed(root);
+            let result = state.engine.dispatch(query, root);
             let summary = match result {
                 DispatchResult::Symbol { hits, .. } => {
                     json!({"kind": "symbol", "hits": symbol_locs_to_json(hits)})
@@ -220,12 +249,13 @@ fn handle_tool(engine: &Engine, root: &Path, name: &str, args: &Value) -> Result
             } else {
                 root.join(target)
             };
-            let res = engine.read(&p);
+            let res = state.engine.read(&p);
             Ok(text_json(res.body))
         }
         "ffs_symbol" => {
             let nm = get_string(args, "name")?;
-            let hits = engine.handles.symbols.lookup_exact(nm);
+            state.ensure_indexed(root);
+            let hits = state.engine.handles.symbols.lookup_exact(nm);
             Ok(text_json(serde_json::to_string(&symbol_locs_to_json(
                 hits,
             ))?))
@@ -356,8 +386,8 @@ mod tests {
     #[test]
     fn tools_list_includes_object_input_schemas() {
         let td = tempfile::tempdir().unwrap();
-        let engine = Engine::default();
-        let result = handle_method(&engine, td.path(), "tools/list", &Value::Null).unwrap();
+        let mut state = McpState::new(Engine::default());
+        let result = handle_method(&mut state, td.path(), "tools/list", &Value::Null).unwrap();
         let tools = result["tools"].as_array().unwrap();
 
         assert_eq!(tools.len(), 6);
@@ -373,8 +403,7 @@ mod tests {
         let td = tempfile::tempdir().unwrap();
         let root = td.path();
         std::fs::write(root.join("mcp.rs"), "fn mcp_schema() {}\n").unwrap();
-        let engine = Engine::default();
-        engine.index(root);
+        let mut state = McpState::new(Engine::default());
 
         for (name, args) in [
             ("ffs_find", json!({"query": "mcp.rs"})),
@@ -382,8 +411,47 @@ mod tests {
             ("ffs_grep", json!({"query": "mcp_schema"})),
             ("ffs_read", json!({"path": "mcp.rs"})),
         ] {
-            let result = handle_tool(&engine, root, name, &args).unwrap();
+            let result = handle_tool(&mut state, root, name, &args).unwrap();
             assert!(result["content"][0]["text"].is_string(), "{name}");
         }
+    }
+
+    #[test]
+    fn initialize_does_not_index_workspace() {
+        let td = tempfile::tempdir().unwrap();
+        std::fs::write(td.path().join("mcp.rs"), "fn mcp_schema() {}\n").unwrap();
+        let mut state = McpState::new(Engine::default());
+
+        let result = handle_method(&mut state, td.path(), "initialize", &Value::Null).unwrap();
+
+        assert_eq!(result["serverInfo"]["name"], "ffs");
+        assert!(!state.indexed);
+        assert!(state
+            .engine
+            .handles
+            .symbols
+            .lookup_exact("mcp_schema")
+            .is_empty());
+    }
+
+    #[test]
+    fn symbol_tool_indexes_lazily() {
+        let td = tempfile::tempdir().unwrap();
+        std::fs::write(td.path().join("mcp.rs"), "fn mcp_schema() {}\n").unwrap();
+        let mut state = McpState::new(Engine::default());
+
+        let result = handle_tool(
+            &mut state,
+            td.path(),
+            "ffs_symbol",
+            &json!({"name": "mcp_schema"}),
+        )
+        .unwrap();
+
+        assert!(state.indexed);
+        assert!(result["content"][0]["text"]
+            .as_str()
+            .unwrap()
+            .contains("mcp.rs"));
     }
 }
