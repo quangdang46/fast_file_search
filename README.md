@@ -84,48 +84,6 @@ the working directory globally.
 and registers 16 tools that any MCP-capable agent (Claude Code, Codex,
 OpenCode, Cursor, Cline, …) can call:
 
-### Auto-install + registration
-
-`install.sh` does both jobs in one shot: it installs the `ffs` binary
-**and** registers `ffs mcp` as a server with every detected MCP-capable
-provider. MCP registration is on by default — pass `--no-mcp` to skip.
-Re-runs are idempotent — it diffs against existing entries instead of
-clobbering unrelated tools.
-
-```bash
-# Install ffs + auto-register with every detected provider (default).
-curl -fsSL https://raw.githubusercontent.com/quangdang46/fast_file_search/main/install.sh \
-  | bash
-
-# Binary only — no MCP registration.
-curl -fsSL https://raw.githubusercontent.com/quangdang46/fast_file_search/main/install.sh \
-  | bash -s -- --no-mcp
-
-# Only register with a subset.
-curl -fsSL https://raw.githubusercontent.com/quangdang46/fast_file_search/main/install.sh \
-  | bash -s -- --mcp-providers cursor,opencode
-
-# ffs already on PATH? Skip the binary install and just register.
-curl -fsSL https://raw.githubusercontent.com/quangdang46/fast_file_search/main/install.sh \
-  | bash -s -- --mcp-only
-
-# Preview the writes without touching disk.
-curl -fsSL https://raw.githubusercontent.com/quangdang46/fast_file_search/main/install.sh \
-  | bash -s -- --mcp-dry-run
-
-# Remove ffs from every provider config (binary stays).
-curl -fsSL https://raw.githubusercontent.com/quangdang46/fast_file_search/main/install.sh \
-  | bash -s -- --mcp-uninstall
-```
-
-Supported providers: **Claude Code**, **Codex**, **Cursor**, **Cline**,
-**OpenCode**, **Continue**. Providers with no installed agent are
-silently skipped, and providers that need `jq` (Cursor, Cline, OpenCode)
-auto-skip when `jq` is missing instead of aborting the install. Run
-`bash install.sh --help` for the full flag list (`--mcp-name`, `--dest`,
-`--version`, `--quiet`, …). The legacy `install-mcp.sh` URL still works
-— it forwards to `install.sh` with the matching flags.
-
 ### Tools registered
 
 | Tool            | What it answers                                                                                  |
@@ -175,6 +133,163 @@ directory, use ffs tools.
 
 On a 500k-file Chromium checkout, that is the difference between 3-9 **seconds**
 per ripgrep spawn and sub-10 ms per ffs query.
+
+---
+
+## Architecture
+
+ffs is a single Rust workspace organised as a **layered core** with multiple
+thin frontends. Every surface (CLI, MCP, Neovim, Node, Bun, C ABI) calls
+into the same engine — there is no duplicated search logic.
+
+### Layered design
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│  Frontends                                                           │
+│  ─────────                                                           │
+│  ffs-cli    ffs-mcp    ffs-nvim    ffs-c    ffs-node / ffs-bun       │
+│  (binary)   (stdio     (mlua       (C ABI   (TS wrappers over the C  │
+│             JSON-RPC)  cdylib)     .so)     library)                 │
+└────────────────────────────────┬─────────────────────────────────────┘
+                                 │ all surfaces share one core
+                                 ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│  Engine layer                                                        │
+│  ────────────                                                        │
+│  ffs-engine          unified scanner · dispatch · ranking · memory   │
+│  ffs-query-parser    `*.rs !test/ shcema` → constraints + modes      │
+└────────────────────────────────┬─────────────────────────────────────┘
+                                 │
+                                 ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│  Capability layer                                                    │
+│  ────────────────                                                    │
+│  ffs-symbol     tree-sitter index · bloom · bigram pre-filter        │
+│  ffs-grep       SIMD literal / regex grep                            │
+│  ffs-budget     token-aware reader · comment + whitespace filters    │
+└────────────────────────────────┬─────────────────────────────────────┘
+                                 │
+                                 ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│  Core layer (ffs-core, published as `ffs-search` on crates.io)       │
+│  ─────────────────────────────────────────────────────────────       │
+│  scan · file_picker · score · bigram_filter · git · frecency         │
+│  background_watcher · ignore · simd_path · constraints               │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+Each layer only depends on the ones below it. Adding a new frontend
+(e.g. a Python binding) means wrapping `ffs-c`; it never reaches into
+`ffs-core` directly.
+
+### Crate responsibilities
+
+| Crate              | Role                                                                                |
+| ------------------ | ----------------------------------------------------------------------------------- |
+| `ffs-core`         | Filesystem scan, frecency, fuzzy scoring, bigram filter, git integration, watcher. |
+| `ffs-query-parser` | Parses the query DSL (globs, negations, regex, fuzzy fallback).                    |
+| `ffs-symbol`       | Tree-sitter symbol index, bloom filter, outline cache, on-disk artifact format.    |
+| `ffs-grep`         | SIMD literal & regex content search backend.                                       |
+| `ffs-budget`       | Token-budget aware file reader and content filters for AI agents.                  |
+| `ffs-engine`       | Glue layer: dispatch, ranking, prefilter, in-memory state coordination.            |
+| `ffs-cli`          | The `ffs` binary, subcommand routing, on-disk cache (`.ffs/`).                     |
+| `ffs-mcp`          | JSON-RPC MCP server exposing 16 tools over stdio.                                  |
+| `ffs-c`            | Stable C ABI (`libffs_c`, header in `crates/ffs-c/include/ffs.h`).                 |
+| `ffs-nvim`         | mlua bindings producing `libffs_nvim` for the Neovim plugin.                       |
+
+### Query path (e.g. `ffs callers UnifiedScanner`)
+
+```
+   user input                        on-disk artifacts in <repo>/.ffs/
+   ───────────                       ─────────────────────────────────
+        │                            ┌────────────────────────────┐
+        ▼                            │ symbol_index.postcard.zst  │
+   ┌─────────────┐                   │ bigram.postcard.zst        │
+   │ ffs-cli     │                   │ meta.json (HEAD, schema)   │
+   │ subcommand  │                   └─────────────┬──────────────┘
+   │ dispatch    │                                 │ mmap + decode
+   └──────┬──────┘                                 ▼
+          │                                  ┌──────────────┐
+          ▼                                  │ ffs-symbol   │
+   ┌─────────────┐    parse query DSL        │ index + bloom│
+   │ ffs-query-  │ ────────────────────►     └──────┬───────┘
+   │ parser      │                                  │
+   └──────┬──────┘                                  │ candidate
+          │ Mode + Constraints                      │ file set
+          ▼                                         │
+   ┌─────────────────────────────────────────┐     │
+   │ ffs-engine                              │ ◄───┘
+   │  classify ▸ prefilter ▸ dispatch        │
+   │     │          │           │            │
+   │     ▼          ▼           ▼            │
+   │  symbol     bigram      grep / scan     │
+   │  lookup     filter      backends        │
+   └────────────────────┬────────────────────┘
+                        │ ranked hits
+                        ▼
+   ┌─────────────────────────────────────────┐
+   │ ffs-engine::ranking                     │
+   │   frecency · fuzzy score · git-touch    │
+   └────────────────────┬────────────────────┘
+                        ▼
+                ┌───────────────┐
+                │ formatter     │  text │ json │ MCP tool result
+                └───────────────┘
+```
+
+### Indexing path (`ffs index`)
+
+```
+  walk repo (gitignore-aware, parallel)
+  ────────────────────────────────────────►   ffs-core::scan
+                                                    │
+                                                    ▼
+                                           ┌──────────────────┐
+                                           │ ffs-symbol       │
+                                           │  tree-sitter     │
+                                           │  parse · extract │
+                                           │  decls + scopes  │
+                                           └────────┬─────────┘
+                                                    ▼
+                                           ┌──────────────────┐
+                                           │ build artifacts  │
+                                           │  • bigram        │
+                                           │  • bloom         │
+                                           │  • symbol index  │
+                                           │  • outline cache │
+                                           └────────┬─────────┘
+                                                    ▼
+                                           write `<repo>/.ffs/*.postcard.zst`
+                                           + meta.json (schema · HEAD · count)
+```
+
+The cache invalidates automatically on schema bumps, git HEAD changes,
+or significant file-count drift. Subsequent `ffs symbol` / `callers` /
+`refs` / `flow` / `siblings` / `impact` invocations skip the re-parse
+and load the cache directly — sub-200 ms on a Linux-kernel-sized repo.
+
+### Background watcher (long-lived processes)
+
+When ffs is embedded as a library (`ffs-c`, `ffs-nvim`, `ffs-mcp`) it
+keeps a single process alive and runs a notify-based background thread
+that incrementally updates the in-memory index on filesystem events.
+That is why MCP and Neovim hits stay sub-10 ms after the first call —
+no `.gitignore` re-read, no cold scan, no subprocess spawn.
+
+```
+┌─────────────────┐       fs events        ┌──────────────────────┐
+│ host process    │ ◄──────────────────────│ background_watcher   │
+│ (mcp / nvim /   │                        │  (notify crate)      │
+│  node / bun)    │                        └──────────┬───────────┘
+│                 │                                   │ patch
+│ ┌─────────────┐ │                                   ▼
+│ │ in-memory   │ ├──── query ────────────►   ffs-engine ──► result
+│ │ index +     │ │
+│ │ frecency DB │ │
+│ └─────────────┘ │
+└─────────────────┘
+```
 
 ---
 
