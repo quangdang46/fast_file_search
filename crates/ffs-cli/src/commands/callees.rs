@@ -99,6 +99,16 @@ struct CalleesOutput {
 }
 
 pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
+    // Bug 17: warn when the user-requested depth is silently capped.
+    if args.depth > 5 {
+        eprintln!(
+            "warning: --depth {} exceeds the documented max of 5; capping at 5",
+            args.depth
+        );
+    }
+    let mut args = args;
+    args.depth = args.depth.clamp(1, 5);
+
     let engine = Engine::default();
     engine.index(root);
 

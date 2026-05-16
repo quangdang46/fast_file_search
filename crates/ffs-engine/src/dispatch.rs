@@ -10,6 +10,7 @@ use ffs_budget::{
     apply_preserving_footer, smart_truncate, AggressiveFilter, BudgetSplit, FilterLevel,
     FilterStrategy, MinimalFilter, NoFilter, TruncationOutcome,
 };
+use ffs_symbol::detection::is_binary;
 use ffs_symbol::outline_cache::OutlineCache;
 use ffs_symbol::symbol_index::SymbolLocation;
 use ffs_symbol::types::QueryType;
@@ -159,9 +160,34 @@ impl Engine {
                         kept_bytes: 0,
                         footer_bytes: 0,
                     },
+                    is_error: true,
+                    is_binary: false,
                 }
             }
         };
+
+        // Refuse binary content with a structured error rather than producing
+        // garbled output (and risk panicking inside char-boundary slicing).
+        if is_binary(&bytes) {
+            let body = format!(
+                "[binary file: {} bytes; refusing to render. Use --full to force.]",
+                bytes.len()
+            );
+            let kept = body.len();
+            return ReadResult {
+                path: path.to_path_buf(),
+                body,
+                outcome: TruncationOutcome {
+                    kept_lines: 1,
+                    dropped_lines: 0,
+                    kept_bytes: kept,
+                    footer_bytes: 0,
+                },
+                is_error: false,
+                is_binary: true,
+            };
+        }
+
         let text = String::from_utf8_lossy(&bytes).into_owned();
 
         let filter: Box<dyn FilterStrategy> = match self.config.filter_level {
@@ -183,7 +209,9 @@ impl Engine {
             oc
         } else {
             apply_preserving_footer(&mut buf, max_bytes, footer, |target, budget| {
-                let take = filtered.len().min(budget);
+                // Clip to a UTF-8 char boundary so we never split a multi-byte
+                // codepoint when handing the slice to downstream `&str` ops.
+                let take = floor_char_boundary(&filtered, filtered.len().min(budget));
                 target.push_str(&filtered[..take]);
                 take
             })
@@ -193,8 +221,23 @@ impl Engine {
             path: path.to_path_buf(),
             body: buf,
             outcome,
+            is_error: false,
+            is_binary: false,
         }
     }
+}
+
+// Round `idx` down to the nearest UTF-8 char boundary so slicing `&s[..idx]`
+// can never panic, even when `s` came from `from_utf8_lossy`.
+fn floor_char_boundary(s: &str, idx: usize) -> usize {
+    if idx >= s.len() {
+        return s.len();
+    }
+    let mut i = idx;
+    while i > 0 && !s.is_char_boundary(i) {
+        i -= 1;
+    }
+    i
 }
 
 /// Result of [`Engine::dispatch`] — points to the right backend.
@@ -227,6 +270,10 @@ pub struct ReadResult {
     pub path: PathBuf,
     pub body: String,
     pub outcome: TruncationOutcome,
+    /// True when the read failed (e.g. file not found, is a directory).
+    pub is_error: bool,
+    /// True when the path resolved to a binary file and was refused.
+    pub is_binary: bool,
 }
 
 #[cfg(test)]
@@ -264,5 +311,47 @@ mod tests {
         });
         let res = engine.read(&path);
         assert!(res.body.len() <= 200 + "[truncated to budget]\n".len());
+    }
+
+    #[test]
+    fn engine_read_refuses_binary_with_structured_message() {
+        // Bug 1: previously panicked inside the comment filter when slicing
+        // a `from_utf8_lossy`'d binary buffer at a non-char boundary.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("logo.png");
+        // Real-world PNG-ish bytes (with NULs) so `is_binary` triggers.
+        let bytes: Vec<u8> = (0..256u32).map(|b| b as u8).collect();
+        std::fs::write(&path, &bytes).unwrap();
+        let engine = Engine::default();
+        let res = engine.read(&path);
+        assert!(res.is_binary);
+        assert!(!res.is_error);
+        assert!(res.body.starts_with("[binary file"));
+    }
+
+    #[test]
+    fn engine_read_handles_invalid_utf8_without_panic() {
+        // `from_utf8_lossy` materializes U+FFFD where invalid bytes sat;
+        // make sure the comment filter never tries to `&body[i..i+2]`
+        // across a multi-byte boundary.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("garbled.rs");
+        let mut bytes = b"let s = \"\xc3"[..].to_vec(); // invalid UTF-8 tail
+        bytes.extend_from_slice(b"#oops\n");
+        std::fs::write(&path, &bytes).unwrap();
+        let engine = Engine::default();
+        let res = engine.read(&path);
+        // is_binary may or may not trigger (no NUL byte here); either way,
+        // the call must not panic and must produce a body.
+        assert!(!res.is_error);
+        assert!(!res.body.is_empty());
+    }
+
+    #[test]
+    fn engine_read_missing_file_marks_error() {
+        let engine = Engine::default();
+        let res = engine.read(std::path::Path::new("/no/such/file/xyz.rs"));
+        assert!(res.is_error);
+        assert!(res.body.starts_with("[error reading file"));
     }
 }

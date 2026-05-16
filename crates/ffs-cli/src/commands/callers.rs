@@ -143,6 +143,16 @@ pub(crate) struct Aggregation {
 }
 
 pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
+    // Bug 17: warn when the requested hop count is silently capped.
+    if args.hops > 5 {
+        eprintln!(
+            "warning: --hops {} exceeds the documented max of 5; capping at 5",
+            args.hops
+        );
+    }
+    let mut args = args;
+    args.hops = args.hops.clamp(1, 5);
+
     let engine = crate::cache::load_or_build_engine(root);
 
     let files = super::walk_files(root);

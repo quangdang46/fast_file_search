@@ -748,6 +748,7 @@ dependencies = [
  "ffs-search",
  "ffs-symbol",
  "ignore",
+ "libc",
  "memchr",
  "memmap2",
  "neo_frizbee",

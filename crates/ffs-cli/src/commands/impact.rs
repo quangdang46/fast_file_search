@@ -97,6 +97,14 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         .map(|d| d.path.canonicalize().unwrap_or_else(|_| d.path.clone()))
         .collect();
 
+    // Bug 17: warn (on stderr) when the user-requested hop count is silently
+    // capped. Helps catch typos like `--hops 99` instead of `--hops 9`.
+    if args.hops > 3 {
+        eprintln!(
+            "warning: --hops {} exceeds the documented max of 3; capping at 3",
+            args.hops
+        );
+    }
     let hops = args.hops.clamp(1, 3);
     let bfs = run_bfs(
         &engine,

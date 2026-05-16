@@ -90,6 +90,15 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         }
     }
 
+    // Bug 8: dedup by (name, path, line). When a symbol has multiple
+    // definition sites (e.g. an `export function` plus a redeclared `function`
+    // on the same line in TS), the same peers are otherwise emitted once per
+    // definition. Keep the first occurrence so pagination counts agree with
+    // visible rows.
+    let mut seen: std::collections::HashSet<(String, String, u32)> =
+        std::collections::HashSet::new();
+    hits.retain(|h| seen.insert((h.name.clone(), h.path.clone(), h.line)));
+
     let page = Page::paginate(hits, args.offset, args.limit);
     let payload = SiblingsOutput {
         name: args.name,

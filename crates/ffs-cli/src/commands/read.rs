@@ -54,8 +54,11 @@ pub struct Args {
     #[arg(long)]
     pub budget: Option<u64>,
 
-    /// Filter intensity: `none` keeps the file as-is, `minimal` (default)
-    /// strips full-line comments, `aggressive` collapses impl/class bodies.
+    /// Filter intensity for `--full` reads: `none` keeps the file as-is,
+    /// `minimal` (default) strips full-line comments, `aggressive` also
+    /// strips block comments and collapses blank lines. Has no visible
+    /// effect in the default outline mode (the outline contains no
+    /// comments to strip).
     #[arg(long, default_value = "minimal")]
     pub filter: String,
 
@@ -245,17 +248,72 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
             if generated {
                 body.insert_str(0, "[generated file]\n");
             }
-            let kept_bytes = body.len();
+
+            // Bug 12: honor `--budget` in outline mode. Apply the same
+            // body-budget formula the engine uses for `--full`, falling back
+            // to a signatures-only view when the outline doesn't fit. For
+            // very small budgets (< ~100 tokens) `percent_budget` rounds
+            // down to 0; treat that as "the user wants the smallest possible
+            // payload" and aim for `total * 4` bytes instead.
+            let split = BudgetSplit::default_for(budget);
+            let body_budget_bytes = if split.body > 0 {
+                (split.body * 4) as usize
+            } else {
+                (budget * 4) as usize
+            };
+
+            let (final_body, kept_bytes, footer_bytes, view) = if body.len() <= body_budget_bytes
+            {
+                let kept = body.len();
+                (body, kept, 0usize, None)
+            } else if let FileType::Code(lang) = detect_file_type(&path) {
+                // Outline overflowed — try signatures-only.
+                let content = std::fs::read_to_string(&path)
+                    .map_err(|e| anyhow!("failed to read {}: {e}", path.display()))?;
+                let entries = get_outline_entries(&content, lang);
+                let refs = as_outline_refs(&entries);
+                let refs_slice: Vec<&dyn OutlineLike> =
+                    refs.iter().map(|b| b.as_ref()).collect();
+                let sig_text = ffs_budget::cascade::render_signatures(&refs_slice);
+                if sig_text.len() <= body_budget_bytes {
+                    let kept = sig_text.len();
+                    (sig_text, kept, 0usize, Some("signatures"))
+                } else {
+                    // Last-resort: clip with a truncation footer.
+                    let footer = "[truncated to budget]\n";
+                    let mut buf = String::new();
+                    let outcome = apply_preserving_footer(
+                        &mut buf,
+                        body_budget_bytes,
+                        footer,
+                        |target, b| {
+                            let take = body.len().min(b);
+                            // Round down to a UTF-8 char boundary.
+                            let take = (0..=take)
+                                .rev()
+                                .find(|i| body.is_char_boundary(*i))
+                                .unwrap_or(0);
+                            target.push_str(&body[..take]);
+                            take
+                        },
+                    );
+                    (buf, outcome.kept_bytes, outcome.footer_bytes, None)
+                }
+            } else {
+                let kept = body.len();
+                (body, kept, 0usize, None)
+            };
+
             let payload = ReadOutput {
                 path: path.to_string_lossy().to_string(),
                 mode: "outline",
-                body,
+                body: final_body,
                 kept_bytes,
-                footer_bytes: 0,
+                footer_bytes,
                 line: None,
                 section: None,
                 resolved_from,
-                view: None,
+                view,
             };
             return super::emit(format, &payload, |p| p.body.clone());
         }
@@ -270,16 +328,27 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     let engine = Engine::new(cfg);
     let res = engine.read(&path);
 
+    // Bug 13: surface read errors on stderr with a non-zero exit code rather
+    // than printing them on stdout and exiting 0.
+    if res.is_error {
+        return Err(anyhow!(
+            "ffs read {}: {}",
+            path.display(),
+            res.body.trim_start_matches("[error reading file: ").trim_end_matches(']')
+        ));
+    }
+
     // For oversized code files, degrade to outline/signatures via cascade so the
-    // agent gets useful structure instead of a truncated middle.
+    // agent gets useful structure instead of a truncated middle. Skip when the
+    // file was detected as binary — there's nothing structural to render.
     let mut view: Option<&'static str> = None;
-    let mut mode: &'static str = "full";
+    let mut mode: &'static str = if res.is_binary { "binary" } else { "full" };
     let (mut body, kept_bytes, footer_bytes) = (
         res.body.clone(),
         res.outcome.kept_bytes,
         res.outcome.footer_bytes,
     );
-    if res.outcome.dropped_lines > 0 {
+    if !res.is_binary && res.outcome.dropped_lines > 0 {
         if let FileType::Code(lang) = detect_file_type(&path) {
             if let Ok(content) = std::fs::read_to_string(&path) {
                 let entries = get_outline_entries(&content, lang);

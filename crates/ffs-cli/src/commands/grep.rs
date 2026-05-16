@@ -129,33 +129,40 @@ impl Matcher {
         }
     }
 
-    /// Returns iterator of (start_byte_offset_in_haystack) for each match.
-    /// Caller maps back to line numbers via newline scan.
-    fn find_iter<'a>(&'a self, haystack: &'a [u8]) -> Box<dyn Iterator<Item = usize> + 'a> {
+    /// Returns iterator of (start_byte_offset, end_byte_offset) for each
+    /// match. Caller maps the start back to a line number; the end is used
+    /// to render multi-line matches faithfully (bug 16).
+    fn find_iter<'a>(&'a self, haystack: &'a [u8]) -> Box<dyn Iterator<Item = (usize, usize)> + 'a> {
         match self {
             Matcher::Literal {
                 needle,
                 case_insensitive,
             } => {
                 if *case_insensitive {
-                    // Lowercase haystack lazily per chunk would cost extra allocs;
-                    // for case-insensitive literal we use regex bytes path for
-                    // simplicity and correctness across UTF-8. memmem on
-                    // pre-lowered haystack is still fast but materializes a
-                    // Vec<u8> the size of the file. We accept that cost.
                     let needle = needle.clone();
                     let lower: Vec<u8> = haystack.iter().map(|b| b.to_ascii_lowercase()).collect();
+                    let nlen = needle.len();
                     let finder = memmem::Finder::new(&needle).into_owned();
-                    let positions: Vec<usize> = finder.find_iter(&lower).collect();
+                    let positions: Vec<(usize, usize)> = finder
+                        .find_iter(&lower)
+                        .map(|p| (p, p + nlen))
+                        .collect();
                     Box::new(positions.into_iter())
                 } else {
+                    let nlen = needle.len();
                     let finder = memmem::Finder::new(needle.as_slice());
-                    Box::new(finder.find_iter(haystack).collect::<Vec<_>>().into_iter())
+                    Box::new(
+                        finder
+                            .find_iter(haystack)
+                            .map(|p| (p, p + nlen))
+                            .collect::<Vec<_>>()
+                            .into_iter(),
+                    )
                 }
             }
             Matcher::Regex(re) => Box::new(
                 re.find_iter(haystack)
-                    .map(|m| m.start())
+                    .map(|m| (m.start(), m.end()))
                     .collect::<Vec<_>>()
                     .into_iter(),
             ),
@@ -207,7 +214,15 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         Some(paths) => paths,
         None => super::walk_files(root),
     };
-    let total_files = files.len();
+    // Bug 18: report a consistent denominator. Always use the total workspace
+    // file count so the literal and regex paths both display "matches across
+    // N files" with the same N — even when the bigram prefilter narrows the
+    // candidate set down to zero.
+    let total_files = if matches!(matcher, Matcher::Literal { .. }) {
+        super::walk_files(root).len()
+    } else {
+        files.len()
+    };
     let limit = args.limit;
     let max_count = if args.max_count == 0 {
         usize::MAX
@@ -235,12 +250,24 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         }
 
         let mut local_hits: Vec<GrepHit> = Vec::new();
-        for (per_file, off) in matcher.find_iter(&content).enumerate() {
+        for (per_file, (off, end)) in matcher.find_iter(&content).enumerate() {
             if per_file >= max_count {
                 break;
             }
             let (line, slice) = byte_to_line(&content, off);
-            let text = String::from_utf8_lossy(slice).into_owned();
+            // Bug 16: when a regex with `(?s)` (or any multi-line construct)
+            // matches across newlines, render the whole matched span instead
+            // of just the first line — otherwise the displayed text is
+            // misleading (looks like only `foo` matched when the regex
+            // really required both `foo` and `bar`).
+            let text = if end > off && end <= content.len()
+                && content[off..end].contains(&b'\n')
+            {
+                let snippet = &content[off..end];
+                String::from_utf8_lossy(snippet).replace('\n', "\\n")
+            } else {
+                String::from_utf8_lossy(slice).into_owned()
+            };
             local_hits.push(GrepHit {
                 path: path.to_string_lossy().into_owned(),
                 line,

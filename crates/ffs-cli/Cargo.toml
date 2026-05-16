@@ -35,5 +35,8 @@ memmap2 = { workspace = true }
 postcard = { version = "1", features = ["use-std"] }
 zstd = "0.13"
 
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 [dev-dependencies]
 tempfile = { workspace = true }

@@ -108,7 +108,11 @@ fn strip_line_comment_keep_doc(line: &str) -> String {
 
     if let Some(idx) = find_line_comment_start(body) {
         let prefix = &body[..idx];
-        let comment_marker = &body[idx..idx + 2];
+        // Defensive: idx + 2 may not land on a UTF-8 char boundary if `body`
+        // came from `from_utf8_lossy` and the marker byte (e.g. `#`) sits
+        // immediately before a multi-byte replacement char. Use raw bytes.
+        let marker_bytes = &body.as_bytes()[idx..(idx + 2).min(body.len())];
+        let comment_marker = std::str::from_utf8(marker_bytes).unwrap_or("");
         if is_doc_comment_marker(body, idx, comment_marker) {
             return line.to_string();
         }

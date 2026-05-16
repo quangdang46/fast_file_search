@@ -27,11 +27,32 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     builder.add(&args.pattern)?;
     let overrides = builder.build()?;
 
+    // Bug 15: respect default ignores. `WalkBuilder` checks override matches
+    // *before* hidden/gitignore rules, so an explicit pattern like `**/*`
+    // would otherwise pull in `.git/`. We post-filter paths whose components
+    // contain a hidden directory we always want to skip.
+    const ALWAYS_HIDE: &[&str] = &[".git", "node_modules", "target", ".ffs"];
+
     let files = ignore::WalkBuilder::new(root)
         .overrides(overrides)
+        .standard_filters(true)
+        .hidden(true)
+        .git_ignore(true)
+        .git_exclude(true)
+        .git_global(true)
+        .require_git(false)
         .build()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().map(|t| t.is_file()).unwrap_or(false))
+        .filter(|e| {
+            let p = e.path();
+            !p.components().any(|c| {
+                c.as_os_str()
+                    .to_str()
+                    .map(|s| ALWAYS_HIDE.contains(&s))
+                    .unwrap_or(false)
+            })
+        })
         .filter_map(|e| e.path().to_str().map(|s| s.to_string()))
         .take(args.limit)
         .collect::<Vec<_>>();

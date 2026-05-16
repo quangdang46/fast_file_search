@@ -105,6 +105,20 @@ impl Cli {
             .clone()
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
 
+        // Bug 14: a non-existent / non-directory `--root` used to silently
+        // produce no output and exit 0. Reject it up-front so scripts can
+        // distinguish "no matches" from "wrong path".
+        if self.root.is_some() {
+            let meta = std::fs::metadata(&root)
+                .map_err(|e| anyhow::anyhow!("--root {}: {e}", root.display()))?;
+            if !meta.is_dir() {
+                return Err(anyhow::anyhow!(
+                    "--root {}: not a directory",
+                    root.display()
+                ));
+            }
+        }
+
         let Some(command) = self.command else {
             // No subcommand: print short help.
             Self::command().print_help()?;
