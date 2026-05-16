@@ -152,12 +152,11 @@ CRATES_TO_PUBLISH= ffs-grep ffs-query-parser ffs-search
 set-version:
 	@test -n "$(V)" || (echo "V is required. Usage: make set-version V=0.2.0" && exit 1)
 	cargo install cargo-edit
-	cargo set-version $(V)
+	cargo set-version $(V) || lua scripts/set-rust-version.lua "$(V)"
 
 publish-crates:
 	@test -n "$(V)" || (echo "V is required. Usage: make publish-crates V=0.2.0" && exit 1)
-	cargo install cargo-edit
-	cargo set-version $(V) || exit 1;
+	$(MAKE) set-version V=$(V)
 	@for crate in $(CRATES_TO_PUBLISH); do \
 		cargo publish -p $$crate --allow-dirty $$(if [ -n "$$CI" ]; then echo "--no-verify"; fi) || exit 1; \
 	done
