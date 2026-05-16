@@ -1,6 +1,6 @@
 {
   "name": "@ffs-cli/ffs",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": false,
   "description": "ffs — code-aware file search CLI. Replaces find/fd/grep/rg/glob/cat with token-budget aware output.",
   "bin": {

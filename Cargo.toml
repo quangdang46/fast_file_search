@@ -16,9 +16,9 @@ resolver = "2"
 [workspace.dependencies]
 ffs-grep = { version = "0.7.2", path = "crates/ffs-grep" }
 ffs-query-parser = { version = "0.7.2", path = "crates/ffs-query-parser", default-features = false }
-ffs-symbol = { version = "0.1.0", path = "crates/ffs-symbol" }
-ffs-budget = { version = "0.1.0", path = "crates/ffs-budget" }
-ffs-engine = { version = "0.1.0", path = "crates/ffs-engine" }
+ffs-symbol = { version = "0.1.1", path = "crates/ffs-symbol" }
+ffs-budget = { version = "0.1.1", path = "crates/ffs-budget" }
+ffs-engine = { version = "0.1.1", path = "crates/ffs-engine" }
 
 # Shared dependencies
 aho-corasick = "1"

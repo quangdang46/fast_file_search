@@ -712,7 +712,7 @@ dependencies = [
 
 [[package]]
 name = "ffs-budget"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "criterion",
  "once_cell",
@@ -738,7 +738,7 @@ dependencies = [
 
 [[package]]
 name = "ffs-cli"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -764,7 +764,7 @@ dependencies = [
 
 [[package]]
 name = "ffs-engine"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ahash",
  "criterion",
@@ -908,7 +908,7 @@ dependencies = [
 
 [[package]]
 name = "ffs-symbol"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "aho-corasick",
  "criterion",
