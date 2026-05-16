@@ -99,7 +99,12 @@ jobs:
       - name: Run bun tests
         shell: bash
         if: ${{ matrix.os != 'windows-latest' }}
-        run: make test-bun
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            cd packages/pi-ffs && bun test test/
+          else
+            make test-bun
+          fi
 
       - name: Install Node.js
         if: ${{ matrix.os != 'ubuntu-latest' }}
