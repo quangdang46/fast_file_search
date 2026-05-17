@@ -15,6 +15,9 @@ thm = "thm"
 comparsion = "comparsion"
 modfiers = "modfiers"
 shcema = "shcema"
+# Intentional typo in `ffs symbol` did-you-mean fuzzy test to demonstrate
+# that "rendr_tmplate" resolves to "render_template".
+tmplate = "tmplate"
 # Intentional typo in `ffs find` fuzzy-fallback doc comment / tests to
 # demonstrate that "isntall.sh" resolves to "install.sh".
 isntall = "isntall"
