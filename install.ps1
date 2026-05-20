@@ -48,7 +48,7 @@
 param(
     [string]$Version      = $env:FFS_VERSION,
     [string]$InstallDir   = $env:FFS_INSTALL_DIR,
-    [ValidateSet('User', 'Profile', 'None')]
+    [ValidateSet('User', 'Profile', 'None', '')]
     [string]$PathScope,
     [switch]$EasyMode,
     [switch]$Verify,
