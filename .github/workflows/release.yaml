@@ -607,6 +607,7 @@ jobs:
         run: lua scripts/determine-version.lua
 
       - name: Upload Release Assets
+        if: steps.version.outputs.is_release == 'true'
         uses: softprops/action-gh-release@v2
         with:
           name: "${{ steps.version.outputs.version }}"
