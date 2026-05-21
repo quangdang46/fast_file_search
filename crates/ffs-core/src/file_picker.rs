@@ -228,7 +228,7 @@ impl FileSync {
         // canonicalize-then-strip so watcher events still land on the right
         // `FileItem`.
         let rel_path_owned: String = match path.strip_prefix(base_path) {
-            Ok(r) => r.to_string_lossy().into_owned(),
+            Ok(r) => normalize_relative_path(&r.to_string_lossy()).into_owned(),
             Err(_) => {
                 #[cfg(windows)]
                 {
@@ -1590,7 +1590,7 @@ impl FilePicker {
         if let Ok(stripped) = path.strip_prefix(&self.base_path)
             && let Some(s) = stripped.to_str()
         {
-            return Some(std::borrow::Cow::Borrowed(s));
+            return Some(normalize_relative_path(s));
         }
 
         #[cfg(windows)]
@@ -1602,6 +1602,30 @@ impl FilePicker {
         #[cfg(not(windows))]
         None
     }
+}
+
+/// Normalize relative-path separators so byte-wise comparisons against
+/// arena-stored paths are stable on Windows.
+///
+/// `pathdiff::diff_paths` (used during scan) builds a `PathBuf` whose
+/// segments are joined with `MAIN_SEPARATOR` (`\\`), but lookups go through
+/// `Path::strip_prefix` which returns a sub-slice of the original input —
+/// so callers that constructed the path via `base.join("a/b/c")` end up
+/// with `/` in the lookup key and never match the stored `a\\b\\c`.
+#[cfg(windows)]
+#[inline]
+fn normalize_relative_path(s: &str) -> std::borrow::Cow<'_, str> {
+    if s.contains('/') {
+        std::borrow::Cow::Owned(s.replace('/', "\\"))
+    } else {
+        std::borrow::Cow::Borrowed(s)
+    }
+}
+
+#[cfg(not(windows))]
+#[inline]
+fn normalize_relative_path(s: &str) -> std::borrow::Cow<'_, str> {
+    std::borrow::Cow::Borrowed(s)
 }
 
 /// Resolve a possibly-short-name Windows path to the picker's canonical base.
