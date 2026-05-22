@@ -176,7 +176,63 @@ require('fff').scan_files()                        -- force rescan
 require('fff').refresh_git_status()                -- refresh git status
 require('fff').find_files_in_dir(path)             -- find in a specific dir
 require('fff').change_indexing_directory(new_path) -- change root
+
+-- Programmatic search (no UI). Useful for plugin integrations.
+require('fff').file_search(query, opts)            -- fuzzy search files / dirs / mixed
+require('fff').content_search(query, opts)         -- programmatic grep
 ```
+
+#### `file_search(query, opts)`
+
+Returns a structured result `{ items, scores, total_matched, total_files?, total_dirs?, location? }`. Each item has a `type` field (`"file"` or `"directory"`) and `name` / `relative_path`. File items also expose `size`, `modified`, `git_status`, `is_binary`, and frecency scores.
+
+```lua
+local r = require('fff').file_search('button', {
+  mode             = 'mixed',  -- 'files' (default) | 'directories' | 'mixed'
+  max_results      = 50,
+  page             = 0,        -- 0-based pagination
+  current_file     = nil,      -- path to deprioritize for distance scoring
+  max_threads      = 4,
+  cwd              = nil,      -- switch indexed root if different (see below)
+  wait_for_index_ms = nil,     -- override the default scan wait timeout
+})
+for _, item in ipairs(r.items) do
+  print(item.type, item.relative_path)
+end
+```
+
+#### `content_search(query, opts)`
+
+Returns a `GrepResult` `{ items, total_matched, total_files_searched, total_files, filtered_file_count, next_file_offset, regex_fallback_error? }`. Each match item has `relative_path`, `name`, `line_number`, `col`, `line_content`, `match_ranges`, plus the same file metadata as `file_search`.
+
+```lua
+local r = require('fff').content_search('TODO', {
+  mode                  = 'plain',  -- 'plain' (default) | 'regex' | 'fuzzy'
+  max_file_size         = 10 * 1024 * 1024,
+  max_matches_per_file  = 100,
+  smart_case            = true,
+  page_size             = 50,
+  file_offset           = 0,
+  time_budget_ms        = 0,
+  trim_whitespace       = false,
+  cwd                   = nil,      -- switch indexed root if different
+  wait_for_index_ms     = nil,      -- override the default scan wait timeout
+})
+for _, m in ipairs(r.items) do
+  print(string.format('%s:%d %s', m.relative_path, m.line_number, m.line_content))
+end
+```
+
+Both functions accept the same constraint syntax as the UI pickers (e.g. `git:modified`, `*.rs`, `!test/`, glob patterns).
+
+#### `cwd` and indexing
+
+Both `file_search` and `content_search` honour an optional `cwd` field. The first call to either function lazily initialises the picker at `config.base_path` (your Neovim cwd by default).
+
+- If `cwd` matches the currently indexed root, the call returns immediately against the existing index.
+- If `cwd` differs, the picker is re-indexed at the new root and the call **blocks** (default up to 10 s) until the new picker is installed and its initial scan completes — so callers always get results from the right tree.
+- If the index is still warming up after a `change_indexing_directory`, you can pass `wait_for_index_ms = N` to block for up to `N` ms regardless of whether `cwd` triggered the swap. Pass `0` to skip waiting entirely (useful for fire-and-forget calls where partial results are acceptable).
+- Invalid or non-existent `cwd` paths return an empty result and emit an error via `vim.notify`.
 
 ### Commands
 

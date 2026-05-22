@@ -96,6 +96,17 @@ jobs:
         shell: bash
         run: make test-lua
 
+      - name: Dump fff trace log on failure
+        if: failure()
+        shell: bash
+        run: |
+          echo "=== fff-test.log ==="
+          if [ -f fff-test.log ]; then
+            cat fff-test.log
+          else
+            echo "(no log file produced)"
+          fi
+
       - name: Run version resolution tests
         shell: bash
         run: make test-version

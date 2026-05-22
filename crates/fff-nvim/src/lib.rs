@@ -5,9 +5,9 @@ use fff::frecency::FrecencyTracker;
 use fff::path_utils::expand_tilde;
 use fff::query_tracker::QueryTracker;
 use fff::{
-    DbHealthChecker, Error, FFFMode, FileSearchConfig, FuzzySearchOptions, GrepConfig,
-    PaginationArgs, QueryParser, Score, SearchResult, SharedFilePicker, SharedFrecency,
-    SharedQueryTracker,
+    DbHealthChecker, DirSearchConfig, Error, FFFMode, FileSearchConfig, FuzzySearchOptions,
+    GrepConfig, MixedSearchConfig, PaginationArgs, QueryParser, Score, SearchResult,
+    SharedFilePicker, SharedFrecency, SharedQueryTracker,
 };
 use mimalloc::MiMalloc;
 use mlua::prelude::*;
@@ -258,6 +258,92 @@ pub fn fuzzy_search_files(
     }
 
     lua_types::SearchResultLua::new(results, picker).into_lua(lua)
+}
+
+#[allow(clippy::type_complexity)]
+pub fn fuzzy_search_directories(
+    lua: &Lua,
+    (query, max_threads, current_file, page_index, page_size): (
+        String,
+        usize,
+        Option<String>,
+        Option<usize>,
+        Option<usize>,
+    ),
+) -> LuaResult<LuaValue> {
+    let file_picker_guard = FILE_PICKER.read().into_lua_result()?;
+    let Some(ref picker) = *file_picker_guard else {
+        return Err(error::to_lua_error(Error::FilePickerMissing));
+    };
+
+    let parser = QueryParser::new(DirSearchConfig);
+    let parsed = parser.parse(&query);
+
+    let results = picker.fuzzy_search_directories(
+        &parsed,
+        FuzzySearchOptions {
+            max_threads,
+            current_file: current_file.as_deref(),
+            project_path: Some(picker.base_path()),
+            combo_boost_score_multiplier: 0,
+            min_combo_count: 0,
+            pagination: PaginationArgs {
+                offset: page_index.unwrap_or(0),
+                limit: page_size.unwrap_or(0),
+            },
+        },
+    );
+
+    lua_types::DirSearchResultLua::new(results, picker).into_lua(lua)
+}
+
+#[allow(clippy::type_complexity)]
+pub fn fuzzy_search_mixed(
+    lua: &Lua,
+    (
+        query,
+        max_threads,
+        current_file,
+        combo_boost_score_multiplier,
+        min_combo_count,
+        page_index,
+        page_size,
+    ): (
+        String,
+        usize,
+        Option<String>,
+        i32,
+        Option<u32>,
+        Option<usize>,
+        Option<usize>,
+    ),
+) -> LuaResult<LuaValue> {
+    let file_picker_guard = FILE_PICKER.read().into_lua_result()?;
+    let Some(ref picker) = *file_picker_guard else {
+        return Err(error::to_lua_error(Error::FilePickerMissing));
+    };
+
+    let query_tracker_guard = QUERY_TRACKER.read().into_lua_result()?;
+    let parser = QueryParser::new(MixedSearchConfig);
+    let parsed = parser.parse(&query);
+
+    let results = picker.fuzzy_search_mixed(
+        &parsed,
+        query_tracker_guard.as_ref(),
+        FuzzySearchOptions {
+            max_threads,
+            current_file: current_file.as_deref(),
+            project_path: Some(picker.base_path()),
+            combo_boost_score_multiplier,
+            min_combo_count: min_combo_count.unwrap_or(3),
+            pagination: PaginationArgs {
+                offset: page_index.unwrap_or(0),
+                limit: page_size.unwrap_or(0),
+            },
+        },
+    );
+
+    lua_types::MixedSearchResultLua::new(results, picker).into_lua(lua)
 }
 
 #[allow(clippy::type_complexity)]
@@ -802,6 +888,14 @@ fn create_exports(lua: &Lua) -> LuaResult<LuaTable> {
     exports.set(
         "fuzzy_search_files",
         lua.create_function(fuzzy_search_files)?,
+    )?;
+    exports.set(
+        "fuzzy_search_directories",
+        lua.create_function(fuzzy_search_directories)?,
+    )?;
+    exports.set(
+        "fuzzy_search_mixed",
+        lua.create_function(fuzzy_search_mixed)?,
     )?;
     exports.set("live_grep", lua.create_function(live_grep)?)?;
     exports.set("track_access", lua.create_function(track_access)?)?;

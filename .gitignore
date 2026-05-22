@@ -27,3 +27,6 @@ scripts/benchmark-results/
 
 # Instruments traces
 *.trace/
+
+# Test logs
+fff-test.log

@@ -1855,48 +1855,18 @@ end
 
 --- Check whether the given window has 'winfixbuf' enabled.
 --- pcall-guarded so this stays safe on Neovim versions that predate the option.
---- @param win number Window ID
---- @return boolean
-local function window_has_winfixbuf(win)
-  local ok, val = pcall(vim.api.nvim_get_option_value, 'winfixbuf', { win = win })
-  return ok and val == true
-end
+local window_has_winfixbuf = utils.window_has_winfixbuf
 
---- Find the first visible window with a normal file buffer
+--- Find the first visible window with a normal file buffer, skipping the
+--- picker's own floats.
 --- @return number|nil Window ID of the first suitable window, or nil if none found
 local function find_suitable_window()
-  local current_tabpage = vim.api.nvim_get_current_tabpage()
-  local windows = vim.api.nvim_tabpage_list_wins(current_tabpage)
-
-  for _, win in ipairs(windows) do
-    if vim.api.nvim_win_is_valid(win) then
-      local buf = vim.api.nvim_win_get_buf(win)
-      if vim.api.nvim_buf_is_valid(buf) then
-        local buftype = vim.api.nvim_get_option_value('buftype', { buf = buf })
-        local modifiable = vim.api.nvim_get_option_value('modifiable', { buf = buf })
-        local filetype = vim.api.nvim_get_option_value('filetype', { buf = buf })
-
-        local is_picker_window = (
-          win == M.state.input_win
-          or win == M.state.list_win
-          or win == M.state.preview_win
-          or win == M.state.file_info_win
-        )
-
-        if
-          (buftype == '' or buftype == 'acwrite')
-          and modifiable
-          and not is_picker_window
-          and filetype ~= 'undotree'
-          and not window_has_winfixbuf(win)
-        then
-          return win
-        end
-      end
-    end
-  end
-
-  return nil
+  local exclude = {}
+  exclude[M.state.input_win or -1] = true
+  exclude[M.state.list_win or -1] = true
+  exclude[M.state.preview_win or -1] = true
+  exclude[M.state.file_info_win or -1] = true
+  return utils.find_suitable_window(exclude)
 end
 
 --- Build a unique key for a grep match occurrence.
@@ -2287,6 +2257,7 @@ function M.close()
   M.state.grep_regex_fallback_error = nil
   M.state.suggestion_items = nil
   M.state.suggestion_source = nil
+  M.state.renderer = nil
   M.state.restore_paste = false
   M.state.combo_visible = true
   M.state.combo_initial_cursor = nil
@@ -2408,6 +2379,14 @@ end
 --- @return boolean true if callback handled results, false if UI was opened
 function M.open_with_callback(query, callback, opts)
   if M.state.active then return false end
+
+  -- open_with_callback runs the file-picker flow, never grep. Reset the
+  -- renderer/mode/grep_config defensively so we can't inherit stale state
+  -- from a previous live_grep session (close() must always do this too,
+  -- but belt-and-braces).
+  M.state.renderer = nil
+  M.state.mode = nil
+  M.state.grep_config = nil
 
   local merged_config, base_path = initialize_picker(opts)
   if not merged_config then return false end
