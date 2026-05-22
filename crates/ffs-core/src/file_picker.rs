@@ -1479,11 +1479,10 @@ impl FilePicker {
         let (mut file_item, rel_path) =
             FileItem::new(path_for_index.to_path_buf(), &self.base_path, None);
 
-        // Lazily create the shared overflow builder if not exists yet
-        let builder = self
-            .sync_data
-            .overflow_builder
-            .get_or_insert_with(|| crate::simd_path::ChunkedPathStoreBuilder::new(64));
+        let builder = self.sync_data.overflow_builder.get_or_insert_with(|| {
+            // we know that overflow would never create more files during the file
+            crate::simd_path::ChunkedPathStoreBuilder::new(MAX_OVERFLOW_FILES)
+        });
 
         let chunked_path = builder.add_file_immediate(&rel_path, file_item.path.filename_offset);
         file_item.set_path(chunked_path);

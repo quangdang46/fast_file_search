@@ -294,10 +294,11 @@ pub(crate) struct ChunkedPathStoreBuilder {
 
 impl ChunkedPathStoreBuilder {
     pub fn new(estimated_files: usize) -> Self {
-        let est_chunks = estimated_files * 3;
+        let est_chunks = estimated_files * INLINE_CHUNKS; // we know that most of repos will fit
+        // most paths into 64 = 16 * INLINE_CHUNKS
         Self {
-            arena: Vec::with_capacity(est_chunks / 2),
-            chunk_dedup: AHashMap::with_capacity(est_chunks / 2),
+            arena: Vec::with_capacity(est_chunks),
+            chunk_dedup: AHashMap::with_capacity(est_chunks),
         }
     }
 
