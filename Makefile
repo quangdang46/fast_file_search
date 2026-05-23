@@ -83,7 +83,7 @@ lint: lint-rust
 
 check: format lint
 
-CRATES_TO_PUBLISH= ffs-grep ffs-query-parser ffs-budget ffs-engine
+CRATES_TO_PUBLISH= ffs-c ffs-grep ffs-query-parser ffs-budget ffs-engine ffs-mcp ffs-symbol
 
 set-version:
 	@test -n "$(V)" || (echo "V is required. Usage: make set-version V=0.2.0" && exit 1)
