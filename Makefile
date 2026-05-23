@@ -54,7 +54,7 @@ test-stress-seeded:
 	FFS_STRESS_SEED="$${FFS_STRESS_SEED:-$(FFS_STRESS_DEFAULT_SEED)}" \
 	RUSTFLAGS="$(STRESS_RUSTFLAGS)" \
 	cargo test \
-		-p ffs-core \
+		-p ffs-search \
 		--test fuzz_git_watcher_stress \
 		--features zlob \
 		-- --nocapture stress_seeded
@@ -62,7 +62,7 @@ test-stress-seeded:
 test-stress-random:
 	RUSTFLAGS="$(STRESS_RUSTFLAGS)" \
 	cargo test \
-		-p ffs-core \
+		-p ffs-search \
 		--test fuzz_git_watcher_stress \
 		--features zlob \
 		-- --nocapture stress_random
