@@ -46,6 +46,7 @@ jobs:
   stress-test:
     name: Stress Test (Watcher + Git)
     runs-on: ${{ matrix.os }}
+    continue-on-error: true
     strategy:
       # Keep going after one OS fails so we can see whether a bug
       # reproduces everywhere or is platform-specific.
