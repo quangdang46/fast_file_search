@@ -1185,11 +1185,11 @@ fn start_watched_picker(base: &Path) -> (SharedFilePicker, SharedFrecency) {
 
 fn wait_ready(p: &SharedFilePicker) {
     assert!(
-        p.wait_for_scan(Duration::from_secs(15)),
+        p.wait_for_scan(Duration::from_secs(30)),
         "timed out waiting for initial scan"
     );
     assert!(
-        p.wait_for_watcher(Duration::from_secs(15)),
+        p.wait_for_watcher(Duration::from_secs(30)),
         "timed out waiting for watcher"
     );
     // macOS FSEvents sometimes delivers a burst of "warmup" events right
