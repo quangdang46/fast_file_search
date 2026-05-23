@@ -88,7 +88,7 @@ jobs:
 
       - name: Determine version
         id: version
-        run: lua scripts/determine-version.lua
+        run: bash scripts/determine-version.sh
 
       - name: Set version
         run: make set-version V="${{ steps.version.outputs.version }}"
@@ -201,7 +201,7 @@ jobs:
 
       - name: Determine version
         id: version
-        run: lua scripts/determine-version.lua
+        run: bash scripts/determine-version.sh
 
       - name: Set version
         run: make set-version V="${{ steps.version.outputs.version }}"
@@ -301,7 +301,7 @@ jobs:
 
       - name: Determine version
         id: version
-        run: lua scripts/determine-version.lua
+        run: bash scripts/determine-version.sh
 
       - name: Set version
         run: make set-version V="${{ steps.version.outputs.version }}"
@@ -415,7 +415,7 @@ jobs:
 
       - name: Determine version
         id: version
-        run: lua scripts/determine-version.lua
+        run: bash scripts/determine-version.sh
 
       - name: Upload Release Assets
         if: steps.version.outputs.is_release == 'true'
@@ -465,7 +465,7 @@ jobs:
 
       - name: Determine version
         id: version
-        run: lua scripts/determine-version.lua
+        run: bash scripts/determine-version.sh
 
       - name: Publish crates
         env:
