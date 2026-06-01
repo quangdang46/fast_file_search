@@ -17,6 +17,7 @@
 //! - [`grep`] — Live grep search supporting regex, plain-text, and fuzzy modes
 //!   with optional constraint filtering.
 //! - [`git`] — Git status caching and repository detection.
+//! - [`mention`] — Cursor-aware @-mention candidate search (File + Directory)
 //!
 //! ## Shared State
 //!
@@ -125,6 +126,13 @@ pub mod git;
 /// Supports constraint filtering (file extensions, path segments, globs)
 /// and parallel execution via rayon.
 pub mod grep;
+
+/// Cursor-aware @-mention candidate search (file / directory autocomplete).
+///
+/// Phase A: File + Directory kinds only, sync, reuses the existing
+/// `fuzzy_search` pipeline and `FrecencyTracker`. Host apps add
+/// `External` providers in a later phase.
+pub mod mention;
 
 /// Tracing/logging initialization and panic hook setup.
 pub mod log;
