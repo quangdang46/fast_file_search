@@ -700,7 +700,7 @@ dependencies = [
 
 [[package]]
 name = "ffs-cli"
-version = "0.1.3"
+version = "0.1.5"
 dependencies = [
  "anyhow",
  "clap",
