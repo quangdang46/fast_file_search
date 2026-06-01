@@ -543,6 +543,7 @@ impl FileItem {
     pub(crate) fn get_content_for_search<'a>(
         &'a self,
         buf: &'a mut Vec<u8>, // we allow it to grow
+        #[cfg_attr(target_os = "windows", allow(unused_variables))] mmap_slot: &'a mut MmapSlot,
         arena: ArenaPtr,
         base_path: &Path,
         budget: &ContentCacheBudget,
@@ -557,11 +558,23 @@ impl FileItem {
             return None;
         }
 
+        let abs = self.absolute_path(arena, base_path);
+
+        // Large cache-miss files: a fresh transient mmap beats a big heap
+        // allocation + one large read_exact. The mmap lives in a per-thread
+        // slot owned by the caller for the lifetime of the returned slice.
+        #[cfg(not(target_os = "windows"))]
+        if self.size >= FRESH_MMAP_THRESHOLD {
+            let file = std::fs::File::open(&abs).ok()?;
+            let mmap = unsafe { memmap2::Mmap::map(&file) }.ok()?;
+            let stored = mmap_slot.insert(mmap);
+            return Some(&stored[..]);
+        } else {
+            let _ = mmap_slot;
+        }
+
         // Slow path: read into the reusable buffer — open() + read_exact() + close().
         // No mmap()/munmap() syscalls, no page table setup/teardown.
-        // We know the exact size so we use read_exact (1 read syscall) instead of
-        // read_to_end (2 read syscalls — one for data, one for EOF confirmation).
-        let abs = self.absolute_path(arena, base_path);
         let len = self.size as usize;
         buf.resize(len, 0);
         let mut file = std::fs::File::open(&abs).ok()?;
@@ -576,6 +589,24 @@ impl FileItem {
 const MMAP_THRESHOLD: u64 = 16 * 1024;
 #[cfg(all(not(target_os = "windows"), not(target_arch = "aarch64")))]
 const MMAP_THRESHOLD: u64 = 4 * 1024;
+
+// Empirically tuned: the larger the file, the more syscalls a chunked read
+// needs, so past this point a fresh mmap of a cache-miss file wins.
+#[cfg(target_os = "macos")]
+pub(crate) const FRESH_MMAP_THRESHOLD: u64 = 1024 * 1024;
+#[cfg(target_os = "windows")]
+#[allow(dead_code)]
+pub(crate) const FRESH_MMAP_THRESHOLD: u64 = 0;
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+pub(crate) const FRESH_MMAP_THRESHOLD: u64 = 256 * 1024;
+
+/// Per-thread scratch slot owning a transient mmap returned from
+/// [`FileItem::get_content_for_search`]. `Option<Mmap>` on Unix, unit on
+/// Windows where the fresh-mmap path is disabled.
+#[cfg(not(target_os = "windows"))]
+pub type MmapSlot = Option<memmap2::Mmap>;
+#[cfg(target_os = "windows")]
+pub type MmapSlot = ();
 
 fn load_file_content(path: &Path, size: u64) -> Option<FileContent> {
     #[cfg(not(target_os = "windows"))]

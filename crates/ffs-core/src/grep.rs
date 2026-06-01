@@ -11,7 +11,7 @@ use crate::{
     constraints::apply_constraints,
     extract_bigrams,
     sort_buffer::sort_with_buffer,
-    types::{ContentCacheBudget, FileItem, FileSliceExt},
+    types::{ContentCacheBudget, FileItem, FileSliceExt, MmapSlot},
 };
 use aho_corasick::AhoCorasick;
 pub use ffs_grep::{
@@ -1250,9 +1250,10 @@ where
             .par_iter()
             .enumerate()
             .map_init(
-                // allocatge a single reusable buffer per thread
-                || Vec::with_capacity(64 * 1024),
-                |buf, (local_idx, file)| {
+                // Per-thread scratch: a reusable read buffer for small files
+                // and an mmap slot for cache-miss large files.
+                || (Vec::with_capacity(64 * 1024), MmapSlot::default()),
+                |(buf, mmap_slot), (local_idx, file)| {
                     if ctx.abort_signal.load(Ordering::Relaxed) {
                         budget_exceeded.store(true, Ordering::Relaxed);
                         return None;
@@ -1268,6 +1269,7 @@ where
 
                     let content = file.get_content_for_search(
                         buf,
+                        mmap_slot,
                         ctx.arena_for_file(file),
                         ctx.base_path,
                         ctx.budget,
@@ -1635,14 +1637,20 @@ fn fuzzy_grep_search<'a>(
     let budget_exceeded = AtomicBool::new(false);
     let max_matches_per_file = options.max_matches_per_file;
     // Parallel phase with `map_init`: each rayon worker thread clones the
-    // matcher once and gets a reusable read buffer. The buffer avoids
-    // mmap/munmap syscalls for non-cached files.
+    // matcher once and gets a reusable read buffer + mmap slot. The buffer
+    // holds small files; the slot holds a fresh mmap for cache-miss files.
     let per_file_results: Vec<(usize, &'a FileItem, Vec<GrepMatch>)> = files_to_search
         .par_iter()
         .enumerate()
         .map_init(
-            || (matcher.clone(), Vec::with_capacity(64 * 1024)),
-            |(matcher, buf), (idx, file)| {
+            || {
+                (
+                    matcher.clone(),
+                    Vec::with_capacity(64 * 1024),
+                    MmapSlot::default(),
+                )
+            },
+            |(matcher, buf, mmap_slot), (idx, file)| {
                 if abort_signal.load(Ordering::Relaxed) {
                     budget_exceeded.store(true, Ordering::Relaxed);
                     return None;
@@ -1655,7 +1663,8 @@ fn fuzzy_grep_search<'a>(
                     return None;
                 }
 
-                let file_bytes = file.get_content_for_search(buf, arena, base_path, budget)?;
+                let file_bytes =
+                    file.get_content_for_search(buf, mmap_slot, arena, base_path, budget)?;
 
                 // File-level prefilter: check if enough distinct needle chars
                 // exist anywhere in the file bytes.  Uses memchr for speed.
