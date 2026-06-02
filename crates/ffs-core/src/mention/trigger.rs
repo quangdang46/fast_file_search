@@ -131,7 +131,7 @@ fn prev_char_boundary(s: &str, i: usize) -> usize {
 }
 
 /// Clamp `cursor` to `[0, input.len()]` and to the previous char boundary
-/// (so a cursor parked mid-codepoint doesn't panic or mis-step).
+/// (so a cursor parked mid-codepoint doesn't panic or miss a step).
 fn clamp_to_char_boundary(input: &str, cursor: usize) -> usize {
     let mut cur = cursor.min(input.len());
     while cur > 0 && !input.is_char_boundary(cur) {

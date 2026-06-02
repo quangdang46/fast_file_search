@@ -135,10 +135,7 @@ fn render_text(p: &MentionSearchOutput) -> String {
 fn collect_candidates(root: &Path, input: &str) -> Vec<String> {
     use std::collections::HashSet;
 
-    let tokens: Vec<&str> = input
-        .split_whitespace()
-        .filter(|t| !t.is_empty())
-        .collect();
+    let tokens: Vec<&str> = input.split_whitespace().filter(|t| !t.is_empty()).collect();
     if tokens.is_empty() {
         return Vec::new();
     }

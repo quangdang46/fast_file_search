@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use ffs_budget::FilterLevel;
-use ffs_engine::mention::{resolve_mentions, ResolveOptions, ResolvedMention};
+use ffs_engine::mention::{ResolveOptions, ResolvedMention, resolve_mentions};
 use serde::Serialize;
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
@@ -75,7 +75,11 @@ pub fn build_resolve_options(
 /// whitespace-separated tokens of `input`, hand the candidates to the
 /// Phase B resolver, and serialize the result. The function is shared
 /// between the MCP handler and the tests.
-pub fn run_mention_pipeline(input: &str, root: &Path, opts: &ResolveOptions) -> MentionSearchOutput {
+pub fn run_mention_pipeline(
+    input: &str,
+    root: &Path,
+    opts: &ResolveOptions,
+) -> MentionSearchOutput {
     let candidates = collect_candidates(root, input);
     let paths: Vec<PathBuf> = candidates.iter().map(PathBuf::from).collect();
     let mentions = resolve_mentions(&paths, opts);
@@ -90,10 +94,7 @@ pub fn run_mention_pipeline(input: &str, root: &Path, opts: &ResolveOptions) -> 
 
 fn collect_candidates(root: &Path, input: &str) -> Vec<String> {
     use std::collections::HashSet;
-    let tokens: Vec<&str> = input
-        .split_whitespace()
-        .filter(|t| !t.is_empty())
-        .collect();
+    let tokens: Vec<&str> = input.split_whitespace().filter(|t| !t.is_empty()).collect();
     if tokens.is_empty() {
         return Vec::new();
     }
@@ -174,8 +175,7 @@ mod tests {
 
     #[test]
     fn params_rejects_missing_input() {
-        let r: Result<MentionSearchParams, _> =
-            serde_json::from_value(json!({ "maxTokens": 1.0 }));
+        let r: Result<MentionSearchParams, _> = serde_json::from_value(json!({ "maxTokens": 1.0 }));
         assert!(r.is_err());
     }
 
@@ -217,7 +217,13 @@ mod tests {
         let opts = build_resolve_options(Some(1000.0), None, None);
         let out = run_mention_pipeline("alpha", td.path(), &opts);
         assert_eq!(out.total_candidates, 1);
-        assert!(out.mentions[0].content.as_deref().unwrap().contains("alpha"));
+        assert!(
+            out.mentions[0]
+                .content
+                .as_deref()
+                .unwrap()
+                .contains("alpha")
+        );
     }
 
     #[test]
