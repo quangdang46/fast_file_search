@@ -13,8 +13,8 @@ pub use classify::{classify_query, ClassifiedQuery};
 pub use dispatch::{Engine, EngineConfig, EngineHandles};
 pub use memory::{MemoryGuard, RepoSize};
 pub use mention::{
-    MentionAudit, MentionKind, MentionResolverCache, ResolveOptions, ResolvedMention,
-    resolve_mentions,
+    resolve_mentions, MentionAudit, MentionKind, MentionResolverCache, ResolveOptions,
+    ResolvedMention,
 };
 pub use prefilter::{PreFilterStack, PreFilteredCandidate};
 pub use ranking::{rank_matches, RankInputs};

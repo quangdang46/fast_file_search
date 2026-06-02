@@ -225,9 +225,7 @@ fn resolve_one(path: &Path, opts: &ResolveOptions) -> ResolvedMention {
 
     // Regular file. Binary-detection probe first, then text path.
     match read_and_classify(&abs) {
-        ClassifiedFile::Text(content) => {
-            resolve_text(&abs, size, content, opts)
-        }
+        ClassifiedFile::Text(content) => resolve_text(&abs, size, content, opts),
         ClassifiedFile::Binary => ResolvedMention {
             path: abs,
             kind: MentionKind::File,
@@ -369,12 +367,7 @@ fn resolve_directory(path: &Path, metadata: &fs::Metadata) -> ResolvedMention {
     }
 }
 
-fn resolve_text(
-    path: &Path,
-    size: u64,
-    raw: String,
-    opts: &ResolveOptions,
-) -> ResolvedMention {
+fn resolve_text(path: &Path, size: u64, raw: String, opts: &ResolveOptions) -> ResolvedMention {
     // 1. Apply line range slice (1-based, inclusive on both ends).
     let sliced = match opts.line_range {
         Some((start, end)) if start > 0 => slice_lines(&raw, start, end),
@@ -559,10 +552,7 @@ mod tests {
         // Token cost should equal estimate_tokens of the post-filter
         // post-truncate body length.
         let body = m.content.as_deref().unwrap();
-        assert_eq!(
-            m.token_cost as u64,
-            estimate_tokens(body.len() as u64)
-        );
+        assert_eq!(m.token_cost as u64, estimate_tokens(body.len() as u64));
         // The path was canonicalized to an absolute path.
         assert!(m.path.starts_with(dir.path()));
     }
@@ -668,7 +658,10 @@ mod tests {
         let out = resolve_mentions(&paths, &opts);
         let m = &out[0];
         let c = m.content.as_deref().unwrap();
-        assert!(c.contains("more lines]"), "expected truncation footer in: {c}");
+        assert!(
+            c.contains("more lines]"),
+            "expected truncation footer in: {c}"
+        );
         let trunc = m.truncation.as_ref().expect("truncation outcome");
         assert!(trunc.dropped_lines > 0);
     }

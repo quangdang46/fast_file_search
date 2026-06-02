@@ -692,9 +692,11 @@ dependencies = [
  "ffs-search",
  "ffs-symbol",
  "git2",
+ "ignore",
  "mimalloc",
  "serde",
  "serde_json",
+ "tempfile",
  "tracing",
 ]
 
@@ -770,6 +772,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
+ "tempfile",
  "tokio",
  "tracing",
 ]
