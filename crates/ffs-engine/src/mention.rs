@@ -537,6 +537,17 @@ mod tests {
         (dir, paths)
     }
 
+    /// Return the canonical (symlink-resolved) absolute path of a temp
+    /// dir. On macOS, `tempdir().path()` may be `/var/folders/...` which
+    /// is a symlink to `/private/var/folders/...`. `fs::canonicalize`
+    /// inside `resolve_mentions` resolves that symlink, so the path
+    /// returned in `ResolvedMention.path` is the canonical form. The
+    /// assertion `m.path.starts_with(dir.path())` would fail unless
+    /// we canonicalize `dir.path()` first.
+    fn canonical_dir(dir: &tempfile::TempDir) -> std::path::PathBuf {
+        fs::canonicalize(dir.path()).expect("canonicalize tempdir")
+    }
+
     #[test]
     fn text_file_resolved_with_content_and_token_cost() {
         let (dir, paths) = write_files(&[("hello.rs", b"fn main() {}\n")]);
@@ -554,7 +565,7 @@ mod tests {
         let body = m.content.as_deref().unwrap();
         assert_eq!(m.token_cost as u64, estimate_tokens(body.len() as u64));
         // The path was canonicalized to an absolute path.
-        assert!(m.path.starts_with(dir.path()));
+        assert!(m.path.starts_with(canonical_dir(&dir)));
     }
 
     #[test]
@@ -569,7 +580,7 @@ mod tests {
         assert!(m.content.is_none());
         assert_eq!(m.token_cost, 0);
         assert!(m.audit.error.is_none());
-        assert!(m.path.starts_with(dir.path()));
+        assert!(m.path.starts_with(canonical_dir(&dir)));
     }
 
     #[test]
@@ -583,7 +594,7 @@ mod tests {
         assert!(m.is_binary);
         assert!(m.content.is_none());
         assert_eq!(m.image_base64, None);
-        assert!(m.path.starts_with(dir.path()));
+        assert!(m.path.starts_with(canonical_dir(&dir)));
     }
 
     #[test]
@@ -641,7 +652,7 @@ mod tests {
         assert!(!c.contains("line 4"));
         assert!(!c.contains("line 8"));
         assert_eq!(m.line_range, Some((5, 7)));
-        assert!(m.path.starts_with(dir.path()));
+        assert!(m.path.starts_with(canonical_dir(&dir)));
     }
 
     #[test]
