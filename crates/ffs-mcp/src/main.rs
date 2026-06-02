@@ -9,6 +9,7 @@
 mod cursor;
 mod engine_tools;
 mod healthcheck;
+mod mention_tools;
 mod output;
 mod server;
 mod update_check;
