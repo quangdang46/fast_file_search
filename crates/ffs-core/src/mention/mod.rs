@@ -61,5 +61,12 @@
 mod resolver;
 mod trigger;
 
+/// Phase D: extensible @-mention provider protocol. See module docs.
+pub mod provider;
+
+pub use provider::{
+    ExternalMentionCandidate, ExternalResolveResult, MentionProvider, ProviderError,
+    ProviderRegistry,
+};
 pub use resolver::{MentionCandidate, MentionKind, MentionOptions, MentionResolver, MentionResult};
 pub use trigger::{MentionTrigger, detect_trigger};
