@@ -42,6 +42,7 @@ use ffs::frecency::FrecencyTracker;
 use ffs::query_tracker::QueryTracker;
 use ffs::{DbHealthChecker, FfsMode, FuzzySearchOptions, PaginationArgs, QueryParser};
 use ffs::{SharedFilePicker, SharedFrecency};
+use ffs_engine::mention::{resolve_mentions, ResolveOptions};
 
 /// Opaque ffs_handle holding all per-instance state.
 ///
@@ -1574,4 +1575,294 @@ pub unsafe extern "C" fn ffs_mixed_search_result_get_score(
         return std::ptr::null();
     }
     unsafe { result.scores.add(index as usize) }
+}
+
+// ---------------------------------------------------------------------------
+// Phase C — @-mention JSON surface
+// ---------------------------------------------------------------------------
+
+/// Resolve a @-mention-style query and return a JSON-encoded
+/// `Vec<ResolvedMention>` in `FfsResult.handle` (free with `ffs_free_string`).
+///
+/// The input is split on whitespace; each non-empty token becomes a
+/// substring candidate query against the file picker's `base_path`. Every
+/// match is then handed to the Phase B resolver (`ffs_engine::mention`)
+/// which reads, classifies, filters, and truncates each path to fit the
+/// caller's token budget.
+///
+/// `options_json` is a JSON object with optional fields. Forward-compatible:
+/// unknown keys are ignored. Currently recognized fields:
+///   * `"max_tokens"`: `u32` — body budget per mention (default 50_000).
+///   * `"line_range"`: `[u32, u32]` 1-based inclusive slice, applied before
+///     `smart_truncate` so the line range is honored even when the file is
+///     large (default: none).
+///   * `"filter_level"`: `"none" | "minimal" | "aggressive"` (default
+///     `"minimal"`).
+///
+/// `cursor` is reserved for future Phase D streaming; today it is ignored.
+///
+/// The returned `FfsResult.handle` is a heap-allocated C string (JSON array
+/// of `ResolvedMention`). Free it with `ffs_free_string`. On failure
+/// `success` is false and `error` carries the message.
+///
+/// ## Safety
+/// * `ffs_handle` must be a valid instance pointer from `ffs_create_instance`.
+/// * `input` and `options_json` must be valid null-terminated UTF-8 strings
+///   or NULL (NULL/empty `options_json` uses the defaults).
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ffs_mention_search_json(
+    ffs_handle: *mut c_void,
+    input: *const c_char,
+    _cursor: u32,
+    options_json: *const c_char,
+) -> *mut FfsResult {
+    // Validate instance first so a bad handle never gets paired with a
+    // bogus success payload.
+    let inst = match unsafe { instance_ref(ffs_handle) } {
+        Ok(i) => i,
+        Err(e) => return e,
+    };
+
+    let input_str = match unsafe { cstr_to_str(input) } {
+        Some(s) => s,
+        None => return FfsResult::err("input is null or invalid UTF-8"),
+    };
+
+    // Parse options (forward-compatible: ignore unknown fields).
+    #[derive(Default, serde::Deserialize)]
+    struct RawOptions {
+        max_tokens: Option<u32>,
+        line_range: Option<(u32, u32)>,
+        filter_level: Option<String>,
+    }
+    let raw: RawOptions = match unsafe { optional_cstr(options_json) } {
+        Some(s) => match serde_json::from_str(s) {
+            Ok(v) => v,
+            Err(e) => return FfsResult::err(&format!("options_json parse error: {e}")),
+        },
+        None => RawOptions::default(),
+    };
+    let max_tokens = raw.max_tokens.unwrap_or(50_000);
+    let filter_level = match raw.filter_level.as_deref() {
+        Some("none") => ffs_budget::FilterLevel::None,
+        Some("aggressive") => ffs_budget::FilterLevel::Aggressive,
+        _ => ffs_budget::FilterLevel::Minimal,
+    };
+    let line_range = raw.line_range;
+    let opts = ResolveOptions {
+        max_tokens,
+        filter_level,
+        line_range,
+    };
+
+    // Candidate selection: substring walk of base_path. We could route
+    // through `picker.fuzzy_search` but that would couple this surface to
+    // the indexed DB and the AI-mode parse grammar; a plain walk is
+    // honest about the trade-off (no fuzzy ranking, but always works even
+    // when the index is cold or `watch=false`).
+    let base_path = {
+        let guard = match inst.picker.read() {
+            Ok(g) => g,
+            Err(e) => return FfsResult::err(&format!("picker lock: {e}")),
+        };
+        match guard.as_ref() {
+            Some(p) => p.base_path().to_path_buf(),
+            None => return FfsResult::err("File picker not initialized"),
+        }
+    };
+
+    let tokens: Vec<&str> = input_str
+        .split_whitespace()
+        .filter(|t| !t.is_empty())
+        .collect();
+    if tokens.is_empty() {
+        // Nothing to resolve. Return an empty array so callers always get
+        // a valid JSON document.
+        return FfsResult::ok_string("[]");
+    }
+
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut candidates: Vec<PathBuf> = Vec::new();
+    for entry in walk_files_simple(&base_path) {
+        let Some(s) = entry.to_str() else { continue };
+        if tokens.iter().any(|t| s.contains(t)) && seen.insert(s.to_string()) {
+            candidates.push(entry);
+        }
+    }
+
+    let resolved = resolve_mentions(&candidates, &opts);
+    match serde_json::to_string(&resolved) {
+        Ok(json) => FfsResult::ok_string(&json),
+        Err(e) => FfsResult::err(&format!("serialize ResolvedMention: {e}")),
+    }
+}
+
+/// Single-threaded recursive directory walk. The mention surface does not
+/// need the parallel `ignore::WalkBuilder` — the candidate list is small
+/// (substring-filtered) and the resolver is the hot path. Kept private to
+/// this module so it doesn't leak into the rest of the C ABI.
+fn walk_files_simple(root: &std::path::Path) -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    let walker = ignore::WalkBuilder::new(root)
+        .standard_filters(true)
+        .follow_links(false)
+        .threads(1)
+        .build();
+    for entry in walker.flatten() {
+        if entry.file_type().is_some_and(|t| t.is_file()) {
+            out.push(entry.into_path());
+        }
+    }
+    out
+}
+
+// ---------------------------------------------------------------------------
+// Phase C — @-mention JSON surface tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod mention_abi_tests {
+    use super::*;
+    use std::ffi::CString;
+    use std::path::Path;
+
+    /// Build a tempdir with three files, then create an FfsInstance rooted
+    /// at it. Returns the `*mut c_void` handle (must be freed with
+    /// `ffs_destroy`).
+    unsafe fn fresh_instance(root: &Path) -> *mut c_void {
+        // Use empty paths for the optional DBs to keep the test hermetic.
+        let base = CString::new(root.to_str().unwrap()).unwrap();
+        let null = CString::new("").unwrap();
+        let res = unsafe {
+            ffs_create_instance2(
+                base.as_ptr(),
+                null.as_ptr(), // frecency
+                null.as_ptr(), // history
+                false,
+                false, // no mmap warmup
+                false, // no content indexing
+                false, // no watcher
+                true,  // ai_mode
+                std::ptr::null(),
+                std::ptr::null(),
+                0,
+                0,
+                0,
+            )
+        };
+        assert!(!res.is_null(), "ffs_create_instance2 returned null");
+        let result = unsafe { &*res };
+        assert!(
+            result.success,
+            "ffs_create_instance2 failed: error={:?}",
+            result.error
+        );
+        let handle = result.handle;
+        // The FfsResult envelope is heap-allocated; free it via
+        // `ffs_free_result` so the error string is dropped exactly once.
+        unsafe { ffs_free_result(res) };
+        handle
+    }
+
+    /// Free the JSON string produced by `ffs_mention_search_json`.
+    unsafe fn free_handle(result: *mut FfsResult) {
+        unsafe {
+            if result.is_null() {
+                return;
+            }
+            let r = &*result;
+            if !r.error.is_null() {
+                drop(CString::from_raw(r.error));
+            }
+            if !r.handle.is_null() {
+                drop(CString::from_raw(r.handle as *mut c_char));
+            }
+            drop(Box::from_raw(result));
+        }
+    }
+
+    fn write_files(dir: &Path) {
+        std::fs::write(dir.join("alpha.rs"), b"fn alpha() {}\n").unwrap();
+        std::fs::write(dir.join("beta.rs"), b"fn beta() {}\n").unwrap();
+        std::fs::create_dir_all(dir.join("nested")).unwrap();
+        std::fs::write(dir.join("nested/gamma.rs"), b"fn gamma() {}\n").unwrap();
+    }
+
+    #[test]
+    fn mention_search_json_returns_valid_json_array() {
+        let td = tempfile::tempdir().unwrap();
+        write_files(td.path());
+        let handle = unsafe { fresh_instance(td.path()) };
+
+        let input = CString::new("alpha beta").unwrap();
+        let opts = CString::new("{\"max_tokens\": 1000}").unwrap();
+        let res = unsafe {
+            ffs_mention_search_json(handle, input.as_ptr(), 0, opts.as_ptr())
+        };
+        let r = unsafe { &*res };
+        assert!(r.success, "expected success, got error: {:?}", r.error);
+        assert!(!r.handle.is_null(), "expected non-null JSON handle");
+        let json_ptr = r.handle as *const c_char;
+        let json = unsafe { CStr::from_ptr(json_ptr) }.to_str().unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(json)
+            .expect("ffs_mention_search_json should produce valid JSON");
+        let arr = parsed.as_array().expect("expected JSON array");
+        assert_eq!(arr.len(), 2, "expected 2 ResolvedMention entries: {json}");
+        for m in arr {
+            assert!(m["path"].is_string());
+            assert!(m["kind"].is_string());
+            assert!(m["content"].is_string() || m["content"].is_null());
+        }
+        unsafe { free_handle(res) };
+        unsafe { ffs_destroy(handle) };
+    }
+
+    #[test]
+    fn mention_search_json_empty_input_returns_empty_array() {
+        let td = tempfile::tempdir().unwrap();
+        write_files(td.path());
+        let handle = unsafe { fresh_instance(td.path()) };
+
+        let input = CString::new("   \t  ").unwrap();
+        let res =
+            unsafe { ffs_mention_search_json(handle, input.as_ptr(), 0, std::ptr::null()) };
+        let r = unsafe { &*res };
+        assert!(r.success, "expected success on empty input");
+        let json = unsafe { CStr::from_ptr(r.handle as *const c_char) }
+            .to_str()
+            .unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(json).unwrap();
+        assert!(parsed.as_array().unwrap().is_empty());
+        unsafe { free_handle(res) };
+        unsafe { ffs_destroy(handle) };
+    }
+
+    #[test]
+    fn mention_search_json_null_handle_returns_error() {
+        let input = CString::new("alpha").unwrap();
+        let res = unsafe {
+            ffs_mention_search_json(std::ptr::null_mut(), input.as_ptr(), 0, std::ptr::null())
+        };
+        let r = unsafe { &*res };
+        assert!(!r.success, "null handle must produce error result");
+        assert!(!r.error.is_null());
+        unsafe { free_handle(res) };
+    }
+
+    #[test]
+    fn mention_search_json_options_parse_error() {
+        let td = tempfile::tempdir().unwrap();
+        write_files(td.path());
+        let handle = unsafe { fresh_instance(td.path()) };
+
+        let input = CString::new("alpha").unwrap();
+        let opts = CString::new("not-json").unwrap();
+        let res = unsafe {
+            ffs_mention_search_json(handle, input.as_ptr(), 0, opts.as_ptr())
+        };
+        let r = unsafe { &*res };
+        assert!(!r.success, "malformed options_json must produce error");
+        unsafe { free_handle(res) };
+        unsafe { ffs_destroy(handle) };
+    }
 }

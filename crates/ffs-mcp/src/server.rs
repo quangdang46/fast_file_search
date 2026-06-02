@@ -1098,6 +1098,31 @@ impl FfsServer {
             .map_err(|e| ErrorData::internal_error(format!("ffs overview failed: {e}"), None))?;
         Ok(CallToolResult::success(vec![Content::text(text)]))
     }
+
+    /// Phase C @-mention surface. Resolves a free-form input string into a
+    /// JSON array of `ResolvedMention` payloads, one per substring-matched
+    /// file. Mirrors `ffs mention-search` on the CLI and
+    /// `ffs_mention_search_json` in the C ABI. Phase D will add provider
+    /// hooks; for now every mention resolves to a local file/dir/image.
+    #[tool(
+        name = "ffs_mention_search",
+        description = "Resolve a @-mention-style input against the workspace and return a JSON array of `ResolvedMention` payloads (path, kind, content, token cost, audit). Mirrors `ffs mention-search` (CLI) and `ffs_mention_search_json` (C ABI). Use when an agent receives a mention string and needs the underlying file contents token-budgeted for an LLM context."
+    )]
+    fn ffs_mention_search(
+        &self,
+        Parameters(params): Parameters<crate::mention_tools::MentionSearchParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let root = self.picker_base_path()?;
+        let opts = crate::mention_tools::build_resolve_options(
+            params.max_tokens,
+            params.line_range,
+            params.filter_level.as_deref(),
+        );
+        let out = crate::mention_tools::run_mention_pipeline(&params.input, &root, &opts);
+        let json = crate::mention_tools::output_to_json(&out)
+            .map_err(|e| ErrorData::internal_error(e, None))?;
+        Ok(CallToolResult::success(vec![Content::text(json)]))
+    }
 }
 
 impl FfsServer {
@@ -1276,5 +1301,28 @@ mod tests {
         let via_pattern: FindFilesParams =
             serde_json::from_str(r#"{"pattern":"foo"}"#).expect("pattern alias");
         assert_eq!(via_pattern.query, "foo");
+    }
+
+    /// Smoke test: confirm the `ffs_mention_search` tool is wired into the
+    /// `#[tool_router]` router. The macro-generated `tool_router` field
+    /// carries an `attr(...)` map; we just check the tool name is present
+    /// so a future refactor that drops the `#[tool]` attribute fails CI
+    /// instead of silently shipping a broken MCP server.
+    #[test]
+    fn ffs_mention_search_tool_is_registered() {
+        let server = FfsServer::new(
+            ffs::SharedFilePicker::default(),
+            ffs::SharedFrecency::default(),
+        );
+        let tools: Vec<_> = server
+            .tool_router
+            .list_all()
+            .into_iter()
+            .map(|t| t.name.to_string())
+            .collect();
+        assert!(
+            tools.iter().any(|n| n == "ffs_mention_search"),
+            "ffs_mention_search not registered. Tools: {tools:?}"
+        );
     }
 }

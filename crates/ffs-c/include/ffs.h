@@ -849,6 +849,39 @@ const struct FfsScore *ffs_mixed_search_result_get_score(const struct FfsMixedSe
                                                          uint32_t index);
 
 /**
+ * Resolve a @-mention-style query and return a JSON-encoded
+ * `Vec<ResolvedMention>` in `FfsResult.handle` (free with `ffs_free_string`).
+ *
+ * The input is split on whitespace; each non-empty token becomes a
+ * substring candidate query against the file picker's `base_path`. Every
+ * match is then handed to the Phase B resolver which reads, classifies,
+ * filters, and truncates each path to fit the caller's token budget.
+ *
+ * `options_json` is a JSON object with optional fields. Forward-compatible:
+ * unknown keys are ignored. Currently recognized fields:
+ *   * `"max_tokens"`: `uint32` — body budget per mention (default 50000).
+ *   * `"line_range"`: `[uint32, uint32]` 1-based inclusive slice, applied
+ *     before smart_truncate (default: none).
+ *   * `"filter_level"`: `"none" | "minimal" | "aggressive"` (default
+ *     `"minimal"`).
+ *
+ * `cursor` is reserved for future Phase D streaming; today it is ignored.
+ *
+ * The returned `FfsResult.handle` is a heap-allocated C string (JSON array
+ * of `ResolvedMention`). Free it with `ffs_free_string`. On failure
+ * `success` is false and `error` carries the message.
+ *
+ * ## Safety
+ * * `ffs_handle` must be a valid instance pointer from `ffs_create_instance`.
+ * * `input` and `options_json` must be valid null-terminated UTF-8 strings
+ *   or NULL (NULL/empty `options_json` uses the defaults).
+ */
+struct FfsResult *ffs_mention_search_json(void *ffs_handle,
+                                          const char *input,
+                                          uint32_t cursor,
+                                          const char *options_json);
+
+/**
  * Returns the relative path of a file item (e.g. `"src/main.rs"`).
  *
  * Returns null if `item` is null. The returned pointer is valid for the

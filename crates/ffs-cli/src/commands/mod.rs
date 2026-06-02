@@ -21,6 +21,7 @@ pub mod impact;
 pub mod index;
 pub mod map;
 pub mod mcp;
+pub mod mention;
 pub mod outline;
 pub(crate) mod outline_format;
 pub mod overview;
