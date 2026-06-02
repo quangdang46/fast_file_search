@@ -42,7 +42,7 @@ use ffs::frecency::FrecencyTracker;
 use ffs::query_tracker::QueryTracker;
 use ffs::{DbHealthChecker, FfsMode, FuzzySearchOptions, PaginationArgs, QueryParser};
 use ffs::{SharedFilePicker, SharedFrecency};
-use ffs_engine::mention::{resolve_mentions, ResolveOptions};
+use ffs_engine::mention::{ResolveOptions, resolve_mentions};
 
 /// Opaque ffs_handle holding all per-instance state.
 ///
@@ -1796,16 +1796,14 @@ mod mention_abi_tests {
 
         let input = CString::new("alpha beta").unwrap();
         let opts = CString::new("{\"max_tokens\": 1000}").unwrap();
-        let res = unsafe {
-            ffs_mention_search_json(handle, input.as_ptr(), 0, opts.as_ptr())
-        };
+        let res = unsafe { ffs_mention_search_json(handle, input.as_ptr(), 0, opts.as_ptr()) };
         let r = unsafe { &*res };
         assert!(r.success, "expected success, got error: {:?}", r.error);
         assert!(!r.handle.is_null(), "expected non-null JSON handle");
         let json_ptr = r.handle as *const c_char;
         let json = unsafe { CStr::from_ptr(json_ptr) }.to_str().unwrap();
-        let parsed: serde_json::Value = serde_json::from_str(json)
-            .expect("ffs_mention_search_json should produce valid JSON");
+        let parsed: serde_json::Value =
+            serde_json::from_str(json).expect("ffs_mention_search_json should produce valid JSON");
         let arr = parsed.as_array().expect("expected JSON array");
         assert_eq!(arr.len(), 2, "expected 2 ResolvedMention entries: {json}");
         for m in arr {
@@ -1824,8 +1822,7 @@ mod mention_abi_tests {
         let handle = unsafe { fresh_instance(td.path()) };
 
         let input = CString::new("   \t  ").unwrap();
-        let res =
-            unsafe { ffs_mention_search_json(handle, input.as_ptr(), 0, std::ptr::null()) };
+        let res = unsafe { ffs_mention_search_json(handle, input.as_ptr(), 0, std::ptr::null()) };
         let r = unsafe { &*res };
         assert!(r.success, "expected success on empty input");
         let json = unsafe { CStr::from_ptr(r.handle as *const c_char) }
@@ -1857,9 +1854,7 @@ mod mention_abi_tests {
 
         let input = CString::new("alpha").unwrap();
         let opts = CString::new("not-json").unwrap();
-        let res = unsafe {
-            ffs_mention_search_json(handle, input.as_ptr(), 0, opts.as_ptr())
-        };
+        let res = unsafe { ffs_mention_search_json(handle, input.as_ptr(), 0, opts.as_ptr()) };
         let r = unsafe { &*res };
         assert!(!r.success, "malformed options_json must produce error");
         unsafe { free_handle(res) };

@@ -98,7 +98,7 @@ pub fn run(args: Args, root: &Path, default_format: OutputFormat) -> Result<()> 
         schema: "v1",
     };
 
-    super::emit(format, &payload, |p| render_text(p))
+    super::emit(format, &payload, render_text)
 }
 
 fn render_text(p: &MentionSearchOutput) -> String {
@@ -135,10 +135,7 @@ fn render_text(p: &MentionSearchOutput) -> String {
 fn collect_candidates(root: &Path, input: &str) -> Vec<String> {
     use std::collections::HashSet;
 
-    let tokens: Vec<&str> = input
-        .split_whitespace()
-        .filter(|t| !t.is_empty())
-        .collect();
+    let tokens: Vec<&str> = input.split_whitespace().filter(|t| !t.is_empty()).collect();
     if tokens.is_empty() {
         return Vec::new();
     }
