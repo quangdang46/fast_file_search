@@ -442,6 +442,12 @@ pub struct FilePickerOptions {
     pub watch: bool,
     /// Follow symbolic links during file indexing.
     pub follow_symlinks: bool,
+    /// Allow indexing the filesystem root (`/`). Off by default — these dirs
+    /// generate enormous fs-event traffic and are rarely the intended target.
+    pub enable_fs_root_scanning: bool,
+    /// Allow indexing the user's home directory. Off by default for the same
+    /// reason as `enable_fs_root_scanning`.
+    pub enable_home_dir_scanning: bool,
 }
 
 impl Default for FilePickerOptions {
@@ -454,6 +460,8 @@ impl Default for FilePickerOptions {
             cache_budget: None,
             watch: true,
             follow_symlinks: false,
+            enable_fs_root_scanning: false,
+            enable_home_dir_scanning: false,
         }
     }
 }
@@ -471,6 +479,8 @@ pub struct FilePicker {
     enable_content_indexing: bool,
     watch: bool,
     follow_symlinks: bool,
+    enable_fs_root_scanning: bool,
+    enable_home_dir_scanning: bool,
 }
 
 impl std::fmt::Debug for FilePicker {
@@ -526,6 +536,14 @@ impl FilePicker {
 
     pub fn follows_symlinks(&self) -> bool {
         self.follow_symlinks
+    }
+
+    pub fn fs_root_scanning_enabled(&self) -> bool {
+        self.enable_fs_root_scanning
+    }
+
+    pub fn home_dir_scanning_enabled(&self) -> bool {
+        self.enable_home_dir_scanning
     }
 
     pub fn mode(&self) -> FFFMode {
@@ -695,8 +713,14 @@ impl FilePicker {
             error!("Base path does not exist: {}", options.base_path);
             return Err(Error::InvalidPath(path));
         }
-        if path.parent().is_none() {
+        if path.parent().is_none() && !options.enable_fs_root_scanning {
             error!("Refusing to index filesystem root: {}", path.display());
+            return Err(Error::FilesystemRoot(path));
+        }
+        if !options.enable_home_dir_scanning
+            && Some(path.as_os_str()) == dirs::home_dir().as_ref().map(|p| p.as_os_str())
+        {
+            error!("Refusing to index home directory: {}", path.display());
             return Err(Error::FilesystemRoot(path));
         }
 
@@ -722,6 +746,8 @@ impl FilePicker {
             enable_content_indexing: options.enable_content_indexing,
             watch: options.watch,
             follow_symlinks: options.follow_symlinks,
+            enable_fs_root_scanning: options.enable_fs_root_scanning,
+            enable_home_dir_scanning: options.enable_home_dir_scanning,
         })
     }
 
@@ -747,6 +773,8 @@ impl FilePicker {
         let watch = picker.watch;
         let mode = picker.mode;
         let follow_symlinks = picker.follow_symlinks;
+        let enable_fs_root_scanning = picker.enable_fs_root_scanning;
+        let enable_home_dir_scanning = picker.enable_home_dir_scanning;
 
         let signals = picker.scan_signals();
         let scanned_files_counter = picker.scanned_files_counter();
@@ -774,6 +802,8 @@ impl FilePicker {
                 auto_cache_budget: true,
                 install_watcher: true,
                 follow_symlinks,
+                enable_fs_root_scanning,
+                enable_home_dir_scanning,
             },
         )
         .spawn();
@@ -851,6 +881,8 @@ impl FilePicker {
             shared_picker.clone(),
             shared_frecency.clone(),
             self.mode,
+            self.enable_fs_root_scanning,
+            self.enable_home_dir_scanning,
         )?;
         self.background_watcher = Some(watcher);
         self.signals.watcher_ready.store(true, Ordering::Release);
@@ -1146,6 +1178,32 @@ impl FilePicker {
             total_dirs,
             location,
         }
+    }
+
+    /// Glob search: filter indexed files by a single glob pattern, rank by
+    /// frecency, and paginate. Bypasses the regular query parser entirely —
+    /// useful when callers already have a literal glob (`*.rs`, `**/*.test.ts`)
+    /// and want neither fuzzy matching nor multi-token constraint parsing.
+    ///
+    /// Pipeline: `apply_constraints(Glob) → score_filtered_by_frecency → sort_and_paginate`.
+    /// Same ranking semantics as `fuzzy_search` when the fuzzy query is empty.
+    pub fn glob<'p>(
+        &'p self,
+        pattern: &'p str,
+        options: FuzzySearchOptions<'p>,
+    ) -> SearchResult<'p> {
+        let query = FFFQuery {
+            raw_query: pattern,
+            constraints: vec![fff_query_parser::Constraint::Glob(pattern)],
+            fuzzy_query: fff_query_parser::FuzzyQuery::Empty,
+            location: None,
+        };
+
+        // `fuzzy_search` short-circuits to `score_filtered_by_frecency` when
+        // `fuzzy_query` is `Empty`, then runs the same `sort_and_paginate`
+        // path. Reusing it keeps the ranking guarantees identical without
+        // exposing the private scoring helpers.
+        self.fuzzy_search(&query, None, options)
     }
 
     /// Perform a live grep search across indexed files.

@@ -22,6 +22,11 @@ harness = false
 name = "memmem_bench"
 harness = false
 
+[[bench]]
+name = "glob_bench"
+harness = false
+required-features = ["zlob"]
+
 [features]
 default = []
 # Enable C FFI exports

@@ -15,6 +15,7 @@ import {
   ffiGetBasePath,
   ffiGetHistoricalQuery,
   ffiGetScanProgress,
+  ffiGlob,
   ffiHealthCheck,
   ffiIsScanning,
   ffiLiveGrep,
@@ -35,6 +36,7 @@ import {
 import type {
   DirSearchOptions,
   DirSearchResult,
+  GlobOptions,
   GrepOptions,
   GrepResult,
   HealthCheck,
@@ -122,6 +124,8 @@ export class FileFinder {
       BigInt(options.cacheBudgetMaxFiles ?? 0),
       BigInt(options.cacheBudgetMaxBytes ?? 0),
       BigInt(options.cacheBudgetMaxFileSize ?? 0),
+      options.enableFsRootScanning ?? false,
+      options.enableHomeDirScanning ?? false,
     );
 
     if (!result.ok) {
@@ -199,6 +203,30 @@ export class FileFinder {
       options?.pageSize ?? 0,
       options?.comboBoostMultiplier ?? 0,
       options?.minComboCount ?? 0,
+    );
+  }
+
+  /**
+   * Glob-only search.
+   *
+   * The pattern is applied as a single pass SIMD optimized prefiltering
+   * without any fuzzy matching involved. Faster and 100% compatible to npm `glob`.
+   *
+   * @param pattern - Glob pattern (required, non-empty)
+   * @param options - Glob search options (pagination, max threads, current file)
+   * @returns Search results with files matching the glob
+   */
+  glob(pattern: string, options?: GlobOptions): Result<SearchResult> {
+    const guard = this.ensureAlive();
+    if (!guard.ok) return guard;
+
+    return ffiGlob(
+      guard.value,
+      pattern,
+      options?.currentFile ?? "",
+      options?.maxThreads ?? 0,
+      options?.pageIndex ?? 0,
+      options?.pageSize ?? 0,
     );
   }
 

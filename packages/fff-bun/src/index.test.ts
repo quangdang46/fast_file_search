@@ -164,6 +164,85 @@ describe("FileFinder - Full Lifecycle", () => {
     }
   });
 
+  test("glob filters by extension via raw pattern", () => {
+    const result = finder.glob("**/*.ts", { pageSize: 50 });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.items.length).toBeGreaterThan(0);
+      for (const item of result.value.items) {
+        expect(item.relativePath.endsWith(".ts")).toBe(true);
+      }
+    }
+  });
+
+  test("glob returns empty result for non-matching pattern", () => {
+    const result = finder.glob("**/this-extension-does-not-exist-anywhere.zzz");
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.items.length).toBe(0);
+    }
+  });
+
+  test("glob rejects empty pattern", () => {
+    const result = finder.glob("");
+    expect(result.ok).toBe(false);
+  });
+
+  test("glob respects pageSize", () => {
+    const result = finder.glob("**/*.ts", { pageSize: 2 });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.items.length).toBeLessThanOrEqual(2);
+    }
+  });
+
+  test("glob pageIndex offsets results", () => {
+    // pageIndex is a raw item offset (not a page-count multiplier). Verify
+    // by skipping the first item and checking the second result begins
+    // where page0[1] left off.
+    const page0 = finder.glob("**/*.ts", { pageSize: 5, pageIndex: 0 });
+    const page1 = finder.glob("**/*.ts", { pageSize: 5, pageIndex: 1 });
+    expect(page0.ok).toBe(true);
+    expect(page1.ok).toBe(true);
+    if (page0.ok && page1.ok && page0.value.items.length > 1 && page1.value.items.length > 0) {
+      expect(page1.value.items[0]!.relativePath).toBe(page0.value.items[1]!.relativePath);
+    }
+  });
+
+  test("glob directory-prefix pattern matches only that subtree", () => {
+    const result = finder.glob("src/**/*.ts", { pageSize: 100 });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      for (const item of result.value.items) {
+        expect(item.relativePath.startsWith("src/")).toBe(true);
+        expect(item.relativePath.endsWith(".ts")).toBe(true);
+      }
+    }
+  });
+
+  test("glob result items carry expected fields", () => {
+    const result = finder.glob("**/*.ts", { pageSize: 1 });
+    expect(result.ok).toBe(true);
+    if (result.ok && result.value.items.length > 0) {
+      const item = result.value.items[0];
+      expect(typeof item.relativePath).toBe("string");
+      expect(typeof item.fileName).toBe("string");
+      expect(item.relativePath.length).toBeGreaterThan(0);
+    }
+  });
+
+  test("glob literal extension pattern (no leading **) still filters", () => {
+    const result = finder.glob("*.ts", { pageSize: 100 });
+    expect(result.ok).toBe(true);
+    // Don't assert non-zero — depends on whether top-level .ts files exist.
+    // Just assert all returned items match.
+    if (result.ok) {
+      for (const item of result.value.items) {
+        expect(item.relativePath.endsWith(".ts")).toBe(true);
+      }
+    }
+  });
+
   test("grep plain text returns matching lines", () => {
     const result = finder.grep("fff-core", {
       mode: "plain",

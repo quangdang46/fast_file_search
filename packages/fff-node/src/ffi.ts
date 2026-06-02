@@ -62,6 +62,27 @@ import { createGrepCursor, err } from "./types.js";
 
 const LIBRARY_KEY = "fff_c";
 
+const FFF_CREATE_OPTIONS_STRUCT = {
+  version: DataType.U32,
+  base_path: DataType.String,
+  frecency_db_path: DataType.String,
+  history_db_path: DataType.String,
+  enable_mmap_cache: DataType.U8,
+  enable_content_indexing: DataType.U8,
+  watch: DataType.U8,
+  ai_mode: DataType.U8,
+  log_file_path: DataType.String,
+  log_level: DataType.String,
+  cache_budget_max_files: DataType.U64,
+  cache_budget_max_bytes: DataType.U64,
+  cache_budget_max_file_size: DataType.U64,
+  enable_fs_root_scanning: DataType.U8,
+  enable_home_dir_scanning: DataType.U8,
+};
+
+// ALWAYS KEEP IN SYNC WITH fff.h
+const FFF_CREATE_OPTIONS_VERSION = 1;
+
 /** Grep mode constants matching the C API (u8). */
 const GREP_MODE_PLAIN = 0;
 const GREP_MODE_REGEX = 1;
@@ -216,7 +237,11 @@ function readResultEnvelope(
   paramsValue: unknown[],
 ): { rawPtr: JsExternal; struct: FffResultRaw } | Result<never> {
   loadLibrary();
-  const { rawPtr, struct: structData } = callRaw(funcName, paramsType, paramsValue);
+  const { rawPtr, struct: structData } = callRaw(
+    funcName,
+    paramsType,
+    paramsValue,
+  );
 
   if (structData.success === 0) {
     const errorStr = readCString(structData.error);
@@ -294,7 +319,8 @@ function callJsonResult<T>(
   if (isNullPointer(handlePtr)) return { ok: true, value: undefined as T };
   const jsonStr = readCString(handlePtr);
   freeString(handlePtr);
-  if (jsonStr === null || jsonStr === "") return { ok: true, value: undefined as T };
+  if (jsonStr === null || jsonStr === "")
+    return { ok: true, value: undefined as T };
   try {
     return { ok: true, value: snakeToCamel(JSON.parse(jsonStr)) as T };
   } catch {
@@ -322,14 +348,11 @@ function freeString(ptr: JsExternal): void {
  */
 export type NativeHandle = JsExternal;
 
-/**
- * Create a new file finder instance.
- */
 export function ffiCreate(
   basePath: string,
   frecencyDbPath: string,
   historyDbPath: string,
-  useUnsafeNoLock: boolean,
+  _useUnsafeNoLock: boolean,
   enableMmapCache: boolean,
   enableContentIndexing: boolean,
   watch: boolean,
@@ -339,42 +362,42 @@ export function ffiCreate(
   cacheBudgetMaxFiles: number,
   cacheBudgetMaxBytes: number,
   cacheBudgetMaxFileSize: number,
+  enableFsRootScanning: boolean,
+  enableHomeDirScanning: boolean,
 ): Result<NativeHandle> {
   loadLibrary();
 
-  const { rawPtr, struct: structData } = callRaw(
-    "fff_create_instance2",
-    [
-      DataType.String, // base_path
-      DataType.String, // frecency_db_path
-      DataType.String, // history_db_path
-      DataType.Boolean, // use_unsafe_no_lock
-      DataType.Boolean, // enable_mmap_cache
-      DataType.Boolean, // enable_content_indexing
-      DataType.Boolean, // watch
-      DataType.Boolean, // ai_mode
-      DataType.String, // log_file_path
-      DataType.String, // log_level
-      DataType.U64, // cache_budget_max_files
-      DataType.U64, // cache_budget_max_bytes
-      DataType.U64, // cache_budget_max_file_size
-    ],
-    [
-      basePath,
-      frecencyDbPath,
-      historyDbPath,
-      useUnsafeNoLock,
-      enableMmapCache,
-      enableContentIndexing,
-      watch,
-      aiMode,
-      logFilePath,
-      logLevel,
-      cacheBudgetMaxFiles,
-      cacheBudgetMaxBytes,
-      cacheBudgetMaxFileSize,
-    ],
-  );
+  const optsValue = {
+    version: FFF_CREATE_OPTIONS_VERSION,
+    base_path: basePath,
+    frecency_db_path: frecencyDbPath,
+    history_db_path: historyDbPath,
+    enable_mmap_cache: enableMmapCache ? 1 : 0,
+    enable_content_indexing: enableContentIndexing ? 1 : 0,
+    watch: watch ? 1 : 0,
+    ai_mode: aiMode ? 1 : 0,
+    log_file_path: logFilePath,
+    log_level: logLevel,
+    cache_budget_max_files: cacheBudgetMaxFiles,
+    cache_budget_max_bytes: cacheBudgetMaxBytes,
+    cache_budget_max_file_size: cacheBudgetMaxFileSize,
+    enable_fs_root_scanning: enableFsRootScanning ? 1 : 0,
+    enable_home_dir_scanning: enableHomeDirScanning ? 1 : 0,
+  };
+
+  const rawPtr = load({
+    library: LIBRARY_KEY,
+    funcName: "fff_create_instance_with",
+    retType: DataType.External,
+    paramsType: [FFF_CREATE_OPTIONS_STRUCT],
+    paramsValue: [optsValue],
+    freeResultMemory: false,
+  }) as JsExternal;
+
+  const [structData] = restorePointer({
+    retType: [FFF_RESULT_STRUCT],
+    paramsValue: wrapPointer([rawPtr]),
+  }) as unknown as [FffResultRaw];
 
   const success = structData.success !== 0;
 
@@ -382,7 +405,7 @@ export function ffiCreate(
     if (success) {
       const handle = structData.handle;
       if (isNullPointer(handle)) {
-        return err("fff_create_instance2 returned null handle");
+        return err("fff_create_instance_with returned null handle");
       }
       return { ok: true, value: handle };
     } else {
@@ -816,10 +839,16 @@ function readGrepMatchFromRaw(raw: FffGrepMatchRaw): GrepMatch {
     match.fuzzyScore = raw.fuzzy_score;
   }
   if (raw.context_before_count > 0) {
-    match.contextBefore = readCStringArray(raw.context_before, raw.context_before_count);
+    match.contextBefore = readCStringArray(
+      raw.context_before,
+      raw.context_before_count,
+    );
   }
   if (raw.context_after_count > 0) {
-    match.contextAfter = readCStringArray(raw.context_after, raw.context_after_count);
+    match.contextAfter = readCStringArray(
+      raw.context_after,
+      raw.context_after_count,
+    );
   }
   if (raw.is_definition !== 0) {
     match.isDefinition = true;
@@ -888,7 +917,8 @@ function parseGrepResult(rawPtr: JsExternal): Result<GrepResult> {
     totalFilesSearched: gr.total_files_searched,
     totalFiles: gr.total_files,
     filteredFileCount: gr.filtered_file_count,
-    nextCursor: gr.next_file_offset > 0 ? createGrepCursor(gr.next_file_offset) : null,
+    nextCursor:
+      gr.next_file_offset > 0 ? createGrepCursor(gr.next_file_offset) : null,
   };
   if (regexFallbackError) {
     grepResult.regexFallbackError = regexFallbackError;
@@ -937,7 +967,11 @@ function parseSearchResult(rawPtr: JsExternal): Result<SearchResult> {
   if (sr.location_tag === 1) {
     location = { type: "line", line: sr.location_line };
   } else if (sr.location_tag === 2) {
-    location = { type: "position", line: sr.location_line, col: sr.location_col };
+    location = {
+      type: "position",
+      line: sr.location_line,
+      col: sr.location_col,
+    };
   } else if (sr.location_tag === 3) {
     location = {
       type: "range",
@@ -1108,7 +1142,11 @@ function parseMixedSearchResult(rawPtr: JsExternal): Result<MixedSearchResult> {
   if (sr.location_tag === 1) {
     location = { type: "line", line: sr.location_line };
   } else if (sr.location_tag === 2) {
-    location = { type: "position", line: sr.location_line, col: sr.location_col };
+    location = {
+      type: "position",
+      line: sr.location_line,
+      col: sr.location_col,
+    };
   } else if (sr.location_tag === 3) {
     location = {
       type: "range",
@@ -1207,6 +1245,46 @@ export function ffiSearch(
 }
 
 /**
+ * Glob-only search. Bypasses the regular query parser, applies the pattern
+ * as a single `Constraint::Glob`, ranks by frecency, paginates.
+ */
+export function ffiGlob(
+  handle: NativeHandle,
+  pattern: string,
+  currentFile: string,
+  maxThreads: number,
+  pageIndex: number,
+  pageSize: number,
+): Result<SearchResult> {
+  loadLibrary();
+
+  const rawPtr = load({
+    library: LIBRARY_KEY,
+    funcName: "fff_glob",
+    retType: DataType.External,
+    paramsType: [
+      DataType.External, // handle
+      DataType.String, // pattern
+      DataType.String, // current_file
+      DataType.U32, // max_threads
+      DataType.U32, // page_index
+      DataType.U32, // page_size
+    ],
+    paramsValue: [
+      handle,
+      pattern,
+      currentFile,
+      maxThreads,
+      pageIndex,
+      pageSize,
+    ],
+    freeResultMemory: false,
+  }) as JsExternal;
+
+  return parseSearchResult(rawPtr);
+}
+
+/**
  * Perform fuzzy directory search.
  */
 export function ffiSearchDirectories(
@@ -1231,7 +1309,14 @@ export function ffiSearchDirectories(
       DataType.U32, // page_index
       DataType.U32, // page_size
     ],
-    paramsValue: [handle, query, currentFile ?? "", maxThreads, pageIndex, pageSize],
+    paramsValue: [
+      handle,
+      query,
+      currentFile ?? "",
+      maxThreads,
+      pageIndex,
+      pageSize,
+    ],
     freeResultMemory: false,
   }) as JsExternal;
 
@@ -1443,7 +1528,11 @@ export function ffiGetScanProgress(
   handle: NativeHandle,
 ): Result<{ scannedFilesCount: number; isScanning: boolean }> {
   loadLibrary();
-  const res = readResultEnvelope("fff_get_scan_progress", [DataType.External], [handle]);
+  const res = readResultEnvelope(
+    "fff_get_scan_progress",
+    [DataType.External],
+    [handle],
+  );
   if ("ok" in res) return res;
 
   const handlePtr = res.struct.handle;
@@ -1476,7 +1565,10 @@ export function ffiGetScanProgress(
 /**
  * Wait for a tree scan to complete.
  */
-export function ffiWaitForScan(handle: NativeHandle, timeoutMs: number): Result<boolean> {
+export function ffiWaitForScan(
+  handle: NativeHandle,
+  timeoutMs: number,
+): Result<boolean> {
   return callBoolResult(
     "fff_wait_for_scan",
     [DataType.External, DataType.U64],
@@ -1487,7 +1579,10 @@ export function ffiWaitForScan(handle: NativeHandle, timeoutMs: number): Result<
 /**
  * Restart index in new path.
  */
-export function ffiRestartIndex(handle: NativeHandle, newPath: string): Result<void> {
+export function ffiRestartIndex(
+  handle: NativeHandle,
+  newPath: string,
+): Result<void> {
   return callVoidResult(
     "fff_restart_index",
     [DataType.External, DataType.String],

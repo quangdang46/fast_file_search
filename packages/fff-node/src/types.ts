@@ -27,7 +27,10 @@ export interface InitOptions {
   frecencyDbPath?: string;
   /** Path to query history database (optional, omit to skip query tracker initialization) */
   historyDbPath?: string;
-  /** Use unsafe no-lock mode for databases (optional, defaults to false) */
+  /**
+   * @deprecated No-op. The no-lock LMDB flags showed no measurable win under
+   * realistic contention and are now ignored. Kept for source-compat.
+   */
   useUnsafeNoLock?: boolean;
   /**
    * Disable mmap cache warmup after the initial scan. When mmap cache is
@@ -71,6 +74,18 @@ export interface InitOptions {
   cacheBudgetMaxBytes?: number;
   /** Override for the per-file byte cap in the content cache. */
   cacheBudgetMaxFileSize?: number;
+  /**
+   * Allow indexing the filesystem root (`/`). Off by default — root is
+   * rarely the intended target and floods the watcher with churn-prone
+   * events. Setting this true is opt-in and the caller is responsible for
+   * the resulting fs-event volume.
+   */
+  enableFsRootScanning?: boolean;
+  /**
+   * Allow indexing the user's home directory. Same trade-off as
+   * `enableFsRootScanning`.
+   */
+  enableHomeDirScanning?: boolean;
 }
 
 /**
@@ -88,6 +103,23 @@ export interface SearchOptions {
   /** Page index for pagination (default: 0) */
   pageIndex?: number;
   /** Page size for pagination (default: 100) */
+  pageSize?: number;
+}
+
+/**
+ * Options for `glob`, the constraint-only search.
+ *
+ * The pattern is applied as a single pass SIMD optimized prefiltering
+ * without any fuzzy matching involved. Faster and 100% compatible to npm `glob`.
+ */
+export interface GlobOptions {
+  /** Maximum threads for parallel filtering (0 = auto). */
+  maxThreads?: number;
+  /** Current file path (for deprioritization in results). */
+  currentFile?: string;
+  /** Page index for pagination (default: 0). */
+  pageIndex?: number;
+  /** Page size for pagination (default: 100). */
   pageSize?: number;
 }
 

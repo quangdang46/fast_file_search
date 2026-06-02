@@ -14,7 +14,7 @@ SHELL := bash
 # string rather than the literal `-o` / `pipefail` tokens.
 .SHELLFLAGS := -o pipefail -ec
 
-.PHONY: build build-c-lib install uninstall test test-rust test-lua test-lua-snap test-version test-bun test-node prepare-bun prepare-node set-npm-version header test-stress test-stress-seeded test-stress-random test-stress-repos test-node-stress
+.PHONY: build build-c-lib install uninstall test test-rust test-c-smoke test-c-api test-lua test-lua-snap test-version test-bun test-node prepare-bun prepare-node set-npm-version header test-stress test-stress-seeded test-stress-random test-stress-repos test-node-stress
 
 all: format test lint
 
@@ -67,6 +67,23 @@ test-setup:
 
 test-rust:
 	cargo test --workspace --features zlob --exclude fff-nvim
+
+CC ?= cc
+CFLAGS ?= -O0 -g -Wall -Wextra -std=c99
+TARGET_DIR ?= target/release
+SMOKE_BIN := $(TARGET_DIR)/fff_c_smoke
+SMOKE_SRC := crates/fff-c/tests/smoke.c
+SMOKE_INCLUDE := crates/fff-c/include
+
+test-c-smoke: build-c-lib
+	$(CC) $(CFLAGS) -I $(SMOKE_INCLUDE) -L $(TARGET_DIR) \
+		-Wl,-rpath,@loader_path/../target/release \
+		-Wl,-rpath,$$(pwd)/$(TARGET_DIR) \
+		$(SMOKE_SRC) -lfff_c -o $(SMOKE_BIN)
+	$(SMOKE_BIN) .
+
+# Alias kept for the `external-tests.yml` workflow naming.
+test-c-api: test-c-smoke
 
 # neovim instance swallows internal crashes and doesn't rise the the error exiting silently
 # so check the stdout in case the sigsegv coming out of fff was printed (actual regression).
