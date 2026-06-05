@@ -164,6 +164,17 @@ detect_target() {
 is_windows() { [[ "$(uname -s)" =~ ^(MINGW|MSYS|CYGWIN) ]]; }
 
 # === Version resolution ===
+# Check whether a given release tag has a specific asset uploaded.
+release_has_asset() {
+    local tag="$1" asset_name="$2"
+    local count
+    count=$(curl -fsSL --connect-timeout 10 --max-time 30 \
+        -H "Accept: application/vnd.github.v3+json" \
+        "https://api.github.com/repos/${OWNER}/${REPO}/releases/tags/${tag}" 2>/dev/null \
+        | grep -c "\"name\": *\"${asset_name}\"" 2>/dev/null) || true
+    [ "${count:-0}" -gt 0 ]
+}
+
 resolve_version() {
     [ -n "$VERSION" ] && { log_info "Using pinned version: $VERSION"; return 0; }
 
@@ -181,7 +192,42 @@ resolve_version() {
     fi
 
     [[ "${VERSION:-}" =~ ^v[0-9] ]] || die "Could not resolve latest version"
-    log_info "Latest version: $VERSION"
+
+    # Resolve the expected asset name up front so we can verify availability.
+    local target
+    target=$(detect_target)
+    local asset="ffs-${target}"
+    is_windows && asset="ffs-${target}.exe"
+
+    # If the latest release is missing the asset, walk backward to find one
+    # that has it — avoids 404s that silently fall back to slow cargo builds.
+    if ! release_has_asset "$VERSION" "$asset"; then
+        log_warn "$VERSION has no $asset — searching for an older release with assets..."
+        local found=""
+        local releases
+        releases=$(curl -fsSL --connect-timeout 10 --max-time 30 \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${OWNER}/${REPO}/releases?per_page=30" 2>/dev/null \
+            | grep '"tag_name":' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/') || true
+
+        local tag
+        for tag in $releases; do
+            [ "$tag" = "$VERSION" ] && continue  # already checked
+            if release_has_asset "$tag" "$asset"; then
+                found="$tag"
+                break
+            fi
+        done
+
+        if [ -n "$found" ]; then
+            log_info "Falling back to $found (has $asset)"
+            VERSION="$found"
+        else
+            log_warn "No release has $asset — will attempt download and fall back to source build"
+        fi
+    fi
+
+    log_info "Resolved version: $VERSION"
 }
 
 # === Download with retry/resume ===
