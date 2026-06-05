@@ -122,3 +122,27 @@ fn telemetry_renders_text_sections_when_nonempty() {
         "expected suspicious section in text output:\n{s}"
     );
 }
+
+#[test]
+fn skip_hubs_prevents_propagation() {
+    let tmp = TempDir::new().unwrap();
+    // `hot` is called by `a`, `b`, `c` which are in turn called by `root_fn`.
+    // Without --skip-hubs, BFS would propagate through `hot` to find callers
+    // of `a`, `b`, `c`. With --skip-hubs hot, propagation stops at `hot`.
+    write_file(
+        tmp.path(),
+        "src/hot.rs",
+        "pub fn hot() {}\npub fn a() { hot(); }\npub fn b() { hot(); }\npub fn c() { hot(); }\n",
+    );
+    write_file(
+        tmp.path(),
+        "src/root.rs",
+        "fn root_fn() { a(); b(); c(); }\n",
+    );
+
+    let v = run(tmp.path(), &["hot", "--hops", "3", "--skip-hubs", "hot"]);
+    let skipped = v["hubs_skipped"].as_array().expect("hubs_skipped array");
+    assert!(!skipped.is_empty(), "expected hubs_skipped entry");
+    assert_eq!(skipped[0]["name"].as_str().unwrap(), "hot");
+    assert_eq!(skipped[0]["depth"].as_u64().unwrap(), 1);
+}
