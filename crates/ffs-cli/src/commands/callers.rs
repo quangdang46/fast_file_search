@@ -90,7 +90,7 @@ struct CallersOutput {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     auto_hubs_promoted: Vec<AutoHubOut>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    hubs_skipped: Vec<AutoHubOut>,
+    hubs_skipped: Vec<SkippedHubOut>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     proximity_suspicions: Vec<ProximitySuspicionOut>,
 }
@@ -107,6 +107,12 @@ pub(crate) struct AutoHubOut {
     pub depth: u32,
     pub name: String,
     pub count: usize,
+}
+
+#[derive(Debug, Serialize, PartialEq, Eq)]
+pub(crate) struct SkippedHubOut {
+    pub depth: u32,
+    pub name: String,
 }
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
@@ -223,11 +229,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         hubs_skipped: telemetry
             .hubs_skipped
             .into_iter()
-            .map(|(depth, name)| AutoHubOut {
-                depth,
-                name,
-                count: 0,
-            })
+            .map(|(depth, name)| SkippedHubOut { depth, name })
             .collect(),
         proximity_suspicions: telemetry
             .proximity_suspicions
@@ -394,8 +396,17 @@ fn render_text(p: &CallersOutput) -> String {
     }
     if !p.hubs_skipped.is_empty() {
         out.push_str("\nHubs skipped (--skip-hubs):\n");
-        for a in &p.hubs_skipped {
-            out.push_str(&format!("  [d{}] {}\n", a.depth, a.name));
+        for s in &p.hubs_skipped {
+            out.push_str(&format!("  [d{}] {}\n", s.depth, s.name));
+        }
+    }
+    if !p.proximity_suspicions.is_empty() {
+        out.push_str("\nProximity suspicions (hits scatter across unrelated directories):\n");
+        for s in &p.proximity_suspicions {
+            out.push_str(&format!(
+                "  [d{}] total_edges: {}  related_edges: {}\n",
+                s.depth, s.total_edges, s.related_edges
+            ));
         }
     }
     out
