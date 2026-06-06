@@ -12,10 +12,6 @@
       "types": "./src/index.ts"
     }
   },
-  "bin": {
-    "fff-demo": "./examples/search.ts",
-    "fff-grep": "./examples/grep.ts"
-  },
   "files": [
     "src",
     "examples"
