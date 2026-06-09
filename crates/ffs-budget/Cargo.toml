@@ -1,6 +1,6 @@
 [package]
 name = "ffs-budget"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2021"
 license = "MIT"
 description = "Token-budget aware filters, smart truncation, and footer-preserving trimming for ffs."
