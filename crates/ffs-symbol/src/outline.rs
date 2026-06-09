@@ -53,7 +53,13 @@ pub fn get_outline_entries(content: &str, lang: Lang) -> Vec<OutlineEntry> {
     out
 }
 
-fn walk_top_level(node: Node, lines: &[&str], content: &str, lang: Lang, out: &mut Vec<OutlineEntry>) {
+fn walk_top_level(
+    node: Node,
+    lines: &[&str],
+    content: &str,
+    lang: Lang,
+    out: &mut Vec<OutlineEntry>,
+) {
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         if let Some(entry) = node_to_entry(child, lines, content, lang) {
@@ -186,7 +192,10 @@ fn extract_python_doc_comment(node: Node, content: &str) -> Option<String> {
         let mut inner = child.walk();
         for expr in child.children(&mut inner) {
             if expr.kind() == "string" {
-                return expr.utf8_text(content.as_bytes()).ok().map(|s| s.to_string());
+                return expr
+                    .utf8_text(content.as_bytes())
+                    .ok()
+                    .map(|s| s.to_string());
             }
         }
         // Only check the first expression statement.
@@ -259,7 +268,13 @@ fn decorated_definition_kind(node: Node) -> Option<OutlineKind> {
     None
 }
 
-fn collect_children(node: Node, lines: &[&str], content: &str, lang: Lang, out: &mut Vec<OutlineEntry>) {
+fn collect_children(
+    node: Node,
+    lines: &[&str],
+    content: &str,
+    lang: Lang,
+    out: &mut Vec<OutlineEntry>,
+) {
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         if matches!(
@@ -348,9 +363,13 @@ mod tests {
 
     #[test]
     fn rust_doc_comment_on_function() {
-        let code = "/// Does foo.\n///\n/// # Examples\n/// ```\n/// foo();\n/// ```\nfn foo() {}\n";
+        let code =
+            "/// Does foo.\n///\n/// # Examples\n/// ```\n/// foo();\n/// ```\nfn foo() {}\n";
         let entries = get_outline_entries(code, Lang::Rust);
-        let foo = entries.iter().find(|e| e.name == "foo").expect("expected foo");
+        let foo = entries
+            .iter()
+            .find(|e| e.name == "foo")
+            .expect("expected foo");
         let doc = foo.doc.as_deref().expect("expected doc comment");
         assert!(doc.contains("Does foo."));
         assert!(doc.contains("Examples"));
@@ -360,7 +379,10 @@ mod tests {
     fn rust_doc_comment_on_struct() {
         let code = "/// A point in 2D space.\nstruct Point {\n    x: i32,\n    y: i32,\n}\n";
         let entries = get_outline_entries(code, Lang::Rust);
-        let pt = entries.iter().find(|e| e.name == "Point").expect("expected Point");
+        let pt = entries
+            .iter()
+            .find(|e| e.name == "Point")
+            .expect("expected Point");
         let doc = pt.doc.as_deref().expect("expected doc comment");
         assert!(doc.contains("A point in 2D space."));
     }
@@ -369,7 +391,10 @@ mod tests {
     fn rust_no_doc_comment_returns_none() {
         let code = "fn bar() {}\n";
         let entries = get_outline_entries(code, Lang::Rust);
-        let bar = entries.iter().find(|e| e.name == "bar").expect("expected bar");
+        let bar = entries
+            .iter()
+            .find(|e| e.name == "bar")
+            .expect("expected bar");
         assert!(bar.doc.is_none());
     }
 
@@ -377,7 +402,10 @@ mod tests {
     fn rust_multiline_doc_comment() {
         let code = "/// Line one\n/// Line two\n/// Line three\nfn multi() {}\n";
         let entries = get_outline_entries(code, Lang::Rust);
-        let multi = entries.iter().find(|e| e.name == "multi").expect("expected multi");
+        let multi = entries
+            .iter()
+            .find(|e| e.name == "multi")
+            .expect("expected multi");
         let doc = multi.doc.as_deref().expect("expected doc comment");
         assert!(doc.contains("Line one"));
         assert!(doc.contains("Line two"));
@@ -388,7 +416,10 @@ mod tests {
     fn js_jsdoc_on_function() {
         let code = "/**\n * Adds two numbers.\n * @param {number} a\n * @param {number} b\n */\nfunction add(a, b) {}\n";
         let entries = get_outline_entries(code, Lang::JavaScript);
-        let add = entries.iter().find(|e| e.name == "add").expect("expected add");
+        let add = entries
+            .iter()
+            .find(|e| e.name == "add")
+            .expect("expected add");
         let doc = add.doc.as_deref().expect("expected jsdoc");
         assert!(doc.contains("Adds two numbers."));
         assert!(doc.contains("@param"));
@@ -398,7 +429,10 @@ mod tests {
     fn ts_jsdoc_on_function() {
         let code = "/** Greets the user. */\nfunction greet(name: string): void {}\n";
         let entries = get_outline_entries(code, Lang::TypeScript);
-        let greet = entries.iter().find(|e| e.name == "greet").expect("expected greet");
+        let greet = entries
+            .iter()
+            .find(|e| e.name == "greet")
+            .expect("expected greet");
         let doc = greet.doc.as_deref().expect("expected jsdoc");
         assert!(doc.contains("Greets the user."));
     }
@@ -407,7 +441,10 @@ mod tests {
     fn python_docstring_on_function() {
         let code = "def hello():\n    \"\"\"Greet the caller.\"\"\"\n    pass\n";
         let entries = get_outline_entries(code, Lang::Python);
-        let hello = entries.iter().find(|e| e.name == "hello").expect("expected hello");
+        let hello = entries
+            .iter()
+            .find(|e| e.name == "hello")
+            .expect("expected hello");
         let doc = hello.doc.as_deref().expect("expected docstring");
         assert!(doc.contains("Greet the caller."));
     }
@@ -416,7 +453,10 @@ mod tests {
     fn python_docstring_on_class() {
         let code = "class MyClass:\n    \"\"\"A class that does things.\"\"\"\n    def method(self):\n        pass\n";
         let entries = get_outline_entries(code, Lang::Python);
-        let cls = entries.iter().find(|e| e.name == "MyClass").expect("expected MyClass");
+        let cls = entries
+            .iter()
+            .find(|e| e.name == "MyClass")
+            .expect("expected MyClass");
         let doc = cls.doc.as_deref().expect("expected docstring");
         assert!(doc.contains("A class that does things."));
     }
@@ -425,7 +465,10 @@ mod tests {
     fn python_no_docstring_returns_none() {
         let code = "def no_doc():\n    pass\n";
         let entries = get_outline_entries(code, Lang::Python);
-        let nd = entries.iter().find(|e| e.name == "no_doc").expect("expected no_doc");
-        assert!(nd.doc.is_none());
+        let e = entries
+            .iter()
+            .find(|e| e.name == "no_doc")
+            .expect("expected no_doc");
+        assert!(e.doc.is_none());
     }
 }

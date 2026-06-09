@@ -38,19 +38,12 @@ pub struct DirectoryGrepMatch {
 ///     println!("{}:{}:{}", m.path, m.line_number, m.line);
 /// }
 /// ```
-pub fn grep_directory(
-    root: &Path,
-    pattern: &str,
-    max_matches: usize,
-) -> Vec<DirectoryGrepMatch> {
+pub fn grep_directory(root: &Path, pattern: &str, max_matches: usize) -> Vec<DirectoryGrepMatch> {
     if max_matches == 0 || pattern.is_empty() {
         return Vec::new();
     }
 
-    let re = match regex::RegexBuilder::new(pattern)
-        .multi_line(true)
-        .build()
-    {
+    let re = match regex::RegexBuilder::new(pattern).multi_line(true).build() {
         Ok(r) => r,
         Err(_) => return Vec::new(),
     };
@@ -126,7 +119,11 @@ mod tests {
 
     fn setup_test_dir() -> tempfile::TempDir {
         let dir = tempfile::tempdir().unwrap();
-        fs::write(dir.path().join("hello.rs"), "fn main() {\n    println!(\"hello\");\n}\n").unwrap();
+        fs::write(
+            dir.path().join("hello.rs"),
+            "fn main() {\n    println!(\"hello\");\n}\n",
+        )
+        .unwrap();
         fs::write(
             dir.path().join("lib.rs"),
             "pub fn greet(name: &str) -> String {\n    format!(\"Hello, {name}\")\n}\n",
@@ -183,10 +180,20 @@ mod tests {
     #[test]
     fn test_grep_directory_skips_binary_extensions() {
         let dir = setup_test_dir();
-        fs::write(dir.path().join("image.png"), "this has fn text but should be skipped").unwrap();
+        fs::write(
+            dir.path().join("image.png"),
+            "this has fn text but should be skipped",
+        )
+        .unwrap();
         let results = grep_directory(dir.path(), r"fn ", 10);
-        let png_matches: Vec<_> = results.iter().filter(|m| m.path.ends_with(".png")).collect();
-        assert!(png_matches.is_empty(), "binary extension files should be skipped");
+        let png_matches: Vec<_> = results
+            .iter()
+            .filter(|m| m.path.ends_with(".png"))
+            .collect();
+        assert!(
+            png_matches.is_empty(),
+            "binary extension files should be skipped"
+        );
     }
 
     #[test]
