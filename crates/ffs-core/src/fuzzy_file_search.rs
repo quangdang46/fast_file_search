@@ -95,7 +95,8 @@ pub fn fuzzy_search_files(
         let rel = path.strip_prefix(root).unwrap_or(path);
         let rel_str = rel.to_string_lossy();
         #[cfg(windows)]
-        let path_str: std::borrow::Cow<'_, str> = std::borrow::Cow::Owned(rel_str.replace("\\", "/"));
+        let path_str: std::borrow::Cow<'_, str> =
+            std::borrow::Cow::Owned(rel_str.replace("\\", "/"));
         #[cfg(not(windows))]
         let path_str: std::borrow::Cow<'_, str> = rel_str.clone();
         let lower = rel_str.to_ascii_lowercase();

@@ -3,18 +3,19 @@ use std::path::Path;
 /// Walk `root`, find files matching `pattern`, return up to `max_files` paths.
 ///
 /// Paths are relative to `root`. Uses zlob (SIMD glob matching with
-/// gitignore support) when the `zlob` feature is enabled; falls back to
-/// `globset::Glob` + `ignore::WalkBuilder`.
+/// gitignore support) when the `zlob` feature is enabled and the platform
+/// supports it; falls back to `globset::Glob` + `ignore::WalkBuilder`.
 pub fn glob_files(root: &Path, pattern: &str, max_files: usize) -> Vec<String> {
-    #[cfg(feature = "zlob")]
+    // zlob is a C library that doesn't work on Windows (no native glob()).
+    // Use the pure-Rust fallback there regardless of the feature flag.
+    #[cfg(all(feature = "zlob", not(target_family = "windows")))]
     {
         let flags = zlob::ZlobFlags::BRACE
             | zlob::ZlobFlags::DOUBLESTAR_RECURSIVE
             | zlob::ZlobFlags::NOSORT
             | zlob::ZlobFlags::PERIOD;
         // Use path_utils canonicalize to avoid \\?\ prefix on Windows.
-        let canon = crate::path_utils::canonicalize(root)
-            .unwrap_or_else(|_| root.to_path_buf());
+        let canon = crate::path_utils::canonicalize(root).unwrap_or_else(|_| root.to_path_buf());
         #[cfg(windows)]
         let base = std::borrow::Cow::Owned(canon.to_string_lossy().replace('\\', "/"));
         #[cfg(not(windows))]
@@ -23,52 +24,56 @@ pub fn glob_files(root: &Path, pattern: &str, max_files: usize) -> Vec<String> {
             Ok(Some(result)) => result
                 .iter()
                 .take(max_files)
-                .map(|s| {
-                    #[cfg(windows)]
-                    { s.replace('\\', "/") }
-                    #[cfg(not(windows))]
-                    { s.to_string() }
-                })
+                .map(|s| s.to_string())
                 .collect(),
             Ok(None) => Vec::new(),
-            Err(_) => Vec::new(),
+            Err(_) => fallback_glob(root, pattern, max_files),
         }
     }
 
-    #[cfg(not(feature = "zlob"))]
+    #[cfg(not(all(feature = "zlob", not(target_family = "windows"))))]
     {
-        let Ok(glob) = globset::GlobBuilder::new(pattern)
-            .literal_separator(true)
-            .build()
-        else {
-            return Vec::new();
-        };
-        let matcher = glob.compile_matcher();
-        ignore::WalkBuilder::new(root)
-            .hidden(false)
-            .git_ignore(true)
-            .git_exclude(true)
-            .git_global(true)
-            .build()
-            .filter_map(|e| e.ok())
-            .filter(|e| e.file_type().is_some_and(|ft| ft.is_file()))
-            .filter_map(|e| {
-                let path = e.path();
-                let rel = path.strip_prefix(root).unwrap_or(path);
-                if matcher.is_match(rel) {
-                    rel.to_str().map(|s| {
-                        #[cfg(windows)]
-                        { s.replace('\\', "/") }
-                        #[cfg(not(windows))]
-                        { s.to_string() }
-                    })
-                } else {
-                    None
-                }
-            })
-            .take(max_files)
-            .collect()
+        fallback_glob(root, pattern, max_files)
     }
+}
+
+/// Pure-Rust glob implementation using `globset` + `ignore::WalkBuilder`.
+fn fallback_glob(root: &Path, pattern: &str, max_files: usize) -> Vec<String> {
+    let Ok(glob) = globset::GlobBuilder::new(pattern)
+        .literal_separator(true)
+        .build()
+    else {
+        return Vec::new();
+    };
+    let matcher = glob.compile_matcher();
+    ignore::WalkBuilder::new(root)
+        .hidden(false)
+        .git_ignore(true)
+        .git_exclude(true)
+        .git_global(true)
+        .build()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().is_some_and(|ft| ft.is_file()))
+        .filter_map(|e| {
+            let path = e.path();
+            let rel = path.strip_prefix(root).unwrap_or(path);
+            if matcher.is_match(rel) {
+                rel.to_str().map(|s| {
+                    #[cfg(windows)]
+                    {
+                        s.replace('\\', "/")
+                    }
+                    #[cfg(not(windows))]
+                    {
+                        s.to_string()
+                    }
+                })
+            } else {
+                None
+            }
+        })
+        .take(max_files)
+        .collect()
 }
 
 #[cfg(test)]
