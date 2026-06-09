@@ -28,12 +28,19 @@ use std::path::Path;
 pub fn glob_files(root: &Path, pattern: &str, max_files: usize) -> Vec<String> {
     #[cfg(feature = "zlob")]
     {
-        let flags = zlob::ZlobFlags::BRACE | zlob::ZlobFlags::DOUBLESTAR_RECURSIVE | zlob::ZlobFlags::NOSORT | zlob::ZlobFlags::PERIOD;
+        let flags = zlob::ZlobFlags::BRACE
+            | zlob::ZlobFlags::DOUBLESTAR_RECURSIVE
+            | zlob::ZlobFlags::NOSORT
+            | zlob::ZlobFlags::PERIOD;
         // Canonicalize to resolve symlinks (/var -> /private/var on macOS).
         let canon = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
         let base = canon.to_string_lossy();
         match zlob::zlob_at(&base, pattern, flags) {
-            Ok(Some(result)) => result.iter().take(max_files).map(|s| s.to_string()).collect(),
+            Ok(Some(result)) => result
+                .iter()
+                .take(max_files)
+                .map(|s| s.to_string())
+                .collect(),
             Ok(None) => Vec::new(),
             Err(_) => Vec::new(),
         }
