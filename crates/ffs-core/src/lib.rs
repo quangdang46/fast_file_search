@@ -112,6 +112,9 @@ pub mod case_insensitive_memmem;
 #[doc(hidden)]
 pub mod simd_path;
 
+/// Glob pattern file search: walk a directory tree matching files by glob.
+pub mod glob_matcher;
+
 /// Core file picker: filesystem indexing, background watching, and fuzzy search.
 ///
 /// See [`FilePicker`](file_picker::FilePicker) for the main entry point.
