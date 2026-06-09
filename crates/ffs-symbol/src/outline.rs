@@ -122,11 +122,7 @@ fn extract_doc_comment(node: Node, content: &str, lang: Lang) -> Option<String> 
 fn extract_rust_doc_comment(node: Node, content: &str) -> Option<String> {
     let mut parts: Vec<String> = Vec::new();
     let mut current = node.prev_sibling();
-    loop {
-        let sibling = match current {
-            Some(s) => s,
-            None => break,
-        };
+    while let Some(sibling) = current {
         if sibling.kind() != "line_comment" {
             break;
         }
@@ -153,11 +149,7 @@ fn extract_rust_doc_comment(node: Node, content: &str) -> Option<String> {
 fn extract_js_doc_comment(node: Node, content: &str) -> Option<String> {
     let mut parts: Vec<String> = Vec::new();
     let mut current = node.prev_sibling();
-    loop {
-        let sibling = match current {
-            Some(s) => s,
-            None => break,
-        };
+    while let Some(sibling) = current {
         if sibling.kind() != "comment" {
             break;
         }

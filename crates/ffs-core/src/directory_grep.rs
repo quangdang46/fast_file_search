@@ -88,18 +88,15 @@ pub fn grep_directory(root: &Path, pattern: &str, max_matches: usize) -> Vec<Dir
         };
 
         let path_str = path.to_string_lossy().into_owned();
-        let mut line_number: u64 = 0;
 
-        for line in content.lines() {
-            line_number += 1;
-
+        for (line_number, line) in content.lines().enumerate() {
             if !re.is_match(line) {
                 continue;
             }
 
             results.push(DirectoryGrepMatch {
                 path: path_str.clone(),
-                line_number,
+                line_number: line_number as u64 + 1,
                 line: line.to_string(),
             });
 
