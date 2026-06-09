@@ -1,23 +1,3 @@
-//! Glob pattern file search — walk a directory tree and return matching paths.
-//!
-//! This module provides [`glob_files`] which walks a directory tree respecting
-//! `.gitignore` and returns file paths matching the given glob pattern.
-//!
-//! Under the hood it delegates to `zlob` (Zig-compiled C library) when the
-//! `zlob` feature is enabled, otherwise falls back to `globset` + `ignore`.
-//!
-//! # Example
-//!
-//! ```no_run
-//! use std::path::Path;
-//! use ffs_search::glob_matcher::glob_files;
-//!
-//! let files = glob_files(Path::new("/tmp"), "*.rs", 50);
-//! for f in &files {
-//!     println!("{f}");
-//! }
-//! ```
-
 use std::path::Path;
 
 /// Walk `root`, find files matching `pattern`, return up to `max_files` paths.
@@ -32,14 +12,23 @@ pub fn glob_files(root: &Path, pattern: &str, max_files: usize) -> Vec<String> {
             | zlob::ZlobFlags::DOUBLESTAR_RECURSIVE
             | zlob::ZlobFlags::NOSORT
             | zlob::ZlobFlags::PERIOD;
-        // Canonicalize to resolve symlinks (/var -> /private/var on macOS).
-        let canon = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
+        // Use path_utils canonicalize to avoid \\?\ prefix on Windows.
+        let canon = crate::path_utils::canonicalize(root)
+            .unwrap_or_else(|_| root.to_path_buf());
+        #[cfg(windows)]
+        let base = std::borrow::Cow::Owned(canon.to_string_lossy().replace('\\', "/"));
+        #[cfg(not(windows))]
         let base = canon.to_string_lossy();
         match zlob::zlob_at(&base, pattern, flags) {
             Ok(Some(result)) => result
                 .iter()
                 .take(max_files)
-                .map(|s| s.to_string())
+                .map(|s| {
+                    #[cfg(windows)]
+                    { s.replace('\\', "/") }
+                    #[cfg(not(windows))]
+                    { s.to_string() }
+                })
                 .collect(),
             Ok(None) => Vec::new(),
             Err(_) => Vec::new(),
@@ -67,7 +56,12 @@ pub fn glob_files(root: &Path, pattern: &str, max_files: usize) -> Vec<String> {
                 let path = e.path();
                 let rel = path.strip_prefix(root).unwrap_or(path);
                 if matcher.is_match(rel) {
-                    rel.to_str().map(|s| s.to_string())
+                    rel.to_str().map(|s| {
+                        #[cfg(windows)]
+                        { s.replace('\\', "/") }
+                        #[cfg(not(windows))]
+                        { s.to_string() }
+                    })
                 } else {
                     None
                 }

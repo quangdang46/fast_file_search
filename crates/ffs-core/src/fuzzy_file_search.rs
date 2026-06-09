@@ -94,6 +94,10 @@ pub fn fuzzy_search_files(
 
         let rel = path.strip_prefix(root).unwrap_or(path);
         let rel_str = rel.to_string_lossy();
+        #[cfg(windows)]
+        let path_str: std::borrow::Cow<'_, str> = std::borrow::Cow::Owned(rel_str.replace("\\", "/"));
+        #[cfg(not(windows))]
+        let path_str: std::borrow::Cow<'_, str> = rel_str.clone();
         let lower = rel_str.to_ascii_lowercase();
 
         if !lower.contains(&query_lower) {
@@ -115,7 +119,7 @@ pub fn fuzzy_search_files(
         };
 
         results.push(FuzzyFileMatch {
-            path: rel_str.to_string(),
+            path: path_str.into_owned(),
             score,
             is_dir,
         });
