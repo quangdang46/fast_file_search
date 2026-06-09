@@ -49,20 +49,20 @@ pub fn get_outline_entries(content: &str, lang: Lang) -> Vec<OutlineEntry> {
     let lines: Vec<&str> = content.lines().collect();
     let root = tree.root_node();
     let mut out = Vec::new();
-    walk_top_level(root, &lines, lang, &mut out);
+    walk_top_level(root, &lines, content, lang, &mut out);
     out
 }
 
-fn walk_top_level(node: Node, lines: &[&str], lang: Lang, out: &mut Vec<OutlineEntry>) {
+fn walk_top_level(node: Node, lines: &[&str], content: &str, lang: Lang, out: &mut Vec<OutlineEntry>) {
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
-        if let Some(entry) = node_to_entry(child, lines, lang) {
+        if let Some(entry) = node_to_entry(child, lines, content, lang) {
             out.push(entry);
         }
     }
 }
 
-fn node_to_entry(node: Node, lines: &[&str], lang: Lang) -> Option<OutlineEntry> {
+fn node_to_entry(node: Node, lines: &[&str], content: &str, lang: Lang) -> Option<OutlineEntry> {
     let kind = outline_kind_for(node, lang)?;
 
     let name = match (lang, node.kind()) {
@@ -85,8 +85,10 @@ fn node_to_entry(node: Node, lines: &[&str], lang: Lang) -> Option<OutlineEntry>
         kind,
         OutlineKind::Class | OutlineKind::Struct | OutlineKind::Interface | OutlineKind::Module
     ) {
-        collect_children(node, lines, lang, &mut children);
+        collect_children(node, lines, content, lang, &mut children);
     }
+
+    let doc = extract_doc_comment(node, content, lang);
 
     Some(OutlineEntry {
         kind,
@@ -95,8 +97,102 @@ fn node_to_entry(node: Node, lines: &[&str], lang: Lang) -> Option<OutlineEntry>
         end_line,
         signature,
         children,
-        doc: None,
+        doc,
     })
+}
+
+/// Extract a doc comment string from the AST node, language-dependently.
+fn extract_doc_comment(node: Node, content: &str, lang: Lang) -> Option<String> {
+    match lang {
+        Lang::Rust => extract_rust_doc_comment(node, content),
+        Lang::JavaScript | Lang::TypeScript | Lang::Tsx => extract_js_doc_comment(node, content),
+        Lang::Python => extract_python_doc_comment(node, content),
+        _ => None,
+    }
+}
+
+/// Collect consecutive Rust `line_comment` siblings before a definition,
+/// each containing a `doc_comment` child, and join them.
+fn extract_rust_doc_comment(node: Node, content: &str) -> Option<String> {
+    let mut parts: Vec<String> = Vec::new();
+    let mut current = node.prev_sibling();
+    loop {
+        let sibling = match current {
+            Some(s) => s,
+            None => break,
+        };
+        if sibling.kind() != "line_comment" {
+            break;
+        }
+        let mut cursor = sibling.walk();
+        for child in sibling.children(&mut cursor) {
+            if child.kind() == "doc_comment" {
+                if let Ok(text) = child.utf8_text(content.as_bytes()) {
+                    let stripped = text.trim();
+                    parts.push(stripped.to_string());
+                }
+            }
+        }
+        current = sibling.prev_sibling();
+    }
+    if parts.is_empty() {
+        return None;
+    }
+    parts.reverse();
+    Some(parts.join("\n"))
+}
+
+/// Collect consecutive `comment` siblings that start with `/**` before
+/// a JS/TS definition and strip the JSDoc delimiters.
+fn extract_js_doc_comment(node: Node, content: &str) -> Option<String> {
+    let mut parts: Vec<String> = Vec::new();
+    let mut current = node.prev_sibling();
+    loop {
+        let sibling = match current {
+            Some(s) => s,
+            None => break,
+        };
+        if sibling.kind() != "comment" {
+            break;
+        }
+        if let Ok(text) = sibling.utf8_text(content.as_bytes()) {
+            let trimmed = text.trim();
+            if trimmed.starts_with("/**") {
+                let cleaned = trimmed
+                    .trim_start_matches("/**")
+                    .trim_end_matches("*/")
+                    .trim();
+                parts.push(cleaned.to_string());
+            }
+        }
+        current = sibling.prev_sibling();
+    }
+    if parts.is_empty() {
+        return None;
+    }
+    parts.reverse();
+    Some(parts.join("\n"))
+}
+
+/// Extract the first `expression_statement` containing a string node from
+/// the body of a Python function/class definition — this is the docstring.
+fn extract_python_doc_comment(node: Node, content: &str) -> Option<String> {
+    let body = node.child_by_field_name("body")?;
+    let mut cursor = body.walk();
+    for child in body.children(&mut cursor) {
+        if child.kind() != "expression_statement" {
+            continue;
+        }
+        let mut inner = child.walk();
+        for expr in child.children(&mut inner) {
+            if expr.kind() == "string" {
+                return expr.utf8_text(content.as_bytes()).ok().map(|s| s.to_string());
+            }
+        }
+        // Only check the first expression statement.
+        break;
+    }
+    None
 }
 
 fn outline_kind_for(node: Node, lang: Lang) -> Option<OutlineKind> {
@@ -163,7 +259,7 @@ fn decorated_definition_kind(node: Node) -> Option<OutlineKind> {
     None
 }
 
-fn collect_children(node: Node, lines: &[&str], lang: Lang, out: &mut Vec<OutlineEntry>) {
+fn collect_children(node: Node, lines: &[&str], content: &str, lang: Lang, out: &mut Vec<OutlineEntry>) {
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         if matches!(
@@ -176,11 +272,11 @@ fn collect_children(node: Node, lines: &[&str], lang: Lang, out: &mut Vec<Outlin
         ) {
             let mut inner = child.walk();
             for grand in child.children(&mut inner) {
-                if let Some(entry) = node_to_entry(grand, lines, lang) {
+                if let Some(entry) = node_to_entry(grand, lines, content, lang) {
                     out.push(entry);
                 }
             }
-        } else if let Some(entry) = node_to_entry(child, lines, lang) {
+        } else if let Some(entry) = node_to_entry(child, lines, content, lang) {
             out.push(entry);
         }
     }
@@ -246,5 +342,90 @@ mod tests {
         assert!(entries
             .iter()
             .any(|e| e.name == "hello" && matches!(e.kind, OutlineKind::Function)));
+    }
+
+    // --- doc comment tests ---
+
+    #[test]
+    fn rust_doc_comment_on_function() {
+        let code = "/// Does foo.\n///\n/// # Examples\n/// ```\n/// foo();\n/// ```\nfn foo() {}\n";
+        let entries = get_outline_entries(code, Lang::Rust);
+        let foo = entries.iter().find(|e| e.name == "foo").expect("expected foo");
+        let doc = foo.doc.as_deref().expect("expected doc comment");
+        assert!(doc.contains("Does foo."));
+        assert!(doc.contains("Examples"));
+    }
+
+    #[test]
+    fn rust_doc_comment_on_struct() {
+        let code = "/// A point in 2D space.\nstruct Point {\n    x: i32,\n    y: i32,\n}\n";
+        let entries = get_outline_entries(code, Lang::Rust);
+        let pt = entries.iter().find(|e| e.name == "Point").expect("expected Point");
+        let doc = pt.doc.as_deref().expect("expected doc comment");
+        assert!(doc.contains("A point in 2D space."));
+    }
+
+    #[test]
+    fn rust_no_doc_comment_returns_none() {
+        let code = "fn bar() {}\n";
+        let entries = get_outline_entries(code, Lang::Rust);
+        let bar = entries.iter().find(|e| e.name == "bar").expect("expected bar");
+        assert!(bar.doc.is_none());
+    }
+
+    #[test]
+    fn rust_multiline_doc_comment() {
+        let code = "/// Line one\n/// Line two\n/// Line three\nfn multi() {}\n";
+        let entries = get_outline_entries(code, Lang::Rust);
+        let multi = entries.iter().find(|e| e.name == "multi").expect("expected multi");
+        let doc = multi.doc.as_deref().expect("expected doc comment");
+        assert!(doc.contains("Line one"));
+        assert!(doc.contains("Line two"));
+        assert!(doc.contains("Line three"));
+    }
+
+    #[test]
+    fn js_jsdoc_on_function() {
+        let code = "/**\n * Adds two numbers.\n * @param {number} a\n * @param {number} b\n */\nfunction add(a, b) {}\n";
+        let entries = get_outline_entries(code, Lang::JavaScript);
+        let add = entries.iter().find(|e| e.name == "add").expect("expected add");
+        let doc = add.doc.as_deref().expect("expected jsdoc");
+        assert!(doc.contains("Adds two numbers."));
+        assert!(doc.contains("@param"));
+    }
+
+    #[test]
+    fn ts_jsdoc_on_function() {
+        let code = "/** Greets the user. */\nfunction greet(name: string): void {}\n";
+        let entries = get_outline_entries(code, Lang::TypeScript);
+        let greet = entries.iter().find(|e| e.name == "greet").expect("expected greet");
+        let doc = greet.doc.as_deref().expect("expected jsdoc");
+        assert!(doc.contains("Greets the user."));
+    }
+
+    #[test]
+    fn python_docstring_on_function() {
+        let code = "def hello():\n    \"\"\"Greet the caller.\"\"\"\n    pass\n";
+        let entries = get_outline_entries(code, Lang::Python);
+        let hello = entries.iter().find(|e| e.name == "hello").expect("expected hello");
+        let doc = hello.doc.as_deref().expect("expected docstring");
+        assert!(doc.contains("Greet the caller."));
+    }
+
+    #[test]
+    fn python_docstring_on_class() {
+        let code = "class MyClass:\n    \"\"\"A class that does things.\"\"\"\n    def method(self):\n        pass\n";
+        let entries = get_outline_entries(code, Lang::Python);
+        let cls = entries.iter().find(|e| e.name == "MyClass").expect("expected MyClass");
+        let doc = cls.doc.as_deref().expect("expected docstring");
+        assert!(doc.contains("A class that does things."));
+    }
+
+    #[test]
+    fn python_no_docstring_returns_none() {
+        let code = "def no_doc():\n    pass\n";
+        let entries = get_outline_entries(code, Lang::Python);
+        let nd = entries.iter().find(|e| e.name == "no_doc").expect("expected no_doc");
+        assert!(nd.doc.is_none());
     }
 }

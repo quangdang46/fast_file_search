@@ -154,12 +154,9 @@ pub enum OutlineKind {
     Enum,
     Constant,
     Variable,
-    ImmutableVariable,
     Export,
     Property,
     Module,
-    TestSuite,
-    TestCase,
 }
 
 /// Detect test files by path patterns.

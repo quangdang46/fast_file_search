@@ -72,12 +72,9 @@ fn kind_str(k: OutlineKind) -> &'static str {
         OutlineKind::Enum => "enum",
         OutlineKind::Constant => "constant",
         OutlineKind::Variable => "variable",
-        OutlineKind::ImmutableVariable => "immutable_variable",
         OutlineKind::Export => "export",
         OutlineKind::Property => "property",
         OutlineKind::Module => "module",
-        OutlineKind::TestSuite => "test_suite",
-        OutlineKind::TestCase => "test_case",
     }
 }
 

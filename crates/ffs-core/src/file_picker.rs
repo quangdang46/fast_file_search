@@ -2059,7 +2059,7 @@ fn populates_dirs_files_chunked_storage<'a>(
 /// Fast extension-based binary detection. Avoids opening files during scan.
 /// Covers the vast majority of binary files in typical repositories.
 #[inline]
-fn is_known_binary_extension(path: &Path) -> bool {
+pub(crate) fn is_known_binary_extension(path: &Path) -> bool {
     let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
         return false;
     };

@@ -10,7 +10,7 @@ pub mod ranking;
 pub mod scanner;
 
 pub use classify::{classify_query, ClassifiedQuery};
-pub use dispatch::{Engine, EngineConfig, EngineHandles};
+pub use dispatch::{DispatchResult, Engine, EngineConfig, EngineHandles, ReadResult};
 pub use memory::{MemoryGuard, RepoSize};
 pub use mention::{
     resolve_mentions, MentionAudit, MentionKind, MentionResolverCache, ResolveOptions,

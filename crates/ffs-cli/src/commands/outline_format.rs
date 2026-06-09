@@ -317,12 +317,9 @@ fn kind_label(k: OutlineKind) -> &'static str {
         OutlineKind::Enum => "enum",
         OutlineKind::Constant => "const",
         OutlineKind::Variable => "var",
-        OutlineKind::ImmutableVariable => "let",
         OutlineKind::Export => "export",
         OutlineKind::Property => "property",
         OutlineKind::Module => "module",
-        OutlineKind::TestSuite => "test_suite",
-        OutlineKind::TestCase => "test",
     }
 }
 
@@ -616,12 +613,9 @@ mod tests {
             OutlineKind::Enum,
             OutlineKind::Constant,
             OutlineKind::Variable,
-            OutlineKind::ImmutableVariable,
             OutlineKind::Export,
             OutlineKind::Property,
             OutlineKind::Module,
-            OutlineKind::TestSuite,
-            OutlineKind::TestCase,
         ];
         for k in all {
             assert!(!kind_label(k).is_empty());

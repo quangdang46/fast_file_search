@@ -947,7 +947,7 @@ impl Sink for AhoCorasickSink<'_> {
 ///
 /// Returns the same `GrepResult` type as `grep_search`.
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn multi_grep_search<'a>(
+pub fn multi_grep_search<'a>(
     files: &'a [FileItem],
     patterns: &[&str],
     constraints: &[ffs_query_parser::Constraint<'_>],

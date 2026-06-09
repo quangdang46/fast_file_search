@@ -100,6 +100,7 @@ mod scan;
 pub mod bigram_filter;
 pub mod bigram_query;
 mod constraints;
+pub mod directory_grep;
 mod error;
 mod score;
 mod sort_buffer;
@@ -107,7 +108,9 @@ pub(crate) mod stable_vec;
 // this is pub only for benchmarks
 pub mod case_insensitive_memmem;
 
-pub(crate) mod simd_path;
+// public so that the public multi_grep_search signature can reference ArenaPtr
+#[doc(hidden)]
+pub mod simd_path;
 
 /// Core file picker: filesystem indexing, background watching, and fuzzy search.
 ///
