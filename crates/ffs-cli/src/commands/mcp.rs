@@ -7,7 +7,6 @@ use std::time::SystemTime;
 
 use anyhow::Result;
 use clap::Parser;
-use ignore::gitignore::GitignoreBuilder;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -350,7 +349,7 @@ fn handle_tool(state: &mut McpState, root: &Path, name: &str, args: &Value) -> R
         "ffs_glob" => {
             let pattern = get_string(args, "pattern")?;
             let limit = get_limit(args, 50);
-            let hits = glob_files(root, pattern, limit)?;
+            let hits = glob_files(root, pattern, limit);
             Ok(text_json(serde_json::to_string(&hits)?))
         }
         "ffs_find" => {
@@ -603,21 +602,40 @@ fn grep_files(root: &Path, query: &str, limit: usize) -> Vec<GrepHit> {
     hits
 }
 
-fn glob_files(root: &Path, pattern: &str, limit: usize) -> Result<Vec<String>> {
-    let mut builder = GitignoreBuilder::new(root);
-    builder.add_line(None, pattern)?;
-    let matcher = builder.build()?;
-    let mut hits = Vec::new();
-    for path in super::walk_files(root) {
-        let rel = path.strip_prefix(root).unwrap_or(&path);
-        if matcher.matched(rel, false).is_ignore() {
-            hits.push(display_path(root, &path));
-            if hits.len() >= limit {
-                break;
-            }
+fn glob_files(root: &Path, pattern: &str, limit: usize) -> Vec<String> {
+    #[cfg(feature = "zlob")]
+    {
+        let flags = zlob::ZlobFlags::RECOMMENDED | zlob::ZlobFlags::GITIGNORE;
+        let base = root.to_string_lossy();
+        match zlob::zlob_at(&base, pattern, flags) {
+            Ok(Some(result)) => result.iter().take(limit).map(|s| s.to_string()).collect(),
+            Ok(None) => Vec::new(),
+            Err(_) => Vec::new(),
         }
     }
-    Ok(hits)
+
+    #[cfg(not(feature = "zlob"))]
+    {
+        let mut builder = ignore::gitignore::GitignoreBuilder::new(root);
+        // Ignore builder errors — return empty results on invalid patterns
+        if builder.add_line(None, pattern).is_err() {
+            return Vec::new();
+        }
+        let Ok(matcher) = builder.build() else {
+            return Vec::new();
+        };
+        let mut hits = Vec::new();
+        for path in super::walk_files(root) {
+            let rel = path.strip_prefix(root).unwrap_or(&path);
+            if matcher.matched(rel, false).is_ignore() {
+                hits.push(display_path(root, &path));
+                if hits.len() >= limit {
+                    break;
+                }
+            }
+        }
+        hits
+    }
 }
 
 #[derive(Debug, Serialize)]

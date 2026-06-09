@@ -95,6 +95,9 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     })
 }
 
+/// Directories always filtered out regardless of gitignore / zlob rules.
+const ALWAYS_HIDE: &[&str] = &[".git", "node_modules", "target", ".ffs"];
+
 fn run_glob(root: &Path, pattern: &str) -> Vec<String> {
     // Bare extension globs like `*.py` are usually meant as "anywhere in the
     // tree"; expand them to `**/*.py` so the dispatch result matches user
@@ -105,21 +108,57 @@ fn run_glob(root: &Path, pattern: &str) -> Vec<String> {
         pattern.to_string()
     };
 
-    let mut builder = ignore::overrides::OverrideBuilder::new(root);
-    if builder.add(&expanded).is_err() {
-        return Vec::new();
+    #[cfg(feature = "zlob")]
+    {
+        use std::path::Path;
+        let flags = zlob::ZlobFlags::RECOMMENDED | zlob::ZlobFlags::GITIGNORE;
+        let base = root.to_string_lossy();
+        match zlob::zlob_at(&base, &expanded, flags) {
+            Ok(Some(result)) => result
+                .iter()
+                .filter(|s| {
+                    !Path::new(s).components().any(|c| {
+                        c.as_os_str()
+                            .to_str()
+                            .map(|s| ALWAYS_HIDE.contains(&s))
+                            .unwrap_or(false)
+                    })
+                })
+                .take(200)
+                .map(|s| s.to_string())
+                .collect(),
+            Ok(None) => Vec::new(),
+            Err(_) => Vec::new(),
+        }
     }
-    let Ok(overrides) = builder.build() else {
-        return Vec::new();
-    };
 
-    ignore::WalkBuilder::new(root)
-        .overrides(overrides)
-        .standard_filters(true)
-        .build()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().map(|t| t.is_file()).unwrap_or(false))
-        .filter_map(|e| e.path().to_str().map(|s| s.to_string()))
-        .take(200)
-        .collect()
+    #[cfg(not(feature = "zlob"))]
+    {
+        let mut builder = ignore::overrides::OverrideBuilder::new(root);
+        if builder.add(&expanded).is_err() {
+            return Vec::new();
+        }
+        let Ok(overrides) = builder.build() else {
+            return Vec::new();
+        };
+
+        ignore::WalkBuilder::new(root)
+            .overrides(overrides)
+            .standard_filters(true)
+            .build()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_type().map(|t| t.is_file()).unwrap_or(false))
+            .filter(|e| {
+                let p = e.path();
+                !p.components().any(|c| {
+                    c.as_os_str()
+                        .to_str()
+                        .map(|s| ALWAYS_HIDE.contains(&s))
+                        .unwrap_or(false)
+                })
+            })
+            .filter_map(|e| e.path().to_str().map(|s| s.to_string()))
+            .take(200)
+            .collect()
+    }
 }

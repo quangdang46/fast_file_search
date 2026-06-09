@@ -22,18 +22,41 @@ struct GlobResult {
     matches: Vec<String>,
 }
 
-pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
+/// Directories always filtered out regardless of gitignore / zlob rules.
+const ALWAYS_HIDE: &[&str] = &[".git", "node_modules", "target", ".ffs"];
+
+#[cfg(feature = "zlob")]
+fn glob_files(root: &Path, pattern: &str, limit: usize) -> Vec<String> {
+    let flags = zlob::ZlobFlags::RECOMMENDED | zlob::ZlobFlags::GITIGNORE;
+    let base = root.to_string_lossy();
+    match zlob::zlob_at(&base, pattern, flags) {
+        Ok(Some(result)) => result
+            .iter()
+            .filter(|s| {
+                !Path::new(s).components().any(|c| {
+                    c.as_os_str()
+                        .to_str()
+                        .map(|s| ALWAYS_HIDE.contains(&s))
+                        .unwrap_or(false)
+                })
+            })
+            .take(limit)
+            .map(|s| s.to_string())
+            .collect(),
+        Ok(None) => Vec::new(),
+        Err(_) => Vec::new(),
+    }
+}
+
+#[cfg(not(feature = "zlob"))]
+fn glob_files(root: &Path, pattern: &str, limit: usize) -> Vec<String> {
     let mut builder = ignore::overrides::OverrideBuilder::new(root);
-    builder.add(&args.pattern)?;
-    let overrides = builder.build()?;
+    builder.add(pattern).ok();
+    let Ok(overrides) = builder.build() else {
+        return Vec::new();
+    };
 
-    // Bug 15: respect default ignores. `WalkBuilder` checks override matches
-    // *before* hidden/gitignore rules, so an explicit pattern like `**/*`
-    // would otherwise pull in `.git/`. We post-filter paths whose components
-    // contain a hidden directory we always want to skip.
-    const ALWAYS_HIDE: &[&str] = &[".git", "node_modules", "target", ".ffs"];
-
-    let files = ignore::WalkBuilder::new(root)
+    ignore::WalkBuilder::new(root)
         .overrides(overrides)
         .standard_filters(true)
         .hidden(true)
@@ -54,12 +77,15 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
             })
         })
         .filter_map(|e| e.path().to_str().map(|s| s.to_string()))
-        .take(args.limit)
-        .collect::<Vec<_>>();
+        .take(limit)
+        .collect()
+}
 
+pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
+    let matches = glob_files(root, &args.pattern, args.limit);
     let payload = GlobResult {
         pattern: args.pattern,
-        matches: files,
+        matches,
     };
     super::emit(format, &payload, |p| {
         let mut out = String::new();
