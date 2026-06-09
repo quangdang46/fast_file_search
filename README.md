@@ -37,9 +37,18 @@ Windows (PowerShell):
 irm https://raw.githubusercontent.com/dmtrKovalenko/fff.nvim/main/install-mcp.ps1 | iex
 ```
 
-The scripts live at [`install-mcp.sh`](./install-mcp.sh) and [`install-mcp.ps1`](./install-mcp.ps1) if you want to read them first.
+The scripts live at [`install-mcp.sh`](./install-mcp.sh) and [`install-mcp.ps1`](./install-mcp.ps1) if you want to read them first. They print the exact wiring instructions for your client.
 
-It prints the exact wiring instructions for your client. Once the server is connected, ask the agent to "use fff" and it picks up the `ffgrep`, `fffind`, and `fff-multi-grep` tools.
+### Homebrew (macOS / Linux)
+
+```bash
+brew install dmtrKovalenko/fff/fff-mcp
+brew upgrade fff-mcp   # after new stable releases
+```
+
+Formula lives in [`Formula/fff-mcp.rb`](./Formula/fff-mcp.rb) in this repo and is **auto-bumped on every stable release** (see `bump-homebrew-formula` in [`.github/workflows/release.yaml`](./.github/workflows/release.yaml)). Installs the prebuilt `fff-mcp` binary from [GitHub releases](https://github.com/dmtrKovalenko/fff.nvim/releases).
+
+Once the server is connected, ask the agent to "use fff" and it picks up the `ffgrep`, `fffind`, and `fff-multi-grep` tools.
 
 ### Recommended agent prompt
 

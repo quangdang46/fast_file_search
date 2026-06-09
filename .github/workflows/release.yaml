@@ -477,6 +477,27 @@ jobs:
             curl -fsSL https://raw.githubusercontent.com/dmtrKovalenko/fff.nvim/main/install-mcp.sh | bash
             ```
 
+      - name: Bump Homebrew formula (uses local checksums)
+        if: steps.version.outputs.is_release == 'true' && github.repository_owner == 'dmtrKovalenko'
+        run: make bump-homebrew-formula VERSION="${{ steps.version.outputs.version }}" BINARIES_DIR=./binaries
+
+      - name: Pin SHAs in install-mcp.sh (uses local checksums)
+        if: steps.version.outputs.is_release == 'true' && github.repository_owner == 'dmtrKovalenko'
+        run: make bump-install-mcp-sh VERSION="${{ steps.version.outputs.version }}" BINARIES_DIR=./binaries
+
+      - name: Commit formula + installer bump to main
+        # Uses the default GITHUB_TOKEN configured by actions/checkout above.
+        # Requires github-actions[bot] in the main branch-protection bypass list.
+        if: steps.version.outputs.is_release == 'true' && github.repository_owner == 'dmtrKovalenko'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          # Workflow runs on detached HEAD at the v* tag — explicit target needed.
+          branch: main
+          commit_message: "chore: bump fff-mcp release artifacts to v${{ steps.version.outputs.version }} [skip ci]"
+          file_pattern: "Formula/fff-mcp.rb install-mcp.sh"
+          commit_user_name: github-actions[bot]
+          commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
+
   crates-publish:
     name: Publish Rust crates
     needs: [build-nvim, build-c, build-mcp]
