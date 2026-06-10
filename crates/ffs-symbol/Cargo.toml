@@ -31,6 +31,7 @@ tree-sitter-c-sharp = { workspace = true }
 tree-sitter-swift = { workspace = true }
 tree-sitter-kotlin-ng = { workspace = true }
 tree-sitter-elixir = { workspace = true }
+tree-sitter-verse = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

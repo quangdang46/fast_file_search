@@ -28,6 +28,7 @@ pub fn outline_language(lang: Lang) -> Option<Language> {
         Lang::Kotlin => tree_sitter_kotlin_ng::LANGUAGE.into(),
         Lang::CSharp => tree_sitter_c_sharp::LANGUAGE.into(),
         Lang::Elixir => tree_sitter_elixir::LANGUAGE.into(),
+        Lang::Verse => tree_sitter_verse::LANGUAGE.into(),
         Lang::Dockerfile | Lang::Make => return None,
     };
     Some(l)
@@ -203,6 +204,8 @@ fn outline_kind_for(node: Node, lang: Lang) -> Option<OutlineKind> {
 
     let kind = node.kind();
     let mapped = match kind {
+        "type_definition" if lang == Lang::Verse => return verse_type_definition_kind(node),
+
         // Functions
         "function_declaration"
         | "function_definition"
@@ -210,7 +213,8 @@ fn outline_kind_for(node: Node, lang: Lang) -> Option<OutlineKind> {
         | "method_definition"
         | "method_declaration"
         | "function_expression"
-        | "generator_function" => OutlineKind::Function,
+        | "generator_function"
+        | "extension_function_definition" => OutlineKind::Function,
 
         // Decorated definitions in Python — recurse into inner def.
         "decorated_definition" => return decorated_definition_kind(node),
@@ -228,7 +232,7 @@ fn outline_kind_for(node: Node, lang: Lang) -> Option<OutlineKind> {
         // Constants / variables
         "const_item" | "const_declaration" | "static_item" => OutlineKind::Constant,
         "lexical_declaration" => OutlineKind::Variable,
-        "variable_declaration" => OutlineKind::Variable,
+        "variable_declaration" | "var_declaration" => OutlineKind::Variable,
 
         // Properties (Swift, Kotlin)
         "property_declaration" => OutlineKind::Property,
@@ -239,7 +243,8 @@ fn outline_kind_for(node: Node, lang: Lang) -> Option<OutlineKind> {
         | "use_declaration"
         | "import_from_statement"
         | "package_clause"
-        | "use_directive" => OutlineKind::Import,
+        | "use_directive"
+        | "using_declaration" => OutlineKind::Import,
 
         // Exports / namespace exports (TS/JS top-level only).
         "export_statement" => OutlineKind::Export,
@@ -248,6 +253,22 @@ fn outline_kind_for(node: Node, lang: Lang) -> Option<OutlineKind> {
     };
 
     Some(mapped)
+}
+
+fn verse_type_definition_kind(node: Node) -> Option<OutlineKind> {
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        let mapped = match child.kind() {
+            "class_definition" => OutlineKind::Class,
+            "struct_definition" => OutlineKind::Struct,
+            "enum_definition" => OutlineKind::Enum,
+            "interface_definition" => OutlineKind::Interface,
+            "module_definition" => OutlineKind::Module,
+            _ => continue,
+        };
+        return Some(mapped);
+    }
+    Some(OutlineKind::TypeAlias)
 }
 
 fn decorated_definition_kind(node: Node) -> Option<OutlineKind> {
@@ -462,5 +483,26 @@ mod tests {
             .find(|e| e.name == "no_doc")
             .expect("expected no_doc");
         assert!(e.doc.is_none());
+    }
+
+    #[test]
+    fn extracts_verse_class_and_function() {
+        let code = r#"using { /Verse.org/Verse }
+
+player_character := class:
+    Name:string = ""
+
+RunExample<public>()<suspends>:void =
+    Print("hi")
+"#;
+        let entries = get_outline_entries(code, Lang::Verse);
+        assert!(
+            entries.iter().any(|e| e.name == "player_character"),
+            "expected player_character class"
+        );
+        assert!(
+            entries.iter().any(|e| e.name == "RunExample"),
+            "expected RunExample function"
+        );
     }
 }

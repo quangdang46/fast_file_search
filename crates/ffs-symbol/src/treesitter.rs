@@ -32,6 +32,9 @@ pub const DEFINITION_KINDS: &[&str] = &[
     "decorated_definition",
     "type_declaration",
     "export_statement",
+    "type_definition",
+    "extension_function_definition",
+    "var_declaration",
 ];
 
 /// Extract the name defined by a tree-sitter definition node.
@@ -415,7 +418,9 @@ pub fn definition_weight(kind: &str) -> u16 {
         | "enum_item"
         | "enum_declaration"
         | "type_item"
-        | "type_declaration"
+        |         "type_declaration"
+        | "type_definition"
+        | "extension_function_definition"
         | "decorated_definition" => 100,
         "impl_item" | "object_declaration" => 90,
         "const_item" | "const_declaration" | "static_item" => 80,

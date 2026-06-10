@@ -95,6 +95,8 @@ fn node_to_import(node: Node, src: &[u8], lang: Lang) -> Option<String> {
         // Scala: `import a.b.{C, D}`.
         (Lang::Scala, "import_declaration") => first_path_segment(node, src),
 
+        (Lang::Verse, "using_declaration") => verse_using_path(node, src),
+
         _ => None,
     }
 }
@@ -265,6 +267,16 @@ fn strip_quotes(s: &str) -> &str {
         }
     }
     s
+}
+
+fn verse_using_path(node: Node, src: &[u8]) -> Option<String> {
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if child.kind() == "module_path" {
+            return text_of(child, src);
+        }
+    }
+    None
 }
 
 fn text_of(node: Node, src: &[u8]) -> Option<String> {
@@ -461,6 +473,7 @@ fn candidate_extensions(lang: Lang) -> &'static [&'static str] {
         Lang::Kotlin => &["kt", "kts"],
         Lang::CSharp => &["cs"],
         Lang::Elixir => &["ex", "exs"],
+        Lang::Verse => &["verse"],
         Lang::Dockerfile | Lang::Make => &[],
     }
 }
@@ -676,5 +689,12 @@ fn require_like("./also-not");
         let from = root.join("main.ts");
         assert!(resolve_import("./missing", &from, root, Lang::TypeScript).is_none());
         assert!(resolve_import("react", &from, root, Lang::TypeScript).is_none());
+    }
+
+    #[test]
+    fn extract_verse_using_declaration() {
+        let src = "using { /Verse.org/Verse }\n\nFoo():void = Print(\"x\")\n";
+        let imports = extract_imports(src, Lang::Verse);
+        assert_eq!(imports, vec!["/Verse.org/Verse"]);
     }
 }

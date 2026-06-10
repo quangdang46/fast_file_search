@@ -403,4 +403,18 @@ mod tests {
         assert_eq!(idx.lookup_exact("beta").len(), 1);
         assert_eq!(idx.files_indexed(), 1);
     }
+
+    #[test]
+    fn indexes_verse_definitions() {
+        let f = touch_file(
+            "MyClass := class:\n    X:int = 0\n\nDoWork():void = Print(\"ok\")\n",
+            "verse",
+        );
+        let idx = SymbolIndex::new();
+        let mtime = std::fs::metadata(f.path()).unwrap().modified().unwrap();
+        let n = idx.index_file(f.path(), mtime, &std::fs::read_to_string(f.path()).unwrap());
+        assert!(n >= 2, "expected class + function symbols, got {n}");
+        assert_eq!(idx.lookup_exact("MyClass").len(), 1);
+        assert_eq!(idx.lookup_exact("DoWork").len(), 1);
+    }
 }

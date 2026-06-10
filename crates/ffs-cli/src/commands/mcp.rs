@@ -881,6 +881,7 @@ fn lang_label(lang: &ffs_symbol::types::Lang) -> &'static str {
         Lang::Kotlin => "kotlin",
         Lang::Scala => "scala",
         Lang::Elixir => "elixir",
+        Lang::Verse => "verse",
         Lang::Dockerfile => "dockerfile",
         Lang::Make => "make",
     }
