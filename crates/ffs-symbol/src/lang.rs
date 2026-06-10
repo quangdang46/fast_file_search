@@ -105,6 +105,7 @@ mod tests {
         );
     }
 
+    #[test]
     fn detect_verse() {
         assert_eq!(
             detect_file_type(Path::new("game_manager.verse")),
