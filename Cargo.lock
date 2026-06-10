@@ -674,7 +674,7 @@ dependencies = [
 
 [[package]]
 name = "ffs-budget"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "criterion",
  "once_cell",
@@ -684,7 +684,7 @@ dependencies = [
 
 [[package]]
 name = "ffs-c"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "ffs-budget",
  "ffs-engine",
@@ -702,7 +702,7 @@ dependencies = [
 
 [[package]]
 name = "ffs-cli"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "anyhow",
  "clap",
@@ -729,7 +729,7 @@ dependencies = [
 
 [[package]]
 name = "ffs-engine"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "ahash",
  "criterion",
@@ -748,7 +748,7 @@ dependencies = [
 
 [[package]]
 name = "ffs-grep"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "bstr",
  "memchr",
@@ -756,7 +756,7 @@ dependencies = [
 
 [[package]]
 name = "ffs-mcp"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "clap",
  "ffs-budget",
@@ -780,7 +780,7 @@ dependencies = [
 
 [[package]]
 name = "ffs-query-parser"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "criterion",
  "zlob",
@@ -788,7 +788,7 @@ dependencies = [
 
 [[package]]
 name = "ffs-search"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "ahash",
  "aho-corasick",
@@ -837,7 +837,7 @@ dependencies = [
 
 [[package]]
 name = "ffs-symbol"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "aho-corasick",
  "criterion",
@@ -2122,9 +2122,9 @@ checksum = "dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a"
 
 [[package]]
 name = "rmcp"
-version = "1.2.0"
+version = "1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba6b9d2f0efe2258b23767f1f9e0054cfbcac9c2d6f81a031214143096d7864f"
+checksum = "0810a9f717d9828f475fe1f629f4c305c8464b7f496c3a854b58d29e65f4058e"
 dependencies = [
  "async-trait",
  "base64",
@@ -2144,9 +2144,9 @@ dependencies = [
 
 [[package]]
 name = "rmcp-macros"
-version = "1.2.0"
+version = "1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab9d95d7ed26ad8306352b0d5f05b593222b272790564589790d210aa15caa9e"
+checksum = "6aefac48c364756e97f04c0401ba3231e8607882c7c1d92da0437dc16307904d"
 dependencies = [
  "darling",
  "proc-macro2",

@@ -2100,7 +2100,7 @@ pub fn is_known_binary_extension(path: &Path) -> bool {
         "cmi" | "cmt" | "cmti" | "cmx" | "cof" | "cot" | "cop" | "nib" |
         "swiftdeps" | "swiftdeps~" | "swiftdoc" | "swiftmodule" | "swiftsourceinfo" |
         // ML/Data Science
-        "npy" | "npz" | "pkl" | "pickle" | "h5" | "hdf5" | "pt" | "pth" | "onnx" |
+        "npy" | "npz" | "h5" | "hdf5" | "pt" | "pth" | "onnx" |
         "safetensors" | "tfrecord" | "tflite" | "gguf" | "ggml" | "joblib" |
         // 3D/Game
         "glb" | "fbx" | "blend" | "blp" |

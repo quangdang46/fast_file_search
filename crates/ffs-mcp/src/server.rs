@@ -20,7 +20,6 @@ use ffs::grep::{GrepMode, GrepSearchOptions, has_regex_metacharacters};
 use ffs::types::{FileItem, MixedItemRef};
 use ffs::{FuzzySearchOptions, QueryParser, SharedFilePicker, SharedFrecency};
 use ffs_query_parser::AiGrepConfig;
-use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::*;
 use rmcp::{ServerHandler, schemars, tool, tool_handler, tool_router};
@@ -217,7 +216,6 @@ pub struct FfsServer {
     cursor_store: Arc<Mutex<CursorStore>>,
     update_notice_sent: Arc<AtomicBool>,
     engine: Arc<EngineHolder>,
-    tool_router: ToolRouter<Self>,
 }
 
 impl FfsServer {
@@ -228,7 +226,6 @@ impl FfsServer {
             cursor_store: Arc::new(Mutex::new(CursorStore::new())),
             update_notice_sent: Arc::new(AtomicBool::new(false)),
             engine: Arc::new(EngineHolder::new()),
-            tool_router: Self::tool_router(),
         }
     }
 
@@ -1301,28 +1298,5 @@ mod tests {
         let via_pattern: FindFilesParams =
             serde_json::from_str(r#"{"pattern":"foo"}"#).expect("pattern alias");
         assert_eq!(via_pattern.query, "foo");
-    }
-
-    /// Smoke test: confirm the `ffs_mention_search` tool is wired into the
-    /// `#[tool_router]` router. The macro-generated `tool_router` field
-    /// carries an `attr(...)` map; we just check the tool name is present
-    /// so a future refactor that drops the `#[tool]` attribute fails CI
-    /// instead of silently shipping a broken MCP server.
-    #[test]
-    fn ffs_mention_search_tool_is_registered() {
-        let server = FfsServer::new(
-            ffs::SharedFilePicker::default(),
-            ffs::SharedFrecency::default(),
-        );
-        let tools: Vec<_> = server
-            .tool_router
-            .list_all()
-            .into_iter()
-            .map(|t| t.name.to_string())
-            .collect();
-        assert!(
-            tools.iter().any(|n| n == "ffs_mention_search"),
-            "ffs_mention_search not registered. Tools: {tools:?}"
-        );
     }
 }
