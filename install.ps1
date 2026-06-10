@@ -469,7 +469,11 @@ function Main {
             if (Test-Path $stage) { Remove-Item -Force $stage }
             Copy-Item -LiteralPath $tmpFile -Destination $stage -Force
             try {
-                Move-Item -LiteralPath $stage -Destination $dest -Force
+                # Remove existing binary first — Move-Item -Force can fail
+                # with "Cannot create a file when that file already exists"
+                # when the destination is locked or under PowerShell 5.1.
+                Remove-Item -LiteralPath $dest -Force -ErrorAction SilentlyContinue
+                Move-Item -LiteralPath $stage -Destination $dest
             } catch {
                 Remove-Item -LiteralPath $stage -Force -ErrorAction SilentlyContinue
                 throw
