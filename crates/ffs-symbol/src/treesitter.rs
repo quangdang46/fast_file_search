@@ -418,7 +418,7 @@ pub fn definition_weight(kind: &str) -> u16 {
         | "enum_item"
         | "enum_declaration"
         | "type_item"
-        |         "type_declaration"
+        | "type_declaration"
         | "type_definition"
         | "extension_function_definition"
         | "decorated_definition" => 100,
