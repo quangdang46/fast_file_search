@@ -23,6 +23,7 @@ pub fn detect_file_type(path: &Path) -> FileType {
         Some("kt" | "kts") => FileType::Code(Lang::Kotlin),
         Some("cs") => FileType::Code(Lang::CSharp),
         Some("ex" | "exs") => FileType::Code(Lang::Elixir),
+        Some("verse") => FileType::Code(Lang::Verse),
 
         Some("md" | "mdx" | "rst") => FileType::Markdown,
         Some("json" | "yaml" | "yml" | "toml" | "xml" | "ini") => FileType::StructuredData,
@@ -101,6 +102,13 @@ mod tests {
         assert_eq!(
             detect_file_type(Path::new("/etc/Dockerfile")),
             FileType::Code(Lang::Dockerfile)
+        );
+    }
+
+    fn detect_verse() {
+        assert_eq!(
+            detect_file_type(Path::new("game_manager.verse")),
+            FileType::Code(Lang::Verse)
         );
     }
 }

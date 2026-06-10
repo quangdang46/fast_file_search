@@ -1,0 +1,14 @@
+[package]
+name = "tree-sitter-verse"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Tree-sitter grammar for Epic Games Verse (UEFN)"
+repository = "https://github.com/taku25/tree-sitter-verse"
+
+[dependencies]
+tree-sitter = { workspace = true }
+tree-sitter-language = { workspace = true }
+
+[build-dependencies]
+cc = "1"
