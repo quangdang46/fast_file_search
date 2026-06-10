@@ -469,11 +469,19 @@ function Main {
             if (Test-Path $stage) { Remove-Item -Force $stage }
             Copy-Item -LiteralPath $tmpFile -Destination $stage -Force
             try {
-                # Remove existing binary first — Move-Item -Force can fail
-                # with "Cannot create a file when that file already exists"
-                # when the destination is locked or under PowerShell 5.1.
-                Remove-Item -LiteralPath $dest -Force -ErrorAction SilentlyContinue
+                # Rename any existing binary out of the way.  On Windows,
+                # Remove-Item on a running .exe is a no-op (the file stays
+                # until the last handle is closed), so Move-Item below
+                # would still see the old file and fail.  Rename succeeds
+                # because the running process keeps its handle to the old
+                # path, freeing the original name for the replacement.
+                $oldFile = "$dest.old.$PID"
+                if (Test-Path -LiteralPath $dest) {
+                    Rename-Item -LiteralPath $dest -NewName $oldFile -Force
+                }
                 Move-Item -LiteralPath $stage -Destination $dest
+                # Best-effort cleanup of the renamed-away copy.
+                Remove-Item -LiteralPath $oldFile -Force -ErrorAction SilentlyContinue
             } catch {
                 Remove-Item -LiteralPath $stage -Force -ErrorAction SilentlyContinue
                 throw
