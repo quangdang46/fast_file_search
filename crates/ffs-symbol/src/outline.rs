@@ -527,7 +527,12 @@ RunExample<public>()<suspends>:void =
         let bind = entries
             .iter()
             .find(|e| e.name == "game_manager")
-            .and_then(|class| class.children.iter().find(|e| e.name == "BindBaseComponentPlots"))
+            .and_then(|class| {
+                class
+                    .children
+                    .iter()
+                    .find(|e| e.name == "BindBaseComponentPlots")
+            })
             .expect("expected BindBaseComponentPlots under game_manager");
         assert!(
             bind.end_line >= 4,
