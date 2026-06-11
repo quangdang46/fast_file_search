@@ -450,10 +450,10 @@ jobs:
           # Create or update the release
           if gh release view "$TAG" --json tagName > /dev/null 2>&1; then
             echo "Release $TAG already exists, uploading assets..."
-            gh release upload "$TAG" * --clobber
+            gh release upload "$TAG" $(ls -1 | grep -v '\.md$') --clobber
           else
             echo "Creating release $TAG..."
-            gh release create "$TAG" * \
+            gh release create "$TAG" $(ls -1 | grep -v '\.md$') \
               --title "$TITLE" \
               --notes-file release-notes.md \
               --generate-notes
