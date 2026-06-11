@@ -526,8 +526,9 @@ RunExample<public>()<suspends>:void =
         let entries = get_outline_entries(code, Lang::Verse);
         let bind = entries
             .iter()
-            .find(|e| e.name == "BindBaseComponentPlots")
-            .expect("expected BindBaseComponentPlots");
+            .find(|e| e.name == "game_manager")
+            .and_then(|class| class.children.iter().find(|e| e.name == "BindBaseComponentPlots"))
+            .expect("expected BindBaseComponentPlots under game_manager");
         assert!(
             bind.end_line >= 4,
             "outline end_line should cover if body, got {}",

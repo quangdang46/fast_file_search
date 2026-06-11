@@ -54,6 +54,7 @@ pub fn verse_member_end_line(lines: &[&str], start_line: u32, ast_end: u32) -> u
 }
 
 /// Whether a Verse definition node likely needs span repair.
+#[cfg(test)]
 pub fn verse_should_repair_span(
     node_kind: &str,
     start_line: u32,
@@ -111,7 +112,10 @@ pub fn verse_repair_end_line(
     ast_end: u32,
     lines: &[&str],
 ) -> u32 {
-    if verse_should_repair_span(node_kind, start_line, ast_end, lines) {
+    if matches!(
+        node_kind,
+        "function_definition" | "extension_function_definition" | "type_definition"
+    ) {
         verse_member_end_line(lines, start_line, ast_end)
     } else {
         ast_end
