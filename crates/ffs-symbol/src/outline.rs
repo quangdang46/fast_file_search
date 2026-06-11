@@ -349,21 +349,21 @@ fn extract_signature(node: Node, lines: &[&str]) -> Option<String> {
     None
 }
 
-fn find_outline_entry<'a>(entries: &'a [OutlineEntry], name: &str) -> Option<&'a OutlineEntry> {
-    for entry in entries {
-        if entry.name == name {
-            return Some(entry);
-        }
-        if let Some(found) = find_outline_entry(&entry.children, name) {
-            return Some(found);
-        }
-    }
-    None
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn find_outline_entry<'a>(entries: &'a [OutlineEntry], name: &str) -> Option<&'a OutlineEntry> {
+        for entry in entries {
+            if entry.name == name {
+                return Some(entry);
+            }
+            if let Some(found) = find_outline_entry(&entry.children, name) {
+                return Some(found);
+            }
+        }
+        None
+    }
 
     #[test]
     fn extracts_rust_function() {
