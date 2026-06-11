@@ -53,41 +53,6 @@ pub fn verse_member_end_line(lines: &[&str], start_line: u32, ast_end: u32) -> u
     end
 }
 
-/// Whether a Verse definition node likely needs span repair.
-#[cfg(test)]
-pub fn verse_should_repair_span(
-    node_kind: &str,
-    start_line: u32,
-    ast_end: u32,
-    lines: &[&str],
-) -> bool {
-    if !matches!(
-        node_kind,
-        "function_definition" | "extension_function_definition" | "type_definition"
-    ) {
-        return false;
-    }
-    if ast_end <= start_line {
-        return true;
-    }
-    let start_idx = start_line.saturating_sub(1) as usize;
-    if start_idx >= lines.len() {
-        return false;
-    }
-    let base = line_indent(lines[start_idx]);
-    // Header-only span, or empty body with deeper-indented continuation.
-    if ast_end <= start_line + 1 {
-        let next_idx = ast_end as usize;
-        if next_idx < lines.len() {
-            let next = lines[next_idx];
-            if !is_blank_or_comment(next) && line_indent(next) > base {
-                return true;
-            }
-        }
-    }
-    false
-}
-
 /// Skip `@editable` metadata lines parsed as spurious `Categories` type defs.
 pub fn verse_skip_spurious_definition(node: Node, lines: &[&str]) -> bool {
     if node.kind() != "type_definition" {
