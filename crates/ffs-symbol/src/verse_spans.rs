@@ -98,7 +98,7 @@ pub fn verse_skip_spurious_definition(node: Node, lines: &[&str]) -> bool {
     if name != "Categories" {
         return false;
     }
-    let line = node.start_position().row as usize;
+    let line = node.start_position().row;
     lines
         .get(line)
         .is_some_and(|l| l.contains("Categories := array{SettingsCategory}"))
@@ -141,7 +141,10 @@ mod tests {
             end >= 6,
             "expected body through nested if/for, got end_line {end}"
         );
-        assert!(end < 8, "should stop before sibling OnBegin at line 8, got {end}");
+        assert!(
+            end < 8,
+            "should stop before sibling OnBegin at line 8, got {end}"
+        );
     }
 
     #[test]
@@ -155,7 +158,10 @@ mod tests {
         let lines: Vec<&str> = src.lines().collect();
         let end = verse_repair_end_line("type_definition", 1, 1, &lines);
         assert!(end >= 4, "class should include members, got {end}");
-        assert!(end < 6, "should stop before module-level AddToTeam, got {end}");
+        assert!(
+            end < 6,
+            "should stop before module-level AddToTeam, got {end}"
+        );
     }
 
     #[test]

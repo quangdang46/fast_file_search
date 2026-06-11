@@ -43,6 +43,20 @@ fn walk(node: Node, src: &[u8], start: u32, end: u32, out: &mut BTreeSet<String>
         }
     }
 
+    // Verse: `Comp.BindPlot(Plot)` often parses as sibling `member_access` +
+    // `parenthesized_expression` instead of a single `call_expression`.
+    if node.kind() == "member_access" && row >= start {
+        if let Some(next) = node.next_named_sibling() {
+            if next.kind() == "parenthesized_expression" {
+                if let Some(member) = node.child_by_field_name("member") {
+                    if let Some(name) = rightmost_name(member, src) {
+                        out.insert(name);
+                    }
+                }
+            }
+        }
+    }
+
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         walk(child, src, start, end, out);
