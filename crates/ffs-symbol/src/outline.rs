@@ -8,6 +8,7 @@ use crate::treesitter::{
     is_elixir_definition, js_function_context_name, node_text_simple,
 };
 use crate::types::{Lang, OutlineEntry, OutlineKind};
+use crate::verse_spans::{verse_repair_end_line, verse_skip_spurious_definition};
 
 /// Map a [`Lang`] to its tree-sitter [`Language`] descriptor.
 pub fn outline_language(lang: Lang) -> Option<Language> {
@@ -70,6 +71,9 @@ fn walk_top_level(
 }
 
 fn node_to_entry(node: Node, lines: &[&str], content: &str, lang: Lang) -> Option<OutlineEntry> {
+    if lang == Lang::Verse && verse_skip_spurious_definition(node, lines) {
+        return None;
+    }
     let kind = outline_kind_for(node, lang)?;
 
     let name = match (lang, node.kind()) {
@@ -83,7 +87,12 @@ fn node_to_entry(node: Node, lines: &[&str], content: &str, lang: Lang) -> Optio
     };
 
     let start_line = node.start_position().row as u32 + 1;
-    let end_line = node.end_position().row as u32 + 1;
+    let ast_end = node.end_position().row as u32 + 1;
+    let end_line = if lang == Lang::Verse {
+        verse_repair_end_line(node.kind(), start_line, ast_end, lines)
+    } else {
+        ast_end
+    };
 
     let signature = extract_signature(node, lines);
 
@@ -297,6 +306,8 @@ fn collect_children(
                 | "block"
                 | "field_declaration_list"
                 | "type_definition"
+                | "indented_block"
+                | "colon_block"
         ) {
             let mut inner = child.walk();
             for grand in child.children(&mut inner) {
@@ -341,6 +352,18 @@ fn extract_signature(node: Node, lines: &[&str]) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn find_outline_entry<'a>(entries: &'a [OutlineEntry], name: &str) -> Option<&'a OutlineEntry> {
+        for entry in entries {
+            if entry.name == name {
+                return Some(entry);
+            }
+            if let Some(found) = find_outline_entry(&entry.children, name) {
+                return Some(found);
+            }
+        }
+        None
+    }
 
     #[test]
     fn extracts_rust_function() {
@@ -504,5 +527,24 @@ RunExample<public>()<suspends>:void =
             entries.iter().any(|e| e.name == "RunExample"),
             "expected RunExample function"
         );
+    }
+
+    #[test]
+    fn verse_if_guard_function_outline_span() {
+        let code = r#"game_manager := class(creative_device):
+    BindBaseComponentPlots<private>() : void =
+        if (Sim := GetGameSim[]):
+            Plot.SetPlayerBasesSlot(Idx)
+    OnBegin() : void = {}
+"#;
+        let entries = get_outline_entries(code, Lang::Verse);
+        let bind = find_outline_entry(&entries, "BindBaseComponentPlots")
+            .expect("expected BindBaseComponentPlots in outline");
+        assert!(
+            bind.end_line >= 4,
+            "outline end_line should cover if body, got {}",
+            bind.end_line
+        );
+        assert!(bind.end_line < 5, "should stop before OnBegin");
     }
 }

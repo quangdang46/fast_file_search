@@ -17,6 +17,7 @@ use crate::treesitter::{
     is_elixir_definition, DEFINITION_KINDS,
 };
 use crate::types::{FileType, Lang};
+use crate::verse_spans::{verse_repair_end_line, verse_skip_spurious_definition};
 
 /// One occurrence of a symbol definition.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -300,11 +301,20 @@ fn collect_definitions(
             out(name, loc);
         }
     } else if DEFINITION_KINDS.contains(&node.kind()) {
-        if let Some(name) = extract_definition_name(node, lines) {
+        if lang == Lang::Verse && verse_skip_spurious_definition(node, lines) {
+            // fall through to children
+        } else if let Some(name) = extract_definition_name(node, lines) {
+            let start_line = node.start_position().row as u32 + 1;
+            let ast_end = node.end_position().row as u32 + 1;
+            let end_line = if lang == Lang::Verse {
+                verse_repair_end_line(node.kind(), start_line, ast_end, lines)
+            } else {
+                ast_end
+            };
             let loc = SymbolLocation {
                 path: path.to_path_buf(),
-                line: node.start_position().row as u32 + 1,
-                end_line: node.end_position().row as u32 + 1,
+                line: start_line,
+                end_line,
                 kind: node.kind().to_string(),
                 weight: definition_weight(node.kind()),
             };
@@ -416,5 +426,38 @@ mod tests {
         assert!(n >= 2, "expected class + function symbols, got {n}");
         assert_eq!(idx.lookup_exact("MyClass").len(), 1);
         assert_eq!(idx.lookup_exact("DoWork").len(), 1);
+    }
+
+    #[test]
+    fn verse_function_span_covers_if_guard_body() {
+        let content = r#"game_manager := class(creative_device):
+    BindBaseComponentPlots<private>() : void =
+        if (Sim := GetGameSim[]):
+            Plot.SetPlayerBasesSlot(Idx)
+            Comp.BindPlot(Plot)
+    OnBegin() : void = {}
+"#;
+        let f = touch_file(content, "verse");
+        let idx = SymbolIndex::new();
+        let mtime = std::fs::metadata(f.path()).unwrap().modified().unwrap();
+        idx.index_file(f.path(), mtime, content);
+        let hits = idx.lookup_exact("BindBaseComponentPlots");
+        assert_eq!(hits.len(), 1, "expected BindBaseComponentPlots definition");
+        assert_eq!(
+            hits[0].line, 2,
+            "expected header line 2, got line {}",
+            hits[0].line
+        );
+        assert!(
+            hits[0].end_line >= 5,
+            "expected span through body lines, got end_line {} (start {})",
+            hits[0].end_line,
+            hits[0].line
+        );
+        assert!(
+            hits[0].end_line < 6,
+            "should stop before sibling OnBegin, got end_line {}",
+            hits[0].end_line
+        );
     }
 }

@@ -22,6 +22,7 @@ pub mod outline_cache;
 pub mod symbol_index;
 pub mod treesitter;
 pub mod types;
+mod verse_spans;
 
 pub use bloom::{BloomFilter, BloomFilterCache};
 pub use lang::{detect_file_type, package_root};

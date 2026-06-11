@@ -43,6 +43,20 @@ fn walk(node: Node, src: &[u8], start: u32, end: u32, out: &mut BTreeSet<String>
         }
     }
 
+    // Verse: `Comp.BindPlot(Plot)` often parses as sibling `member_access` +
+    // `parenthesized_expression` instead of a single `call_expression`.
+    if node.kind() == "member_access" && row >= start {
+        if let Some(next) = node.next_named_sibling() {
+            if next.kind() == "parenthesized_expression" {
+                if let Some(member) = node.child_by_field_name("member") {
+                    if let Some(name) = rightmost_name(member, src) {
+                        out.insert(name);
+                    }
+                }
+            }
+        }
+    }
+
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         walk(child, src, start, end, out);
@@ -62,6 +76,7 @@ fn node_is_call(node: Node) -> bool {
             | "new_expression"
             | "object_creation_expression"
             | "macro_invocation"
+            | "failable_call_expression"
             | "scoped_call"
             | "function_call"
     )
@@ -216,5 +231,18 @@ function outer() {
         assert!(names.contains("foo"), "got: {names:?}");
         assert!(names.contains("Bar"), "got: {names:?}");
         assert!(names.contains("qux"), "got: {names:?}");
+    }
+
+    #[test]
+    fn verse_member_calls_in_if_guard_body() {
+        let src = r#"BindPlots<private>() : void =
+    if (Sim := GetGameSim[]):
+        Plot.SetPlayerBasesSlot(Idx)
+        Comp.BindPlot(Plot)
+"#;
+        let names = collect_callees(src, Lang::Verse, 1, 4).expect("parsed");
+        assert!(names.contains("SetPlayerBasesSlot"), "got: {names:?}");
+        assert!(names.contains("BindPlot"), "got: {names:?}");
+        assert!(names.contains("GetGameSim"), "got: {names:?}");
     }
 }
