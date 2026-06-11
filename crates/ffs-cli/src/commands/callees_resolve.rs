@@ -62,6 +62,7 @@ fn node_is_call(node: Node) -> bool {
             | "new_expression"
             | "object_creation_expression"
             | "macro_invocation"
+            | "failable_call_expression"
             | "scoped_call"
             | "function_call"
     )
@@ -216,5 +217,18 @@ function outer() {
         assert!(names.contains("foo"), "got: {names:?}");
         assert!(names.contains("Bar"), "got: {names:?}");
         assert!(names.contains("qux"), "got: {names:?}");
+    }
+
+    #[test]
+    fn verse_member_calls_in_if_guard_body() {
+        let src = r#"BindPlots<private>() : void =
+    if (Sim := GetGameSim[]):
+        Plot.SetPlayerBasesSlot(Idx)
+        Comp.BindPlot(Plot)
+"#;
+        let names = collect_callees(src, Lang::Verse, 1, 4).expect("parsed");
+        assert!(names.contains("SetPlayerBasesSlot"), "got: {names:?}");
+        assert!(names.contains("BindPlot"), "got: {names:?}");
+        assert!(names.contains("GetGameSim"), "got: {names:?}");
     }
 }
