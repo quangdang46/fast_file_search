@@ -306,6 +306,8 @@ fn collect_children(
                 | "block"
                 | "field_declaration_list"
                 | "type_definition"
+                | "indented_block"
+                | "colon_block"
         ) {
             let mut inner = child.walk();
             for grand in child.children(&mut inner) {

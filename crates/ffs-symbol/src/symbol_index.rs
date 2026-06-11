@@ -430,24 +430,28 @@ mod tests {
 
     #[test]
     fn verse_function_span_covers_if_guard_body() {
-        let f = touch_file(
-            "game_manager := class(creative_device):\n\
-             BindBaseComponentPlots<private>() : void =\n\
-                 if (Sim := GetGameSim[]):\n\
-                     Plot.SetPlayerBasesSlot(Idx)\n\
-                     Comp.BindPlot(Plot)\n\
-             OnBegin() : void = {}\n",
-            "verse",
-        );
+        let content = r#"game_manager := class(creative_device):
+    BindBaseComponentPlots<private>() : void =
+        if (Sim := GetGameSim[]):
+            Plot.SetPlayerBasesSlot(Idx)
+            Comp.BindPlot(Plot)
+    OnBegin() : void = {}
+"#;
+        let f = touch_file(content, "verse");
         let idx = SymbolIndex::new();
         let mtime = std::fs::metadata(f.path()).unwrap().modified().unwrap();
-        idx.index_file(f.path(), mtime, &std::fs::read_to_string(f.path()).unwrap());
+        idx.index_file(f.path(), mtime, content);
         let hits = idx.lookup_exact("BindBaseComponentPlots");
         assert_eq!(hits.len(), 1, "expected BindBaseComponentPlots definition");
+        assert_eq!(
+            hits[0].line, 2,
+            "expected header line 2, got line {}",
+            hits[0].line
+        );
         assert!(
             hits[0].end_line >= 5,
-            "expected span through body lines, got end_line {}",
-            hits[0].end_line
+            "expected span through body lines, got end_line {} (start {})",
+            hits[0].end_line, hits[0].line
         );
         assert!(
             hits[0].end_line < 6,
