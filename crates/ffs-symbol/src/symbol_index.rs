@@ -451,7 +451,8 @@ mod tests {
         assert!(
             hits[0].end_line >= 5,
             "expected span through body lines, got end_line {} (start {})",
-            hits[0].end_line, hits[0].line
+            hits[0].end_line,
+            hits[0].line
         );
         assert!(
             hits[0].end_line < 6,

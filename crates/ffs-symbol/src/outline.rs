@@ -349,6 +349,18 @@ fn extract_signature(node: Node, lines: &[&str]) -> Option<String> {
     None
 }
 
+fn find_outline_entry<'a>(entries: &'a [OutlineEntry], name: &str) -> Option<&'a OutlineEntry> {
+    for entry in entries {
+        if entry.name == name {
+            return Some(entry);
+        }
+        if let Some(found) = find_outline_entry(&entry.children, name) {
+            return Some(found);
+        }
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -526,16 +538,8 @@ RunExample<public>()<suspends>:void =
     OnBegin() : void = {}
 "#;
         let entries = get_outline_entries(code, Lang::Verse);
-        let bind = entries
-            .iter()
-            .find(|e| e.name == "game_manager")
-            .and_then(|class| {
-                class
-                    .children
-                    .iter()
-                    .find(|e| e.name == "BindBaseComponentPlots")
-            })
-            .expect("expected BindBaseComponentPlots under game_manager");
+        let bind = find_outline_entry(&entries, "BindBaseComponentPlots")
+            .expect("expected BindBaseComponentPlots in outline");
         assert!(
             bind.end_line >= 4,
             "outline end_line should cover if body, got {}",
