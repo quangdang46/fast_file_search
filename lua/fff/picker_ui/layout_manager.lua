@@ -102,9 +102,7 @@ function M.close()
   for _, buf in ipairs(buffers) do
     if buf and vim.api.nvim_buf_is_valid(buf) then
       vim.api.nvim_buf_clear_namespace(buf, -1, 0, -1)
-
       if buf == S.preview_buf then preview.clear_buffer(buf) end
-
       vim.api.nvim_buf_delete(buf, { force = true })
     end
   end
