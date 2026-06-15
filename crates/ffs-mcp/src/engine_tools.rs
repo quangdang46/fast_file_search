@@ -422,6 +422,7 @@ pub struct RefsResult {
     pub usages: Vec<RefUsage>,
     pub total_usages: usize,
     pub offset: usize,
+    pub subclasses: Vec<RefUsage>,
     pub has_more: bool,
 }
 
@@ -483,17 +484,54 @@ pub fn find_refs(
         }
     }
 
+    // Subclass detection: scan for `class child(parent)` or `name[extends](parent)`
+    let mut subclasses: Vec<RefUsage> = Vec::new();
+    for (path, _mtime, content) in &candidates {
+        if !survivor_set.contains(path.as_path()) {
+            continue;
+        }
+        let path_str = path.to_string_lossy().to_string();
+        for (lineno, line) in content.lines().enumerate() {
+            let lineno = (lineno + 1) as u32;
+            if !line.contains(name) {
+                continue;
+            }
+            // Check for `class child(parent)` or `childName(parent,)` patterns
+            let trimmed = line.trim();
+            let lower = trimmed.to_lowercase();
+            if !lower.starts_with("class ") && !lower.contains(": class ") && !trimmed.contains("<")
+            {
+                continue;
+            }
+            // Must be a subclass definition: class X(name) or class X[extends](name)
+            // Look for name inside parentheses with a class-like prefix
+            if let Some(paren_start) = trimmed.find('(') {
+                if let Some(paren_end) = trimmed[paren_start..].find(')') {
+                    let paren_content = &trimmed[paren_start + 1..paren_start + paren_end];
+                    if paren_content.contains(name) {
+                        subclasses.push(RefUsage {
+                            path: path_str.clone(),
+                            line: lineno,
+                            text: line.to_string(),
+                            enclosing: None,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+
     let total_usages = usages.len();
     let has_more = offset + limit < total_usages;
     if offset > 0 && offset < total_usages {
         usages.drain(..offset.min(total_usages));
     }
-    usages.truncate(limit);
-
     RefsResult {
         name: name.to_string(),
         definitions,
         usages,
+        subclasses,
         total_usages,
         offset,
         has_more,
@@ -535,6 +573,16 @@ pub fn format_refs_result(r: &RefsResult) -> String {
                 "  ... and {} more (use offset={})\n",
                 r.total_usages - r.offset - r.usages.len(),
                 r.offset + r.usages.len(),
+            ));
+        }
+    }
+
+    if !r.subclasses.is_empty() {
+        out.push_str(&format!("\nSubclasses ({}):\n", r.subclasses.len()));
+        for s in &r.subclasses {
+            out.push_str(&format!(
+                "  {}:{}: {}\n",
+                s.path, s.line, s.text,
             ));
         }
     }
@@ -997,6 +1045,14 @@ fn extract_simple_imports(content: &str, lang: ffs_symbol::types::Lang) -> Vec<S
         ffs_symbol::types::Lang::Go => content
             .lines()
             .filter(|l| l.trim().starts_with("import "))
+            .map(|l| l.trim().to_string())
+            .collect(),
+        ffs_symbol::types::Lang::Verse => content
+            .lines()
+            .filter(|l| {
+                let t = l.trim();
+                t.starts_with("using {") || t.starts_with("import ")
+            })
             .map(|l| l.trim().to_string())
             .collect(),
         ffs_symbol::types::Lang::C | ffs_symbol::types::Lang::Cpp => content
