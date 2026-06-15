@@ -39,6 +39,7 @@ pub(crate) static BACKGROUND_THREAD_POOL: LazyLock<rayon::ThreadPool> = LazyLock
 /// Physical performance-core count via sysctl, falling back to logical cores.
 /// On a 12P+4E M4 Max, grep runs 16t=6.2s vs 13t=4.9s — fewer threads win.
 #[cfg(target_os = "macos")]
+#[allow(dead_code)]
 fn performance_core_count() -> usize {
     let mut count: libc::c_int = 0;
     let mut size = std::mem::size_of::<libc::c_int>();
@@ -63,6 +64,7 @@ fn performance_core_count() -> usize {
 
 /// Pool for grep content search: P-core sized and QoS-pinned on macOS, full
 /// parallelism elsewhere. Avoids E-core drag and VFS-lock contention.
+#[allow(dead_code)]
 pub(crate) static SEARCH_THREAD_POOL: LazyLock<rayon::ThreadPool> = LazyLock::new(|| {
     #[cfg(target_os = "macos")]
     let threads = performance_core_count();
