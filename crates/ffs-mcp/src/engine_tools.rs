@@ -75,6 +75,7 @@ pub struct EngineFlowParams {
     #[serde(rename = "callersTop")]
     pub callers_top: Option<f64>,
     /// Token budget for body excerpts (default 10000).
+    #[allow(dead_code)]
     pub budget: Option<f64>,
 }
 
@@ -90,6 +91,7 @@ pub struct EngineImpactParams {
     /// BFS depth for the transitive signal (default 3, capped at 3).
     pub hops: Option<f64>,
     /// Hub-guard threshold mirroring `ffs callers` (default 50).
+    #[allow(dead_code)]
     #[serde(rename = "hubGuard")]
     pub hub_guard: Option<f64>,
 }
@@ -111,6 +113,7 @@ pub struct EngineOutlineParams {
     /// Path to the file whose structural outline should be rendered.
     pub path: String,
     /// Rendering style: "agent" (default), "markdown", "structured", or "tabular".
+    #[allow(dead_code)]
     pub style: Option<String>,
 }
 
@@ -138,6 +141,7 @@ pub struct EngineDepsParams {
     /// Skip this many dependents before starting the page (default 0).
     pub offset: Option<f64>,
     /// Skip the dependents walk; resolve imports only (default false).
+    #[allow(dead_code)]
     #[serde(rename = "noDependents")]
     pub no_dependents: Option<bool>,
 }
@@ -505,22 +509,21 @@ pub fn find_refs(
             }
             // Must be a subclass definition: class X(name) or class X[extends](name)
             // Look for name inside parentheses with a class-like prefix
-            if let Some(paren_start) = trimmed.find('(') {
-                if let Some(paren_end) = trimmed[paren_start..].find(')') {
-                    let paren_content = &trimmed[paren_start + 1..paren_start + paren_end];
-                    if paren_content.contains(name) {
-                        subclasses.push(RefUsage {
-                            path: path_str.clone(),
-                            line: lineno,
-                            text: line.to_string(),
-                            enclosing: None,
-                        });
-                    }
+            if let Some(paren_start) = trimmed.find('(')
+                && let Some(paren_end) = trimmed[paren_start..].find(')')
+            {
+                let paren_content = &trimmed[paren_start + 1..paren_start + paren_end];
+                if paren_content.contains(name) {
+                    subclasses.push(RefUsage {
+                        path: path_str.clone(),
+                        line: lineno,
+                        text: line.to_string(),
+                        enclosing: None,
+                    });
                 }
             }
         }
     }
-
 
     let total_usages = usages.len();
     let has_more = offset + limit < total_usages;
@@ -580,10 +583,7 @@ pub fn format_refs_result(r: &RefsResult) -> String {
     if !r.subclasses.is_empty() {
         out.push_str(&format!("\nSubclasses ({}):\n", r.subclasses.len()));
         for s in &r.subclasses {
-            out.push_str(&format!(
-                "  {}:{}: {}\n",
-                s.path, s.line, s.text,
-            ));
+            out.push_str(&format!("  {}:{}: {}\n", s.path, s.line, s.text,));
         }
     }
 
@@ -864,7 +864,7 @@ pub fn format_map(root: &Path, depth: u32, _symbols: u32) -> String {
         let name = if rel == "." {
             "."
         } else {
-            rel.split('/').last().unwrap_or(rel)
+            rel.split('/').next_back().unwrap_or(rel)
         };
         let tokens = ffs_symbol::types::estimate_tokens(size / u64::from(count));
         out.push_str(&format!(
@@ -924,7 +924,7 @@ pub fn format_overview(
     // Languages
     out.push_str(&format!("## Languages (top {top_languages})\n"));
     let mut lang_sorted: Vec<_> = lang_counts.into_iter().collect();
-    lang_sorted.sort_by(|a, b| b.1.cmp(&a.1));
+    lang_sorted.sort_by_key(|k| std::cmp::Reverse(k.1));
     for (lang, count) in lang_sorted.iter().take(top_languages) {
         out.push_str(&format!("  {lang}: {count} files\n"));
     }
@@ -940,7 +940,7 @@ pub fn format_overview(
             *by_name.entry(name).or_insert(0) += loc.weight;
         }
         let mut sorted: Vec<_> = by_name.into_iter().collect();
-        sorted.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        sorted.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(b.0)));
         for (name, weight) in sorted.iter().take(top_symbols) {
             out.push_str(&format!("  {} (w={})\n", name, weight));
         }

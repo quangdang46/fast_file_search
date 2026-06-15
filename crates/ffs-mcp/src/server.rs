@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! ffs MCP server — tool definitions and handlers.
 //!
 //! Uses the `rmcp` crate's `#[tool_router]` / `#[tool_handler]` macros
@@ -245,7 +246,6 @@ impl FfsServer {
         }
     }
     #[allow(dead_code)]
-
     /// Access the engine holder for warmup or shared use.
     pub fn engine_holder(&self) -> Arc<EngineHolder> {
         self.engine.clone()
