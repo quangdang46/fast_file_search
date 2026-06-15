@@ -10,7 +10,6 @@ local files = {
   'crates/ffs-c/Cargo.toml',
   'crates/ffs-core/Cargo.toml',
   'crates/ffs-mcp/Cargo.toml',
-  'crates/ffs-nvim/Cargo.toml',
   'crates/ffs-query-parser/Cargo.toml',
   'crates/ffs-grep/Cargo.toml',
   'crates/ffs-symbol/Cargo.toml',

@@ -1,6 +1,6 @@
 [package]
 name = "ffs-c"
-version = "0.1.10"
+version = "0.1.11"
 edition = "2024"
 license = "MIT"
 description = "Raw C API for ffs file finder"
@@ -21,8 +21,8 @@ tracing.workspace = true
 git2.workspace = true
 ignore = { workspace = true }
 
-ffs = { package = "ffs-search", path = "../ffs-core", version = "0.1.10" }
-ffs-query-parser = { path = "../ffs-query-parser", version = "0.1.10" }
+ffs = { package = "ffs-search", path = "../ffs-core", version = "0.1.11" }
+ffs-query-parser = { path = "../ffs-query-parser", version = "0.1.11" }
 ffs-engine = { workspace = true }
 ffs-budget = { workspace = true }
 ffs-symbol = { workspace = true }
