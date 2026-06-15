@@ -649,7 +649,7 @@ pub(crate) fn build_bigram_index(
     // the complexity.
     let content_binary: std::sync::Mutex<Vec<usize>> = std::sync::Mutex::new(Vec::new());
 
-    crate::file_picker::BACKGROUND_THREAD_POOL.install(|| {
+    crate::parallelism::BACKGROUND_THREAD_POOL.install(|| {
         files
             .par_chunks(BIGRAM_CHUNK_FILES)
             .enumerate()

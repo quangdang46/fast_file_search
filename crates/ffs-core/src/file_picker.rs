@@ -54,50 +54,17 @@ use rayon::prelude::*;
 use std::fmt::Debug;
 use std::ops::ControlFlow;
 use std::path::{Path, PathBuf};
-use std::sync::{
-    Arc, LazyLock,
-    atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
-};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::thread::JoinHandle;
 use std::time::SystemTime;
 use tracing::{Level, debug, error, info, warn};
 
+use crate::parallelism::BACKGROUND_THREAD_POOL;
 /// Max overflow files before the watcher triggers a full rescan.
 /// `walk_filesystem` reserves this much extra capacity so the Vec never
 /// reallocates while raw pointers are held during post-scan.
 pub(crate) const MAX_OVERFLOW_FILES: usize = 1024;
-
-/// Dedicated thread pool for background work (scan, warmup, bigram build).
-/// Uses fewer threads than the global rayon pool so Neovim's event loop
-/// and search queries can still get CPU time.
-pub(crate) static BACKGROUND_THREAD_POOL: LazyLock<rayon::ThreadPool> = LazyLock::new(|| {
-    let total = std::thread::available_parallelism()
-        .map(|p| p.get())
-        .unwrap_or(4);
-    let bg_threads = total.saturating_sub(2).max(1);
-    info!(
-        "Background pool: {} threads (system has {})",
-        bg_threads, total
-    );
-    rayon::ThreadPoolBuilder::new()
-        .num_threads(bg_threads)
-        .thread_name(|i| format!("ffs-bg-{i}"))
-        .start_handler(|_| {
-            // Pin workers to the USER_INITIATED QoS class on macOS so the
-            // scheduler keeps them on P-cores. Without this the kernel is
-            // free to drift them to E-cores, which are ~2× slower for the
-            // bigram scan and per-file syscalls.
-            #[cfg(target_os = "macos")]
-            unsafe {
-                let _ = libc::pthread_set_qos_class_self_np(
-                    libc::qos_class_t::QOS_CLASS_USER_INITIATED,
-                    0,
-                );
-            }
-        })
-        .build()
-        .expect("failed to create background rayon pool")
-});
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum FfsMode {

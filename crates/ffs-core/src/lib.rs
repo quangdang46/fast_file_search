@@ -102,6 +102,7 @@ pub mod bigram_query;
 mod constraints;
 pub mod directory_grep;
 mod error;
+mod parallelism;
 mod score;
 mod sort_buffer;
 pub(crate) mod stable_vec;
