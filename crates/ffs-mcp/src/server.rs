@@ -219,6 +219,7 @@ pub struct FfsServer {
 }
 
 impl FfsServer {
+    #[allow(dead_code)]
     pub fn new(picker: SharedFilePicker, frecency: SharedFrecency) -> Self {
         Self {
             picker,
@@ -227,6 +228,27 @@ impl FfsServer {
             update_notice_sent: Arc::new(AtomicBool::new(false)),
             engine: Arc::new(EngineHolder::new()),
         }
+    }
+
+    /// Create a server with a pre-built engine holder (for warmup support).
+    pub fn with_engine(
+        picker: SharedFilePicker,
+        frecency: SharedFrecency,
+        engine: Arc<EngineHolder>,
+    ) -> Self {
+        Self {
+            picker,
+            frecency,
+            cursor_store: Arc::new(Mutex::new(CursorStore::new())),
+            update_notice_sent: Arc::new(AtomicBool::new(false)),
+            engine,
+        }
+    }
+    #[allow(dead_code)]
+
+    /// Access the engine holder for warmup or shared use.
+    pub fn engine_holder(&self) -> Arc<EngineHolder> {
+        self.engine.clone()
     }
 
     /// Resolve the repository root from the picker's base path.
@@ -906,15 +928,9 @@ impl FfsServer {
         let root = self.picker_base_path()?;
         let limit = normalize_max_results(params.max_results, 100);
         let offset = params.offset.map(|v| v.round() as usize).unwrap_or(0);
-        let args = vec![
-            params.name,
-            "--limit".into(),
-            limit.to_string(),
-            "--offset".into(),
-            offset.to_string(),
-        ];
-        let text = crate::engine_tools::run_engine_subprocess("refs", &root, &args)
-            .map_err(|e| ErrorData::internal_error(format!("ffs refs failed: {e}"), None))?;
+        let engine = self.engine.get_or_build(&root, 25_000);
+        let result = crate::engine_tools::find_refs(&engine, &root, &params.name, limit, offset);
+        let text = crate::engine_tools::format_refs_result(&result);
         Ok(CallToolResult::success(vec![Content::text(text)]))
     }
 
@@ -931,22 +947,16 @@ impl FfsServer {
         let offset = params.offset.map(|v| v.round() as usize).unwrap_or(0);
         let callees_top = normalize_max_results(params.callees_top, 5);
         let callers_top = normalize_max_results(params.callers_top, 5);
-        let budget = params.budget.map(|v| v.round() as u64).unwrap_or(10_000);
-        let args = vec![
-            params.name,
-            "--limit".into(),
-            limit.to_string(),
-            "--offset".into(),
-            offset.to_string(),
-            "--callees-top".into(),
-            callees_top.to_string(),
-            "--callers-top".into(),
-            callers_top.to_string(),
-            "--budget".into(),
-            budget.to_string(),
-        ];
-        let text = crate::engine_tools::run_engine_subprocess("flow", &root, &args)
-            .map_err(|e| ErrorData::internal_error(format!("ffs flow failed: {e}"), None))?;
+        let engine = self.engine.get_or_build(&root, 25_000);
+        let text = crate::engine_tools::find_flow(
+            &engine,
+            &root,
+            &params.name,
+            limit,
+            offset,
+            callees_top,
+            callers_top,
+        );
         Ok(CallToolResult::success(vec![Content::text(text)]))
     }
 
@@ -965,36 +975,23 @@ impl FfsServer {
             .hops
             .map(|v| v.round().clamp(1.0, 3.0) as u32)
             .unwrap_or(3);
-        let hub_guard = normalize_max_results(params.hub_guard, 50);
-        let args = vec![
-            params.name,
-            "--limit".into(),
-            limit.to_string(),
-            "--offset".into(),
-            offset.to_string(),
-            "--hops".into(),
-            hops.to_string(),
-            "--hub-guard".into(),
-            hub_guard.to_string(),
-        ];
-        let text = crate::engine_tools::run_engine_subprocess("impact", &root, &args)
-            .map_err(|e| ErrorData::internal_error(format!("ffs impact failed: {e}"), None))?;
+        let engine = self.engine.get_or_build(&root, 25_000);
+        let text =
+            crate::engine_tools::find_impact(&engine, &root, &params.name, limit, offset, hops);
         Ok(CallToolResult::success(vec![Content::text(text)]))
     }
-
-    #[tool(
-        name = "ffs_outline",
-        description = "Render a file's structural outline (functions, classes, top-level decls). Returns the agent-friendly view by default — header line, [A-B] left column, bundled imports, indented signatures. Mirrors `ffs outline` from the CLI."
-    )]
     fn engine_outline(
         &self,
         Parameters(params): Parameters<EngineOutlineParams>,
     ) -> Result<CallToolResult, ErrorData> {
         let root = self.picker_base_path()?;
-        let style = params.style.unwrap_or_else(|| "agent".to_string());
-        let args = vec![params.path, "--style".into(), style];
-        let text = crate::engine_tools::run_engine_subprocess("outline", &root, &args)
-            .map_err(|e| ErrorData::internal_error(format!("ffs outline failed: {e}"), None))?;
+        let path = if std::path::Path::new(&params.path).is_absolute() {
+            std::path::PathBuf::from(&params.path)
+        } else {
+            root.join(&params.path)
+        };
+        let text = crate::engine_tools::format_outline(&path)
+            .map_err(|e| ErrorData::internal_error(format!("outline failed: {e}"), None))?;
         Ok(CallToolResult::success(vec![Content::text(text)]))
     }
 
@@ -1006,21 +1003,18 @@ impl FfsServer {
         &self,
         Parameters(params): Parameters<EngineSiblingsParams>,
     ) -> Result<CallToolResult, ErrorData> {
-        let root = self.picker_base_path()?;
         let limit = normalize_max_results(params.max_results, 100);
+        let root = self.picker_base_path()?;
         let offset = params.offset.map(|v| v.round() as usize).unwrap_or(0);
-        let mut args = vec![
-            params.name,
-            "--limit".into(),
-            limit.to_string(),
-            "--offset".into(),
-            offset.to_string(),
-        ];
-        if params.include_imports.unwrap_or(false) {
-            args.push("--include-imports".into());
-        }
-        let text = crate::engine_tools::run_engine_subprocess("siblings", &root, &args)
-            .map_err(|e| ErrorData::internal_error(format!("ffs siblings failed: {e}"), None))?;
+        let engine = self.engine.get_or_build(&root, 25_000);
+        let text = crate::engine_tools::find_siblings(
+            &engine,
+            &root,
+            &params.name,
+            params.include_imports.unwrap_or(false),
+            limit,
+            offset,
+        );
         Ok(CallToolResult::success(vec![Content::text(text)]))
     }
 
@@ -1035,18 +1029,7 @@ impl FfsServer {
         let root = self.picker_base_path()?;
         let limit = normalize_max_results(params.max_results, 100);
         let offset = params.offset.map(|v| v.round() as usize).unwrap_or(0);
-        let mut args = vec![
-            params.target,
-            "--limit".into(),
-            limit.to_string(),
-            "--offset".into(),
-            offset.to_string(),
-        ];
-        if params.no_dependents.unwrap_or(false) {
-            args.push("--no-dependents".into());
-        }
-        let text = crate::engine_tools::run_engine_subprocess("deps", &root, &args)
-            .map_err(|e| ErrorData::internal_error(format!("ffs deps failed: {e}"), None))?;
+        let text = crate::engine_tools::find_deps(&root, &params.target, limit, offset);
         Ok(CallToolResult::success(vec![Content::text(text)]))
     }
 
@@ -1061,20 +1044,9 @@ impl FfsServer {
         let root = self.picker_base_path()?;
         let depth = params.depth.map(|v| v.round() as u32).unwrap_or(3);
         let symbols = params.symbols.map(|v| v.round() as u32).unwrap_or(0);
-        let mut args = vec!["--depth".into(), depth.to_string()];
-        if symbols > 0 {
-            args.push("--symbols".into());
-            args.push(symbols.to_string());
-        }
-        let text = crate::engine_tools::run_engine_subprocess("map", &root, &args)
-            .map_err(|e| ErrorData::internal_error(format!("ffs map failed: {e}"), None))?;
+        let text = crate::engine_tools::format_map(&root, depth, symbols);
         Ok(CallToolResult::success(vec![Content::text(text)]))
     }
-
-    #[tool(
-        name = "ffs_overview",
-        description = "High-signal summary of the workspace: language breakdown, top-defined symbols, entry-point candidates. Run this first when an agent enters an unfamiliar repository. Mirrors `ffs overview` from the CLI."
-    )]
     fn engine_overview(
         &self,
         Parameters(params): Parameters<EngineOverviewParams>,
@@ -1083,16 +1055,14 @@ impl FfsServer {
         let top_languages = normalize_max_results(params.top_languages, 10);
         let top_symbols = normalize_max_results(params.top_symbols, 15);
         let top_entrypoints = normalize_max_results(params.top_entrypoints, 10);
-        let args = vec![
-            "--top-languages".into(),
-            top_languages.to_string(),
-            "--top-symbols".into(),
-            top_symbols.to_string(),
-            "--top-entrypoints".into(),
-            top_entrypoints.to_string(),
-        ];
-        let text = crate::engine_tools::run_engine_subprocess("overview", &root, &args)
-            .map_err(|e| ErrorData::internal_error(format!("ffs overview failed: {e}"), None))?;
+        let engine = self.engine.get_or_build(&root, 25_000);
+        let text = crate::engine_tools::format_overview(
+            &engine,
+            &root,
+            top_languages,
+            top_symbols,
+            top_entrypoints,
+        );
         Ok(CallToolResult::success(vec![Content::text(text)]))
     }
 

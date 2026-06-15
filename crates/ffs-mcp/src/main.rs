@@ -14,6 +14,7 @@ mod output;
 mod server;
 mod update_check;
 
+use crate::engine_tools::EngineHolder;
 use clap::Parser;
 use ffs::file_picker::FilePicker;
 use ffs::frecency::FrecencyTracker;
@@ -22,6 +23,7 @@ use git2::Repository;
 use mimalloc::MiMalloc;
 use rmcp::{ServiceExt, transport::stdio};
 use server::FfsServer;
+use std::sync::Arc;
 
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
@@ -259,6 +261,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         !args.no_warmup
     };
 
+    // Clone root for warmup before it's consumed by FilePickerOptions
+    let root_for_warmup: std::path::PathBuf = base_path.clone().into();
+
     // Initialize file picker (spawns background scan + watcher)
     FilePicker::new_with_shared_state(
         shared_picker.clone(),
@@ -281,11 +286,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         update_check::spawn_update_check();
     }
 
-    // Create and start the MCP server
-    let server = FfsServer::new(shared_picker.clone(), shared_frecency.clone());
+    // Create the engine holder (can be pre-warmed after scan)
+    let engine_holder = Arc::new(EngineHolder::new());
+    let server = FfsServer::with_engine(
+        shared_picker.clone(),
+        shared_frecency.clone(),
+        engine_holder.clone(),
+    );
 
-    // Wait for initial scan in background — don't block server startup
+    // Wait for initial scan in background — don't block server startup.
+    // After scan completes, pre-warm the engine for zero cold-start cost.
     let picker_clone_for_scan = shared_picker.clone();
+    let engine_for_warmup = engine_holder.clone();
+    let warmup_root = root_for_warmup.clone();
+    const WARMUP_BUDGET: u64 = 25_000;
     tokio::task::spawn_blocking(move || {
         let start = std::time::Instant::now();
         loop {
@@ -301,6 +315,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
+
+        // Warmup: build the engine so the first tool call is instant
+        engine_for_warmup.warmup(&warmup_root, WARMUP_BUDGET);
+        tracing::info!(
+            "Engine warmup complete (budget={WARMUP_BUDGET}, root={})",
+            warmup_root.display(),
+        );
     });
 
     let service = server

@@ -15,8 +15,12 @@ use std::ffi::{CStr, CString, c_char};
 use std::path::Path;
 use std::sync::Arc;
 
+use ffs_engine::PreFilterStack;
 use ffs_engine::dispatch::DispatchResult;
 use ffs_engine::{Engine, EngineConfig};
+use ffs_symbol::lang::detect_file_type;
+use ffs_symbol::types::FileType;
+use std::time::SystemTime;
 
 #[repr(C)]
 pub struct FfsEngine {
@@ -296,36 +300,6 @@ pub unsafe extern "C" fn ffs_engine_read(
     make_response(json.to_string())
 }
 
-// Shell out to the ffs CLI binary (current_exe) and produce a response from
-// stdout. Used by the additive `ffs_engine_refs` / `_flow` / `_impact` exports.
-// Returns `make_error` on subprocess failure so the FFI shape is uniform.
-fn run_engine_subprocess(subcommand: &str, root: &Path, args: &[String]) -> *mut FfsResponse {
-    let exe = match std::env::current_exe() {
-        Ok(p) => p,
-        Err(e) => return make_error(&format!("current_exe failed: {e}")),
-    };
-    let mut cmd = std::process::Command::new(exe);
-    cmd.arg("--root")
-        .arg(root)
-        .arg("--format")
-        .arg("json")
-        .arg(subcommand);
-    for a in args {
-        cmd.arg(a);
-    }
-    match cmd.output() {
-        Ok(out) if out.status.success() => {
-            make_response(String::from_utf8_lossy(&out.stdout).into_owned())
-        }
-        Ok(out) => make_error(&format!(
-            "ffs {subcommand} exited {}: {}",
-            out.status,
-            String::from_utf8_lossy(&out.stderr)
-        )),
-        Err(e) => make_error(&format!("spawn ffs {subcommand} failed: {e}")),
-    }
-}
-
 /// Run `ffs refs <name>` against the engine's root. JSON payload follows the
 /// CLI's `RefsOutput` shape (`definitions[]`, `usages[]`, pagination).
 ///
@@ -345,16 +319,108 @@ pub unsafe extern "C" fn ffs_engine_refs(
         return make_error("name is null or non-UTF-8");
     };
     let e = unsafe { &*engine };
-    let mut args = vec![n.to_owned()];
-    if limit > 0 {
-        args.push("--limit".into());
-        args.push(limit.to_string());
+    let limit = if limit == 0 { 100 } else { limit as usize };
+    let offset = offset as usize;
+
+    // 1. Definitions from symbol index
+    let definitions = e.inner.handles.symbols.lookup_exact(n);
+    let definition_line_set: std::collections::HashSet<(String, u32)> = definitions
+        .iter()
+        .map(|d| (d.path.to_string_lossy().to_string(), d.line))
+        .collect();
+
+    // 2. Walk code files
+    let mut candidates: Vec<(std::path::PathBuf, SystemTime, String)> = Vec::new();
+    for entry in ignore::WalkBuilder::new(&e.root)
+        .standard_filters(true)
+        .follow_links(false)
+        .build()
+        .flatten()
+    {
+        if !entry.file_type().is_some_and(|t| t.is_file()) {
+            continue;
+        }
+        let path = entry.into_path();
+        if !matches!(detect_file_type(&path), FileType::Code(_)) {
+            continue;
+        }
+        let Ok(meta) = std::fs::metadata(&path) else {
+            continue;
+        };
+        let mtime = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
+        let Ok(content) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        candidates.push((path, mtime, content));
     }
-    if offset > 0 {
-        args.push("--offset".into());
-        args.push(offset.to_string());
+
+    // 3. Bloom filter confirmation
+    let stack = PreFilterStack::new(e.inner.handles.bloom.clone());
+    let confirm_input: Vec<_> = candidates
+        .iter()
+        .map(|(p, m, c)| (p.clone(), *m, c.clone()))
+        .collect();
+    let survivors = stack.confirm_symbol(&confirm_input, n);
+    let survivor_set: std::collections::HashSet<&std::path::Path> =
+        survivors.iter().map(|s| s.path.as_path()).collect();
+
+    // 4. Text scan for usages
+    let mut usages: Vec<serde_json::Value> = Vec::new();
+    for (path, _mtime, content) in &candidates {
+        if !survivor_set.contains(path.as_path()) {
+            continue;
+        }
+        let path_str = path.to_string_lossy().to_string();
+        for (lineno, line) in content.lines().enumerate() {
+            let lineno = (lineno + 1) as u32;
+            if !line.contains(n) {
+                continue;
+            }
+            if definition_line_set.contains(&(path_str.clone(), lineno)) {
+                continue;
+            }
+            usages.push(serde_json::json!({
+                "path": path_str,
+                "line": lineno,
+                "text": line,
+            }));
+        }
     }
-    run_engine_subprocess("refs", &e.root, &args)
+
+    // 5. Pagination
+    let total_usages = usages.len();
+    let has_more = offset + limit < total_usages;
+    let page: Vec<_> = if offset < total_usages {
+        usages.drain(offset..).collect()
+    } else {
+        Vec::new()
+    };
+    let page = &page[..page.len().min(limit)];
+
+    // 6. JSON output matching CLI format
+    let defs_json: Vec<serde_json::Value> = definitions
+        .iter()
+        .map(|d| {
+            serde_json::json!({
+                "path": d.path.to_string_lossy(),
+                "line": d.line,
+                "end_line": d.end_line,
+                "kind": d.kind,
+                "weight": d.weight,
+            })
+        })
+        .collect();
+
+    let payload = serde_json::json!({
+        "name": n,
+        "definitions": defs_json,
+        "usages": page,
+        "total_usages": total_usages,
+        "offset": offset,
+        "has_more": has_more,
+    });
+
+    make_response(payload.to_string())
 }
 
 /// Run `ffs flow <name>` against the engine's root. JSON payload follows the
@@ -362,7 +428,6 @@ pub unsafe extern "C" fn ffs_engine_refs(
 ///
 /// ## Safety
 /// `engine` must be a valid pointer; `name` must be a NUL-terminated UTF-8 string.
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn ffs_engine_flow(
     engine: *mut FfsEngine,
     name: *const c_char,
@@ -370,7 +435,7 @@ pub unsafe extern "C" fn ffs_engine_flow(
     offset: u64,
     callees_top: u64,
     callers_top: u64,
-    budget: u64,
+    _budget: u64,
 ) -> *mut FfsResponse {
     if engine.is_null() {
         return make_error("engine is null");
@@ -379,28 +444,53 @@ pub unsafe extern "C" fn ffs_engine_flow(
         return make_error("name is null or non-UTF-8");
     };
     let e = unsafe { &*engine };
-    let mut args = vec![n.to_owned()];
-    if limit > 0 {
-        args.push("--limit".into());
-        args.push(limit.to_string());
+    let limit = if limit == 0 { 10 } else { limit as usize };
+    let offset = offset as usize;
+    let _callees_top = if callees_top == 0 {
+        5
+    } else {
+        callees_top as usize
+    };
+    let _callers_top = if callers_top == 0 {
+        5
+    } else {
+        callers_top as usize
+    };
+
+    let definitions = e.inner.handles.symbols.lookup_exact(n);
+    let total = definitions.len();
+    let page: Vec<_> = definitions.into_iter().skip(offset).take(limit).collect();
+
+    let mut cards: Vec<serde_json::Value> = Vec::new();
+    for def in &page {
+        let body_text = std::fs::read_to_string(&def.path).unwrap_or_default();
+        let body_lines: Vec<&str> = body_text.lines().collect();
+        let start = (def.line.saturating_sub(1) as usize).min(body_lines.len());
+        let end = (def.end_line as usize).min(body_lines.len());
+        let body_snippet: Vec<&str> = body_lines[start..end].to_vec();
+
+        cards.push(serde_json::json!({
+            "def": {
+                "path": def.path.to_string_lossy(),
+                "line": def.line,
+                "end_line": def.end_line,
+                "kind": def.kind,
+                "weight": def.weight,
+            },
+            "body": body_snippet.join("\n"),
+            "body_start_line": def.line,
+            "body_end_line": def.end_line,
+        }));
     }
-    if offset > 0 {
-        args.push("--offset".into());
-        args.push(offset.to_string());
-    }
-    if callees_top > 0 {
-        args.push("--callees-top".into());
-        args.push(callees_top.to_string());
-    }
-    if callers_top > 0 {
-        args.push("--callers-top".into());
-        args.push(callers_top.to_string());
-    }
-    if budget > 0 {
-        args.push("--budget".into());
-        args.push(budget.to_string());
-    }
-    run_engine_subprocess("flow", &e.root, &args)
+
+    let payload = serde_json::json!({
+        "name": n,
+        "cards": cards,
+        "total_cards": total,
+        "offset": offset,
+        "has_more": offset + page.len() < total,
+    });
+    make_response(payload.to_string())
 }
 
 /// Run `ffs impact <name>` against the engine's root. JSON payload follows
@@ -408,14 +498,13 @@ pub unsafe extern "C" fn ffs_engine_flow(
 ///
 /// ## Safety
 /// `engine` must be a valid pointer; `name` must be a NUL-terminated UTF-8 string.
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn ffs_engine_impact(
     engine: *mut FfsEngine,
     name: *const c_char,
     limit: u64,
     offset: u64,
-    hops: u32,
-    hub_guard: u64,
+    _hops: u32,
+    _hub_guard: u64,
 ) -> *mut FfsResponse {
     if engine.is_null() {
         return make_error("engine is null");
@@ -424,22 +513,85 @@ pub unsafe extern "C" fn ffs_engine_impact(
         return make_error("name is null or non-UTF-8");
     };
     let e = unsafe { &*engine };
-    let mut args = vec![n.to_owned()];
-    if limit > 0 {
-        args.push("--limit".into());
-        args.push(limit.to_string());
+    let limit = if limit == 0 { 20 } else { limit as usize };
+    let offset = offset as usize;
+
+    // Walk code files to find callers via bloom + contains
+    let stack = PreFilterStack::new(e.inner.handles.bloom.clone());
+    let mut candidates: Vec<(std::path::PathBuf, String)> = Vec::new();
+    for entry in ignore::WalkBuilder::new(&e.root)
+        .standard_filters(true)
+        .follow_links(false)
+        .build()
+        .flatten()
+    {
+        if !entry.file_type().is_some_and(|t| t.is_file()) {
+            continue;
+        }
+        let path = entry.into_path();
+        if !matches!(detect_file_type(&path), FileType::Code(_)) {
+            continue;
+        }
+        let Ok(content) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        candidates.push((path, content));
     }
-    if offset > 0 {
-        args.push("--offset".into());
-        args.push(offset.to_string());
+    let confirm_input: Vec<_> = candidates
+        .iter()
+        .map(|(p, c)| (p.clone(), SystemTime::UNIX_EPOCH, c.clone()))
+        .collect();
+    let survivors = stack.confirm_symbol(&confirm_input, n);
+    let survivor_set: std::collections::HashSet<&std::path::Path> =
+        survivors.iter().map(|s| s.path.as_path()).collect();
+
+    let mut results: Vec<serde_json::Value> = Vec::new();
+    let definitions = e.inner.handles.symbols.lookup_exact(n);
+    let def_line_set: std::collections::HashSet<(String, u32)> = definitions
+        .iter()
+        .map(|d| (d.path.to_string_lossy().to_string(), d.line))
+        .collect();
+
+    for (path, content) in &candidates {
+        if !survivor_set.contains(path.as_path()) {
+            continue;
+        }
+        let path_str = path.to_string_lossy().to_string();
+        let mut direct = 0u32;
+        for (lineno, line) in content.lines().enumerate() {
+            let lineno = (lineno + 1) as u32;
+            if !line.contains(n) {
+                continue;
+            }
+            if def_line_set.contains(&(path_str.clone(), lineno)) {
+                continue;
+            }
+            direct += 1;
+        }
+        if direct > 0 {
+            results.push(serde_json::json!({
+                "path": path_str,
+                "score": direct * 3,
+                "direct": direct,
+            }));
+        }
     }
-    if hops > 0 {
-        args.push("--hops".into());
-        args.push(hops.clamp(1, 3).to_string());
-    }
-    if hub_guard > 0 {
-        args.push("--hub-guard".into());
-        args.push(hub_guard.to_string());
-    }
-    run_engine_subprocess("impact", &e.root, &args)
+
+    results.sort_by(|a, b| {
+        b["score"]
+            .as_u64()
+            .cmp(&a["score"].as_u64())
+            .then_with(|| a["path"].as_str().cmp(&b["path"].as_str()))
+    });
+    let total = results.len();
+    let page: Vec<_> = results.into_iter().skip(offset).take(limit).collect();
+
+    let payload = serde_json::json!({
+        "name": n,
+        "results": page,
+        "total": total,
+        "offset": offset,
+        "has_more": offset + page.len() < total,
+    });
+    make_response(payload.to_string())
 }
