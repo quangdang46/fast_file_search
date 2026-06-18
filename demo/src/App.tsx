@@ -11,10 +11,14 @@ interface SymHit { n: string; k: string; f: string; l: number }
 interface SymData { q: string; hits: SymHit[] }
 interface CallHit { f: string; l: number; txt: string; target: string; d: number }
 interface CallData { q: string; hits: CallHit[] }
+interface CalleeHit { n: string; f: string; l: number }
+interface CalleeData { q: string; hits: CalleeHit[] }
 interface GrepMatch { f: string; l: number; txt: string }
 interface GrepData { q: string; matches: GrepMatch[] }
+interface OutlineEntry { kind: string; name: string; start_line: number; signature: string; children?: OutlineEntry[] }
+interface OutlineData { path: string; lang: string; entries: OutlineEntry[] }
 
-type Tab = 'files' | 'symbol' | 'callers' | 'grep' | 'about'
+type Tab = 'files' | 'symbol' | 'callers' | 'callees' | 'grep' | 'outline' | 'about'
 
 /* ─── Fuzzy scoring ─────────────────────────────────── */
 function fuzzyScore(query: string, text: string): number {
@@ -68,9 +72,17 @@ export default function App() {
   const [callerQ, setCallerQ] = useState('')
   const [callerResults, setCallerResults] = useState<CallHit[]>([])
 
+  // Callees
+  const [calleeQ, setCalleeQ] = useState('')
+  const [calleeResults, setCalleeResults] = useState<CalleeHit[]>([])
+
   // Grep
   const [grepQ, setGrepQ] = useState('')
   const [grepResults, setGrepResults] = useState<GrepMatch[]>([])
+
+  // Outline
+  const [outlineFile, setOutlineFile] = useState('')
+  const [outlineData, setOutlineData] = useState<OutlineData | null>(null)
 
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -115,6 +127,33 @@ export default function App() {
     } catch { /* ok */ }
   }, [])
 
+  const loadCallees = useCallback(async (query: string) => {
+    try {
+      const r = await fetch(`/data/callees_${query}.json`)
+      if (!r.ok) return
+      const d: CalleeData = await r.json()
+      setCalleeResults(d.hits || [])
+    } catch { /* ok */ }
+  }, [])
+
+  const loadOutline = useCallback(async (name: string) => {
+    setOutlineFile(name)
+    const files: Record<string, string> = {
+      fuzzy_file_search: 'ol_crates_ffs-core_src_fuzzy_file_search.rs',
+      file_picker: 'ol_crates_ffs-core_src_file_picker.rs',
+      cli: 'ol_crates_ffs-cli_src_cli.rs',
+      dispatch: 'ol_crates_ffs-engine_src_dispatch.rs',
+      symbol_index: 'ol_crates_ffs-symbol_src_symbol_index.rs',
+    }
+    const key = files[name]
+    if (!key) return
+    try {
+      const r = await fetch(`/data/${key}.json`)
+      if (!r.ok) return
+      setOutlineData(await r.json())
+    } catch { /* ok */ }
+  }, [])
+
   /* Keyboard shortcuts */
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -140,7 +179,13 @@ export default function App() {
     ? ['run', 'new', 'default', 'find', 'search', 'parse']
     : tab === 'callers'
     ? ['run', 'new', 'find', 'search', 'fuzzy_search', 'dispatch']
-    : ['fn_', 'TODO', 'unsafe', 'RwLock', 'fuzzy_file_search']
+    : tab === 'callees'
+    ? ['run', 'new', 'fuzzy_search', 'dispatch']
+    : tab === 'grep'
+    ? ['fn_', 'TODO', 'unsafe', 'RwLock', 'fuzzy_file_search']
+    : tab === 'outline'
+    ? ['fuzzy_file_search', 'file_picker', 'cli', 'dispatch', 'symbol_index']
+    : []
 
   /* ─── Render ─── */
   return (
@@ -153,10 +198,12 @@ export default function App() {
 
       {/* Tabs */}
       <nav className="tabs">
-        <TabBtn tab="files" current={tab} label="📁 Find Files" on={setTab} />
+        <TabBtn tab="files" current={tab} label="📁 Find" on={setTab} />
         <TabBtn tab="symbol" current={tab} label="◎ Symbols" on={setTab} />
         <TabBtn tab="callers" current={tab} label="↗ Callers" on={setTab} />
+        <TabBtn tab="callees" current={tab} label="↘ Callees" on={setTab} />
         <TabBtn tab="grep" current={tab} label="🔍 Grep" on={setTab} />
+        <TabBtn tab="outline" current={tab} label="📋 Outline" on={setTab} />
         <TabBtn tab="about" current={tab} label="ℹ About" on={setTab} />
       </nav>
 
@@ -174,7 +221,9 @@ export default function App() {
                 tab === 'files' ? "Search files — try typos like 'fuzee' or 'calers'…" :
                 tab === 'symbol' ? 'Search symbols (pre-indexed: run, new, default, find…)' :
                 tab === 'callers' ? "Find callers (pre-indexed: run, new, find, fuzzy_search…)" :
-                "Grep content (pre-indexed: fn_, TODO, unsafe, RwLock…)"
+                tab === 'callees' ? "See what a symbol calls (pre-indexed: run, new, fuzzy_search…)" :
+                tab === 'grep' ? "Grep content (pre-indexed: fn_, TODO, unsafe, RwLock…)" :
+                "Pick a file to outline"
               }
               value={q}
               onChange={e => {
@@ -182,7 +231,9 @@ export default function App() {
                 if (tab === 'files') doSearch(e.target.value)
                 if (tab === 'symbol') { setSymQ(e.target.value); loadSymbols(e.target.value) }
                 if (tab === 'callers') { setCallerQ(e.target.value); loadCallers(e.target.value) }
+                if (tab === 'callees') { setCalleeQ(e.target.value); loadCallees(e.target.value) }
                 if (tab === 'grep') { setGrepQ(e.target.value); loadGrep(e.target.value) }
+                if (tab === 'outline') loadOutline(e.target.value)
               }}
               autoFocus
               spellCheck={false}
@@ -195,7 +246,9 @@ export default function App() {
                 if (tab === 'files') doSearch(p)
                 if (tab === 'symbol') { setSymQ(p); loadSymbols(p) }
                 if (tab === 'callers') { setCallerQ(p); loadCallers(p) }
+                if (tab === 'callees') { setCalleeQ(p); loadCallees(p) }
                 if (tab === 'grep') { setGrepQ(p); loadGrep(p) }
+                if (tab === 'outline') loadOutline(p)
               }}>{p}</button>)}
             </div>
             <span className="hint"><kbd>Esc</kbd> clear</span>
@@ -208,7 +261,9 @@ export default function App() {
         {tab === 'files' && <FileResults files={results} query={q} />}
         {tab === 'symbol' && <SymbolResults hits={symResults} query={symQ} overview={overview} />}
         {tab === 'callers' && <CallerResults hits={callerResults} query={callerQ} />}
+        {tab === 'callees' && <CalleeResults hits={calleeResults} query={calleeQ} />}
         {tab === 'grep' && <GrepResults matches={grepResults} query={grepQ} />}
+        {tab === 'outline' && <OutlinePanel data={outlineData} file={outlineFile} />}
         {tab === 'about' && <AboutPanel overview={overview} />}
       </div>
     </>
@@ -333,6 +388,81 @@ function GrepResults({ matches, query }: { matches: GrepMatch[]; query: string }
   </>
 }
 
+/* ─── Callee Results ─── */
+function CalleeResults({ hits, query }: { hits: CalleeHit[]; query: string }) {
+  const byFile: Record<string, CalleeHit[]> = {}
+  for (const h of hits) { if (!byFile[h.f]) byFile[h.f] = []; byFile[h.f].push(h) }
+
+  const byName: Record<string, { name: string; files: string[] }> = {}
+  for (const h of hits) {
+    if (!byName[h.n]) byName[h.n] = { name: h.n, files: [] }
+    if (!byName[h.n].files.includes(h.f)) byName[h.n].files.push(h.f)
+  }
+
+  if (!query.trim()) return (
+    <div className="empty-state">
+      <div className="big-icon">↘</div>
+      <h3>Callees</h3>
+      <p>See what functions/symbols a given function calls internally. Try <strong>run</strong>, <strong>new</strong>, or <strong>fuzzy_search</strong>.</p>
+    </div>
+  )
+  if (hits.length === 0) return <div className="empty-state"><div className="big-icon">↘</div><h3>No callees found</h3><p>No callees for &ldquo;{query}&rdquo; — try one of the preset buttons.</p></div>
+
+  const top = Object.values(byName).sort((a, b) => b.files.length - a.files.length).slice(0, 30)
+
+  return <>
+    <div className="result-count">{hits.length} callee{hits.length !== 1 ? 's' : ''} of &ldquo;{query}&rdquo; ({top.length} unique symbols)</div>
+    {top.map((sym, i) => (
+      <div key={i} className="file-item" title={sym.files.join(', ')}>
+        <span className="sym-kind">C</span>
+        <span className="path"><strong>{sym.name}</strong></span>
+        <span className="lang" style={{ marginLeft: 'auto', fontSize: 11 }}>
+          called from {sym.files.length} file{sym.files.length !== 1 ? 's' : ''}
+        </span>
+      </div>
+    ))}
+  </>
+}
+
+/* ─── Outline Panel ─── */
+function OutlineEntryDisplay({ entry, depth }: { entry: OutlineEntry; depth: number }) {
+  const [open, setOpen] = useState(depth < 1)
+  const hasChildren = entry.children && entry.children.length > 0
+  return (
+    <div>
+      <div
+        className="ol-entry"
+        style={{ paddingLeft: 12 + depth * 16 }}
+        onClick={() => setOpen(!open)}
+      >
+        {hasChildren ? <span className="ol-toggle">{open ? '▼' : '▶'}</span> : <span className="ol-toggle" style={{ visibility: 'hidden' }}>▶</span>}
+        <span className={`ol-kind ol-kind-${entry.kind}`}>{entry.kind[0].toUpperCase()}</span>
+        <span className="ol-name">{entry.name === '<anonymous>' ? '(anon)' : entry.name}</span>
+        <span className="ol-line">L{entry.start_line}</span>
+      </div>
+      {open && hasChildren && entry.children!.map((c, i) => (
+        <OutlineEntryDisplay key={i} entry={c} depth={depth + 1} />
+      ))}
+    </div>
+  )
+}
+
+function OutlinePanel({ data, file }: { data: OutlineData | null; file: string }) {
+  if (!file) return (
+    <div className="empty-state">
+      <div className="big-icon">📋</div>
+      <h3>File Outline</h3>
+      <p>View the structural outline of a file — functions, structs, enums, and their children. Try <strong>fuzzy_file_search</strong>, <strong>file_picker</strong>, or <strong>dispatch</strong>.</p>
+    </div>
+  )
+  if (!data) return <div className="empty-state"><div className="big-icon">📋</div><h3>No outline</h3><p>No outline data for &ldquo;{file}&rdquo; — try one of the preset buttons.</p></div>
+
+  return <>
+    <div className="result-count">{data.path.split('/').pop()} · {data.lang} · {data.entries.length} top-level entries</div>
+    {data.entries.map((e, i) => <OutlineEntryDisplay key={i} entry={e} depth={0} />)}
+  </>
+}
+
 /* ─── About Panel ─── */
 function AboutPanel({ overview }: { overview: OverviewData | null }) {
   return (
@@ -350,10 +480,12 @@ function AboutPanel({ overview }: { overview: OverviewData | null }) {
 
       <h3>Demo features:</h3>
       <ul>
-        <li><strong>📁 Find Files</strong> — typo-tolerant fuzzy file name search</li>
+        <li><strong>📁 Find</strong> — typo-tolerant fuzzy file name search</li>
         <li><strong>◎ Symbols</strong> — tree-sitter symbol definitions (functions, structs, enums, traits)</li>
         <li><strong>↗ Callers</strong> — find all call sites of a symbol</li>
-        <li><strong>🔍 Grep</strong> — content search with context lines</li>
+        <li><strong>↘ Callees</strong> — see which symbols a function calls</li>
+        <li><strong>🔍 Grep</strong> — content search with context</li>
+        <li><strong>📋 Outline</strong> — file structure tree (functions, structs, nested modules)</li>
       </ul>
 
       <h3>Architecture</h3>
