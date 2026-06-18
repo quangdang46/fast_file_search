@@ -1,0 +1,62 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/cli.rs",
+  "lang": "Rust",
+  "entries": [
+    {
+      "kind": "import",
+      "name": "<anonymous>",
+      "start_line": 3,
+      "end_line": 3,
+      "signature": "use std::path::PathBuf;",
+      "children": []
+    },
+    {
+      "kind": "import",
+      "name": "<anonymous>",
+      "start_line": 5,
+      "end_line": 5,
+      "signature": "use anyhow::Result;",
+      "children": []
+    },
+    {
+      "kind": "import",
+      "name": "<anonymous>",
+      "start_line": 6,
+      "end_line": 6,
+      "signature": "use clap::{CommandFactory, Parser, Subcommand, ValueEnum};",
+      "children": []
+    },
+    {
+      "kind": "import",
+      "name": "<anonymous>",
+      "start_line": 8,
+      "end_line": 8,
+      "signature": "use crate::commands;",
+      "children": []
+    },
+    {
+      "kind": "struct",
+      "name": "Cli",
+      "start_line": 18,
+      "end_line": 33,
+      "signature": "pub struct Cli {",
+      "children": []
+    },
+    {
+      "kind": "enum",
+      "name": "OutputFormat",
+      "start_line": 36,
+      "end_line": 39,
+      "signature": "pub enum OutputFormat {",
+      "children": []
+    },
+    {
+      "kind": "enum",
+      "name": "Command",
+      "start_line": 42,
+      "end_line": 104,
+      "signature": "pub enum Command {",
+      "children": []
+    }
+  ]
+}

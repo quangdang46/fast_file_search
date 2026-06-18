@@ -1,0 +1,1 @@
+{"q": "build", "hits": [{"n": "build", "k": "function_item", "f": "crates/ffs-cli/src/bigram.rs", "l": 52}, {"n": "build", "k": "function_item", "f": "crates/ffs-grep/src/searcher/mod.rs", "l": 88}, {"n": "build", "k": "function_item", "f": "crates/ffs-cli/src/commands/grep.rs", "l": 97}]}

@@ -1,0 +1,1 @@
+{"q": "search", "hits": [{"n": "search", "k": "function_item", "f": "crates/ffs-core/src/mention/resolver.rs", "l": 149}, {"n": "search", "k": "function_item", "f": "crates/ffs-core/src/case_insensitive_memmem.rs", "l": 535}, {"n": "search", "k": "function_item", "f": "crates/ffs-core/src/score.rs", "l": 1190}]}
