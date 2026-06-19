@@ -5,11 +5,13 @@ on:
     branches: [main]
     paths-ignore:
       - '**.md'
+      - 'demo/**'
       - 'doc/**'
   pull_request:
     branches: [main]
     paths-ignore:
       - '**.md'
+      - 'demo/**'
       - 'doc/**'
 
 env:

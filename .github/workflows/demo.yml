@@ -1,0 +1,25 @@
+name: Demo Build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'demo/**'
+  pull_request:
+    paths:
+      - 'demo/**'
+
+jobs:
+  build:
+    name: Build Demo
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: demo
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run build
