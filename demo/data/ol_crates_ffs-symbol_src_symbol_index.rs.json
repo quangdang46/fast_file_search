@@ -1,0 +1,215 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/symbol_index.rs",
+  "lang": "Rust",
+  "entries": [
+    {
+      "kind": "import",
+      "name": "<anonymous>",
+      "start_line": 4,
+      "end_line": 4,
+      "signature": "use std::collections::HashMap;",
+      "children": []
+    },
+    {
+      "kind": "import",
+      "name": "<anonymous>",
+      "start_line": 5,
+      "end_line": 5,
+      "signature": "use std::path::{Path, PathBuf};",
+      "children": []
+    },
+    {
+      "kind": "import",
+      "name": "<anonymous>",
+      "start_line": 6,
+      "end_line": 6,
+      "signature": "use std::sync::atomic::{AtomicUsize, Ordering};",
+      "children": []
+    },
+    {
+      "kind": "import",
+      "name": "<anonymous>",
+      "start_line": 7,
+      "end_line": 7,
+      "signature": "use std::time::{Duration, SystemTime, UNIX_EPOCH};",
+      "children": []
+    },
+    {
+      "kind": "import",
+      "name": "<anonymous>",
+      "start_line": 9,
+      "end_line": 9,
+      "signature": "use dashmap::DashMap;",
+      "children": []
+    },
+    {
+      "kind": "import",
+      "name": "<anonymous>",
+      "start_line": 10,
+      "end_line": 10,
+      "signature": "use serde::{Deserialize, Serialize};",
+      "children": []
+    },
+    {
+      "kind": "import",
+      "name": "<anonymous>",
+      "start_line": 11,
+      "end_line": 11,
+      "signature": "use tree_sitter::{Node, Parser};",
+      "children": []
+    },
+    {
+      "kind": "import",
+      "name": "<anonymous>",
+      "start_line": 13,
+      "end_line": 13,
+      "signature": "use crate::lang::detect_file_type;",
+      "children": []
+    },
+    {
+      "kind": "import",
+      "name": "<anonymous>",
+      "start_line": 14,
+      "end_line": 14,
+      "signature": "use crate::outline::outline_language;",
+      "children": []
+    },
+    {
+      "kind": "import",
+      "name": "<anonymous>",
+      "start_line": 15,
+      "end_line": 18,
+      "signature": "use crate::treesitter::{",
+      "children": []
+    },
+    {
+      "kind": "import",
+      "name": "<anonymous>",
+      "start_line": 19,
+      "end_line": 19,
+      "signature": "use crate::types::{FileType, Lang};",
+      "children": []
+    },
+    {
+      "kind": "import",
+      "name": "<anonymous>",
+      "start_line": 20,
+      "end_line": 20,
+      "signature": "use crate::verse_spans::{verse_repair_end_line, verse_skip_spurious_definition};",
+      "children": []
+    },
+    {
+      "kind": "struct",
+      "name": "SymbolLocation",
+      "start_line": 24,
+      "end_line": 30,
+      "signature": "pub struct SymbolLocation {",
+      "children": []
+    },
+    {
+      "kind": "struct",
+      "name": "SymbolIndexSnapshot",
+      "start_line": 36,
+      "end_line": 39,
+      "signature": "pub struct SymbolIndexSnapshot {",
+      "children": []
+    },
+    {
+      "kind": "struct",
+      "name": "SymbolIndex",
+      "start_line": 43,
+      "end_line": 48,
+      "signature": "pub struct SymbolIndex {",
+      "children": []
+    },
+    {
+      "kind": "function",
+      "name": "collect_definitions",
+      "start_line": 285,
+      "end_line": 329,
+      "signature": "fn collect_definitions(",
+      "children": []
+    },
+    {
+      "kind": "module",
+      "name": "tests",
+      "start_line": 332,
+      "end_line": 463,
+      "signature": "mod tests {",
+      "children": [
+        {
+          "kind": "import",
+          "name": "<anonymous>",
+          "start_line": 333,
+          "end_line": 333,
+          "signature": "use super::*;",
+          "children": []
+        },
+        {
+          "kind": "function",
+          "name": "touch_file",
+          "start_line": 335,
+          "end_line": 342,
+          "signature": "fn touch_file(content: &str, ext: &str) -> tempfile::NamedTempFile {",
+          "children": []
+        },
+        {
+          "kind": "function",
+          "name": "indexes_rust_functions",
+          "start_line": 345,
+          "end_line": 353,
+          "signature": "fn indexes_rust_functions() {",
+          "children": []
+        },
+        {
+          "kind": "function",
+          "name": "skips_reindex_for_same_mtime",
+          "start_line": 356,
+          "end_line": 365,
+          "signature": "fn skips_reindex_for_same_mtime() {",
+          "children": []
+        },
+        {
+          "kind": "function",
+          "name": "lookup_prefix_returns_matching_symbols",
+          "start_line": 368,
+          "end_line": 375,
+          "signature": "fn lookup_prefix_returns_matching_symbols() {",
+          "children": []
+        },
+        {
+          "kind": "function",
+          "name": "snapshot_roundtrips_symbols_and_files",
+          "start_line": 378,
+          "end_line": 390,
+          "signature": "fn snapshot_roundtrips_symbols_and_files() {",
+          "children": []
+        },
+        {
+          "kind": "function",
+          "name": "drop_files_removes_symbols_and_updates_counters",
+          "start_line": 393,
+          "end_line": 415,
+          "signature": "fn drop_files_removes_symbols_and_updates_counters() {",
+          "children": []
+        },
+        {
+          "kind": "function",
+          "name": "indexes_verse_definitions",
+          "start_line": 418,
+          "end_line": 429,
+          "signature": "fn indexes_verse_definitions() {",
+          "children": []
+        },
+        {
+          "kind": "function",
+          "name": "verse_function_span_covers_if_guard_body",
+          "start_line": 432,
+          "end_line": 462,
+          "signature": "fn verse_function_span_covers_if_guard_body() {",
+          "children": []
+        }
+      ]
+    }
+  ]
+}

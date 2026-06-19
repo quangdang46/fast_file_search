@@ -1,0 +1,87 @@
+{
+  "people": [
+    {
+      "name": "Trần Quang Đãng",
+      "confidence": 0.99,
+      "context": "165 commits across 1 repo"
+    },
+    {
+      "name": "Dmitriy Kovalenko",
+      "confidence": 0.99,
+      "context": "162 commits across 1 repo"
+    },
+    {
+      "name": "Oskar Grunning",
+      "confidence": 0.65,
+      "context": "5 commits across 1 repo"
+    },
+    {
+      "name": "Will Lillis",
+      "confidence": 0.65,
+      "context": "4 commits across 1 repo"
+    },
+    {
+      "name": "Samuel Huber",
+      "confidence": 0.65,
+      "context": "3 commits across 1 repo"
+    },
+    {
+      "name": "Antonio Nuno Monteiro",
+      "confidence": 0.65,
+      "context": "2 commits across 1 repo"
+    },
+    {
+      "name": "Dinh Mai",
+      "confidence": 0.65,
+      "context": "2 commits across 1 repo"
+    },
+    {
+      "name": "Jan Lafferton",
+      "confidence": 0.65,
+      "context": "2 commits across 1 repo"
+    },
+    {
+      "name": "Marc Jakobi",
+      "confidence": 0.65,
+      "context": "2 commits across 1 repo"
+    },
+    {
+      "name": "Mohamed Ibraheem",
+      "confidence": 0.65,
+      "context": "2 commits across 1 repo"
+    },
+    {
+      "name": "Nico Domino",
+      "confidence": 0.65,
+      "context": "2 commits across 1 repo"
+    },
+    {
+      "name": "Salomon Popp",
+      "confidence": 0.65,
+      "context": "2 commits across 1 repo"
+    },
+    {
+      "name": "Timo Clasen",
+      "confidence": 0.65,
+      "context": "2 commits across 1 repo"
+    },
+    {
+      "name": "Aashish Sharma",
+      "confidence": 0.65,
+      "context": "1 commit across 1 repo"
+    },
+    {
+      "name": "Agung Baptiso Sorlawan",
+      "confidence": 0.65,
+      "context": "1 commit across 1 repo"
+    }
+  ],
+  "projects": [
+    {
+      "name": "ffs-budget",
+      "confidence": 0.99,
+      "context": "Cargo.toml, 102 of your commits"
+    }
+  ],
+  "uncertain": []
+}

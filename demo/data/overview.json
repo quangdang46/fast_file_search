@@ -1,0 +1,142 @@
+{
+  "root": "/Users/tranquangdang21/Projects/fast_file_search",
+  "files": 212,
+  "code_files": 166,
+  "code_lines": 137454,
+  "bytes": 4989085,
+  "fingerprint": "ecb7bb4a6e66453a",
+  "languages": [
+    {
+      "lang": "C",
+      "files": 6,
+      "code_lines": 79478,
+      "bytes": 2330189
+    },
+    {
+      "lang": "Rust",
+      "files": 153,
+      "code_lines": 57235,
+      "bytes": 1941795
+    },
+    {
+      "lang": "Python",
+      "files": 2,
+      "code_lines": 399,
+      "bytes": 14622
+    },
+    {
+      "lang": "Tsx",
+      "files": 2,
+      "code_lines": 215,
+      "bytes": 6717
+    },
+    {
+      "lang": "Make",
+      "files": 1,
+      "code_lines": 98,
+      "bytes": 3041
+    },
+    {
+      "lang": "JavaScript",
+      "files": 1,
+      "code_lines": 22,
+      "bytes": 591
+    },
+    {
+      "lang": "TypeScript",
+      "files": 1,
+      "code_lines": 7,
+      "bytes": 161
+    }
+  ],
+  "build_files": [
+    "Cargo.lock",
+    "Cargo.toml",
+    "Makefile",
+    "crates/ffs-budget/Cargo.toml",
+    "crates/ffs-c/Cargo.toml",
+    "crates/ffs-cli/Cargo.toml",
+    "crates/ffs-core/Cargo.toml",
+    "crates/ffs-engine/Cargo.toml",
+    "crates/ffs-grep/Cargo.toml",
+    "crates/ffs-mcp/Cargo.toml",
+    "crates/ffs-query-parser/Cargo.toml",
+    "crates/ffs-symbol/Cargo.toml",
+    "demo/package.json",
+    "vendor/tree-sitter-verse/Cargo.toml"
+  ],
+  "entrypoints": [
+    "crates/ffs-budget/src/lib.rs",
+    "crates/ffs-c/src/lib.rs",
+    "crates/ffs-cli/src/main.rs",
+    "crates/ffs-core/src/lib.rs",
+    "crates/ffs-engine/src/lib.rs",
+    "crates/ffs-grep/src/lib.rs",
+    "crates/ffs-mcp/src/main.rs",
+    "crates/ffs-query-parser/src/lib.rs",
+    "crates/ffs-symbol/src/lib.rs",
+    "vendor/tree-sitter-verse/src/lib.rs"
+  ],
+  "top_symbols": [
+    {
+      "name": "tests",
+      "definitions": 77
+    },
+    {
+      "name": "new",
+      "definitions": 44
+    },
+    {
+      "name": "run",
+      "definitions": 29
+    },
+    {
+      "name": "default",
+      "definitions": 26
+    },
+    {
+      "name": "Args",
+      "definitions": 21
+    },
+    {
+      "name": "fmt",
+      "definitions": 12
+    },
+    {
+      "name": "Error",
+      "definitions": 9
+    },
+    {
+      "name": "render_text",
+      "definitions": 9
+    },
+    {
+      "name": "finish",
+      "definitions": 8
+    },
+    {
+      "name": "entry",
+      "definitions": 6
+    },
+    {
+      "name": "from",
+      "definitions": 6
+    },
+    {
+      "name": "index",
+      "definitions": 6
+    },
+    {
+      "name": "len",
+      "definitions": 6
+    },
+    {
+      "name": "line_terminator",
+      "definitions": 6
+    },
+    {
+      "name": "main",
+      "definitions": 6
+    }
+  ]
+}

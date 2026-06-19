@@ -1,0 +1,127 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/fuzzy_file_search.rs",
+  "lang": "Rust",
+  "entries": [
+    {
+      "kind": "import",
+      "name": "<anonymous>",
+      "start_line": 24,
+      "end_line": 24,
+      "signature": "use std::path::Path;",
+      "children": []
+    },
+    {
+      "kind": "struct",
+      "name": "FuzzyFileMatch",
+      "start_line": 28,
+      "end_line": 35,
+      "signature": "pub struct FuzzyFileMatch {",
+      "children": []
+    },
+    {
+      "kind": "struct",
+      "name": "FuzzySearchOptions",
+      "start_line": 39,
+      "end_line": 46,
+      "signature": "pub struct FuzzySearchOptions {",
+      "children": []
+    },
+    {
+      "kind": "function",
+      "name": "fuzzy_search_files",
+      "start_line": 60,
+      "end_line": 138,
+      "signature": "pub fn fuzzy_search_files(",
+      "children": []
+    },
+    {
+      "kind": "module",
+      "name": "tests",
+      "start_line": 141,
+      "end_line": 249,
+      "signature": "mod tests {",
+      "children": [
+        {
+          "kind": "import",
+          "name": "<anonymous>",
+          "start_line": 142,
+          "end_line": 142,
+          "signature": "use super::*;",
+          "children": []
+        },
+        {
+          "kind": "import",
+          "name": "<anonymous>",
+          "start_line": 143,
+          "end_line": 143,
+          "signature": "use std::fs;",
+          "children": []
+        },
+        {
+          "kind": "function",
+          "name": "test_fuzzy_filename_match",
+          "start_line": 146,
+          "end_line": 164,
+          "signature": "fn test_fuzzy_filename_match() {",
+          "children": []
+        },
+        {
+          "kind": "function",
+          "name": "test_fuzzy_case_insensitive",
+          "start_line": 167,
+          "end_line": 174,
+          "signature": "fn test_fuzzy_case_insensitive() {",
+          "children": []
+        },
+        {
+          "kind": "function",
+          "name": "test_fuzzy_scoring_filename_boost",
+          "start_line": 177,
+          "end_line": 188,
+          "signature": "fn test_fuzzy_scoring_filename_boost() {",
+          "children": []
+        },
+        {
+          "kind": "function",
+          "name": "test_fuzzy_no_match",
+          "start_line": 191,
+          "end_line": 197,
+          "signature": "fn test_fuzzy_no_match() {",
+          "children": []
+        },
+        {
+          "kind": "function",
+          "name": "test_fuzzy_respects_limit",
+          "start_line": 200,
+          "end_line": 215,
+          "signature": "fn test_fuzzy_respects_limit() {",
+          "children": []
+        },
+        {
+          "kind": "function",
+          "name": "test_fuzzy_empty_query",
+          "start_line": 218,
+          "end_line": 222,
+          "signature": "fn test_fuzzy_empty_query() {",
+          "children": []
+        },
+        {
+          "kind": "function",
+          "name": "test_fuzzy_skips_binary",
+          "start_line": 225,
+          "end_line": 232,
+          "signature": "fn test_fuzzy_skips_binary() {",
+          "children": []
+        },
+        {
+          "kind": "function",
+          "name": "test_fuzzy_zero_max",
+          "start_line": 235,
+          "end_line": 248,
+          "signature": "fn test_fuzzy_zero_max() {",
+          "children": []
+        }
+      ]
+    }
+  ]
+}

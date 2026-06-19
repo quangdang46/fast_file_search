@@ -1,0 +1,207 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/dispatch.rs",
+  "lang": "Rust",
+  "entries": [
+    {
+      "kind": "import",
+      "name": "<anonymous>",
+      "start_line": 4,
+      "end_line": 4,
+      "signature": "use std::path::{Path, PathBuf};",
+      "children": []
+    },
+    {
+      "kind": "import",
+      "name": "<anonymous>",
+      "start_line": 5,
+      "end_line": 5,
+      "signature": "use std::sync::Arc;",
+      "children": []
+    },
+    {
+      "kind": "import",
+      "name": "<anonymous>",
+      "start_line": 7,
+      "end_line": 7,
+      "signature": "use serde::{Deserialize, Serialize};",
+      "children": []
+    },
+    {
+      "kind": "import",
+      "name": "<anonymous>",
+      "start_line": 9,
+      "end_line": 12,
+      "signature": "use ffs_budget::{",
+      "children": []
+    },
+    {
+      "kind": "import",
+      "name": "<anonymous>",
+      "start_line": 13,
+      "end_line": 13,
+      "signature": "use ffs_symbol::detection::is_binary;",
+      "children": []
+    },
+    {
+      "kind": "import",
+      "name": "<anonymous>",
+      "start_line": 14,
+      "end_line": 14,
+      "signature": "use ffs_symbol::outline_cache::OutlineCache;",
+      "children": []
+    },
+    {
+      "kind": "import",
+      "name": "<anonymous>",
+      "start_line": 15,
+      "end_line": 15,
+      "signature": "use ffs_symbol::symbol_index::SymbolLocation;",
+      "children": []
+    },
+    {
+      "kind": "import",
+      "name": "<anonymous>",
+      "start_line": 16,
+      "end_line": 16,
+      "signature": "use ffs_symbol::types::QueryType;",
+      "children": []
+    },
+    {
+      "kind": "import",
+      "name": "<anonymous>",
+      "start_line": 17,
+      "end_line": 17,
+      "signature": "use ffs_symbol::{BloomFilterCache, SymbolIndex};",
+      "children": []
+    },
+    {
+      "kind": "import",
+      "name": "<anonymous>",
+      "start_line": 19,
+      "end_line": 19,
+      "signature": "use crate::classify::{classify_query, ClassifiedQuery};",
+      "children": []
+    },
+    {
+      "kind": "import",
+      "name": "<anonymous>",
+      "start_line": 20,
+      "end_line": 20,
+      "signature": "use crate::memory::{MemoryGuard, RepoSize};",
+      "children": []
+    },
+    {
+      "kind": "import",
+      "name": "<anonymous>",
+      "start_line": 21,
+      "end_line": 21,
+      "signature": "use crate::scanner::{ScanReport, UnifiedScanner};",
+      "children": []
+    },
+    {
+      "kind": "struct",
+      "name": "EngineConfig",
+      "start_line": 25,
+      "end_line": 30,
+      "signature": "pub struct EngineConfig {",
+      "children": []
+    },
+    {
+      "kind": "struct",
+      "name": "EngineHandles",
+      "start_line": 45,
+      "end_line": 49,
+      "signature": "pub struct EngineHandles {",
+      "children": []
+    },
+    {
+      "kind": "struct",
+      "name": "Engine",
+      "start_line": 52,
+      "end_line": 57,
+      "signature": "pub struct Engine {",
+      "children": []
+    },
+    {
+      "kind": "function",
+      "name": "floor_char_boundary",
+      "start_line": 232,
+      "end_line": 241,
+      "signature": "fn floor_char_boundary(s: &str, idx: usize) -> usize {",
+      "children": []
+    },
+    {
+      "kind": "enum",
+      "name": "DispatchResult",
+      "start_line": 245,
+      "end_line": 265,
+      "signature": "pub enum DispatchResult {",
+      "children": []
+    },
+    {
+      "kind": "struct",
+      "name": "ReadResult",
+      "start_line": 269,
+      "end_line": 277,
+      "signature": "pub struct ReadResult {",
+      "children": []
+    },
+    {
+      "kind": "module",
+      "name": "tests",
+      "start_line": 280,
+      "end_line": 357,
+      "signature": "mod tests {",
+      "children": [
+        {
+          "kind": "import",
+          "name": "<anonymous>",
+          "start_line": 281,
+          "end_line": 281,
+          "signature": "use super::*;",
+          "children": []
+        },
+        {
+          "kind": "function",
+          "name": "engine_indexes_and_dispatches_symbol",
+          "start_line": 284,
+          "end_line": 299,
+          "signature": "fn engine_indexes_and_dispatches_symbol() {",
+          "children": []
+        },
+        {
+          "kind": "function",
+          "name": "engine_reads_with_budget",
+          "start_line": 302,
+          "end_line": 314,
+          "signature": "fn engine_reads_with_budget() {",
+          "children": []
+        },
+        {
+          "kind": "function",
+          "name": "engine_read_refuses_binary_with_structured_message",
+          "start_line": 317,
+          "end_line": 330,
+          "signature": "fn engine_read_refuses_binary_with_structured_message() {",
+          "children": []
+        },
+        {
+          "kind": "function",
+          "name": "engine_read_handles_invalid_utf8_without_panic",
+          "start_line": 333,
+          "end_line": 348,
+          "signature": "fn engine_read_handles_invalid_utf8_without_panic() {",
+          "children": []
+        },
+        {
+          "kind": "function",
+          "name": "engine_read_missing_file_marks_error",
+          "start_line": 351,
+          "end_line": 356,
+          "signature": "fn engine_read_missing_file_marks_error() {",
+          "children": []
+        }
+      ]
+    }
+  ]
+}
