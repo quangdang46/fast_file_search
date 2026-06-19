@@ -556,28 +556,31 @@ body {
 
     // ─── Data Loaders ───
     async function loadSymbols(query) {
-      try { const r = await fetch("data/sym_" + query + ".json"); if (!r.ok) return; const d = await r.json(); S.symResults = d.hits || []; render(); } catch {}
+      try { const r = await fetch("data/sym_" + query + ".json"); if (!r.ok) return; const d = await r.json(); S.symResults = d.hits || []; updateResults(); } catch {}
     }
     async function loadCallers(query) {
-      try { const r = await fetch("data/callers_" + query + ".json"); if (!r.ok) return; const d = await r.json(); S.callerResults = d.hits || []; render(); } catch {}
+      try { const r = await fetch("data/callers_" + query + ".json"); if (!r.ok) return; const d = await r.json(); S.callerResults = d.hits || []; updateResults(); } catch {}
     }
     async function loadCallees(query) {
-      try { const r = await fetch("data/callees_" + query + ".json"); if (!r.ok) return; const d = await r.json(); S.calleeResults = d.hits || []; render(); } catch {}
+      try { const r = await fetch("data/callees_" + query + ".json"); if (!r.ok) return; const d = await r.json(); S.calleeResults = d.hits || []; updateResults(); } catch {}
     }
     async function loadGrep(query) {
-      try { const r = await fetch("data/grep_" + query + ".json"); if (!r.ok) return; const d = await r.json(); S.grepResults = d.matches || []; render(); } catch {}
+      try { const r = await fetch("data/grep_" + query + ".json"); if (!r.ok) return; const d = await r.json(); S.grepResults = d.matches || []; updateResults(); } catch {}
     }
     async function loadOutline(query) {
       const files = { fuzzy_file_search: "ol_crates_ffs-core_src_fuzzy_file_search.rs", file_picker: "ol_crates_ffs-core_src_file_picker.rs", cli: "ol_crates_ffs-cli_src_cli.rs", dispatch: "ol_crates_ffs-engine_src_dispatch.rs", symbol_index: "ol_crates_ffs-symbol_src_symbol_index.rs" };
       const key = files[query]; if (!key) return;
-      try { const r = await fetch("data/" + key + ".json"); if (!r.ok) return; S.outlineFile = query; S.outlineData = await r.json(); outlineCollapsed.clear(); render(); } catch {}
+      try { const r = await fetch("data/" + key + ".json"); if (!r.ok) return; S.outlineFile = query; S.outlineData = await r.json(); outlineCollapsed.clear(); updateResults(); } catch {}
     }
 
     // ─── Panel Renderers ───
     function renderFileResults() {
       const { results, q } = S;
       if (!q.trim()) return `<div class="empty-state"><div class="big-icon">📁</div><h3>FFS — Fuzzy File Search</h3><p>Type a filename above to search the FFS codebase. FFS is typo-tolerant: try <strong>fuzee</strong> for <code>fuzzy_file_search.rs</code> or <strong>calers</strong> for <code>callees.rs</code>.</p><div class="hint"><kbd>Tab</kbd> switch modes · <kbd>↑↓</kbd> navigate</div></div>`;
-      if (results.length === 0) return `<div class="empty-state"><div class="big-icon">❓</div><h3>No matches</h3><p>Nothing matches <strong>&ldquo;${esc(q)}&rdquo;</strong>. FFS uses fuzzy matching — try fewer chars or a different spelling.</p></div>`;
+      if (results.length === 0) {
+        if (S.files.length === 0) return `<div class="empty-state"><div class="big-icon">❓</div><h3>No data loaded</h3><p>File list is empty — serve via HTTP and reload: <code>cd demo && python3 -m http.server 8080</code></p></div>`;
+        return `<div class="empty-state"><div class="big-icon">❓</div><h3>No matches</h3><p>Nothing matches <strong>&ldquo;${esc(q)}&rdquo;</strong>. FFS uses fuzzy matching — try fewer chars or a different spelling.</p></div>`;
+      }
       let html = `<div class="result-count">${results.length} result${results.length !== 1 ? "s" : ""} for &ldquo;${esc(q)}&rdquo;</div>`;
       for (const r of results) {
         html += `<div class="file-item" title="${esc(r.path)}">`;
@@ -754,9 +757,14 @@ ffs-core    (scan, frecency, scoring)
     function switchTab(tab) {
       S.tab = tab;
       S.q = "";
+      render();
       const si = document.getElementById("search-input");
       if (si) si.focus();
-      render();
+    }
+
+    function updateResults() {
+      const el = document.getElementById("results-panel");
+      if (el) el.innerHTML = getTabContent();
     }
 
     function handleSearchInput(value) {
@@ -775,14 +783,15 @@ ffs-core    (scan, frecency, scoring)
 
     function doSearch(query) {
       const trimmed = query.trim().toLowerCase();
-      if (!trimmed) { S.results = S.files.map(p => ({ path: p, score: 0 })); render(); return; }
+      if (!trimmed) { S.results = S.files.map(p => ({ path: p, score: 0 })); updateResults(); return; }
       S.results = S.files.map(p => ({ path: p, score: fuzzyScore(trimmed, p) })).filter(r => r.score > 0).sort((a, b) => b.score - a.score);
-      render();
+      updateResults();
     }
 
     function handlePreset(value) {
       S.q = value;
-      document.getElementById("search-input").value = value;
+      const si = document.getElementById("search-input");
+      if (si) si.value = value;
       outlineCollapsed.clear();
       switch (S.tab) {
         case "files": doSearch(value); break;
@@ -804,6 +813,7 @@ ffs-core    (scan, frecency, scoring)
 
       let html = `<header class="header"><h1>🔎 FFS Demo</h1><span class="badge">v0.1.11</span>`;
       if (ov) html += `<span class="stat" style="margin-left:auto"><span class="num">${ov.files}</span> files · <span class="num">${(ov.code_lines / 1000).toFixed(1)}k</span> lines</span>`;
+      if (S._dataErr) html += `<span style="margin-left:auto;color:var(--orange);font-size:12px">${S._dataErr}</span>`;
       html += "</header>";
 
       html += '<nav class="tabs">';
@@ -821,7 +831,7 @@ ffs-core    (scan, frecency, scoring)
         html += `</div><span class="hint"><kbd>Esc</kbd> clear</span></div></div>`;
       }
 
-      html += `<div class="results">${tabContent}</div>`;
+      html += `<div id="results-panel" class="results">${tabContent}</div>`;
       root.innerHTML = html;
     }
 
@@ -843,7 +853,7 @@ ffs-core    (scan, frecency, scoring)
         if (olEntry && olEntry.dataset.olKey) {
           const key = olEntry.dataset.olKey;
           if (!outlineCollapsed.has(key)) outlineCollapsed.add(key); else outlineCollapsed.delete(key);
-          const results = root.querySelector(".results");
+          const results = document.getElementById("results-panel");
           if (results) results.innerHTML = renderOutlinePanel();
         }
       });
@@ -861,10 +871,11 @@ ffs-core    (scan, frecency, scoring)
         fetch("data/files.json").then(r => r.json()).catch(() => null),
         fetch("data/overview.json").then(r => r.json()).catch(() => null),
       ]).then(([fd, ov]) => {
-        if (fd) { S.files = fd.matches; S.results = fd.matches.map(p => ({ path: p, score: 0 })); }
+        if (fd && fd.matches) { S.files = fd.matches; S.results = fd.matches.map(p => ({ path: p, score: 0 })); }
         if (ov) S.overview = ov;
+        if (!fd) S._dataErr = "⚠ Data files not loaded — serve via HTTP (cd demo && python3 -m http.server)";
         render();
-      }).catch(() => render());
+      }).catch(() => { S._dataErr = "⚠ Failed to load data"; render(); });
     });
   </script>
 </body>
