@@ -1,0 +1,246 @@
+/* ─── Layout ─── */
+.header {
+  border-bottom: 1px solid var(--border);
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  background: var(--bg-elevated);
+}
+
+.header h1 { font-size: 17px; font-weight: 700; letter-spacing: -0.02em; color: var(--text) }
+
+.header .badge {
+  font-size: 10px; color: var(--text-dim); background: var(--bg);
+  border: 1px solid var(--border); border-radius: 5px;
+  padding: 1px 6px; font-family: var(--mono); font-weight: 500;
+}
+
+/* ─── Tabs ─── */
+.tabs {
+  display: flex; border-bottom: 1px solid var(--border);
+  padding: 0 24px; gap: 0; flex-shrink: 0; background: var(--bg-elevated);
+}
+
+.tab {
+  padding: 10px 16px; font-size: 13px; font-weight: 500;
+  color: var(--text-dim); background: none; border: none;
+  border-bottom: 2px solid transparent; cursor: pointer;
+  transition: color 0.1s, border-color 0.1s; font-family: var(--font);
+}
+
+.tab:hover { color: var(--text) }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent) }
+
+/* ─── Search ─── */
+.search-wrap {
+  padding: 12px 24px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+
+.search-bar { position: relative; display: flex; align-items: center }
+
+.search-bar svg {
+  position: absolute; left: 11px; color: var(--text-muted);
+  pointer-events: none; flex-shrink: 0;
+}
+
+.search-bar input {
+  width: 100%; padding: 9px 12px 9px 34px; background: var(--bg-input);
+  border: 1px solid var(--border); border-radius: 7px; color: var(--text);
+  font-size: 14px; font-family: var(--font); outline: none;
+  transition: border-color 0.15s;
+}
+
+.search-bar input:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.15);
+}
+
+.search-bar input::placeholder { color: var(--text-muted) }
+
+.search-meta {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 7px 2px 0; font-size: 11px; color: var(--text-dim);
+}
+
+.search-meta .hint kbd {
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: 3px; padding: 1px 5px; font-family: var(--mono); font-size: 10px;
+}
+
+.presets { display: flex; gap: 4px; flex-wrap: wrap }
+
+.preset-btn {
+  font-size: 10px; padding: 2px 8px; border-radius: 4px;
+  border: 1px solid var(--border); background: var(--bg-elevated);
+  color: var(--text-dim); cursor: pointer; font-family: var(--mono);
+  transition: background 0.1s, color 0.1s;
+}
+
+.preset-btn:hover { background: var(--accent-bg); color: var(--accent); border-color: var(--accent-border) }
+
+/* ─── Results ─── */
+.results { flex: 1; overflow-y: auto; padding: 4px 24px 24px }
+
+.result-count { padding: 6px 0 4px; font-size: 11px; color: var(--text-dim) }
+
+.file-item {
+  display: flex; align-items: center; gap: 7px;
+  padding: 5px 8px; border-radius: 5px; cursor: default;
+  transition: background 0.1s; font-size: 13px; font-family: var(--mono);
+}
+
+.file-item:hover { background: var(--bg-elevated) }
+.file-item .path { color: var(--text); word-break: break-all }
+
+.file-item mark {
+  background: rgba(210, 153, 34, 0.25); color: var(--orange);
+  border-radius: 2px; padding: 0 2px;
+}
+
+.ext {
+  flex-shrink: 0; font-size: 9px; text-transform: uppercase;
+  color: var(--text-muted); background: var(--bg-elevated);
+  border: 1px solid var(--border); border-radius: 3px;
+  padding: 1px 4px; font-weight: 600; font-family: var(--font);
+}
+
+.lang {
+  flex-shrink: 0; font-size: 10px; color: var(--text-dim);
+  background: var(--accent-bg); border: 1px solid var(--accent-border);
+  border-radius: 3px; padding: 1px 5px; font-weight: 500;
+  font-family: var(--font); margin-left: auto;
+}
+
+.empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 60px 24px; text-align: center; gap: 10px;
+}
+
+.empty-state .big-icon { font-size: 44px; opacity: 0.25 }
+.empty-state h3 { font-size: 15px; font-weight: 600; color: var(--text-dim) }
+.empty-state p { color: var(--text-muted); max-width: 440px; line-height: 1.5; font-size: 13px }
+.empty-state code { font-family: var(--mono); background: var(--bg-elevated); padding: 1px 5px; border-radius: 3px }
+.empty-state kbd {
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: 3px; padding: 1px 5px; font-family: var(--mono); font-size: 11px;
+}
+
+/* ─── Symbol results ─── */
+.section-title {
+  font-size: 11px; font-weight: 600; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.05em;
+  padding: 8px 8px 4px; margin-top: 4px;
+}
+
+.sym-kind {
+  flex-shrink: 0; width: 20px; height: 20px; border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700;
+  background: var(--accent-bg); color: var(--accent);
+  border: 1px solid var(--accent-border);
+}
+
+/* ─── Callers ─── */
+.call-line {
+  flex-shrink: 0; font-size: 10px; color: var(--text-muted);
+  font-family: var(--mono); min-width: 32px;
+}
+
+.call-text {
+  font-size: 12px; color: var(--text-dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--mono); background: none; padding: 0;
+}
+
+/* ─── Grep ─── */
+.grep-header {
+  font-size: 11px; color: var(--text-dim); font-family: var(--mono);
+  margin-bottom: 2px;
+}
+
+.grep-line {
+  margin: 0; padding: 0; overflow: hidden;
+}
+
+.grep-line code {
+  font-size: 12px; color: var(--text); background: var(--bg-elevated);
+  padding: 3px 8px; border-radius: 4px; display: inline-block;
+  max-width: 100%; overflow-x: auto; white-space: pre;
+  border: 1px solid var(--border);
+}
+
+/* ─── About ─── */
+.about {
+  padding: 32px 24px; max-width: 600px;
+}
+
+.about h2 { font-size: 20px; font-weight: 700; margin-bottom: 12px; color: var(--text) }
+.about h3 { font-size: 15px; font-weight: 600; margin: 20px 0 8px; color: var(--text-dim) }
+.about p { font-size: 13px; line-height: 1.6; color: var(--text-dim); margin-bottom: 12px }
+
+.about ul { list-style: none; padding: 0 }
+.about li { font-size: 13px; padding: 4px 0; color: var(--text-dim) }
+
+.about-stats { display: flex; gap: 16px; margin: 16px 0 }
+
+.about-stat {
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px 16px; text-align: center;
+  font-size: 12px; color: var(--text-muted); flex: 1;
+}
+
+.about-stat .num {
+  display: block; font-size: 22px; font-weight: 700; color: var(--accent);
+  font-family: var(--mono); margin-bottom: 2px;
+}
+
+.arch {
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: 8px; padding: 16px; font-family: var(--mono);
+  font-size: 12px; line-height: 1.7; color: var(--text-dim);
+  white-space: pre;
+}
+
+.about a { color: var(--accent); text-decoration: none }
+.about a:hover { text-decoration: underline }
+
+/* ─── Stats ─── */
+.stat, .stats { display: inline }
+.stat .num { color: var(--text-dim); font-weight: 600; font-family: var(--mono) }
+
+/* ─── Outline ─── */
+.ol-entry {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 8px; border-radius: 4px; cursor: pointer;
+  font-size: 13px; font-family: var(--mono);
+  transition: background 0.1s;
+}
+
+.ol-entry:hover { background: var(--bg-elevated) }
+
+.ol-toggle {
+  flex-shrink: 0; font-size: 8px; color: var(--text-muted); width: 10px;
+}
+
+.ol-kind {
+  flex-shrink: 0; width: 18px; height: 18px; border-radius: 3px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700;
+  background: var(--accent-bg); color: var(--accent);
+  border: 1px solid var(--accent-border);
+}
+
+.ol-kind-function { background: rgba(188, 140, 255, 0.15); color: var(--purple); border-color: rgba(188, 140, 255, 0.4); }
+.ol-kind-struct { background: rgba(63, 185, 80, 0.15); color: var(--green); border-color: rgba(63, 185, 80, 0.4); }
+.ol-kind-enum { background: rgba(210, 153, 34, 0.15); color: var(--orange); border-color: rgba(210, 153, 34, 0.4); }
+.ol-kind-trait { background: rgba(248, 81, 73, 0.15); color: var(--red); border-color: rgba(248, 81, 73, 0.4); }
+.ol-kind-module { background: rgba(139, 148, 158, 0.15); color: var(--text-dim); border-color: var(--border); }
+
+.ol-name { color: var(--text); font-weight: 500 }
+
+.ol-line {
+  margin-left: auto; font-size: 10px; color: var(--text-muted);
+  font-family: var(--mono);
+}
