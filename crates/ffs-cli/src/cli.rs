@@ -79,7 +79,6 @@ pub enum Command {
     /// Rank files by how much they'd be affected if a symbol changed (NEW).
     Impact(commands::impact::Args),
 
-
     /// Build / refresh the on-disk indexes (Bigram, Bloom, Symbol, Outline).
     Index(commands::index::Args),
 

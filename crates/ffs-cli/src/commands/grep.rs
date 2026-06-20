@@ -336,9 +336,15 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
                 return out;
             }
             for f in &p.files {
-                out.push_str(&format!("{} ({} matches, {} symbols)\n", f.path, f.total_matches, f.total_symbols));
+                out.push_str(&format!(
+                    "{} ({} matches, {} symbols)\n",
+                    f.path, f.total_matches, f.total_symbols
+                ));
                 for g in &f.groups {
-                    out.push_str(&format!("  {} {} @ L{}-L{}\n", g.kind, g.name, g.start_line, g.end_line));
+                    out.push_str(&format!(
+                        "  {} {} @ L{}-L{}\n",
+                        g.kind, g.name, g.start_line, g.end_line
+                    ));
                     for m in &g.matches {
                         out.push_str(&format!("    - L{} {}\n", m.line, m.text));
                     }
@@ -375,7 +381,6 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         out
     })
 }
-
 
 /* ─── Grouped output (--group flag) ─── */
 
@@ -418,7 +423,8 @@ struct GroupedGrepResult {
 
 fn build_grouped_result(needle: &str, hits: &[GrepHit], mode: &'static str) -> GroupedGrepResult {
     // Group hits by file
-    let mut by_file: std::collections::BTreeMap<String, Vec<&GrepHit>> = std::collections::BTreeMap::new();
+    let mut by_file: std::collections::BTreeMap<String, Vec<&GrepHit>> =
+        std::collections::BTreeMap::new();
     for h in hits {
         by_file.entry(h.path.clone()).or_default().push(h);
     }
@@ -427,7 +433,10 @@ fn build_grouped_result(needle: &str, hits: &[GrepHit], mode: &'static str) -> G
     for (path, file_hits) in &by_file {
         // Try to parse the file outline for symbol grouping
         let content = std::fs::read_to_string(path).ok();
-        let entries = content.as_deref().map(get_simple_outline).unwrap_or_default();
+        let entries = content
+            .as_deref()
+            .map(get_simple_outline)
+            .unwrap_or_default();
 
         let mut groups: Vec<MatchGroup> = Vec::new();
         let mut unmatched: Vec<GroupedMatch> = Vec::new();
@@ -435,22 +444,36 @@ fn build_grouped_result(needle: &str, hits: &[GrepHit], mode: &'static str) -> G
         for hit in file_hits {
             let line = hit.line as usize;
             // Find enclosing symbol
-            let enclosing = entries.iter().find(|e| e.start_line <= line && line <= e.end_line);
+            let enclosing = entries
+                .iter()
+                .find(|e| e.start_line <= line && line <= e.end_line);
             if let Some(sym) = enclosing {
                 // Check if we already have a group for this symbol
-                if let Some(g) = groups.iter_mut().find(|g: &&mut MatchGroup| g.name == sym.name && g.kind == sym.kind) {
-                    g.matches.push(GroupedMatch { line: hit.line, text: hit.text.clone() });
+                if let Some(g) = groups
+                    .iter_mut()
+                    .find(|g: &&mut MatchGroup| g.name == sym.name && g.kind == sym.kind)
+                {
+                    g.matches.push(GroupedMatch {
+                        line: hit.line,
+                        text: hit.text.clone(),
+                    });
                 } else {
                     groups.push(MatchGroup {
                         kind: sym.kind.clone(),
                         name: sym.name.clone(),
                         start_line: sym.start_line as u32,
                         end_line: sym.end_line as u32,
-                        matches: vec![GroupedMatch { line: hit.line, text: hit.text.clone() }],
+                        matches: vec![GroupedMatch {
+                            line: hit.line,
+                            text: hit.text.clone(),
+                        }],
                     });
                 }
             } else {
-                unmatched.push(GroupedMatch { line: hit.line, text: hit.text.clone() });
+                unmatched.push(GroupedMatch {
+                    line: hit.line,
+                    text: hit.text.clone(),
+                });
             }
         }
 
@@ -515,48 +538,93 @@ fn get_simple_outline(text: &str) -> Vec<SymEntry> {
                 // Functions: pub fn name(...
                 if let Some(name) = parse_after_keyword(trimmed, "fn ") {
                     let end = find_block_end(&lines[i..], line_num);
-                    entries.push(SymEntry { kind: "function".into(), name, start_line: line_num, end_line: end });
+                    entries.push(SymEntry {
+                        kind: "function".into(),
+                        name,
+                        start_line: line_num,
+                        end_line: end,
+                    });
                 }
                 // Structs: struct Name { ...
                 else if let Some(name) = parse_after_keyword(trimmed, "struct ") {
                     let end = find_block_end(&lines[i..], line_num);
-                    entries.push(SymEntry { kind: "struct".into(), name, start_line: line_num, end_line: end });
+                    entries.push(SymEntry {
+                        kind: "struct".into(),
+                        name,
+                        start_line: line_num,
+                        end_line: end,
+                    });
                 }
                 // Enums: enum Name { ...
                 else if let Some(name) = parse_after_keyword(trimmed, "enum ") {
                     let end = find_block_end(&lines[i..], line_num);
-                    entries.push(SymEntry { kind: "enum".into(), name, start_line: line_num, end_line: end });
+                    entries.push(SymEntry {
+                        kind: "enum".into(),
+                        name,
+                        start_line: line_num,
+                        end_line: end,
+                    });
                 }
                 // Traits: trait Name { ...
                 else if let Some(name) = parse_after_keyword(trimmed, "trait ") {
                     let end = find_block_end(&lines[i..], line_num);
-                    entries.push(SymEntry { kind: "trait".into(), name, start_line: line_num, end_line: end });
+                    entries.push(SymEntry {
+                        kind: "trait".into(),
+                        name,
+                        start_line: line_num,
+                        end_line: end,
+                    });
                 }
                 // impl blocks
                 else if let Some(name) = parse_after_keyword(trimmed, "impl ") {
                     // Extract just the type name (before the { or where)
-                    let name = name.split(|c: char| c == '{' || c == 'w').next().unwrap_or(&name).trim();
+                    let name = name.split(['{', 'w']).next().unwrap_or(&name).trim();
                     let end = find_block_end(&lines[i..], line_num);
-                    entries.push(SymEntry { kind: "impl".into(), name: name.to_string(), start_line: line_num, end_line: end });
+                    entries.push(SymEntry {
+                        kind: "impl".into(),
+                        name: name.to_string(),
+                        start_line: line_num,
+                        end_line: end,
+                    });
                 }
             }
             "typescript" => {
                 if let Some(name) = parse_after_keyword(trimmed, "function ") {
                     let end = find_ts_block_end(&lines[i..], line_num);
-                    entries.push(SymEntry { kind: "function".into(), name, start_line: line_num, end_line: end });
+                    entries.push(SymEntry {
+                        kind: "function".into(),
+                        name,
+                        start_line: line_num,
+                        end_line: end,
+                    });
                 } else if let Some(name) = parse_after_keyword(trimmed, "class ") {
                     let end = find_ts_block_end(&lines[i..], line_num);
-                    entries.push(SymEntry { kind: "class".into(), name, start_line: line_num, end_line: end });
+                    entries.push(SymEntry {
+                        kind: "class".into(),
+                        name,
+                        start_line: line_num,
+                        end_line: end,
+                    });
                 } else if let Some(name) = parse_after_keyword(trimmed, "interface ") {
                     let end = find_ts_block_end(&lines[i..], line_num);
-                    entries.push(SymEntry { kind: "interface".into(), name, start_line: line_num, end_line: end });
+                    entries.push(SymEntry {
+                        kind: "interface".into(),
+                        name,
+                        start_line: line_num,
+                        end_line: end,
+                    });
                 }
             }
             "generic" => {
                 // Generic function detection for any language
                 for kw in &["fn ", "def ", "func ", "function "] {
                     if let Some(name) = parse_after_keyword(trimmed, kw) {
-                        entries.push(SymEntry { kind: "definition".into(), name, start_line: line_num, end_line: line_num + 5 });
+                        entries.push(SymEntry {
+                            kind: "definition".into(),
+                            name,
+                            start_line: line_num,
+                            end_line: line_num + 5,
+                        });
                         break;
                     }
                 }
@@ -566,11 +634,11 @@ fn get_simple_outline(text: &str) -> Vec<SymEntry> {
     }
 
     // Merge overlapping entries
-    entries.sort_by(|a, b| a.start_line.cmp(&b.start_line));
+    entries.sort_by_key(|a| a.start_line);
     entries
 }
 
-fn parse_after_keyword<'a>(line: &'a str, kw: &str) -> Option<String> {
+fn parse_after_keyword(line: &str, kw: &str) -> Option<String> {
     if !line.starts_with(kw) {
         // Also check with pub/export prefix
         let pub_prefixes = ["pub ", "pub(crate) ", "pub(super) ", "export "];
@@ -586,10 +654,12 @@ fn parse_after_keyword<'a>(line: &'a str, kw: &str) -> Option<String> {
     }
     let rest = line.strip_prefix(kw)?;
     // Extract name (up to (, <, :, {, whitespace)
-    let name = rest.split(|c: char| c == '(' || c == '<' || c == ':' || c == '{' || c == ' ')
-        .next()?
-        .trim();
-    if name.is_empty() { None } else { Some(name.to_string()) }
+    let name = rest.split(['(', '<', ':', '{', ' ']).next()?.trim();
+    if name.is_empty() {
+        None
+    } else {
+        Some(name.to_string())
+    }
 }
 
 fn find_block_end(lines: &[&str], start: usize) -> usize {
@@ -598,8 +668,12 @@ fn find_block_end(lines: &[&str], start: usize) -> usize {
     for (i, line) in lines.iter().enumerate() {
         let abs_line = start + i;
         for &b in line.as_bytes() {
-            if b == b'{' { depth += 1; first_brace = true; }
-            else if b == b'}' { depth -= 1; }
+            if b == b'{' {
+                depth += 1;
+                first_brace = true;
+            } else if b == b'}' {
+                depth -= 1;
+            }
         }
         if first_brace && depth <= 0 && i > 0 {
             return abs_line;

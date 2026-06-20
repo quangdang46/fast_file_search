@@ -118,7 +118,7 @@ pub fn detect_role(path: &Path) -> Role {
     {
         return Role::Handler;
     }
-    if path_str.contains("/src/") {
+    if path_str.contains("/src/") || path_str.starts_with("src/") {
         return Role::Implementation;
     }
 
@@ -159,10 +159,7 @@ mod tests {
 
     #[test]
     fn detects_implementation() {
-        assert_eq!(
-            detect_role(Path::new("src/lib.rs")),
-            Role::Implementation
-        );
+        assert_eq!(detect_role(Path::new("src/lib.rs")), Role::Implementation);
         assert_eq!(
             detect_role(Path::new("crates/foo/src/bar.rs")),
             Role::Implementation

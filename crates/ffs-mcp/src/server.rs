@@ -11,9 +11,9 @@ use std::sync::{Arc, Mutex};
 
 use crate::cursor::CursorStore;
 use crate::engine_tools::{
-    EngineCallParams, EngineDepsParams, EngineFlowParams, EngineHolder,
-    EngineImpactParams, EngineMapParams, EngineOutlineParams, EngineOverviewParams,
-    EngineReadParams, EngineRefsParams, EngineSiblingsParams, EngineSymbolParams,
+    EngineCallParams, EngineDepsParams, EngineFlowParams, EngineHolder, EngineImpactParams,
+    EngineMapParams, EngineOutlineParams, EngineOverviewParams, EngineReadParams, EngineRefsParams,
+    EngineSiblingsParams, EngineSymbolParams,
 };
 use crate::output::{GrepFormatter, OutputMode, file_suffix};
 use ffs::PaginationArgs;

@@ -10,7 +10,7 @@ use ignore::WalkBuilder;
 use rayon::prelude::*;
 use serde::Serialize;
 
-use ffs_search::role::{Role, detect_role};
+use ffs_search::role::detect_role;
 
 // ─── Re-exports ───
 pub use crate::dispatch::ReadResult;
@@ -102,8 +102,12 @@ pub fn grep(root: &Path, needle: &str, options: &GrepOptions) -> GrepResult {
     let hits_mutex: Mutex<Vec<(PathBuf, u32, String)>> = Mutex::new(Vec::new());
 
     files.par_iter().for_each(|path| {
-        let Ok(content) = std::fs::read(path) else { return };
-        if content[..content.len().min(4096)].contains(&0u8) { return }
+        let Ok(content) = std::fs::read(path) else {
+            return;
+        };
+        if content[..content.len().min(4096)].contains(&0u8) {
+            return;
+        }
 
         let mut local_hits: Vec<(u32, String)> = Vec::new();
         let text = String::from_utf8_lossy(&content);
@@ -117,14 +121,20 @@ pub fn grep(root: &Path, needle: &str, options: &GrepOptions) -> GrepResult {
         } else {
             for (i, line) in text.lines().enumerate() {
                 let line_num = (i + 1) as u32;
-                let check = if options.case_sensitive { line } else { &line.to_lowercase() };
+                let check = if options.case_sensitive {
+                    line
+                } else {
+                    &line.to_lowercase()
+                };
                 if check.contains(&needle_lower) {
                     local_hits.push((line_num, line.to_string()));
                 }
             }
         }
 
-        if local_hits.is_empty() { return }
+        if local_hits.is_empty() {
+            return;
+        }
 
         if let Ok(mut guard) = hits_mutex.lock() {
             for (ln, txt) in local_hits {
@@ -136,9 +146,13 @@ pub fn grep(root: &Path, needle: &str, options: &GrepOptions) -> GrepResult {
     let all_hits = hits_mutex.into_inner().unwrap_or_default();
 
     // Group by file then by enclosing symbol
-    let mut by_file: std::collections::BTreeMap<String, Vec<(u32, String)>> = std::collections::BTreeMap::new();
+    let mut by_file: std::collections::BTreeMap<String, Vec<(u32, String)>> =
+        std::collections::BTreeMap::new();
     for (path, line, text) in &all_hits {
-        by_file.entry(path.to_string_lossy().to_string()).or_default().push((*line, text.clone()));
+        by_file
+            .entry(path.to_string_lossy().to_string())
+            .or_default()
+            .push((*line, text.clone()));
     }
 
     let mut result_files: Vec<GrepFile> = Vec::new();
@@ -152,21 +166,35 @@ pub fn grep(root: &Path, needle: &str, options: &GrepOptions) -> GrepResult {
 
         for (line, text) in file_hits {
             let line_usize = *line as usize;
-            let enclosing = entries.iter().find(|e| e.start_line <= line_usize && line_usize <= e.end_line);
+            let enclosing = entries
+                .iter()
+                .find(|e| e.start_line <= line_usize && line_usize <= e.end_line);
             if let Some(sym) = enclosing {
-                if let Some(g) = groups.iter_mut().find(|g: &&mut MatchGroup| g.name == sym.name && g.kind == sym.kind) {
-                    g.matches.push(GrepMatch { line: *line, text: text.clone() });
+                if let Some(g) = groups
+                    .iter_mut()
+                    .find(|g: &&mut MatchGroup| g.name == sym.name && g.kind == sym.kind)
+                {
+                    g.matches.push(GrepMatch {
+                        line: *line,
+                        text: text.clone(),
+                    });
                 } else {
                     groups.push(MatchGroup {
                         kind: sym.kind.clone(),
                         name: sym.name.clone(),
                         start_line: sym.start_line as u32,
                         end_line: sym.end_line as u32,
-                        matches: vec![GrepMatch { line: *line, text: text.clone() }],
+                        matches: vec![GrepMatch {
+                            line: *line,
+                            text: text.clone(),
+                        }],
                     });
                 }
             } else {
-                unmatched.push(GrepMatch { line: *line, text: text.clone() });
+                unmatched.push(GrepMatch {
+                    line: *line,
+                    text: text.clone(),
+                });
             }
         }
 
@@ -188,7 +216,9 @@ pub fn grep(root: &Path, needle: &str, options: &GrepOptions) -> GrepResult {
             groups,
         });
 
-        if result_files.len() >= options.max_files { break }
+        if result_files.len() >= options.max_files {
+            break;
+        }
     }
 
     let total_matches: usize = result_files.iter().map(|f| f.total_matches).sum();
@@ -229,7 +259,10 @@ pub struct FindOptions {
 
 impl Default for FindOptions {
     fn default() -> Self {
-        Self { max_files: 30, score_threshold: 1 }
+        Self {
+            max_files: 30,
+            score_threshold: 1,
+        }
     }
 }
 
@@ -268,17 +301,29 @@ pub fn find(root: &Path, query: &str, options: &FindOptions) -> FindResult {
             reasons.push(format!("{token_matches} tokens matched in path"));
         }
 
-        if score <= 0 { continue }
+        if score <= 0 {
+            continue;
+        }
 
         // Role bonus
         let role = detect_role(path);
         let role_bonus = role.score_bonus();
         if role_bonus != 0 {
             score += role_bonus;
-            reasons.push(format!("role bonus: {} ({})", role.as_str(), if role_bonus > 0 { format!("+{role_bonus}") } else { role_bonus.to_string() }));
+            reasons.push(format!(
+                "role bonus: {} ({})",
+                role.as_str(),
+                if role_bonus > 0 {
+                    format!("+{role_bonus}")
+                } else {
+                    role_bonus.to_string()
+                }
+            ));
         }
 
-        if score < options.score_threshold { continue }
+        if score < options.score_threshold {
+            continue;
+        }
 
         scored.push(ScoredFile {
             path: path_str,
@@ -289,7 +334,7 @@ pub fn find(root: &Path, query: &str, options: &FindOptions) -> FindResult {
     }
 
     // Sort by score descending
-    scored.sort_by(|a, b| b.score.cmp(&a.score));
+    scored.sort_by_key(|b| std::cmp::Reverse(b.score));
     scored.truncate(options.max_files);
 
     FindResult {
@@ -349,41 +394,88 @@ fn simple_outline(text: &str) -> Vec<SymEntry> {
         // Rust
         if let Some(name) = kw_match(trimmed, "fn ") {
             let end = find_block_end(&lines[i..], line_num);
-            entries.push(SymEntry { kind: "function".into(), name, start_line: line_num, end_line: end });
+            entries.push(SymEntry {
+                kind: "function".into(),
+                name,
+                start_line: line_num,
+                end_line: end,
+            });
         } else if let Some(name) = kw_match(trimmed, "struct ") {
             let end = find_block_end(&lines[i..], line_num);
-            entries.push(SymEntry { kind: "struct".into(), name, start_line: line_num, end_line: end });
+            entries.push(SymEntry {
+                kind: "struct".into(),
+                name,
+                start_line: line_num,
+                end_line: end,
+            });
         } else if let Some(name) = kw_match(trimmed, "enum ") {
             let end = find_block_end(&lines[i..], line_num);
-            entries.push(SymEntry { kind: "enum".into(), name, start_line: line_num, end_line: end });
+            entries.push(SymEntry {
+                kind: "enum".into(),
+                name,
+                start_line: line_num,
+                end_line: end,
+            });
         } else if let Some(name) = kw_match(trimmed, "trait ") {
             let end = find_block_end(&lines[i..], line_num);
-            entries.push(SymEntry { kind: "trait".into(), name, start_line: line_num, end_line: end });
+            entries.push(SymEntry {
+                kind: "trait".into(),
+                name,
+                start_line: line_num,
+                end_line: end,
+            });
         } else if let Some(name) = kw_match(trimmed, "impl ") {
-            let name = name.split(|c: char| c == '{' || c == 'w').next().unwrap_or("").trim().to_string();
+            let name = name
+                .split(['{', 'w'])
+                .next()
+                .unwrap_or("")
+                .trim()
+                .to_string();
             let end = find_block_end(&lines[i..], line_num);
-            entries.push(SymEntry { kind: "impl".into(), name, start_line: line_num, end_line: end });
+            entries.push(SymEntry {
+                kind: "impl".into(),
+                name,
+                start_line: line_num,
+                end_line: end,
+            });
         }
         // TypeScript/JS
         else if let Some(name) = kw_match(trimmed, "function ") {
             let end = find_block_end(&lines[i..], line_num);
-            entries.push(SymEntry { kind: "function".into(), name, start_line: line_num, end_line: end });
+            entries.push(SymEntry {
+                kind: "function".into(),
+                name,
+                start_line: line_num,
+                end_line: end,
+            });
         } else if let Some(name) = kw_match(trimmed, "class ") {
             let end = find_block_end(&lines[i..], line_num);
-            entries.push(SymEntry { kind: "class".into(), name, start_line: line_num, end_line: end });
+            entries.push(SymEntry {
+                kind: "class".into(),
+                name,
+                start_line: line_num,
+                end_line: end,
+            });
         }
     }
 
-    entries.sort_by(|a, b| a.start_line.cmp(&b.start_line));
+    entries.sort_by_key(|a| a.start_line);
     entries
 }
 
-fn kw_match<'a>(line: &'a str, kw: &str) -> Option<String> {
+fn kw_match(line: &str, kw: &str) -> Option<String> {
     if line.starts_with(kw) {
         let rest = line.strip_prefix(kw)?;
-        let name = rest.split(|c: char| c == '(' || c == '<' || c == ':' || c == '{' || c == ' ')
-            .next()?.trim().to_string();
-        if name.is_empty() { None } else { Some(name) }
+        let name = rest
+            .split(['(', '<', ':', '{', ' '])
+            .next()?
+            .trim()
+            .to_string();
+        if name.is_empty() {
+            None
+        } else {
+            Some(name)
+        }
     } else {
         for prefix in &["pub ", "pub(crate) ", "pub(super) ", "export "] {
             if let Some(after) = line.strip_prefix(prefix) {
@@ -401,10 +493,16 @@ fn find_block_end(lines: &[&str], start: usize) -> usize {
     let mut first_brace = false;
     for (i, line) in lines.iter().enumerate() {
         for &b in line.as_bytes() {
-            if b == b'{' { depth += 1; first_brace = true; }
-            else if b == b'}' { depth -= 1; }
+            if b == b'{' {
+                depth += 1;
+                first_brace = true;
+            } else if b == b'}' {
+                depth -= 1;
+            }
         }
-        if first_brace && depth <= 0 && i > 0 { return start + i; }
+        if first_brace && depth <= 0 && i > 0 {
+            return start + i;
+        }
     }
     start + lines.len()
 }
@@ -414,5 +512,8 @@ fn byte_to_line(content: &[u8], offset: usize) -> u32 {
 }
 
 fn extract_line(text: &str, line_num: u32) -> String {
-    text.lines().nth((line_num - 1) as usize).unwrap_or("").to_string()
+    text.lines()
+        .nth((line_num - 1) as usize)
+        .unwrap_or("")
+        .to_string()
 }

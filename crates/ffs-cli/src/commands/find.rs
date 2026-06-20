@@ -6,8 +6,8 @@ use clap::{Parser, ValueEnum};
 use serde::Serialize;
 
 use crate::cli::OutputFormat;
-use ffs_search::role::{Role, detect_role};
 use crate::commands::pagination::{footer, Page};
+use ffs_search::role::detect_role;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum SearchMode {
@@ -377,24 +377,32 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     };
     // When --scored is set, annotate with role and score
     if args.scored {
-        let scored: Vec<ScoredMatch> = payload.matches.iter().map(|m| {
-            let path = std::path::Path::new(m);
-            let role = detect_role(path);
-            ScoredMatch {
-                path: m.clone(),
-                score: role.score_bonus(),
-                role: role.as_str().to_string(),
-                role_bonus: Some(role.score_bonus()),
-            }
-        }).collect();
+        let scored: Vec<ScoredMatch> = payload
+            .matches
+            .iter()
+            .map(|m| {
+                let path = std::path::Path::new(m);
+                let role = detect_role(path);
+                ScoredMatch {
+                    path: m.clone(),
+                    score: role.score_bonus(),
+                    role: role.as_str().to_string(),
+                    role_bonus: Some(role.score_bonus()),
+                }
+            })
+            .collect();
         for s in &scored {
-            let bonus = if s.score > 0 { format!("+{}", s.score) } else { s.score.to_string() };
+            let bonus = if s.score > 0 {
+                format!("+{}", s.score)
+            } else {
+                s.score.to_string()
+            };
             println!("{}  [{}] ({})", s.path, s.role, bonus);
         }
         return Ok(());
     }
 
-        super::emit(format, &payload, |p| {
+    super::emit(format, &payload, |p| {
         let mut out = String::new();
         if p.fuzzy_fallback && !p.matches.is_empty() {
             out.push_str("# fuzzy fallback (no exact match)\n");
@@ -422,6 +430,7 @@ mod tests {
         std::fs::write(root.join("bar.rs"), "y").unwrap();
 
         let args = Args {
+            scored: false,
             needle: "foo".into(),
             limit: 50,
             offset: 0,
@@ -492,6 +501,7 @@ mod tests {
         std::fs::write(root.join("src/components/button.rs"), "x").unwrap();
 
         let args = Args {
+            scored: false,
             needle: "components".into(),
             limit: 50,
             offset: 0,

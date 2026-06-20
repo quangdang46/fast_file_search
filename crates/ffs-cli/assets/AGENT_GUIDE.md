@@ -39,12 +39,22 @@ Filename matcher. Substring (case-insensitive) match against full
 file paths under `--root`. Useful as the first step when you know a
 filename fragment but not the full path.
 
+* `--scored` — annotate results with role detection and score bonus.
+  Detects file roles: `implementation` (+20), `test` (-15), `docs` (-25),
+  `auth` (+20), `ui` (+20), `config` (0), etc. Output format:
+  `path  [role] (+score)`.
+
 ### `glob <pattern>`
 Shell-style glob over file paths (`**`, `*`, `?`, character classes).
 
 ### `grep <regex>`
 Content search across the project. Powered by `ripgrep` semantics for
 gitignore handling.
+
+* `--group` — group matches by file and enclosing symbol (function,
+  struct, enum, trait). Output shows each file with matched symbols
+  and their line ranges. JSON schema: `v2_grouped` with `files[].groups[]`.
+  Useful for understanding match context in one shot.
 
 ### `read <target>`
 Read a file. Default emits the **agent-style outline** (header +
@@ -221,10 +231,6 @@ alphabetical. `reasons` only lists non-zero terms.
   `ffs callers --hub-guard`.
 * `--limit N` / `--offset N` — pagination (defaults 20/0).
 
-### `dispatch <query>`
-Free-form classifier that routes a query to the right backend
-(`symbol`, `symbol_glob`, `file_path`, `glob`, or content fallback).
-
 ### `index`
 Build / refresh the on-disk indexes (Bigram, Bloom, Symbol, Outline)
 without running a query. Useful for warming up before a session.
@@ -259,8 +265,7 @@ the Neovim plugin and the C FFI behind the additive `ffs` features:
     * `ffs_engine_refs(engine, name, limit, offset)`
     * `ffs_engine_flow(engine, name, limit, offset, callees_top, callers_top, budget)`
     * `ffs_engine_impact(engine, name, limit, offset, hops, hub_guard)`
-  Returns the same `FfsEngineResponse` envelope as `ffs_engine_dispatch`;
-  free it with `ffs_engine_free_response`.
+  Returns the `FfsEngineResponse` envelope; free it with `ffs_engine_free_response`.
 
 Implementation note: the wrappers spawn `ffs` as a subprocess via
 `std::env::current_exe()`, so the loading binary must itself be the
