@@ -1,0 +1,8 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/main.rs",
+  "mode": "outline",
+  "body": "cursor mod cursor;\nengine_tools mod engine_tools;\nhealthcheck mod healthcheck;\nmention_tools mod mention_tools;\noutput mod output;\nserver mod server;\nupdate_check mod update_check;\n<anonymous> use crate::engine_tools::EngineHolder;\n<anonymous> use clap::Parser;\n<anonymous> use ffs::file_picker::FilePicker;\n<anonymous> use ffs::frecency::FrecencyTracker;\n<anonymous> use ffs::{FfsMode, SharedFilePicker, SharedFrecency};\n<anonymous> use git2::Repository;\n<anonymous> use mimalloc::MiMalloc;\n<anonymous> use rmcp::{ServiceExt, transport::stdio};\n<anonymous> use server::FfsServer;\n<anonymous> use std::sync::Arc;\nGLOBAL static GLOBAL: MiMalloc = MiMalloc;\nMCP_INSTRUCTIONS pub const MCP_INSTRUCTIONS: &str = concat!(\nArgs pub(crate) struct Args {\nresolve_defaults fn resolve_defaults(args: &mut Args) {\ndirs_home fn dirs_home() -> String {\nmain async fn main() -> Result<(), Box<dyn std::error::Error>> {\n",
+  "kept_bytes": 905,
+  "footer_bytes": 0,
+  "view": "signatures"
+}

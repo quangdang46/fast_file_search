@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/tests/fs_delete_handler_test.rs",
+  "mode": "outline",
+  "body": "# crates/ffs-core/tests/fs_delete_handler_test.rs (320 lines, ~2.6k tokens) [outline]\n\n[9-14]      imports: notify(2), std(4)\n[16-43]     function setup_temp_git_repo\n            fn setup_temp_git_repo() -> (PathBuf, tempfile::TempDir) {\n[48-128]    function raw_notify_nonrecursive_detects_deletion\n            fn raw_notify_nonrecursive_detects_deletion() {\n[133-220]   function raw_notify_multi_nonrecursive_detects_deletion\n            fn raw_notify_multi_nonrecursive_detects_deletion() {\n[224-320]   function debounced_nonrecursive_detects_deletion\n            fn debounced_nonrecursive_detects_deletion() {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 681,
+  "footer_bytes": 0
+}

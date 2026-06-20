@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/scripts/analyze-results.py",
+  "mode": "outline",
+  "body": "# scripts/analyze-results.py (166 lines, ~1.6k tokens) [outline]\n\n[3-3]     imports: json,\n[21-45]   function load_iter_results\n          def load_iter_results(concept_name, mode):\n[47-82]   function load_stream_trace\n          def load_stream_trace(concept_name, mode, iteration):\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 349,
+  "footer_bytes": 0
+}

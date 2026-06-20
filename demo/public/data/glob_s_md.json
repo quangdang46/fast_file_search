@@ -1,0 +1,9 @@
+{
+  "pattern": "*.md",
+  "matches": [
+    "README.md",
+    "DESIGN.md",
+    "AGENTS.md",
+    "CLAUDE.md"
+  ]
+}

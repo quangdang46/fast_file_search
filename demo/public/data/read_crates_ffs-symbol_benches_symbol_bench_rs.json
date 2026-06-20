@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/benches/symbol_bench.rs",
+  "mode": "outline",
+  "body": "# crates/ffs-symbol/benches/symbol_bench.rs (88 lines, ~587 tokens) [outline]\n\n[3-7]     imports: std(2), criterion, ffs_symbol\n[9-50]    const RUST_SOURCE\n          const RUST_SOURCE: &str = r#\"\n[52-66]   function bench_index_file\n          fn bench_index_file(c: &mut Criterion) {\n[68-85]   function bench_symbol_index_lookup\n          fn bench_symbol_index_lookup(c: &mut Criterion) {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 455,
+  "footer_bytes": 0
+}

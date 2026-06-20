@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/scripts/determine-version.lua",
+  "mode": "full",
+  "body": "local script_path = arg[0]\nlocal script_dir = script_path:match('(.*[/\\\\])') or './'\nlocal repo_root = script_dir .. '..'\n\n-- Add the plugin's lua/ directory to the module search path\npackage.path = repo_root .. '/lua/?.lua;' .. repo_root .. '/lua/?/init.lua;' .. package.path\n\nlocal version = require('ffs.utils.version')\n\nlocal info, err = version.resolve(repo_root)\nif not info then\n  io.stderr:write('Error: ' .. (err or 'unknown') .. '\\n')\n  os.exit(1)\nend\n\nprint('version=' .. info.version)\nprint('npm_tag=' .. info.npm_tag)\nprint('is_release=' .. tostring(info.is_release))\n\n-- Write to GITHUB_OUTPUT when running in CI\nlocal github_output = os.getenv('GITHUB_OUTPUT')\nif github_output and github_output ~= '' then\n  local f = io.open(github_output, 'a')\n  if f then\n    f:write('version=' .. info.version .. '\\n')\n    f:write('npm_tag=' .. info.npm_tag .. '\\n')\n    f:write('is_release=' .. tostring(info.is_release) .. '\\n')\n    f:close()\n  end\nend\n",
+  "kept_bytes": 958,
+  "footer_bytes": 0
+}

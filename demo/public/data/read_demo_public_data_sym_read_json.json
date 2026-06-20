@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/demo/public/data/sym_read.json",
+  "mode": "full",
+  "body": "{\"q\": \"read\", \"hits\": [{\"n\": \"read\", \"k\": \"function_item\", \"f\": \"crates/ffs-engine/src/dispatch.rs\", \"l\": 150}, {\"n\": \"read\", \"k\": \"function_item\", \"f\": \"crates/ffs-core/src/shared.rs\", \"l\": 93}, {\"n\": \"read\", \"k\": \"function_item\", \"f\": \"crates/ffs-core/src/shared.rs\", \"l\": 257}, {\"n\": \"read\", \"k\": \"function_item\", \"f\": \"crates/ffs-core/src/shared.rs\", \"l\": 336}, {\"n\": \"read\", \"k\": \"mod_item\", \"f\": \"crates/ffs-cli/src/commands/mod.rs\", \"l\": 29}]}\n",
+  "kept_bytes": 451,
+  "footer_bytes": 0
+}

@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/demo/public/data/siblings_new.json",
+  "mode": "full",
+  "body": "{\n  \"name\": \"new\",\n  \"hits\": [],\n  \"total\": 0,\n  \"offset\": 0,\n  \"has_more\": false\n}\n",
+  "kept_bytes": 84,
+  "footer_bytes": 0
+}

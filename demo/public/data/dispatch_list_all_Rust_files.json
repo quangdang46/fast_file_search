@@ -1,0 +1,7 @@
+{
+  "raw": "list all Rust files",
+  "classification": "content_fallback",
+  "summary": [
+    "[fallback to grep]"
+  ]
+}

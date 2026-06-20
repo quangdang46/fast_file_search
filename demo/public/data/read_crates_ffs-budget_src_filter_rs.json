@@ -1,0 +1,8 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-budget/src/filter.rs",
+  "mode": "outline",
+  "body": "<anonymous> use std::path::Path;\n<anonymous> use once_cell::sync::Lazy;\n<anonymous> use regex::Regex;\n<anonymous> use serde::{Deserialize, Serialize};\nFilterLevel pub enum FilterLevel {\ndetect_filter_level pub fn detect_filter_level(path: &Path, level: FilterLevel) -> FilterLevel {\nFilterStrategy pub trait FilterStrategy: Send + Sync {\nNoFilter pub struct NoFilter;\nMinimalFilter pub struct MinimalFilter;\nAggressiveFilter pub struct AggressiveFilter;\nstrip_line_comment_keep_doc fn strip_line_comment_keep_doc(line: &str) -> String {\nfind_line_comment_start fn find_line_comment_start(body: &str) -> Option<usize> {\nis_doc_comment_marker fn is_doc_comment_marker(body: &str, idx: usize, marker: &str) -> bool {\ntrim_trailing_whitespace_keep_newline fn trim_trailing_whitespace_keep_newline(line: &str) -> String {\nBLOCK_COMMENT_RE static BLOCK_COMMENT_RE: Lazy<Regex> =\nstrip_block_comments fn strip_block_comments(s: &str) -> String {\nstrip_all_line_comments fn strip_all_line_comments(input: &str) -> String {\ncollapse_blank_lines fn collapse_blank_lines(input: &str) -> String {\ntests mod tests {\n",
+  "kept_bytes": 1103,
+  "footer_bytes": 0,
+  "view": "signatures"
+}

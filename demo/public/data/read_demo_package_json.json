@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/demo/package.json",
+  "mode": "full",
+  "body": "{\n  \"name\": \"demo\",\n  \"private\": true,\n  \"version\": \"0.0.0\",\n  \"type\": \"module\",\n  \"scripts\": {\n    \"dev\": \"vite\",\n    \"build\": \"tsc -b && vite build\",\n    \"lint\": \"eslint .\",\n    \"preview\": \"vite preview\"\n  },\n  \"dependencies\": {\n    \"react\": \"^19.2.6\",\n    \"react-dom\": \"^19.2.6\"\n  },\n  \"devDependencies\": {\n    \"@eslint/js\": \"^10.0.1\",\n    \"@types/node\": \"^24.12.3\",\n    \"@types/react\": \"^19.2.14\",\n    \"@types/react-dom\": \"^19.2.3\",\n    \"@vitejs/plugin-react\": \"^6.0.1\",\n    \"eslint\": \"^10.3.0\",\n    \"eslint-plugin-react-hooks\": \"^7.1.1\",\n    \"eslint-plugin-react-refresh\": \"^0.5.2\",\n    \"globals\": \"^17.6.0\",\n    \"typescript\": \"~6.0.2\",\n    \"typescript-eslint\": \"^8.59.2\",\n    \"vite\": \"^8.0.12\"\n  }\n}\n",
+  "kept_bytes": 706,
+  "footer_bytes": 0
+}

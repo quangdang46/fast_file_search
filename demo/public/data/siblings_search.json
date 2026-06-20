@@ -1,0 +1,238 @@
+{
+  "name": "search",
+  "hits": [
+    {
+      "name": "BYTE_FREQUENCIES",
+      "kind": "constant",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/case_insensitive_memmem.rs",
+      "line": 13,
+      "end_line": 34,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/case_insensitive_memmem.rs",
+      "target_line": 535
+    },
+    {
+      "name": "ascii_fold_byte",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/case_insensitive_memmem.rs",
+      "line": 37,
+      "end_line": 39,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/case_insensitive_memmem.rs",
+      "target_line": 535
+    },
+    {
+      "name": "ascii_swap_case",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/case_insensitive_memmem.rs",
+      "line": 44,
+      "end_line": 46,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/case_insensitive_memmem.rs",
+      "target_line": 535
+    },
+    {
+      "name": "case_insensitive_rank",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/case_insensitive_memmem.rs",
+      "line": 51,
+      "end_line": 58,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/case_insensitive_memmem.rs",
+      "target_line": 535
+    },
+    {
+      "name": "select_rare_pair",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/case_insensitive_memmem.rs",
+      "line": 62,
+      "end_line": 81,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/case_insensitive_memmem.rs",
+      "target_line": 535
+    },
+    {
+      "name": "verify_scalar",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/case_insensitive_memmem.rs",
+      "line": 84,
+      "end_line": 91,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/case_insensitive_memmem.rs",
+      "target_line": 535
+    },
+    {
+      "name": "verify_avx2",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/case_insensitive_memmem.rs",
+      "line": 108,
+      "end_line": 165,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/case_insensitive_memmem.rs",
+      "target_line": 535
+    },
+    {
+      "name": "neon_movemask",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/case_insensitive_memmem.rs",
+      "line": 174,
+      "end_line": 185,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/case_insensitive_memmem.rs",
+      "target_line": 535
+    },
+    {
+      "name": "verify_neon_dotprod",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/case_insensitive_memmem.rs",
+      "line": 199,
+      "end_line": 250,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/case_insensitive_memmem.rs",
+      "target_line": 535
+    },
+    {
+      "name": "search_packed_pair_neon",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/case_insensitive_memmem.rs",
+      "line": 257,
+      "end_line": 349,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/case_insensitive_memmem.rs",
+      "target_line": 535
+    },
+    {
+      "name": "verify_dispatch",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/case_insensitive_memmem.rs",
+      "line": 352,
+      "end_line": 367,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/case_insensitive_memmem.rs",
+      "target_line": 535
+    },
+    {
+      "name": "search_packed_pair_avx2",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/case_insensitive_memmem.rs",
+      "line": 377,
+      "end_line": 480,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/case_insensitive_memmem.rs",
+      "target_line": 535
+    },
+    {
+      "name": "search_packed_pair",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/case_insensitive_memmem.rs",
+      "line": 487,
+      "end_line": 530,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/case_insensitive_memmem.rs",
+      "target_line": 535
+    },
+    {
+      "name": "tests",
+      "kind": "module",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/case_insensitive_memmem.rs",
+      "line": 565,
+      "end_line": 662,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/case_insensitive_memmem.rs",
+      "target_line": 535
+    },
+    {
+      "name": "make_files",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/score.rs",
+      "line": 1148,
+      "end_line": 1166,
+      "parent": "filename_bonus_tests",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/score.rs",
+      "target_line": 1190
+    },
+    {
+      "name": "make_files_with_frecency",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/score.rs",
+      "line": 1168,
+      "end_line": 1187,
+      "parent": "filename_bonus_tests",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/score.rs",
+      "target_line": 1190
+    },
+    {
+      "name": "test_filename_match_ranks_above_path_only_match",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/score.rs",
+      "line": 1226,
+      "end_line": 1248,
+      "parent": "filename_bonus_tests",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/score.rs",
+      "target_line": 1190
+    },
+    {
+      "name": "test_exact_filename_beats_fuzzy_filename",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/score.rs",
+      "line": 1251,
+      "end_line": 1263,
+      "parent": "filename_bonus_tests",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/score.rs",
+      "target_line": 1190
+    },
+    {
+      "name": "test_same_length_filename_no_false_exact",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/score.rs",
+      "line": 1266,
+      "end_line": 1278,
+      "parent": "filename_bonus_tests",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/score.rs",
+      "target_line": 1190
+    },
+    {
+      "name": "test_path_separator_disables_filename_bonus",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/score.rs",
+      "line": 1281,
+      "end_line": 1291,
+      "parent": "filename_bonus_tests",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/score.rs",
+      "target_line": 1190
+    },
+    {
+      "name": "test_full_path_query_prefers_closer_filename_match",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/score.rs",
+      "line": 1296,
+      "end_line": 1342,
+      "parent": "filename_bonus_tests",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/score.rs",
+      "target_line": 1190
+    },
+    {
+      "name": "test_single_path_matching",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/score.rs",
+      "line": 1345,
+      "end_line": 1366,
+      "parent": "filename_bonus_tests",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/score.rs",
+      "target_line": 1190
+    },
+    {
+      "name": "test_lowercase_path_matching",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/score.rs",
+      "line": 1369,
+      "end_line": 1386,
+      "parent": "filename_bonus_tests",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/score.rs",
+      "target_line": 1190
+    }
+  ],
+  "total": 23,
+  "offset": 0,
+  "has_more": false
+}

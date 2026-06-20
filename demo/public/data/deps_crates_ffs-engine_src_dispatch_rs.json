@@ -1,0 +1,56 @@
+{
+  "target": "crates/ffs-engine/src/dispatch.rs",
+  "imports": [
+    {
+      "spec": "std::path"
+    },
+    {
+      "spec": "std::sync::Arc"
+    },
+    {
+      "spec": "serde"
+    },
+    {
+      "spec": "ffs_budget"
+    },
+    {
+      "spec": "ffs_symbol::detection::is_binary"
+    },
+    {
+      "spec": "ffs_symbol::outline_cache::OutlineCache"
+    },
+    {
+      "spec": "ffs_symbol::symbol_index::SymbolLocation"
+    },
+    {
+      "spec": "ffs_symbol::types::QueryType"
+    },
+    {
+      "spec": "ffs_symbol"
+    },
+    {
+      "spec": "crate::classify",
+      "resolved": "crates/ffs-engine/src/classify.rs"
+    },
+    {
+      "spec": "crate::memory",
+      "resolved": "crates/ffs-engine/src/memory.rs"
+    },
+    {
+      "spec": "crate::scanner",
+      "resolved": "crates/ffs-engine/src/scanner.rs"
+    },
+    {
+      "spec": "super"
+    }
+  ],
+  "dependents": [
+    {
+      "path": "crates/ffs-engine/src/lib.rs",
+      "spec": "dispatch"
+    }
+  ],
+  "total_dependents": 1,
+  "offset": 0,
+  "has_more": false
+}

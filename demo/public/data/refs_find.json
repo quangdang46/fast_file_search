@@ -1,0 +1,612 @@
+{
+  "name": "find",
+  "definitions": [
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/matcher.rs",
+      "line": 146,
+      "end_line": 148,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/matcher.rs",
+      "line": 167,
+      "end_line": 169,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/glue.rs",
+      "line": 114,
+      "end_line": 118,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/core.rs",
+      "line": 53,
+      "end_line": 55,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mod.rs",
+      "line": 15,
+      "end_line": 15,
+      "kind": "mod_item",
+      "weight": 70
+    }
+  ],
+  "usages": [
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+      "line": 54,
+      "text": "| `ffs-cli` | CLI commands (find, grep, symbol, read, map, etc.) |"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 60,
+      "text": "| New `frecency.jsonl` + own store | opencode | Decouples from LMDB | LMDB already there; ranking inconsistency between ffs find and ffs mention | **Reject** (review fix #2) |"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 243,
+      "text": "        close = find matching '\"' in raw[1..] or return (raw, false, None)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 246,
+      "text": "    if let Some(hash_idx) = raw.find('#'):"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 388,
+      "text": "        if let Some(close) = rest.find('\"') {"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 394,
+      "text": "    if let Some(hash_idx) = raw.find('#') {"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 202,
+      "text": "    # If the latest release is missing the asset, walk backward to find one"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 670,
+      "text": "        echo \"  ffs find <query>\""
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/core.rs",
+      "line": 54,
+      "text": "        self.matcher.find(slice).map_err(S::Error::error_message)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/core.rs",
+      "line": 67,
+      "text": "            if let Some(line) = self.find_by_line(buf)? {"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/core.rs",
+      "line": 81,
+      "text": "    fn find_by_line(&mut self, buf: &[u8]) -> Result<Option<Range>, S::Error> {"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/core.rs",
+      "line": 86,
+      "text": "                .find(&buf[pos..])"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/cli.rs",
+      "line": 15,
+      "text": "    about = \"Unified code search/read tool. Replaces grep/glob/find/cat with token-budget aware output.\","
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/cli.rs",
+      "line": 43,
+      "text": "    /// Find files by name (replaces `find` and `fd`).",
+      "enclosing": "Command"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/cli.rs",
+      "line": 44,
+      "text": "    Find(commands::find::Args),",
+      "enclosing": "Command"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/cli.rs",
+      "line": 134,
+      "text": "            Command::Find(a) => commands::find::run(a, &root, self.format),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 154,
+      "text": "                \"query\": {\"type\": \"string\", \"description\": \"Text to find in file contents.\"},",
+      "enclosing": "tools_list"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 178,
+      "text": "            \"ffs_find\",",
+      "enclosing": "tools_list"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 355,
+      "text": "        \"ffs_find\" => {",
+      "enclosing": "handle_tool"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 359,
+      "text": "            let mut hits = super::find::search_matches(&scopes, query);",
+      "enclosing": "handle_tool"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 361,
+      "text": "                hits = super::find::fuzzy_search_matches(&scopes, query);",
+      "enclosing": "handle_tool"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 960,
+      "text": "            (\"ffs_find\", json!({\"query\": \"mcp.rs\"})),",
+      "enclosing": "advertised_file_tools_are_callable"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 971,
+      "text": "    fn find_accepts_needle_alias_for_query() {",
+      "enclosing": "find_accepts_needle_alias_for_query"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 979,
+      "text": "        let result = handle_tool(&mut state, root, \"ffs_find\", &json!({\"needle\": \"mcp\"})).unwrap();",
+      "enclosing": "find_accepts_needle_alias_for_query"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 408,
+      "text": "            .find(|c| c.name == \"a\")",
+      "enclosing": "map_depth_limit_truncates_children"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 431,
+      "text": "            .find(|c| c.name == \"big.rs\")",
+      "enclosing": "map_max_file_bytes_caps_token_estimate"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 461,
+      "text": "        let a = tree.children.iter().find(|c| c.name == \"a\").unwrap();",
+      "enclosing": "symbols_attached_to_file_leaves_via_canonical_path"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 462,
+      "text": "        let foo = a.children.iter().find(|c| c.name == \"foo.rs\").unwrap();",
+      "enclosing": "symbols_attached_to_file_leaves_via_canonical_path"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 478,
+      "text": "        let x = tree.children.iter().find(|c| c.name == \"x.rs\").unwrap();",
+      "enclosing": "symbols_default_off_keeps_file_node_empty"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/refs.rs",
+      "line": 23,
+      "text": "    /// Symbol name to find references (definitions + usages) for.",
+      "enclosing": "Args"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/refs.rs",
+      "line": 267,
+      "text": "        let defs_idx = s.find(\"Definitions\").unwrap();",
+      "enclosing": "text_render_groups_defs_then_usages"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/refs.rs",
+      "line": 268,
+      "text": "        let usages_idx = s.find(\"Usages\").unwrap();",
+      "enclosing": "text_render_groups_defs_then_usages"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/read.rs",
+      "line": 292,
+      "text": "                                .find(|i| body.is_char_boundary(*i))",
+      "enclosing": "run"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callees_detail.rs",
+      "line": 125,
+      "text": "            while let Some(rel) = line[search_from..].find(sym) {",
+      "enclosing": "extract_call_sites"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callees_detail.rs",
+      "line": 183,
+      "text": "    let Some(start) = s.find('(') else {",
+      "enclosing": "extract_args"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callees_detail.rs",
+      "line": 226,
+      "text": "            if let Some(eq_pos) = rest.rfind('=') {",
+      "enclosing": "extract_assignment_before"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callees_detail.rs",
+      "line": 235,
+      "text": "    if let Some(eq_pos) = before.rfind('=') {",
+      "enclosing": "extract_assignment_before"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/outline_format.rs",
+      "line": 119,
+      "text": "        if let Some((_, c)) = counts.iter_mut().find(|(k, _)| k == &src) {",
+      "enclosing": "render_imports_bundle"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/outline_format.rs",
+      "line": 151,
+      "text": "        if let Some(start) = s.find(q) {",
+      "enclosing": "parse_import_source"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/outline_format.rs",
+      "line": 152,
+      "text": "            if let Some(end_rel) = s[start + 1..].find(q) {",
+      "enclosing": "parse_import_source"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callees_bfs.rs",
+      "line": 180,
+      "text": "            .find(|h| h.name == \"beta\")",
+      "enclosing": "depth_two_reaches_grandchildren"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callees_bfs.rs",
+      "line": 184,
+      "text": "            .find(|h| h.name == \"gamma\")",
+      "enclosing": "depth_two_reaches_grandchildren"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/flow.rs",
+      "line": 245,
+      "text": "    match body.find(CALLS_DIVIDER) {",
+      "enclosing": "strip_calls_block"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/flow.rs",
+      "line": 523,
+      "text": "        let header_idx = s.find(\"── card 1/1\").unwrap();",
+      "enclosing": "text_render_groups_card_sections"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/flow.rs",
+      "line": 524,
+      "text": "        let body_idx = s.find(\"body [\").unwrap();",
+      "enclosing": "text_render_groups_card_sections"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/flow.rs",
+      "line": 525,
+      "text": "        let callees_idx = s.find(\"callees (\").unwrap();",
+      "enclosing": "text_render_groups_card_sections"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/flow.rs",
+      "line": 526,
+      "text": "        let callers_idx = s.find(\"callers (\").unwrap();",
+      "enclosing": "text_render_groups_card_sections"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_impact.rs",
+      "line": 55,
+      "text": "    // b.rs calls a_caller() three times (transitive at depth 2 if BFS finds it).",
+      "enclosing": "direct_callers_weighted_three_to_one_over_transitive"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_impact.rs",
+      "line": 78,
+      "text": "        .find(|r| r[\"path\"].as_str().unwrap().ends_with(\"a.rs\"))",
+      "enclosing": "direct_callers_weighted_three_to_one_over_transitive"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 4,
+      "text": "//! Existing ffs tools (`ffs_find`, `ffs_grep`, `ffs_multi_grep`) are untouched."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 53,
+      "text": "    /// Symbol name to find definitions + single-hop usages for.",
+      "enclosing": "EngineRefsParams"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 234,
+      "text": "pub fn find_call_sites(engine: &Engine, root: &Path, symbol: &str, limit: usize) -> Vec<CallHit> {",
+      "enclosing": "find_call_sites"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 320,
+      "text": "pub fn find_callee_sites(",
+      "enclosing": "find_callee_sites"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 434,
+      "text": "pub fn find_refs(",
+      "enclosing": "find_refs"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 512,
+      "text": "            if let Some(paren_start) = trimmed.find('(')",
+      "enclosing": "find_refs"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 513,
+      "text": "                && let Some(paren_end) = trimmed[paren_start..].find(')')",
+      "enclosing": "find_refs"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 731,
+      "text": "pub fn find_siblings(",
+      "enclosing": "find_siblings"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 755,
+      "text": "        // Load outline and find siblings",
+      "enclosing": "find_siblings"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 794,
+      "text": "    fn find_in_children(",
+      "enclosing": "collect_siblings"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 804,
+      "text": "                return find_in_children(child, target, target_line);",
+      "enclosing": "collect_siblings"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 816,
+      "text": "            if let Some(sibs) = find_in_children(entry, target, target_line) {",
+      "enclosing": "collect_siblings"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 973,
+      "text": "pub fn find_deps(root: &Path, target: &str, limit: usize, _offset: usize) -> String {",
+      "enclosing": "find_deps"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 1018,
+      "text": "        let deps = find_dependents(root, &target_name, limit);",
+      "enclosing": "find_deps"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 1075,
+      "text": "fn find_dependents(root: &Path, target_name: &str, limit: usize) -> Vec<std::path::PathBuf> {",
+      "enclosing": "find_dependents"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 1107,
+      "text": "pub fn find_flow(",
+      "enclosing": "find_flow"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 1150,
+      "text": "            callees_cache.get_or_insert_with(|| find_callee_sites(engine, root, name, callees_top));",
+      "enclosing": "find_flow"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 1167,
+      "text": "            find_call_sites(engine, root, name, callers_top.max(50))",
+      "enclosing": "find_flow"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 1191,
+      "text": "pub fn find_impact(",
+      "enclosing": "find_impact"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 1205,
+      "text": "    let callers = find_call_sites(engine, root, name, limit.max(100));",
+      "enclosing": "find_impact"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/treesitter.rs",
+      "line": 163,
+      "text": "pub fn find_iife_function(node: tree_sitter::Node) -> Option<tree_sitter::Node> {",
+      "enclosing": "find_iife_function"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/treesitter.rs",
+      "line": 164,
+      "text": "    find_iife_function_inner(node, 0)",
+      "enclosing": "find_iife_function"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/treesitter.rs",
+      "line": 167,
+      "text": "fn find_iife_function_inner(node: tree_sitter::Node, depth: usize) -> Option<tree_sitter::Node> {",
+      "enclosing": "find_iife_function_inner"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/treesitter.rs",
+      "line": 177,
+      "text": "        if let Some(iife) = find_iife_function_inner(child, depth + 1) {",
+      "enclosing": "find_iife_function_inner"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/treesitter.rs",
+      "line": 343,
+      "text": "    let result = node.children(&mut cursor).find(|c| c.kind() == \"arguments\");",
+      "enclosing": "elixir_arguments"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/detection.rs",
+      "line": 66,
+      "text": "        .any(|m| memchr::memmem::find(window, m).is_some())",
+      "enclosing": "is_generated_by_content"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/artifact.rs",
+      "line": 83,
+      "text": "    if let Some(start) = trimmed.find(\"export {\") {",
+      "enclosing": "es_export_names"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/artifact.rs",
+      "line": 85,
+      "text": "        if let Some(end) = inner.find('}') {",
+      "enclosing": "es_export_names"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/artifact.rs",
+      "line": 146,
+      "text": "        if let Some(start) = after.find('\"') {",
+      "enclosing": "amd_define_names"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/artifact.rs",
+      "line": 148,
+      "text": "            if let Some(end) = rest.find('\"') {",
+      "enclosing": "amd_define_names"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/artifact.rs",
+      "line": 155,
+      "text": "        if let Some(start) = after.find('\\'') {",
+      "enclosing": "amd_define_names"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/artifact.rs",
+      "line": 157,
+      "text": "            if let Some(end) = rest.find('\\'') {",
+      "enclosing": "amd_define_names"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/artifact.rs",
+      "line": 180,
+      "text": "            let Some(eq) = after.find('=') else { continue };",
+      "enclosing": "umd_global_names"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/file_picker.rs",
+      "line": 190,
+      "text": "    fn find_file_index(&self, path: &Path, base_path: &Path) -> Result<usize, usize> {"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/file_picker.rs",
+      "line": 214,
+      "text": "            .rfind(std::path::is_separator)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/file_picker.rs",
+      "line": 220,
+      "text": "        // Binary search dirs to find the parent directory index."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/file_picker.rs",
+      "line": 260,
+      "text": "    fn find_overflow_index(&self, relative_path: &str) -> Option<usize> {"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/file_picker.rs",
+      "line": 341,
+      "text": "            .rfind(std::path::is_separator)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/file_picker.rs",
+      "line": 378,
+      "text": "            .rfind(std::path::is_separator)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/file_picker.rs",
+      "line": 602,
+      "text": "                        .find(std::path::is_separator)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/file_picker.rs",
+      "line": 1343,
+      "text": "            .find_file_index(path, &self.base_path)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/file_picker.rs",
+      "line": 1345,
+      "text": "            .or_else(|| self.sync_data.find_overflow_index(rel_ref));"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/file_picker.rs",
+      "line": 1364,
+      "text": "            .find_file_index(path.as_ref(), &self.base_path)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/file_picker.rs",
+      "line": 1375,
+      "text": "            .find_file_index(path, &self.base_path)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/file_picker.rs",
+      "line": 1377,
+      "text": "            .or_else(|| self.sync_data.find_overflow_index(rel_ref));"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/file_picker.rs",
+      "line": 1388,
+      "text": "        if let Ok(idx) = self.sync_data.find_file_index(path, &self.base_path) {"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/file_picker.rs",
+      "line": 1393,
+      "text": "        if let Some(idx) = self.sync_data.find_overflow_index(&relative_path) {"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/file_picker.rs",
+      "line": 1492,
+      "text": "        match self.sync_data.find_file_index(path, &self.base_path) {"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/file_picker.rs",
+      "line": 1516,
+      "text": "                if let Some(abs_pos) = self.sync_data.find_overflow_index(rel_ref) {"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/file_picker.rs",
+      "line": 1619,
+      "text": "/// `find_file_index` so events still match tombstoned entries."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/file_picker.rs",
+      "line": 1919,
+      "text": "        // (parent_dir, filename) — `find_file_index` does two binary searches"
+    }
+  ],
+  "total_usages": 153,
+  "offset": 0,
+  "has_more": true
+}

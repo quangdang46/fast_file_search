@@ -1,0 +1,8 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/server.rs",
+  "mode": "outline",
+  "body": "<anonymous> use std::borrow::Cow;\n<anonymous> use std::sync::atomic::{AtomicBool, Ordering};\n<anonymous> use std::sync::{Arc, Mutex};\n<anonymous> use crate::cursor::CursorStore;\n<anonymous> use crate::engine_tools::{\n<anonymous> use crate::output::{GrepFormatter, OutputMode, file_suffix};\n<anonymous> use ffs::PaginationArgs;\n<anonymous> use ffs::grep::{GrepMode, GrepSearchOptions, has_regex_metacharacters};\n<anonymous> use ffs::types::{FileItem, MixedItemRef};\n<anonymous> use ffs::{FuzzySearchOptions, QueryParser, SharedFilePicker, SharedFrecency};\n<anonymous> use ffs_query_parser::AiGrepConfig;\n<anonymous> use rmcp::handler::server::wrapper::Parameters;\n<anonymous> use rmcp::model::*;\n<anonymous> use rmcp::{ServerHandler, schemars, tool, tool_handler, tool_router};\nnormalize_max_results fn normalize_max_results(raw: Option<f64>, default: usize) -> usize {\ncleanup_fuzzy_query fn cleanup_fuzzy_query(s: &str) -> String {\nmake_grep_options fn make_grep_options(\nFindFilesParams pub struct FindFilesParams {\nFindDirsParams pub struct FindDirsParams {\nFindMixedParams pub struct FindMixedParams {\nGrepParams pub struct GrepParams {\ndeserialize_patterns fn deserialize_patterns<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>\nMultiGrepParams pub struct MultiGrepParams {\nFfsServer pub struct FfsServer {\ntests mod tests {\n",
+  "kept_bytes": 1340,
+  "footer_bytes": 0,
+  "view": "signatures"
+}

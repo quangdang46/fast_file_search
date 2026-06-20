@@ -1,0 +1,8 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/mention.rs",
+  "mode": "outline",
+  "body": "<anonymous> use std::collections::HashMap;\n<anonymous> use std::fs;\n<anonymous> use std::io::Read;\n<anonymous> use std::path::{Path, PathBuf};\n<anonymous> use ffs_budget::{\n<anonymous> use serde::{Deserialize, Serialize};\nBINARY_PROBE_BYTES const BINARY_PROBE_BYTES: usize = 8 * 1024;\nDIRECTORY_LISTING_CAP const DIRECTORY_LISTING_CAP: usize = 100;\nIMAGE_EXTS const IMAGE_EXTS: &[&str] = &[\"png\", \"jpg\", \"jpeg\", \"gif\", \"webp\"];\nimage_mime_for fn image_mime_for(ext: &str) -> Option<&'static str> {\nMentionKind pub enum MentionKind {\nMentionAudit pub struct MentionAudit {\nResolveOptions pub struct ResolveOptions {\nResolvedMention pub struct ResolvedMention {\nresolve_mentions pub fn resolve_mentions(paths: &[PathBuf], opts: &ResolveOptions) -> Vec<ResolvedMention> {\nresolve_one fn resolve_one(path: &Path, opts: &ResolveOptions) -> ResolvedMention {\nClassifiedFile enum ClassifiedFile {\nread_and_classify fn read_and_classify(path: &Path) -> ClassifiedFile {\nresolve_directory fn resolve_directory(path: &Path, metadata: &fs::Metadata) -> ResolvedMention {\nresolve_text fn resolve_text(path: &Path, size: u64, raw: String, opts: &ResolveOptions) -> ResolvedMention {\napply_filter fn apply_filter(input: &str, level: FilterLevel) -> String {\nslice_lines fn slice_lines(input: &str, start: u32, end: u32) -> String {\nMentionResolverCache pub struct MentionResolverCache {\ntests mod tests {\n",
+  "kept_bytes": 1391,
+  "footer_bytes": 0,
+  "view": "signatures"
+}

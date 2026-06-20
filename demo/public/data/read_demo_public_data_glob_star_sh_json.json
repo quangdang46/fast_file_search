@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/demo/public/data/glob_star.sh.json",
+  "mode": "full",
+  "body": "{\n  \"pattern\": \"**/*.sh\",\n  \"matches\": [\n    \"install.sh\",\n    \"scripts/benchmark-claude.sh\",\n    \"scripts/release.sh\",\n    \"scripts/determine-version.sh\"\n  ]\n}\n",
+  "kept_bytes": 161,
+  "footer_bytes": 0
+}

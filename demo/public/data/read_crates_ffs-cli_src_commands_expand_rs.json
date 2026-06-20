@@ -1,0 +1,8 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/expand.rs",
+  "mode": "outline",
+  "body": "<anonymous> use std::path::PathBuf;\n<anonymous> use std::time::SystemTime;\n<anonymous> use serde::Serialize;\n<anonymous> use ffs_budget::{smart_truncate, TruncationOutcome};\n<anonymous> use ffs_engine::Engine;\n<anonymous> use ffs_symbol::lang::detect_file_type;\n<anonymous> use ffs_symbol::types::{FileType, Lang, OutlineEntry};\n<anonymous> use crate::commands::callees_resolve::collect_callees;\nCALLS_DIVIDER pub const CALLS_DIVIDER: &str = \"── calls ──\";\nExpanded pub struct Expanded {\nExpandedCall pub struct ExpandedCall {\nexpand_hit pub fn expand_hit(\nentry_for fn entry_for(entries: &[OutlineEntry], line: u32) -> Option<OutlineEntry> {\nslice_lines fn slice_lines(content: &str, start_line: u32, end_line: u32) -> String {\ndirect_callees fn direct_callees(\nrender_calls_block fn render_calls_block(calls: &[ExpandedCall]) -> String {\nbudgeted fn budgeted(body: &str, max_bytes: usize) -> (String, TruncationOutcome) {\nper_hit_budget_bytes pub fn per_hit_budget_bytes(total_token_budget: u64, hit_count: usize) -> usize {\ntests mod tests {\n",
+  "kept_bytes": 1053,
+  "footer_bytes": 0,
+  "view": "signatures"
+}

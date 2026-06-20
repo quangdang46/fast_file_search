@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-budget/src/truncate.rs",
+  "mode": "outline",
+  "body": "# crates/ffs-budget/src/truncate.rs (184 lines, ~1.4k tokens) [outline]\n\n[10-10]       imports: serde\n[14-19]       struct TruncationOutcome\n              pub struct TruncationOutcome {\n[23-80]       function smart_truncate\n              pub fn smart_truncate(input: &str, max_bytes: usize) -> (String, TruncationOutcome) {\n[88-122]      function apply_preserving_footer\n              pub fn apply_preserving_footer<F>(\n[125-184]     module tests\n              mod tests {\n  [126-126]   import <anonymous>\n              use super::*;\n  [129-134]   function no_truncation_when_input_fits\n              fn no_truncation_when_input_fits() {\n  [137-142]   function truncates_with_footer\n              fn truncates_with_footer() {\n  [145-151]   function footer_byte_count_matches\n              fn footer_byte_count_matches() {\n  [154-164]   function apply_preserving_footer_clips_payload\n              fn apply_preserving_footer_clips_payload() {\n  [167-172]   function apply_preserving_footer_handles_empty_input\n              fn apply_preserving_footer_handles_empty_input() {\n  [175-183]   function apply_preserving_footer_no_overflow\n              fn apply_preserving_footer_no_overflow() {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 1257,
+  "footer_bytes": 0
+}

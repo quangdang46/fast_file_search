@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/build.rs",
+  "mode": "outline",
+  "body": "# vendor/tree-sitter-verse/build.rs (11 lines, ~66 tokens) [outline]\n\n[1-1]    imports: std\n[3-11]   function main\n         fn main() {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 203,
+  "footer_bytes": 0
+}

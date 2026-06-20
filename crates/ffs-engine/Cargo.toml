@@ -18,6 +18,7 @@ dashmap = { workspace = true }
 ignore = { workspace = true }
 memchr = { workspace = true }
 parking_lot = { workspace = true }
+regex = { workspace = true }
 rayon = { workspace = true }
 serde = { workspace = true }
 

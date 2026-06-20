@@ -1,0 +1,664 @@
+{
+  "name": "run",
+  "cards": [
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/guide.rs",
+        "line": 19,
+        "end_line": 24,
+        "kind": "function_item",
+        "weight": 100
+      },
+      "header": "pub fn run(_args: Args, _root: &Path, format: OutputFormat) -> Result<()> {",
+      "body": "pub fn run(_args: Args, _root: &Path, format: OutputFormat) -> Result<()> {\n    let payload = GuideOutput {\n        body: GUIDE_TEXT.to_string(),\n    };\n    super::emit(format, &payload, |p| p.body.clone())\n}\n",
+      "body_start_line": 19,
+      "body_end_line": 24,
+      "kept_bytes": 441,
+      "footer_bytes": 0,
+      "callees": [
+        {
+          "name": "clone",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/stable_vec.rs",
+          "line": 189
+        },
+        {
+          "name": "emit",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mod.rs",
+          "line": 43
+        },
+        {
+          "name": "to_string"
+        }
+      ],
+      "total_callees": 3,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 265,
+          "text": "        Write-Info \"[mcp dry-run] would write $File\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 278,
+          "text": "        Write-Info \"[mcp dry-run] claude mcp add -s user $McpName -- $cmd mcp\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 295,
+          "text": "        Write-Info \"[mcp dry-run] codex mcp add $McpName -- $cmd mcp\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 360,
+          "text": "        Write-Info \"[mcp dry-run] would write $file\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 473,
+          "text": "                # Remove-Item on a running .exe is a no-op (the file stays"
+        }
+      ],
+      "total_callers": 166
+    },
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/index.rs",
+        "line": 37,
+        "end_line": 104,
+        "kind": "function_item",
+        "weight": 100
+      },
+      "header": "pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {",
+      "body": "pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {\n    let cache = CacheDir::at(root);\n    if args.force {\n        // Best-effort: drop any prior payload + meta so neither the strict\n        // load nor the stale-load fallback in load_or_build_engine could\n        // sneak in if a downstream caller invoked it.\n        let _ = std::fs::remove_file(cache.symbol_path());\n        let _ = std::fs::remove_file(cache.bigram_path());\n        let _ = std::fs::remove_file(cache.meta_path());\n    }\n\n    let engine = Engine::default();\n    let report = engine.index(root);\n    let cache_written = cache\n        .write_symbol_index(&engine.handles.symbols, root)\n        .is_ok();\n\n    // Build the bigram prefilter from the same set of paths the engine\n    // just walked. Reading content twice is unfortunate but keeps the\n    // bigram module standalone; for typical repos the second pass is\n    // dominated by FS cache hits from the first pass.\n    let walk_paths = super::walk_files(root);\n    let bigram = GrepBigram::build(&walk_paths);\n    let bigram_cache_written = cache.write_bigram_index(&bigram).is_ok();\n\n    let payload = IndexOutput {\n        files_visited: report.files_visited,\n        files_indexed: report.files_indexed,\n        files_skipped_other: report.files_skipped_other,\n        symbols_indexed: engine.handles.symbols.symbols_indexed(),\n        bigram_files: bigram.file_count(),\n        bigram_count: bigram.bigram_count(),\n        cache_path: cache.symbol_path().to_string_lossy().to_string(),\n        bigram_cache_path: cache.bigram_path().to_string_lossy().to_string(),\n        cache_written,\n        bigram_cache_written,\n        forced: args.force,\n    };\n    super::emit(format, &payload, |p| {\n        let symbol_line = if p.cache_written {\n            format!(\"Cache: {}\\n\", p.cache_path)\n        } else {\n            \"Cache: write failed\\n\".to_string()\n        };\n        let bigram_line = if p.bigram_cache_written {\n            format!(\n                \"Bigram cache: {} ({} bigrams over {} files)\\n\",\n                p.bigram_cache_path, p.bigram_count, p.bigram_files\n            )\n        } else {\n            \"Bigram cache: write failed\\n\".to_string()\n        };\n        let prefix = if p.forced {\n            \"Force-rebuilt index. \"\n        } else {\n            \"\"\n        };\n        format!(\n            \"{}Indexed {} files ({} symbols, {} skipped)\\n{}{}\",\n            prefix,\n            p.files_indexed,\n            p.symbols_indexed,\n            p.files_skipped_other,\n            symbol_line,\n            bigram_line\n        )\n    })\n}\n",
+      "body_start_line": 37,
+      "body_end_line": 104,
+      "kept_bytes": 3360,
+      "footer_bytes": 16,
+      "callees": [
+        {
+          "name": "at",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/cache.rs",
+          "line": 55
+        },
+        {
+          "name": "bigram_count",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/bigram.rs",
+          "line": 43
+        },
+        {
+          "name": "bigram_path",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/cache.rs",
+          "line": 80
+        },
+        {
+          "name": "build",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/bigram.rs",
+          "line": 52
+        },
+        {
+          "name": "default",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-budget/src/stream.rs",
+          "line": 91
+        }
+      ],
+      "total_callees": 19,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 265,
+          "text": "        Write-Info \"[mcp dry-run] would write $File\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 278,
+          "text": "        Write-Info \"[mcp dry-run] claude mcp add -s user $McpName -- $cmd mcp\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 295,
+          "text": "        Write-Info \"[mcp dry-run] codex mcp add $McpName -- $cmd mcp\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 360,
+          "text": "        Write-Info \"[mcp dry-run] would write $file\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 473,
+          "text": "                # Remove-Item on a running .exe is a no-op (the file stays"
+        }
+      ],
+      "total_callers": 166
+    },
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_cache_symbol.rs",
+        "line": 15,
+        "end_line": 29,
+        "kind": "function_item",
+        "weight": 100
+      },
+      "header": "fn run(root: &Path, args: &[&str]) -> (Value, std::time::Duration) {",
+      "body": "fn run(root: &Path, args: &[&str]) -> (Value, std::time::Duration) {\n    let mut cmd = Command::new(binary());\n    cmd.args([\"--root\", root.to_str().unwrap(), \"--format\", \"json\"]);\n    cmd.args(args);\n    let start = std::time::Instant::now();\n    let out = cmd.output().expect(\"spawn ffs\");\n    let elapsed = start.elapsed();\n    assert!(\n        out.status.success(),\n        \"stderr: {}\",\n        String::from_utf8_lossy(&out.stderr)\n    );\n    let v: Value = serde_json::from_slice(&out.stdout).expect(\"parse json\");\n    (v, elapsed)\n}\n",
+      "body_start_line": 15,
+      "body_end_line": 29,
+      "kept_bytes": 1006,
+      "footer_bytes": 0,
+      "callees": [
+        {
+          "name": "args"
+        },
+        {
+          "name": "assert"
+        },
+        {
+          "name": "binary",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_suspicious.rs",
+          "line": 14
+        },
+        {
+          "name": "elapsed"
+        },
+        {
+          "name": "expect"
+        }
+      ],
+      "total_callees": 11,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 265,
+          "text": "        Write-Info \"[mcp dry-run] would write $File\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 278,
+          "text": "        Write-Info \"[mcp dry-run] claude mcp add -s user $McpName -- $cmd mcp\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 295,
+          "text": "        Write-Info \"[mcp dry-run] codex mcp add $McpName -- $cmd mcp\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 360,
+          "text": "        Write-Info \"[mcp dry-run] would write $file\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 473,
+          "text": "                # Remove-Item on a running .exe is a no-op (the file stays"
+        }
+      ],
+      "total_callers": 166
+    },
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/overview.rs",
+        "line": 60,
+        "end_line": 149,
+        "kind": "function_item",
+        "weight": 100
+      },
+      "header": "pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {",
+      "body": "pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {\n    let root = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());\n\n    let engine = Engine::default();\n    engine.index(&root);\n\n    let files = super::walk_files(&root);\n\n    let mut total_files = 0usize;\n    let mut code_files = 0usize;\n    let mut total_lines = 0usize;\n    let mut total_bytes = 0u64;\n    let mut lang_buckets: HashMap<Lang, LangBucket> = HashMap::new();\n    let mut build_files: Vec<String> = Vec::new();\n    let mut entrypoints: Vec<String> = Vec::new();\n    let mut fingerprint_input: Vec<(String, u64, SystemTime)> = Vec::new();\n\n    for path in &files {\n        let Ok(meta) = std::fs::metadata(path) else {\n            continue;\n        };\n        let size = meta.len();\n        total_bytes += size;\n        let mtime = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);\n        total_files += 1;\n\n        let rel = path\n            .strip_prefix(&root)\n            .unwrap_or(path)\n            .to_string_lossy()\n            .to_string();\n\n        if let Some(name) = path.file_name().and_then(|n| n.to_str()) {\n            if is_build_file(name) {\n                build_files.push(rel.clone());\n            }\n            if is_entrypoint(name, &rel) {\n                entrypoints.push(rel.clone());\n            }\n        }\n\n        if let FileType::Code(lang) = detect_file_type(path) {\n            code_files += 1;\n            let lines = std::fs::read_to_string(path)\n                .map(|c| c.lines().count())\n                .unwrap_or(0);\n            total_lines += lines;\n            let bucket = lang_buckets.entry(lang).or_default();\n            bucket.files += 1;\n            bucket.code_lines += lines;\n            bucket.bytes += size;\n        }\n\n        fingerprint_input.push((rel, size, mtime));\n    }\n\n    let mut languages: Vec<LanguageStat> = lang_buckets\n        .into_iter()\n        .map(|(lang, b)| LanguageStat {\n            lang: format!(\"{lang:?}\"),\n            files: b.files,\n            code_lines: b.code_lines,\n            bytes: b.bytes,\n        })\n        .collect();\n    languages.sort_by(|a, b| b.code_lines.cmp(&a.code_lines).then(a.lang.cmp(&b.lang)));\n    languages.truncate(args.top_languages);\n\n    build_files.sort();\n    entrypoints.sort();\n    entrypoints.truncate(args.top_entrypoints);\n\n    let top_symbols = collect_top_symbols(&engine, args.top_symbols);\n\n    let fingerprint = fingerprint(&fingerprint_input);\n\n    let payload = OverviewOutput {\n        root: root.to_string_lossy().to_string(),\n        files: total_files,\n        code_files,\n        code_lines: total_lines,\n        bytes: total_bytes,\n        fingerprint,\n        languages,\n        build_files,\n        entrypoints,\n        top_symbols,\n    };\n    super::emit(format, &payload, render_text)\n}\n",
+      "body_start_line": 60,
+      "body_end_line": 149,
+      "kept_bytes": 3300,
+      "footer_bytes": 16,
+      "callees": [
+        {
+          "name": "and_then"
+        },
+        {
+          "name": "canonicalize",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/path_utils.rs",
+          "line": 9
+        },
+        {
+          "name": "clone",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/stable_vec.rs",
+          "line": 189
+        },
+        {
+          "name": "cmp"
+        },
+        {
+          "name": "collect"
+        }
+      ],
+      "total_callees": 39,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 265,
+          "text": "        Write-Info \"[mcp dry-run] would write $File\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 278,
+          "text": "        Write-Info \"[mcp dry-run] claude mcp add -s user $McpName -- $cmd mcp\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 295,
+          "text": "        Write-Info \"[mcp dry-run] codex mcp add $McpName -- $cmd mcp\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 360,
+          "text": "        Write-Info \"[mcp dry-run] would write $file\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 473,
+          "text": "                # Remove-Item on a running .exe is a no-op (the file stays"
+        }
+      ],
+      "total_callers": 166
+    },
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_impact.rs",
+        "line": 15,
+        "end_line": 27,
+        "kind": "function_item",
+        "weight": 100
+      },
+      "header": "fn run(root: &Path, args: &[&str]) -> Value {",
+      "body": "fn run(root: &Path, args: &[&str]) -> Value {\n    let mut cmd = Command::new(binary());\n    cmd.args([\"--root\", root.to_str().unwrap(), \"--format\", \"json\"]);\n    cmd.arg(\"impact\");\n    cmd.args(args);\n    let out = cmd.output().expect(\"run ffs impact\");\n    assert!(\n        out.status.success(),\n        \"stderr: {}\",\n        String::from_utf8_lossy(&out.stderr)\n    );\n    serde_json::from_slice(&out.stdout).expect(\"parse json\")\n}\n",
+      "body_start_line": 15,
+      "body_end_line": 27,
+      "kept_bytes": 879,
+      "footer_bytes": 0,
+      "callees": [
+        {
+          "name": "arg"
+        },
+        {
+          "name": "args"
+        },
+        {
+          "name": "assert"
+        },
+        {
+          "name": "binary",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_suspicious.rs",
+          "line": 14
+        },
+        {
+          "name": "expect"
+        }
+      ],
+      "total_callees": 10,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 265,
+          "text": "        Write-Info \"[mcp dry-run] would write $File\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 278,
+          "text": "        Write-Info \"[mcp dry-run] claude mcp add -s user $McpName -- $cmd mcp\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 295,
+          "text": "        Write-Info \"[mcp dry-run] codex mcp add $McpName -- $cmd mcp\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 360,
+          "text": "        Write-Info \"[mcp dry-run] would write $file\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 473,
+          "text": "                # Remove-Item on a running .exe is a no-op (the file stays"
+        }
+      ],
+      "total_callers": 166
+    },
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/scan.rs",
+        "line": 161,
+        "end_line": 294,
+        "kind": "function_item",
+        "weight": 100
+      },
+      "header": "    fn run(self) {",
+      "body": "    fn run(self) {\n        let Self {\n            shared_picker,\n            shared_frecency,\n            base_path,\n            mode,\n            signals,\n            scanned_files_counter,\n            config,\n        } = self;\n\n        let _scanning = ScanningGuard::new(&signals, config.install_watcher);\n\n        // Reset the UI-visible counter; the walker bumps it per file\n        // and `get_scan_progress` reads it without locks.\n        scanned_files_counter.store(0, Ordering::Relaxed);\n\n        // 1. Start git discovery and walk filesystem off-lock.\n        let git_workdir = FileSync::discover_git_workdir(&base_path);\n        let status_handle = git_workdir.clone().map(FileSync::spawn_git_status);\n        let sync = match FileSync::walk_filesystem(\n            &base_path,\n            git_workdir,\n            &scanned_files_counter,\n            &shared_frecency,\n            mode,\n            config.follow_symlinks,\n        ) {\n            Ok(sync) => sync,\n            Err(e) => {\n                error!(?e, \"scan walk failed\");\n                return;\n            }\n        };\n\n        if signals.cancelled.load(Ordering::Acquire) {\n            info!(\"walk completed but picker was replaced, discarding results\");\n            return;\n        }\n\n        let git_workdir = sync.git_workdir.clone();\n\n        // 2. Brief write to install the freshly-walked file list.\n        if let Ok(mut guard) = shared_picker.write()\n            && let Some(picker) = guard.as_mut()\n        {\n            picker.commit_new_sync(sync);\n        } else {\n            error!(\"failed to install scan results into picker\");\n            return;\n        }\n\n        // Files are now searchable — flip the scan signal *early* so\n        // UI progress polls see the picker as \"ready\" while we run the\n        // optional post-scan steps in the background.\n        signals.scanning.store(false, Ordering::Relaxed);\n\n        // in case we do a rescan, we have to resubscribe a watcher to the new set of directories\n        // all the already watched directories are not going to be resubscribed\n        if !config.install_watcher && !signals.cancelled.load(Ordering::Acquire) {\n            rescubscribe_watcher_post_scan(&shared_picker);\n        }\n\n        // 3. Apply git status + frecency off-lock.\n        if !signals.cancelled.load(Ordering::Acquire)\n            && let Some(status_handle) = status_handle\n        {\n            apply_git_status_and_frecency(&shared_picker, &shared_frecency, status_handle, mode);\n        }\n\n        // 4. Install filesystem watcher (initial scan only).\n        if config.install_watcher && config.watch && !signals.cancelled.load(Ordering::Acquire) {\n            let shared_picker: &SharedFilePicker = &shared_picker;\n            let shared_frecency: &SharedFrecency = &shared_frecency;\n            let base_path: &std::path::Path = &base_path;\n\n            match BackgroundWatcher::new(\n                base_path.to_path_buf(),\n                git_workdir,\n                shared_picker.clone(),\n                shared_frecency.clone(),\n                mode,\n            ) {\n                Ok(watcher) => {\n                    // On macOS, FSEventStreamCreate schedules the stream on the runloop\n                    // but needs time to actually start delivering events.\n                    #[cfg(target_os = \"macos\")]\n[70 more lines]\n",
+      "body_start_line": 161,
+      "body_end_line": 294,
+      "kept_bytes": 3353,
+      "footer_bytes": 16,
+      "callees": [
+        {
+          "name": "Some"
+        },
+        {
+          "name": "apply_git_status_and_frecency",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/scan.rs",
+          "line": 426
+        },
+        {
+          "name": "as_mut"
+        },
+        {
+          "name": "clone",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/stable_vec.rs",
+          "line": 189
+        },
+        {
+          "name": "commit_new_sync",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/file_picker.rs",
+          "line": 1281
+        }
+      ],
+      "total_callees": 22,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 265,
+          "text": "        Write-Info \"[mcp dry-run] would write $File\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 278,
+          "text": "        Write-Info \"[mcp dry-run] claude mcp add -s user $McpName -- $cmd mcp\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 295,
+          "text": "        Write-Info \"[mcp dry-run] codex mcp add $McpName -- $cmd mcp\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 360,
+          "text": "        Write-Info \"[mcp dry-run] would write $file\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 473,
+          "text": "                # Remove-Item on a running .exe is a no-op (the file stays"
+        }
+      ],
+      "total_callers": 166
+    },
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_count_by.rs",
+        "line": 48,
+        "end_line": 60,
+        "kind": "function_item",
+        "weight": 100
+      },
+      "header": "fn run(root: &Path, extra: &[&str]) -> Value {",
+      "body": "fn run(root: &Path, extra: &[&str]) -> Value {\n    let mut cmd = Command::new(binary());\n    cmd.args([\"--root\", root.to_str().unwrap(), \"--format\", \"json\"]);\n    cmd.args([\"callers\", \"target\"]);\n    cmd.args(extra);\n    let out = cmd.output().expect(\"run ffs callers\");\n    assert!(\n        out.status.success(),\n        \"stderr: {}\",\n        String::from_utf8_lossy(&out.stderr)\n    );\n    serde_json::from_slice(&out.stdout).expect(\"parse json\")\n}\n",
+      "body_start_line": 48,
+      "body_end_line": 60,
+      "kept_bytes": 879,
+      "footer_bytes": 0,
+      "callees": [
+        {
+          "name": "args"
+        },
+        {
+          "name": "assert"
+        },
+        {
+          "name": "binary",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_suspicious.rs",
+          "line": 14
+        },
+        {
+          "name": "expect"
+        },
+        {
+          "name": "from_slice"
+        }
+      ],
+      "total_callees": 9,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 265,
+          "text": "        Write-Info \"[mcp dry-run] would write $File\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 278,
+          "text": "        Write-Info \"[mcp dry-run] claude mcp add -s user $McpName -- $cmd mcp\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 295,
+          "text": "        Write-Info \"[mcp dry-run] codex mcp add $McpName -- $cmd mcp\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 360,
+          "text": "        Write-Info \"[mcp dry-run] would write $file\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 473,
+          "text": "                # Remove-Item on a running .exe is a no-op (the file stays"
+        }
+      ],
+      "total_callers": 166
+    },
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/glue.rs",
+        "line": 29,
+        "end_line": 37,
+        "kind": "function_item",
+        "weight": 100
+      },
+      "header": "    pub(crate) fn run(mut self) -> Result<(), S::Error> {",
+      "body": "    pub(crate) fn run(mut self) -> Result<(), S::Error> {\n        if self.core.begin()? {\n            while !self.slice[self.core.pos()..].is_empty()\n                && self.core.match_by_line(self.slice)?\n            {}\n        }\n        let byte_count = self.slice.len() as u64;\n        self.core.finish(byte_count)\n    }\n",
+      "body_start_line": 29,
+      "body_end_line": 37,
+      "kept_bytes": 926,
+      "footer_bytes": 0,
+      "callees": [
+        {
+          "name": "begin",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/core.rs",
+          "line": 57
+        },
+        {
+          "name": "finish",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/grep.rs",
+          "line": 937
+        },
+        {
+          "name": "is_empty",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/outline_cache.rs",
+          "line": 62
+        },
+        {
+          "name": "len",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/stable_vec.rs",
+          "line": 123
+        },
+        {
+          "name": "match_by_line",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/core.rs",
+          "line": 65
+        }
+      ],
+      "total_callees": 6,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 265,
+          "text": "        Write-Info \"[mcp dry-run] would write $File\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 278,
+          "text": "        Write-Info \"[mcp dry-run] claude mcp add -s user $McpName -- $cmd mcp\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 295,
+          "text": "        Write-Info \"[mcp dry-run] codex mcp add $McpName -- $cmd mcp\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 360,
+          "text": "        Write-Info \"[mcp dry-run] would write $file\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 473,
+          "text": "                # Remove-Item on a running .exe is a no-op (the file stays"
+        }
+      ],
+      "total_callers": 166
+    },
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/glue.rs",
+        "line": 65,
+        "end_line": 77,
+        "kind": "function_item",
+        "weight": 100
+      },
+      "header": "    pub(crate) fn run(mut self) -> Result<(), S::Error> {",
+      "body": "    pub(crate) fn run(mut self) -> Result<(), S::Error> {\n        if self.core.begin()? {\n            let mut keepgoing = true;\n            while !self.slice[self.core.pos()..].is_empty() && keepgoing {\n                keepgoing = self.sink()?;\n            }\n            if keepgoing && let Some(last_match) = self.last_match.take() {\n                self.sink_matched(&last_match)?;\n            }\n        }\n        let byte_count = self.slice.len() as u64;\n        self.core.finish(byte_count)\n    }\n",
+      "body_start_line": 65,
+      "body_end_line": 77,
+      "kept_bytes": 1217,
+      "footer_bytes": 0,
+      "callees": [
+        {
+          "name": "begin",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/core.rs",
+          "line": 57
+        },
+        {
+          "name": "finish",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/grep.rs",
+          "line": 937
+        },
+        {
+          "name": "is_empty",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/outline_cache.rs",
+          "line": 62
+        },
+        {
+          "name": "len",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/stable_vec.rs",
+          "line": 123
+        },
+        {
+          "name": "pos",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/core.rs",
+          "line": 41
+        }
+      ],
+      "total_callees": 8,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 265,
+          "text": "        Write-Info \"[mcp dry-run] would write $File\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 278,
+          "text": "        Write-Info \"[mcp dry-run] claude mcp add -s user $McpName -- $cmd mcp\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 295,
+          "text": "        Write-Info \"[mcp dry-run] codex mcp add $McpName -- $cmd mcp\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 360,
+          "text": "        Write-Info \"[mcp dry-run] would write $file\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 473,
+          "text": "                # Remove-Item on a running .exe is a no-op (the file stays"
+        }
+      ],
+      "total_callers": 166
+    },
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_suspicious.rs",
+        "line": 18,
+        "end_line": 30,
+        "kind": "function_item",
+        "weight": 100
+      },
+      "header": "fn run(root: &Path, extra: &[&str]) -> Value {",
+      "body": "fn run(root: &Path, extra: &[&str]) -> Value {\n    let mut cmd = Command::new(binary());\n    cmd.args([\"--root\", root.to_str().unwrap(), \"--format\", \"json\"]);\n    cmd.args([\"callers\"]);\n    cmd.args(extra);\n    let out = cmd.output().expect(\"run ffs callers\");\n    assert!(\n        out.status.success(),\n        \"stderr: {}\",\n        String::from_utf8_lossy(&out.stderr)\n    );\n    serde_json::from_slice(&out.stdout).expect(\"parse json\")\n}\n",
+      "body_start_line": 18,
+      "body_end_line": 30,
+      "kept_bytes": 869,
+      "footer_bytes": 0,
+      "callees": [
+        {
+          "name": "args"
+        },
+        {
+          "name": "assert"
+        },
+        {
+          "name": "binary",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_suspicious.rs",
+          "line": 14
+        },
+        {
+          "name": "expect"
+        },
+        {
+          "name": "from_slice"
+        }
+      ],
+      "total_callees": 9,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 265,
+          "text": "        Write-Info \"[mcp dry-run] would write $File\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 278,
+          "text": "        Write-Info \"[mcp dry-run] claude mcp add -s user $McpName -- $cmd mcp\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 295,
+          "text": "        Write-Info \"[mcp dry-run] codex mcp add $McpName -- $cmd mcp\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 360,
+          "text": "        Write-Info \"[mcp dry-run] would write $file\""
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+          "line": 473,
+          "text": "                # Remove-Item on a running .exe is a no-op (the file stays"
+        }
+      ],
+      "total_callers": 166
+    }
+  ],
+  "total_cards": 29,
+  "offset": 0,
+  "has_more": true
+}

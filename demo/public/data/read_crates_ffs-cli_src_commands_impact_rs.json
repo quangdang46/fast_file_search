@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/impact.rs",
+  "mode": "outline",
+  "body": "# crates/ffs-cli/src/commands/impact.rs (258 lines, ~2.0k tokens) [outline]\n\n[11-26]     imports: std(3), anyhow, clap, ignore, serde, ffs_symbol(2), crate(4)\n[29-50]     struct Args\n            pub struct Args {\n[53-57]     struct ImpactResult\n            struct ImpactResult {\n[60-68]     struct ImpactOutput\n            struct ImpactOutput {\n[70-182]    function run\n            pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {\n[187-226]   function reverse_imports\n            fn reverse_imports(root: &Path, defn_paths: &BTreeSet<PathBuf>) -> BTreeMap<String, u32> {\n[228-233]   function code_lang\n            fn code_lang(path: &Path) -> Option<Lang> {\n[235-240]   function display_relative\n            fn display_relative(path: &Path, root: &Path) -> String {\n[242-258]   function render_text\n            fn render_text(p: &ImpactOutput) -> String {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 948,
+  "footer_bytes": 0
+}

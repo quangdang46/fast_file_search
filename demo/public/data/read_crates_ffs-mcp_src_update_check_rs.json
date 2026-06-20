@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/update_check.rs",
+  "mode": "outline",
+  "body": "# crates/ffs-mcp/src/update_check.rs (78 lines, ~629 tokens) [outline]\n\n[4-4]     imports: std\n[6-6]     const REPO\n          const REPO: &str = \"dmtrKovalenko/ffs.nvim\";\n[7-7]     const BUILD_HASH\n          const BUILD_HASH: &str = env!(\"FFS_GIT_HASH\");\n[10-10]   const UPDATE_NOTICE\n          static UPDATE_NOTICE: OnceLock<String> = OnceLock::new();\n[13-15]   function get_update_notice\n          pub fn get_update_notice() -> &'static str {\n[18-23]   function spawn_update_check\n          pub fn spawn_update_check() {\n[26-31]   function check_latest_release\n          fn check_latest_release() -> String {\n[35-49]   function compare_versions\n          fn compare_versions(build_hash: &str, release_tag: &str) -> String {\n[52-78]   function fetch_latest_tag\n          fn fetch_latest_tag() -> Result<String, Box<dyn std::error::Error>> {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 909,
+  "footer_bytes": 0
+}

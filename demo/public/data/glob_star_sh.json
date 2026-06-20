@@ -1,0 +1,9 @@
+{
+  "pattern": "**/*.sh",
+  "matches": [
+    "install.sh",
+    "scripts/benchmark-claude.sh",
+    "scripts/release.sh",
+    "scripts/determine-version.sh"
+  ]
+}

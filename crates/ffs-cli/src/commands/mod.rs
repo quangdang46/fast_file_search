@@ -9,7 +9,6 @@ pub(crate) mod dedup;
 pub mod deps;
 pub(crate) mod deps_resolve;
 pub(crate) mod did_you_mean;
-pub mod dispatch;
 pub(crate) mod expand;
 pub(crate) mod facets;
 pub mod find;

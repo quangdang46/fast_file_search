@@ -1,0 +1,151 @@
+{
+  "name": "find",
+  "hops": 3,
+  "hub_guard": 50,
+  "results": [
+    {
+      "path": "crates/ffs-core/src/grep.rs",
+      "score": 99,
+      "reasons": [
+        "direct: 33"
+      ]
+    },
+    {
+      "path": "crates/ffs-mcp/src/engine_tools.rs",
+      "score": 60,
+      "reasons": [
+        "direct: 20"
+      ]
+    },
+    {
+      "path": "crates/ffs-core/src/file_picker.rs",
+      "score": 57,
+      "reasons": [
+        "direct: 19"
+      ]
+    },
+    {
+      "path": "crates/ffs-cli/src/commands/mcp.rs",
+      "score": 24,
+      "reasons": [
+        "direct: 8"
+      ]
+    },
+    {
+      "path": "crates/ffs-core/tests/fuzz_git_watcher_stress.rs",
+      "score": 21,
+      "reasons": [
+        "direct: 7"
+      ]
+    },
+    {
+      "path": "crates/ffs-symbol/src/artifact.rs",
+      "score": 21,
+      "reasons": [
+        "direct: 7"
+      ]
+    },
+    {
+      "path": "demo/src/App.tsx",
+      "score": 21,
+      "reasons": [
+        "direct: 7"
+      ]
+    },
+    {
+      "path": "crates/ffs-cli/src/commands/flow.rs",
+      "score": 15,
+      "reasons": [
+        "direct: 5"
+      ]
+    },
+    {
+      "path": "crates/ffs-cli/src/commands/map.rs",
+      "score": 15,
+      "reasons": [
+        "direct: 5"
+      ]
+    },
+    {
+      "path": "crates/ffs-symbol/src/treesitter.rs",
+      "score": 15,
+      "reasons": [
+        "direct: 5"
+      ]
+    },
+    {
+      "path": "docs/MENTION_SYSTEM_PLAN.md",
+      "score": 15,
+      "reasons": [
+        "direct: 5"
+      ]
+    },
+    {
+      "path": "crates/ffs-cli/src/cli.rs",
+      "score": 14,
+      "reasons": [
+        "direct: 4",
+        "imports: 1"
+      ]
+    },
+    {
+      "path": "crates/ffs-cli/src/commands/callees_detail.rs",
+      "score": 12,
+      "reasons": [
+        "direct: 4"
+      ]
+    },
+    {
+      "path": "crates/ffs-cli/src/commands/outline_format.rs",
+      "score": 9,
+      "reasons": [
+        "direct: 3"
+      ]
+    },
+    {
+      "path": "crates/ffs-cli/src/commands/refs.rs",
+      "score": 9,
+      "reasons": [
+        "direct: 3"
+      ]
+    },
+    {
+      "path": "crates/ffs-core/src/mention/trigger.rs",
+      "score": 9,
+      "reasons": [
+        "direct: 3"
+      ]
+    },
+    {
+      "path": "crates/ffs-cli/src/commands/callees_bfs.rs",
+      "score": 6,
+      "reasons": [
+        "direct: 2"
+      ]
+    },
+    {
+      "path": "crates/ffs-cli/tests/cli_impact.rs",
+      "score": 6,
+      "reasons": [
+        "direct: 2"
+      ]
+    },
+    {
+      "path": "install.sh",
+      "score": 6,
+      "reasons": [
+        "direct: 2"
+      ]
+    },
+    {
+      "path": "AGENTS.md",
+      "score": 3,
+      "reasons": [
+        "direct: 1"
+      ]
+    }
+  ],
+  "total": 25,
+  "offset": 0,
+  "has_more": true
+}

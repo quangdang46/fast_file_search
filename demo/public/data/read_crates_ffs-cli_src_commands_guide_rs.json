@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/guide.rs",
+  "mode": "outline",
+  "body": "# crates/ffs-cli/src/commands/guide.rs (24 lines, ~128 tokens) [outline]\n\n[1-7]     imports: std, anyhow, clap, serde, crate\n[9-9]     const GUIDE_TEXT\n          const GUIDE_TEXT: &str = include_str!(\"../../assets/AGENT_GUIDE.md\");\n[12-12]   struct Args\n          pub struct Args {}\n[15-17]   struct GuideOutput\n          struct GuideOutput {\n[19-24]   function run\n          pub fn run(_args: Args, _root: &Path, format: OutputFormat) -> Result<()> {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 519,
+  "footer_bytes": 0
+}

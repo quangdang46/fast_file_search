@@ -1,0 +1,74 @@
+{
+  "name": "dispatch",
+  "hops": 3,
+  "hub_guard": 50,
+  "results": [
+    {
+      "path": "crates/ffs-engine/benches/dispatch_bench.rs",
+      "score": 33,
+      "reasons": [
+        "direct: 11"
+      ]
+    },
+    {
+      "path": "docs/MENTION_SYSTEM_PLAN.md",
+      "score": 24,
+      "reasons": [
+        "direct: 8"
+      ]
+    },
+    {
+      "path": "crates/ffs-c/src/engine_ffi.rs",
+      "score": 18,
+      "reasons": [
+        "direct: 6"
+      ]
+    },
+    {
+      "path": "demo/src/App.tsx",
+      "score": 18,
+      "reasons": [
+        "direct: 6"
+      ]
+    },
+    {
+      "path": "crates/ffs-cli/src/commands/dispatch.rs",
+      "score": 12,
+      "reasons": [
+        "direct: 4"
+      ]
+    },
+    {
+      "path": "crates/ffs-cli/src/commands/mcp.rs",
+      "score": 12,
+      "reasons": [
+        "direct: 4"
+      ]
+    },
+    {
+      "path": "crates/ffs-cli/src/cli.rs",
+      "score": 8,
+      "reasons": [
+        "direct: 2",
+        "imports: 1"
+      ]
+    },
+    {
+      "path": "AGENTS.md",
+      "score": 6,
+      "reasons": [
+        "direct: 2"
+      ]
+    },
+    {
+      "path": "crates/ffs-mcp/src/engine_tools.rs",
+      "score": 6,
+      "reasons": [
+        "direct: 2"
+      ]
+    }
+  ],
+  "total": 9,
+  "offset": 0,
+  "has_more": false
+}

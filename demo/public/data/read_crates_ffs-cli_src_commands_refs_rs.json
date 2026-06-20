@@ -1,0 +1,8 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/refs.rs",
+  "mode": "outline",
+  "body": "<anonymous> use std::path::Path;\n<anonymous> use std::time::SystemTime;\n<anonymous> use anyhow::Result;\n<anonymous> use clap::Parser;\n<anonymous> use serde::Serialize;\n<anonymous> use ffs_engine::{Engine, PreFilterStack};\n<anonymous> use ffs_symbol::lang::detect_file_type;\n<anonymous> use ffs_symbol::types::FileType;\n<anonymous> use crate::cli::OutputFormat;\n<anonymous> use crate::commands::callers_bfs::{enclosing_symbol, CandidateFile};\n<anonymous> use crate::commands::pagination::{footer, Page};\nArgs pub struct Args {\nRefDefinition struct RefDefinition {\nRefUsage struct RefUsage {\nRefsOutput struct RefsOutput {\nrun pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {\ncollect_definitions fn collect_definitions(engine: &Engine, name: &str) -> Vec<RefDefinition> {\nbuild_candidates fn build_candidates(root: &Path) -> Vec<CandidateFile> {\ncollect_usages fn collect_usages(engine: &Engine, name: &str, candidates: &[CandidateFile]) -> Vec<RefUsage> {\nrender_text fn render_text(p: &RefsOutput) -> String {\ntests mod tests {\n",
+  "kept_bytes": 1053,
+  "footer_bytes": 0,
+  "view": "signatures"
+}

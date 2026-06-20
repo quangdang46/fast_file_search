@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/demo/public/data/dispatch_search_for_fn_main.json",
+  "mode": "full",
+  "body": "{\n  \"raw\": \"search for fn main\",\n  \"classification\": \"content_fallback\",\n  \"summary\": [\n    \"[fallback to grep]\"\n  ]\n}\n",
+  "kept_bytes": 119,
+  "footer_bytes": 0
+}

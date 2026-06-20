@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/tests/bigram_overlay_integration.rs",
+  "mode": "outline",
+  "body": "# crates/ffs-core/tests/bigram_overlay_integration.rs (425 lines, ~3.5k tokens) [outline]\n\n[4-10]      imports: std(2), tempfile, ffs_search(3)\n[15-168]    function modified_file_findable_via_overlay\n            fn modified_file_findable_via_overlay() {\n[172-239]   function deleted_file_excluded_via_overlay\n            fn deleted_file_excluded_via_overlay() {\n[243-302]   function new_file_findable_after_add\n            fn new_file_findable_after_add() {\n[309-378]   function modified_file_findable_via_regex_overlay\n            fn modified_file_findable_via_regex_overlay() {\n[382-397]   function grep_opts\n            fn grep_opts() -> GrepSearchOptions {\n[399-402]   function grep_for\n            fn grep_for<'a>(picker: &'a FilePicker, query: &str) -> ffs_search::grep::GrepResult<'a> {\n[404-425]   function wait_for_bigram\n            fn wait_for_bigram(shared_picker: &SharedFilePicker) {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 965,
+  "footer_bytes": 0
+}

@@ -1,0 +1,8 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/score.rs",
+  "mode": "outline",
+  "body": "<anonymous> use crate::{\n<anonymous> use ffs_query_parser::FuzzyQuery;\n<anonymous> use neo_frizbee::Scoring;\n<anonymous> use rayon::prelude::*;\n<anonymous> use std::{borrow::Cow, path::MAIN_SEPARATOR};\nFileItems enum FileItems<'a> {\nresolve_file_chunks fn resolve_file_chunks(\nmatch_fuzzy_parts fn match_fuzzy_parts(\nfuzzy_match_and_score_files pub(crate) fn fuzzy_match_and_score_files<'a>(\nresolve_dir_chunks fn resolve_dir_chunks(\nmatch_fuzzy_parts_dirs fn match_fuzzy_parts_dirs(\nfuzzy_match_and_score_dirs pub(crate) fn fuzzy_match_and_score_dirs<'a>(\nscore_dirs_by_frecency fn score_dirs_by_frecency<'a>(\nsort_and_paginate_dirs fn sort_and_paginate_dirs<'a>(\nmatch_and_score_in_arena fn match_and_score_in_arena<'a>(\nis_special_entry_point_file fn is_special_entry_point_file(filename: &str) -> bool {\nscore_filtered_by_frecency fn score_filtered_by_frecency<'a>(\ncalculate_current_file_penalty fn calculate_current_file_penalty(\nsort_and_paginate fn sort_and_paginate<'a>(\ntests mod tests {\nfilename_bonus_tests mod filename_bonus_tests {\ntypo_resistance_tests mod typo_resistance_tests {\nconstraint_only_query_tests mod constraint_only_query_tests {\n",
+  "kept_bytes": 1158,
+  "footer_bytes": 0,
+  "view": "signatures"
+}

@@ -19,3 +19,4 @@ pub use mention::{
 pub use prefilter::{PreFilterStack, PreFilteredCandidate};
 pub use ranking::{rank_matches, RankInputs};
 pub use scanner::{IndexedFile, ScanProgress, ScanReport, UnifiedScanner};
+pub mod api;

@@ -1,0 +1,8 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callees_resolve.rs",
+  "mode": "outline",
+  "body": "<anonymous> use std::collections::BTreeSet;\n<anonymous> use tree_sitter::{Node, Parser};\n<anonymous> use ffs_symbol::outline_language;\n<anonymous> use ffs_symbol::types::Lang;\ncollect_callees pub fn collect_callees(\nwalk fn walk(node: Node, src: &[u8], start: u32, end: u32, out: &mut BTreeSet<String>) {\nnode_is_call fn node_is_call(node: Node) -> bool {\nextract_callee_name fn extract_callee_name(call: Node, src: &[u8]) -> Option<String> {\nrightmost_name fn rightmost_name(node: Node, src: &[u8]) -> Option<String> {\ntext_of fn text_of(node: Node, src: &[u8]) -> Option<String> {\ntests mod tests {\n",
+  "kept_bytes": 601,
+  "footer_bytes": 0,
+  "view": "signatures"
+}

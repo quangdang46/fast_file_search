@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/prefilter.rs",
+  "mode": "outline",
+  "body": "# crates/ffs-engine/src/prefilter.rs (84 lines, ~611 tokens) [outline]\n\n[5-9]       imports: std(3), ffs_symbol\n[13-16]     struct PreFilteredCandidate\n            pub struct PreFilteredCandidate {\n[21-23]     struct PreFilterStack\n            pub struct PreFilterStack {\n[58-84]     module tests\n            mod tests {\n  [59-59]   import <anonymous>\n            use super::*;\n  [62-83]   function drops_files_without_symbol\n            fn drops_files_without_symbol() {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 539,
+  "footer_bytes": 0
+}

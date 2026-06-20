@@ -1,10 +1,10 @@
 {
   "root": "/Users/tranquangdang21/Projects/fast_file_search",
-  "files": 212,
+  "files": 281,
   "code_files": 166,
-  "code_lines": 137454,
-  "bytes": 4989085,
-  "fingerprint": "ecb7bb4a6e66453a",
+  "code_lines": 137753,
+  "bytes": 5610846,
+  "fingerprint": "aba3cb070e5c50ea",
   "languages": [
     {
       "lang": "C",
@@ -19,16 +19,16 @@
       "bytes": 1941795
     },
     {
+      "lang": "Tsx",
+      "files": 2,
+      "code_lines": 514,
+      "bytes": 22631
+    },
+    {
       "lang": "Python",
       "files": 2,
       "code_lines": 399,
       "bytes": 14622
-    },
-    {
-      "lang": "Tsx",
-      "files": 2,
-      "code_lines": 215,
-      "bytes": 6717
     },
     {
       "lang": "Make",

@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/Cargo.toml",
+  "mode": "full",
+  "body": "[package]\nname = \"ffs-engine\"\nversion = \"0.1.11\"\nedition = \"2021\"\nlicense = \"MIT\"\ndescription = \"Unified scanner, query dispatch, ranking and memory-budget enforcement for ffs.\"\nrepository = \"https://github.com/quangdang46/fast_file_search\"\nhomepage = \"https://github.com/quangdang46/fast_file_search\"\ndocumentation = \"https://github.com/quangdang46/fast_file_search#readme\"\n\n[dependencies]\nffs-search = { path = \"../ffs-core\", version = \"0.1.11\" }\nffs-symbol = { workspace = true }\nffs-budget = { workspace = true }\nffs-grep = { workspace = true }\nahash = { workspace = true }\ndashmap = { workspace = true }\nignore = { workspace = true }\nmemchr = { workspace = true }\nparking_lot = { workspace = true }\nrayon = { workspace = true }\nserde = { workspace = true }\n\n[dev-dependencies]\ntempfile = { workspace = true }\ncriterion = { workspace = true }\n\n[[bench]]\nname = \"dispatch_bench\"\nharness = false\n\n",
+  "kept_bytes": 899,
+  "footer_bytes": 0
+}

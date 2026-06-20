@@ -79,8 +79,6 @@ pub enum Command {
     /// Rank files by how much they'd be affected if a symbol changed (NEW).
     Impact(commands::impact::Args),
 
-    /// Auto-classify a free-form query and route it to the right backend.
-    Dispatch(commands::dispatch::Args),
 
     /// Build / refresh the on-disk indexes (Bigram, Bloom, Symbol, Outline).
     Index(commands::index::Args),
@@ -144,7 +142,6 @@ impl Cli {
             Command::Siblings(a) => commands::siblings::run(a, &root, self.format),
             Command::Deps(a) => commands::deps::run(a, &root, self.format),
             Command::Impact(a) => commands::impact::run(a, &root, self.format),
-            Command::Dispatch(a) => commands::dispatch::run(a, &root, self.format),
             Command::Index(a) => commands::index::run(a, &root, self.format),
             Command::Map(a) => commands::map::run(a, &root, self.format),
             Command::Overview(a) => commands::overview::run(a, &root, self.format),

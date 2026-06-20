@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/demo/public/data/glob_star.md.json",
+  "mode": "full",
+  "body": "{\n  \"pattern\": \"**/*.md\",\n  \"matches\": [\n    \"README.md\",\n    \"DESIGN.md\",\n    \"AGENTS.md\",\n    \"CLAUDE.md\",\n    \"docs/MENTION_SYSTEM_PLAN.md\",\n    \"crates/ffs-cli/assets/AGENT_GUIDE.md\",\n    \"crates/ffs-core/README.md\",\n    \"demo/README.md\"\n  ]\n}\n",
+  "kept_bytes": 248,
+  "footer_bytes": 0
+}

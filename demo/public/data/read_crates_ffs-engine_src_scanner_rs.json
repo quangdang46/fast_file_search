@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/scanner.rs",
+  "mode": "outline",
+  "body": "# crates/ffs-engine/src/scanner.rs (219 lines, ~1.7k tokens) [outline]\n\n[7-19]        imports: std(4), ignore, rayon, ffs_symbol(5)\n[23-28]       struct IndexedFile\n              pub struct IndexedFile {\n[32-38]       struct ScanReport\n              pub struct ScanReport {\n[42-46]       struct ScanProgress\n              pub struct ScanProgress {\n[61-66]       struct UnifiedScanner\n              pub struct UnifiedScanner {\n[143-191]     function index_one\n              fn index_one(\n[194-219]     module tests\n              mod tests {\n  [195-195]   import <anonymous>\n              use super::*;\n  [198-207]   function scans_temp_directory\n              fn scans_temp_directory() {\n  [210-218]   function scanner_indexes_symbols\n              fn scanner_indexes_symbols() {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 846,
+  "footer_bytes": 0
+}

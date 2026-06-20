@@ -53,6 +53,10 @@ pub struct Args {
     /// Output only the file paths (one per line) — like `rg -l`.
     #[arg(short = 'l', long = "files-with-matches")]
     pub files_with_matches: bool,
+
+    /// Group matches by file and enclosing symbol (like agentgrep).
+    #[arg(long)]
+    pub group: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -322,6 +326,29 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
             .collect();
     }
 
+    // When --group is set, emit symbol-grouped output instead
+    if args.group {
+        let grouped = build_grouped_result(&args.needle, &hits, mode);
+        return super::emit(format, &grouped, |p| {
+            let mut out = String::new();
+            if p.files.is_empty() {
+                out.push_str(&format!("[no matches across {total_files} files]\n"));
+                return out;
+            }
+            for f in &p.files {
+                out.push_str(&format!("{} ({} matches, {} symbols)\n", f.path, f.total_matches, f.total_symbols));
+                for g in &f.groups {
+                    out.push_str(&format!("  {} {} @ L{}-L{}\n", g.kind, g.name, g.start_line, g.end_line));
+                    for m in &g.matches {
+                        out.push_str(&format!("    - L{} {}\n", m.line, m.text));
+                    }
+                }
+                out.push('\n');
+            }
+            out
+        });
+    }
+
     let payload = GrepResult {
         needle: args.needle,
         hits,
@@ -347,6 +374,242 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         }
         out
     })
+}
+
+
+/* ─── Grouped output (--group flag) ─── */
+
+/// A match grouped by its enclosing symbol.
+#[derive(Debug, Serialize)]
+struct GroupedMatch {
+    line: u32,
+    text: String,
+}
+
+/// A symbol group containing matches.
+#[derive(Debug, Serialize)]
+struct MatchGroup {
+    kind: String,
+    name: String,
+    start_line: u32,
+    end_line: u32,
+    matches: Vec<GroupedMatch>,
+}
+
+/// Matches in a single file, with symbol groups.
+#[derive(Debug, Serialize)]
+struct FileGroup {
+    path: String,
+    total_matches: usize,
+    total_symbols: usize,
+    groups: Vec<MatchGroup>,
+}
+
+/// Enriched grep result with symbol-grouped output.
+#[derive(Debug, Serialize)]
+struct GroupedGrepResult {
+    needle: String,
+    total_files: usize,
+    total_matches: usize,
+    mode: &'static str,
+    files: Vec<FileGroup>,
+    schema: &'static str,
+}
+
+fn build_grouped_result(needle: &str, hits: &[GrepHit], mode: &'static str) -> GroupedGrepResult {
+    // Group hits by file
+    let mut by_file: std::collections::BTreeMap<String, Vec<&GrepHit>> = std::collections::BTreeMap::new();
+    for h in hits {
+        by_file.entry(h.path.clone()).or_default().push(h);
+    }
+
+    let mut files: Vec<FileGroup> = Vec::new();
+    for (path, file_hits) in &by_file {
+        // Try to parse the file outline for symbol grouping
+        let content = std::fs::read_to_string(path).ok();
+        let entries = content.as_deref().map(get_simple_outline).unwrap_or_default();
+
+        let mut groups: Vec<MatchGroup> = Vec::new();
+        let mut unmatched: Vec<GroupedMatch> = Vec::new();
+
+        for hit in file_hits {
+            let line = hit.line as usize;
+            // Find enclosing symbol
+            let enclosing = entries.iter().find(|e| e.start_line <= line && line <= e.end_line);
+            if let Some(sym) = enclosing {
+                // Check if we already have a group for this symbol
+                if let Some(g) = groups.iter_mut().find(|g: &&mut MatchGroup| g.name == sym.name && g.kind == sym.kind) {
+                    g.matches.push(GroupedMatch { line: hit.line, text: hit.text.clone() });
+                } else {
+                    groups.push(MatchGroup {
+                        kind: sym.kind.clone(),
+                        name: sym.name.clone(),
+                        start_line: sym.start_line as u32,
+                        end_line: sym.end_line as u32,
+                        matches: vec![GroupedMatch { line: hit.line, text: hit.text.clone() }],
+                    });
+                }
+            } else {
+                unmatched.push(GroupedMatch { line: hit.line, text: hit.text.clone() });
+            }
+        }
+
+        // Put unmatched hits in a file-scope group
+        if !unmatched.is_empty() {
+            groups.push(MatchGroup {
+                kind: "file".to_string(),
+                name: "<file scope>".to_string(),
+                start_line: 0,
+                end_line: 0,
+                matches: unmatched,
+            });
+        }
+
+        files.push(FileGroup {
+            path: path.clone(),
+            total_matches: file_hits.len(),
+            total_symbols: entries.len(),
+            groups,
+        });
+    }
+
+    GroupedGrepResult {
+        needle: needle.to_string(),
+        total_files: files.len(),
+        total_matches: hits.len(),
+        mode,
+        files,
+        schema: "v2_grouped",
+    }
+}
+
+/// A simple structure item for grouping.
+struct SymEntry {
+    kind: String,
+    name: String,
+    start_line: usize,
+    end_line: usize,
+}
+
+/// Get a simple outline from file content using regex-based parsing
+/// (lightweight alternative to full tree-sitter outline).
+fn get_simple_outline(text: &str) -> Vec<SymEntry> {
+    let mut entries = Vec::new();
+    let lines: Vec<&str> = text.lines().collect();
+
+    // Detect language from shebang or common patterns
+    let lang = if text.contains("fn ") && text.contains("struct ") && text.contains("impl ") {
+        "rust"
+    } else if text.contains("function ") || text.contains("const ") || text.contains("import ") {
+        "typescript"
+    } else {
+        "generic"
+    };
+
+    for (i, line) in lines.iter().enumerate() {
+        let line_num = i + 1;
+        let trimmed = line.trim_start();
+
+        match lang {
+            "rust" => {
+                // Functions: pub fn name(...
+                if let Some(name) = parse_after_keyword(trimmed, "fn ") {
+                    let end = find_block_end(&lines[i..], line_num);
+                    entries.push(SymEntry { kind: "function".into(), name, start_line: line_num, end_line: end });
+                }
+                // Structs: struct Name { ...
+                else if let Some(name) = parse_after_keyword(trimmed, "struct ") {
+                    let end = find_block_end(&lines[i..], line_num);
+                    entries.push(SymEntry { kind: "struct".into(), name, start_line: line_num, end_line: end });
+                }
+                // Enums: enum Name { ...
+                else if let Some(name) = parse_after_keyword(trimmed, "enum ") {
+                    let end = find_block_end(&lines[i..], line_num);
+                    entries.push(SymEntry { kind: "enum".into(), name, start_line: line_num, end_line: end });
+                }
+                // Traits: trait Name { ...
+                else if let Some(name) = parse_after_keyword(trimmed, "trait ") {
+                    let end = find_block_end(&lines[i..], line_num);
+                    entries.push(SymEntry { kind: "trait".into(), name, start_line: line_num, end_line: end });
+                }
+                // impl blocks
+                else if let Some(name) = parse_after_keyword(trimmed, "impl ") {
+                    // Extract just the type name (before the { or where)
+                    let name = name.split(|c: char| c == '{' || c == 'w').next().unwrap_or(&name).trim();
+                    let end = find_block_end(&lines[i..], line_num);
+                    entries.push(SymEntry { kind: "impl".into(), name: name.to_string(), start_line: line_num, end_line: end });
+                }
+            }
+            "typescript" => {
+                if let Some(name) = parse_after_keyword(trimmed, "function ") {
+                    let end = find_ts_block_end(&lines[i..], line_num);
+                    entries.push(SymEntry { kind: "function".into(), name, start_line: line_num, end_line: end });
+                } else if let Some(name) = parse_after_keyword(trimmed, "class ") {
+                    let end = find_ts_block_end(&lines[i..], line_num);
+                    entries.push(SymEntry { kind: "class".into(), name, start_line: line_num, end_line: end });
+                } else if let Some(name) = parse_after_keyword(trimmed, "interface ") {
+                    let end = find_ts_block_end(&lines[i..], line_num);
+                    entries.push(SymEntry { kind: "interface".into(), name, start_line: line_num, end_line: end });
+                }
+            }
+            "generic" => {
+                // Generic function detection for any language
+                for kw in &["fn ", "def ", "func ", "function "] {
+                    if let Some(name) = parse_after_keyword(trimmed, kw) {
+                        entries.push(SymEntry { kind: "definition".into(), name, start_line: line_num, end_line: line_num + 5 });
+                        break;
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // Merge overlapping entries
+    entries.sort_by(|a, b| a.start_line.cmp(&b.start_line));
+    entries
+}
+
+fn parse_after_keyword<'a>(line: &'a str, kw: &str) -> Option<String> {
+    if !line.starts_with(kw) {
+        // Also check with pub/export prefix
+        let pub_prefixes = ["pub ", "pub(crate) ", "pub(super) ", "export "];
+        for prefix in &pub_prefixes {
+            if line.starts_with(prefix) {
+                let after_prefix = line.strip_prefix(prefix)?;
+                if after_prefix.starts_with(kw) {
+                    return parse_after_keyword(after_prefix, kw);
+                }
+            }
+        }
+        return None;
+    }
+    let rest = line.strip_prefix(kw)?;
+    // Extract name (up to (, <, :, {, whitespace)
+    let name = rest.split(|c: char| c == '(' || c == '<' || c == ':' || c == '{' || c == ' ')
+        .next()?
+        .trim();
+    if name.is_empty() { None } else { Some(name.to_string()) }
+}
+
+fn find_block_end(lines: &[&str], start: usize) -> usize {
+    let mut depth: i32 = 0;
+    let mut first_brace = false;
+    for (i, line) in lines.iter().enumerate() {
+        let abs_line = start + i;
+        for &b in line.as_bytes() {
+            if b == b'{' { depth += 1; first_brace = true; }
+            else if b == b'}' { depth -= 1; }
+        }
+        if first_brace && depth <= 0 && i > 0 {
+            return abs_line;
+        }
+    }
+    start + lines.len()
+}
+
+fn find_ts_block_end(lines: &[&str], start: usize) -> usize {
+    find_block_end(lines, start)
 }
 
 #[cfg(test)]

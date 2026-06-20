@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/sink.rs",
+  "mode": "outline",
+  "body": "# crates/ffs-grep/src/sink.rs (138 lines, ~1.0k tokens) [outline]\n\n[1-3]       imports: std, crate\n[7-17]      interface SinkError\n            pub trait SinkError: Sized {\n  [14-16]   function error_io\n            fn error_io(err: io::Error) -> Self {\n[33-56]     interface Sink\n            pub trait Sink {\n  [46-48]   function begin\n            fn begin(&mut self, _searcher: &Searcher) -> Result<bool, Self::Error> {\n  [53-55]   function finish\n            fn finish(&mut self, _searcher: &Searcher, _: &SinkFinish) -> Result<(), Self::Error> {\n[79-81]     struct SinkFinish\n            pub struct SinkFinish {\n[93-99]     struct SinkMatch\n            pub struct SinkMatch<'b> {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 749,
+  "footer_bytes": 0
+}

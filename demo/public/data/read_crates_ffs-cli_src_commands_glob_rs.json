@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/glob.rs",
+  "mode": "outline",
+  "body": "# crates/ffs-cli/src/commands/glob.rs (98 lines, ~690 tokens) [outline]\n\n[1-7]     imports: std, anyhow, clap, serde, crate\n[10-17]   struct Args\n          pub struct Args {\n[20-23]   struct GlobResult\n          struct GlobResult {\n[26-26]   const ALWAYS_HIDE\n          const ALWAYS_HIDE: &[&str] = &[\".git\", \"node_modules\", \"target\", \".ffs\"];\n[29-49]   function glob_files\n          fn glob_files(root: &Path, pattern: &str, limit: usize) -> Vec<String> {\n[52-82]   function glob_files\n          fn glob_files(root: &Path, pattern: &str, limit: usize) -> Vec<String> {\n[84-98]   function run\n          pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 744,
+  "footer_bytes": 0
+}

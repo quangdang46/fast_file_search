@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_count_by.rs",
+  "mode": "outline",
+  "body": "# crates/ffs-cli/tests/cli_callers_count_by.rs (115 lines, ~902 tokens) [outline]\n\n[6-10]      imports: std(2), serde_json, tempfile\n[12-14]     const TARGET_DEF\n            const TARGET_DEF: &str = \"\\\n[17-25]     const A_RS\n            const A_RS: &str = \"\\\n[28-32]     const B_RS\n            const B_RS: &str = \"\\\n[34-36]     function binary\n            fn binary() -> std::path::PathBuf {\n[38-46]     function write_workspace\n            fn write_workspace() -> TempDir {\n[48-60]     function run\n            fn run(root: &Path, extra: &[&str]) -> Value {\n[63-70]     function count_by_default_is_none_and_field_is_absent\n            fn count_by_default_is_none_and_field_is_absent() {\n[73-83]     function count_by_file_groups_by_path\n            fn count_by_file_groups_by_path() {\n[86-100]    function count_by_caller_groups_by_enclosing_symbol\n            fn count_by_caller_groups_by_enclosing_symbol() {\n[103-115]   function count_by_text_appends_aggregated_section\n            fn count_by_text_appends_aggregated_section() {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 1102,
+  "footer_bytes": 0
+}

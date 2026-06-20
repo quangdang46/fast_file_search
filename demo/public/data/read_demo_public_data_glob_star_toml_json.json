@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/demo/public/data/glob_star.toml.json",
+  "mode": "full",
+  "body": "{\n  \"pattern\": \"**/*.toml\",\n  \"matches\": [\n    \"_typos.toml\",\n    \"Cargo.toml\",\n    \"rust-toolchain.toml\",\n    \"vendor/tree-sitter-verse/Cargo.toml\",\n    \"crates/ffs-c/Cargo.toml\",\n    \"crates/ffs-c/cbindgen.toml\",\n    \"crates/ffs-query-parser/Cargo.toml\",\n    \"crates/ffs-engine/Cargo.toml\",\n    \"crates/ffs-budget/Cargo.toml\",\n    \"crates/ffs-grep/Cargo.toml\",\n    \"crates/ffs-cli/Cargo.toml\",\n    \"crates/ffs-mcp/Cargo.toml\",\n    \"crates/ffs-symbol/Cargo.toml\",\n    \"crates/ffs-core/Cargo.toml\"\n  ]\n}\n",
+  "kept_bytes": 504,
+  "footer_bytes": 0
+}

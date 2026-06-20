@@ -7,7 +7,7 @@ use std::time::SystemTime;
 use serde::{Deserialize, Serialize};
 
 /// What kind of query the user issued.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub enum QueryType {
     FilePath(PathBuf),
     FilePathLine(PathBuf, usize),
@@ -95,7 +95,7 @@ impl std::fmt::Display for ViewMode {
 }
 
 /// A single search match, carrying enough context for ranking and display.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct Match {
     pub path: PathBuf,
     pub line: u32,
@@ -119,7 +119,7 @@ pub struct Match {
 }
 
 /// Assembled search results before formatting.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct SearchResult {
     pub query: String,
     pub scope: PathBuf,
@@ -133,7 +133,7 @@ pub struct SearchResult {
 }
 
 /// A single entry in a code outline.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct OutlineEntry {
     pub kind: OutlineKind,
     pub name: String,
@@ -144,7 +144,7 @@ pub struct OutlineEntry {
     pub doc: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum OutlineKind {
     Import,
     Function,

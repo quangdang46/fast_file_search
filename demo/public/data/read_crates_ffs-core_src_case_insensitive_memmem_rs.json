@@ -1,0 +1,8 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/case_insensitive_memmem.rs",
+  "mode": "outline",
+  "body": "BYTE_FREQUENCIES const BYTE_FREQUENCIES: [u8; 256] = [\nascii_fold_byte fn ascii_fold_byte(b: u8) -> u8 {\nascii_swap_case fn ascii_swap_case(b: u8) -> u8 {\ncase_insensitive_rank fn case_insensitive_rank(lower: u8) -> u8 {\nselect_rare_pair fn select_rare_pair(needle_lower: &[u8]) -> (usize, usize) {\nverify_scalar fn verify_scalar(h: *const u8, needle_lower: &[u8]) -> bool {\nverify_avx2 unsafe fn verify_avx2(h: *const u8, needle_lower: &[u8]) -> bool {\nneon_movemask unsafe fn neon_movemask(v: core::arch::aarch64::uint8x16_t) -> u16 {\nverify_neon_dotprod unsafe fn verify_neon_dotprod(h: *const u8, needle_lower: &[u8]) -> bool {\nsearch_packed_pair_neon unsafe fn search_packed_pair_neon(\nverify_dispatch unsafe fn verify_dispatch(h: *const u8, needle_lower: &[u8]) -> bool {\nsearch_packed_pair_avx2 unsafe fn search_packed_pair_avx2(\nsearch_packed_pair pub fn search_packed_pair(haystack: &[u8], needle_lower: &[u8]) -> bool {\nsearch pub fn search(haystack: &[u8], needle_lower: &[u8]) -> bool {\ntests mod tests {\n",
+  "kept_bytes": 1017,
+  "footer_bytes": 0,
+  "view": "signatures"
+}

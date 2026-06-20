@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/healthcheck.rs",
+  "mode": "outline",
+  "body": "# crates/ffs-mcp/src/healthcheck.rs (117 lines, ~817 tokens) [outline]\n\n[1-2]      imports: crate, git2\n[4-8]      function check\n           fn check(label: &str, ok: bool, detail: &str) -> bool {\n[10-12]    function warn\n           fn warn(label: &str, detail: &str) {\n[14-117]   function run_healthcheck\n           pub fn run_healthcheck(args: &Args) -> Result<(), Box<dyn std::error::Error>> {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 464,
+  "footer_bytes": 0
+}

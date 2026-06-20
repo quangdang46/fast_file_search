@@ -1,0 +1,8 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/overview.rs",
+  "mode": "outline",
+  "body": "<anonymous> use std::collections::{BTreeMap, HashMap};\n<anonymous> use std::path::Path;\n<anonymous> use std::time::SystemTime;\n<anonymous> use anyhow::Result;\n<anonymous> use clap::Parser;\n<anonymous> use serde::Serialize;\n<anonymous> use ffs_engine::Engine;\n<anonymous> use ffs_symbol::lang::detect_file_type;\n<anonymous> use ffs_symbol::types::{FileType, Lang};\n<anonymous> use crate::cli::OutputFormat;\nArgs pub struct Args {\nLanguageStat struct LanguageStat {\nSymbolStat struct SymbolStat {\nOverviewOutput struct OverviewOutput {\nrun pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {\nLangBucket struct LangBucket {\nis_build_file fn is_build_file(name: &str) -> bool {\nis_entrypoint fn is_entrypoint(name: &str, rel: &str) -> bool {\ncollect_top_symbols fn collect_top_symbols(engine: &Engine, n: usize) -> Vec<SymbolStat> {\nfingerprint fn fingerprint(items: &[(String, u64, SystemTime)]) -> String {\nFnvHasher struct FnvHasher {\nrender_text fn render_text(p: &OverviewOutput) -> String {\nhumanize_bytes fn humanize_bytes(b: u64) -> String {\ntests mod tests {\n",
+  "kept_bytes": 1086,
+  "footer_bytes": 0,
+  "view": "signatures"
+}

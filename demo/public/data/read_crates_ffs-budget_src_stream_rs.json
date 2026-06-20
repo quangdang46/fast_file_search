@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-budget/src/stream.rs",
+  "mode": "outline",
+  "body": "# crates/ffs-budget/src/stream.rs (145 lines, ~1.1k tokens) [outline]\n\n[8-11]        interface StreamFilter\n              pub trait StreamFilter: Send + Sync {\n[15-21]       interface BlockHandler\n              pub trait BlockHandler: Send + Sync {\n  [16-16]     function open_block\n              fn open_block(&mut self) {}\n  [18-20]     function close_block\n              fn close_block(&mut self) -> Option<String> {\n[25-28]       struct BlockStreamFilter\n              pub struct BlockStreamFilter {\n[97-145]      module tests\n              mod tests {\n  [98-98]     import <anonymous>\n              use super::*;\n  [100-100]   struct StripBlank\n              struct StripBlank;\n  [111-111]   struct UpperCase\n              struct UpperCase;\n  [118-118]   struct CountLines\n              struct CountLines(usize);\n  [129-137]   function chains_filters\n              fn chains_filters() {\n  [140-144]   function block_handler_runs_close\n              fn block_handler_runs_close() {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 1053,
+  "footer_bytes": 0
+}

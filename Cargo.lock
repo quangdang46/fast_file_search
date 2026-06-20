@@ -742,6 +742,7 @@ dependencies = [
  "memchr",
  "parking_lot",
  "rayon",
+ "regex",
  "serde",
  "tempfile",
 ]

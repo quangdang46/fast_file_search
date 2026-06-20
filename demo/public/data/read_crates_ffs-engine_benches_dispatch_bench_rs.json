@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/benches/dispatch_bench.rs",
+  "mode": "outline",
+  "body": "# crates/ffs-engine/benches/dispatch_bench.rs (120 lines, ~819 tokens) [outline]\n\n[3-9]      imports: std, criterion, ffs_engine(3), tempfile\n[11-28]    function bench_classify\n           fn bench_classify(c: &mut Criterion) {\n[30-53]    function bench_score_one\n           fn bench_score_one(c: &mut Criterion) {\n[55-86]    function build_fixture_repo\n           fn build_fixture_repo() -> TempDir {\n[88-112]   function bench_engine_dispatch\n           fn bench_engine_dispatch(c: &mut Criterion) {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 567,
+  "footer_bytes": 0
+}

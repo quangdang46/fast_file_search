@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::cursor::CursorStore;
 use crate::engine_tools::{
-    EngineCallParams, EngineDepsParams, EngineDispatchParams, EngineFlowParams, EngineHolder,
+    EngineCallParams, EngineDepsParams, EngineFlowParams, EngineHolder,
     EngineImpactParams, EngineMapParams, EngineOutlineParams, EngineOverviewParams,
     EngineReadParams, EngineRefsParams, EngineSiblingsParams, EngineSymbolParams,
 };
@@ -787,23 +787,6 @@ impl FfsServer {
         let mut result = self.multi_grep_inner(params)?;
         self.maybe_append_update_notice(&mut result);
         Ok(result)
-    }
-
-    #[tool(
-        name = "ffs_dispatch",
-        description = "Auto-classify a free-form query (file path, glob, identifier, or concept phrase) and route it through the engine. Use when you don't know whether the input is a file, a symbol, or a content query."
-    )]
-    fn engine_dispatch(
-        &self,
-        Parameters(params): Parameters<EngineDispatchParams>,
-    ) -> Result<CallToolResult, ErrorData> {
-        let root = self.picker_base_path()?;
-        let max_tokens = normalize_max_results(params.max_tokens, 25_000) as u64;
-        let _max_results = normalize_max_results(params.max_results, 50);
-        let engine = self.engine.get_or_build(&root, max_tokens);
-        let result = engine.dispatch(&params.query, &root);
-        let text = crate::engine_tools::format_dispatch(&result);
-        Ok(CallToolResult::success(vec![Content::text(text)]))
     }
 
     #[tool(

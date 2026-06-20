@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/demo/public/data/sym_parse.json",
+  "mode": "full",
+  "body": "{\"q\": \"parse\", \"hits\": [{\"n\": \"parse\", \"k\": \"function_item\", \"f\": \"crates/ffs-query-parser/src/parser.rs\", \"l\": 37}]}\n",
+  "kept_bytes": 118,
+  "footer_bytes": 0
+}

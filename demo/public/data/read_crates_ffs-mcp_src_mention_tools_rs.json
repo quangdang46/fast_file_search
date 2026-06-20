@@ -1,0 +1,8 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/mention_tools.rs",
+  "mode": "outline",
+  "body": "<anonymous> use std::path::{Path, PathBuf};\n<anonymous> use std::sync::Arc;\n<anonymous> use ffs_budget::FilterLevel;\n<anonymous> use ffs_engine::mention::{ResolveOptions, ResolvedMention, resolve_mentions};\n<anonymous> use serde::Serialize;\nMentionSearchParams pub struct MentionSearchParams {\nMentionSearchOutput pub struct MentionSearchOutput {\nbuild_resolve_options pub fn build_resolve_options(\nrun_mention_pipeline pub fn run_mention_pipeline(\ncollect_candidates fn collect_candidates(root: &Path, input: &str) -> Vec<String> {\nwalk_files_simple fn walk_files_simple(root: &Path) -> Vec<PathBuf> {\noutput_to_json pub fn output_to_json(out: &MentionSearchOutput) -> Result<String, String> {\n_phase_d_anchor fn _phase_d_anchor(_: Arc<()>) {}\ntests mod tests {\n",
+  "kept_bytes": 763,
+  "footer_bytes": 0,
+  "view": "signatures"
+}

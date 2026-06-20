@@ -1,0 +1,861 @@
+{
+  "name": "new",
+  "definitions": [
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/scan.rs",
+      "line": 387,
+      "end_line": 393,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/mention/resolver.rs",
+      "line": 120,
+      "end_line": 126,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/lines.rs",
+      "line": 26,
+      "end_line": 32,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/matcher.rs",
+      "line": 13,
+      "end_line": 16,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/bigram_filter.rs",
+      "line": 37,
+      "end_line": 49,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/bigram_filter.rs",
+      "line": 463,
+      "end_line": 480,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/bigram_filter.rs",
+      "line": 544,
+      "end_line": 551,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/glue.rs",
+      "line": 15,
+      "end_line": 27,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/glue.rs",
+      "line": 49,
+      "end_line": 63,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/mod.rs",
+      "line": 81,
+      "end_line": 85,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/mod.rs",
+      "line": 116,
+      "end_line": 118,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/mention/provider.rs",
+      "line": 124,
+      "end_line": 128,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/symbol_index.rs",
+      "line": 53,
+      "end_line": 55,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/mention/provider.rs",
+      "line": 171,
+      "end_line": 178,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/core.rs",
+      "line": 22,
+      "end_line": 39,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/bloom.rs",
+      "line": 26,
+      "end_line": 52,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/bloom.rs",
+      "line": 142,
+      "end_line": 144,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/bloom.rs",
+      "line": 272,
+      "end_line": 279,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/outline_cache.rs",
+      "line": 35,
+      "end_line": 37,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/file_picker.rs",
+      "line": 126,
+      "end_line": 138,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/file_picker.rs",
+      "line": 307,
+      "end_line": 310,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/background_watcher.rs",
+      "line": 38,
+      "end_line": 163,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/file_picker.rs",
+      "line": 660,
+      "end_line": 694,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 32,
+      "end_line": 37,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/simd_path.rs",
+      "line": 23,
+      "end_line": 25,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/simd_path.rs",
+      "line": 87,
+      "end_line": 93,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/simd_path.rs",
+      "line": 297,
+      "end_line": 303,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 33,
+      "end_line": 35,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/mention.rs",
+      "line": 455,
+      "end_line": 457,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/dbs/frecency.rs",
+      "line": 110,
+      "end_line": 112,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/overview.rs",
+      "line": 260,
+      "end_line": 264,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/scanner.rs",
+      "line": 77,
+      "end_line": 84,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/output.rs",
+      "line": 44,
+      "end_line": 51,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/prefilter.rs",
+      "line": 28,
+      "end_line": 30,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/dbs/lmdb.rs",
+      "line": 39,
+      "end_line": 41,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/cursor.rs",
+      "line": 20,
+      "end_line": 26,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/memory.rs",
+      "line": 48,
+      "end_line": 58,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/dbs/query_tracker.rs",
+      "line": 110,
+      "end_line": 112,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/dispatch.rs",
+      "line": 68,
+      "end_line": 86,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/server.rs",
+      "line": 224,
+      "end_line": 232,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/session.rs",
+      "line": 10,
+      "end_line": 14,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/types.rs",
+      "line": 129,
+      "end_line": 136,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 190,
+      "end_line": 195,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-budget/src/stream.rs",
+      "line": 33,
+      "end_line": 38,
+      "kind": "function_item",
+      "weight": 100
+    }
+  ],
+  "usages": [
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/build.rs",
+      "line": 4,
+      "text": "    let src_dir = Path::new(\"src\");",
+      "enclosing": "main"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/build.rs",
+      "line": 5,
+      "text": "    cc::Build::new()",
+      "enclosing": "main"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+      "line": 67,
+      "text": "- If there are more than 2 impl blocks in a file, extract to a new file"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 9,
+      "text": "3. **Reuse** existing `FrecencyTracker`/`SharedFrecency` (LMDB-backed). No new `frecency.jsonl`."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 58,
+      "text": "| Reuse `fuzzy_search()` directly | this repo's `frizbee` | Zero new code for ranking; SIMD-accelerated; frecency-aware already | Bound to existing scoring semantics | **Adopt** |"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 80,
+      "text": "/// ffs-core learning a new variant. The `id` is opaque to ffs-core."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 187,
+      "text": "    pub fn new(picker: &'a FilePicker) -> Self { ... }"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 318,
+      "text": "**Why no new tiered fuzzy in Phase A:** `fuzzy_search` already uses the SIMD `frizbee` engine with typo tolerance, frecency boost, and bonus scoring. Adding a parallel tiered scorer would either duplicate it (perf regression) or replace it (lose the existing tuned ranking). The point of the resolver is to *expose* the existing pipeline under a `@`-triggered API, not to fork it."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 440,
+      "text": "    pub fn new(picker: &'a FilePicker) -> Self {"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 465,
+      "text": "        let mut out: Vec<MentionCandidate<'a>> = Vec::new();"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 535,
+      "text": "**No new C exports in Phase A.** C ABI ships in Phase C as `ffs_mention_search_json()`."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 537,
+      "text": "**No new MCP tools in Phase A.** MCP ships in Phase C."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 544,
+      "text": "let resolver = MentionResolver::new(&picker)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 554,
+      "text": "Zero changes to jcode's existing `AtPicker::search()` — the resolver is a new code path that can be used to *replace* the existing one when ready."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 653,
+      "text": "    let resolver = MentionResolver::new(&picker);"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 661,
+      "text": "    let resolver = MentionResolver::new(&picker);"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 709,
+      "text": "**Backwards compat:** 100% additive. New types, new methods, new env vars."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 736,
+      "text": "**Backwards compat:** 100% additive. New trait, new method, new feature flags."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 769,
+      "text": "- [ ] **No** new public dependencies in ffs-core"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 772,
+      "text": "- [ ] Reuses existing LMDB-backed `FrecencyTracker` via `SharedFrecency::read()` (no new `frecency.jsonl`)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 831,
+      "text": "| Frecency | new `frecency.jsonl` | **reuse** `FrecencyTracker` (LMDB) |"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/ffi_types.rs",
+      "line": 18,
+      "text": "fn cstring_new(s: &str) -> *mut c_char {",
+      "enclosing": "cstring_new"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/ffi_types.rs",
+      "line": 19,
+      "text": "    CString::new(s).unwrap_or_default().into_raw()",
+      "enclosing": "cstring_new"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/ffi_types.rs",
+      "line": 39,
+      "text": "    let ptrs: Vec<*mut c_char> = v.iter().map(|s| cstring_new(s)).collect();",
+      "enclosing": "strings_to_raw"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/ffi_types.rs",
+      "line": 81,
+      "text": "            relative_path: cstring_new(&item.relative_path(picker)),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/ffi_types.rs",
+      "line": 82,
+      "text": "            file_name: cstring_new(&item.file_name(picker)),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/ffi_types.rs",
+      "line": 83,
+      "text": "            git_status: cstring_new(format_git_status(item.git_status)),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/ffi_types.rs",
+      "line": 141,
+      "text": "            match_type: cstring_new(score.match_type),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/ffi_types.rs",
+      "line": 242,
+      "text": "        Box::into_raw(Box::new(FfsSearchResult {"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/ffi_types.rs",
+      "line": 315,
+      "text": "            relative_path: cstring_new(&file.relative_path(picker)),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/ffi_types.rs",
+      "line": 316,
+      "text": "            file_name: cstring_new(&file.file_name(picker)),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/ffi_types.rs",
+      "line": 317,
+      "text": "            git_status: cstring_new(format_git_status(file.git_status)),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/ffi_types.rs",
+      "line": 318,
+      "text": "            line_content: cstring_new(&m.line_content),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/ffi_types.rs",
+      "line": 405,
+      "text": "        Box::into_raw(Box::new(FfsGrepResult {"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/ffi_types.rs",
+      "line": 414,
+      "text": "                Some(e) => cstring_new(e),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/ffi_types.rs",
+      "line": 463,
+      "text": "        Box::into_raw(Box::new(FfsResult {"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/ffi_types.rs",
+      "line": 473,
+      "text": "        Box::into_raw(Box::new(FfsResult {"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/ffi_types.rs",
+      "line": 483,
+      "text": "        Box::into_raw(Box::new(FfsResult {"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/ffi_types.rs",
+      "line": 494,
+      "text": "        let cstr = CString::new(s).unwrap_or_default().into_raw();"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/ffi_types.rs",
+      "line": 495,
+      "text": "        Box::into_raw(Box::new(FfsResult {"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/ffi_types.rs",
+      "line": 505,
+      "text": "        Box::into_raw(Box::new(FfsResult {"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/ffi_types.rs",
+      "line": 507,
+      "text": "            error: CString::new(error).unwrap_or_default().into_raw(),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/ffi_types.rs",
+      "line": 528,
+      "text": "            relative_path: cstring_new(&item.relative_path(picker)),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/ffi_types.rs",
+      "line": 529,
+      "text": "            dir_name: cstring_new(&item.dir_name(picker)),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/ffi_types.rs",
+      "line": 579,
+      "text": "        Box::into_raw(Box::new(FfsDirSearchResult {"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/ffi_types.rs",
+      "line": 619,
+      "text": "                relative_path: cstring_new(&file.relative_path(picker)),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/ffi_types.rs",
+      "line": 620,
+      "text": "                display_name: cstring_new(&file.file_name(picker)),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/ffi_types.rs",
+      "line": 621,
+      "text": "                git_status: cstring_new(format_git_status(file.git_status)),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/ffi_types.rs",
+      "line": 631,
+      "text": "                relative_path: cstring_new(&dir.relative_path(picker)),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/ffi_types.rs",
+      "line": 632,
+      "text": "                display_name: cstring_new(&dir.dir_name(picker)),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/ffi_types.rs",
+      "line": 633,
+      "text": "                git_status: cstring_new(\"\"),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/ffi_types.rs",
+      "line": 696,
+      "text": "        Box::into_raw(Box::new(FfsMixedSearchResult {"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 4,
+      "text": "//! `ffs_grep`, `ffs_multi_grep`, …) is byte-for-byte unchanged. The new"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 9,
+      "text": "//! - `ffs_engine_new` returns an opaque `*mut FfsEngine`. Free with"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 50,
+      "text": "    let cstring = match CString::new(payload) {",
+      "enclosing": "make_response"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 55,
+      "text": "    Box::into_raw(Box::new(FfsResponse {",
+      "enclosing": "make_response"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 63,
+      "text": "    let cstring = CString::new(msg.to_owned()).unwrap_or_else(|_| {",
+      "enclosing": "make_error"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 64,
+      "text": "        CString::new(\"engine_ffi: malformed error message\").expect(\"static string\")",
+      "enclosing": "make_error"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 68,
+      "text": "    Box::into_raw(Box::new(FfsResponse {",
+      "enclosing": "make_error"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 75,
+      "text": "/// Build a new engine and run the unified scan over `root`."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 80,
+      "text": "pub unsafe extern \"C\" fn ffs_engine_new(",
+      "enclosing": "ffs_engine_new"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 95,
+      "text": "    let engine = Arc::new(Engine::new(cfg));",
+      "enclosing": "ffs_engine_new"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 96,
+      "text": "    let root_path = Path::new(root_str).to_path_buf();",
+      "enclosing": "ffs_engine_new"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 98,
+      "text": "    Box::into_raw(Box::new(FfsEngine {",
+      "enclosing": "ffs_engine_new"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 107,
+      "text": "/// `engine` must be a valid pointer from `ffs_engine_new`."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 122,
+      "text": "/// `engine` must be a valid pointer from `ffs_engine_new`."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 282,
+      "text": "    let candidate = Path::new(path_part);",
+      "enclosing": "ffs_engine_read"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 294,
+      "text": "    let local = Engine::new(cfg);",
+      "enclosing": "ffs_engine_read"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 333,
+      "text": "    let mut candidates: Vec<(std::path::PathBuf, SystemTime, String)> = Vec::new();",
+      "enclosing": "ffs_engine_refs"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 334,
+      "text": "    for entry in ignore::WalkBuilder::new(&e.root)",
+      "enclosing": "ffs_engine_refs"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 358,
+      "text": "    let stack = PreFilterStack::new(e.inner.handles.bloom.clone());",
+      "enclosing": "ffs_engine_refs"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 368,
+      "text": "    let mut usages: Vec<serde_json::Value> = Vec::new();",
+      "enclosing": "ffs_engine_refs"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 396,
+      "text": "        Vec::new()",
+      "enclosing": "ffs_engine_refs"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 464,
+      "text": "    let mut cards: Vec<serde_json::Value> = Vec::new();",
+      "enclosing": "ffs_engine_flow"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 520,
+      "text": "    let stack = PreFilterStack::new(e.inner.handles.bloom.clone());",
+      "enclosing": "ffs_engine_impact"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 521,
+      "text": "    let mut candidates: Vec<(std::path::PathBuf, String)> = Vec::new();",
+      "enclosing": "ffs_engine_impact"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 522,
+      "text": "    for entry in ignore::WalkBuilder::new(&e.root)",
+      "enclosing": "ffs_engine_impact"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 548,
+      "text": "    let mut results: Vec<serde_json::Value> = Vec::new();",
+      "enclosing": "ffs_engine_impact"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 23,
+      "text": "//! * Multi-grep patterns are passed as a single newline-separated (`\\n`) string."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 110,
+      "text": "/// Create a new file finder instance (legacy signature)."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 151,
+      "text": "/// Create a new file finder instance (v2, with full options)."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 267,
+      "text": "    if let Err(e) = FilePicker::new_with_shared_state(",
+      "enclosing": "ffs_create_instance2"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 283,
+      "text": "    let instance = Box::new(FfsInstance {",
+      "enclosing": "ffs_create_instance2"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 451,
+      "text": "    let parser = QueryParser::new(ffs_query_parser::DirSearchConfig);",
+      "enclosing": "ffs_search_directories"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 537,
+      "text": "    let parser = QueryParser::new(ffs_query_parser::MixedSearchConfig);",
+      "enclosing": "ffs_search_mixed"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 619,
+      "text": "        ffs::QueryParser::new(ffs_query_parser::AiGrepConfig).parse(query_str)",
+      "enclosing": "ffs_live_grep"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 716,
+      "text": "            ffs::QueryParser::new(ffs_query_parser::AiGrepConfig).parse(c)",
+      "enclosing": "ffs_multi_grep"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 832,
+      "text": "    let result = Box::into_raw(Box::new(FfsScanProgress::from(picker.get_scan_progress())));",
+      "enclosing": "ffs_get_scan_progress"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 874,
+      "text": "/// Restart indexing in a new directory."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 878,
+      "text": "/// * `new_path` must be a valid null-terminated UTF-8 string."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 882,
+      "text": "    new_path: *const c_char,",
+      "enclosing": "ffs_restart_index"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 889,
+      "text": "    let path_str = match unsafe { cstr_to_str(new_path) } {",
+      "enclosing": "ffs_restart_index"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 925,
+      "text": "    match FilePicker::new_with_shared_state(",
+      "enclosing": "ffs_restart_index"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 1073,
+      "text": "    let mut health = serde_json::Map::new();",
+      "enclosing": "ffs_health_check"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 1080,
+      "text": "    let mut git_info = serde_json::Map::new();",
+      "enclosing": "ffs_health_check"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 1123,
+      "text": "    let mut picker_info = serde_json::Map::new();",
+      "enclosing": "ffs_health_check"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 1163,
+      "text": "    let mut frecency_info = serde_json::Map::new();",
+      "enclosing": "ffs_health_check"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 1174,
+      "text": "                    let mut db_health = serde_json::Map::new();",
+      "enclosing": "ffs_health_check"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 1202,
+      "text": "    let mut query_info = serde_json::Map::new();",
+      "enclosing": "ffs_health_check"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 1213,
+      "text": "                    let mut db_health = serde_json::Map::new();",
+      "enclosing": "ffs_health_check"
+    }
+  ],
+  "total_usages": 1474,
+  "offset": 0,
+  "has_more": true
+}

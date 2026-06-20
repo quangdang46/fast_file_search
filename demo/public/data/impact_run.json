@@ -1,0 +1,82 @@
+{
+  "name": "run",
+  "hops": 3,
+  "hub_guard": 50,
+  "results": [
+    {
+      "path": "install.sh",
+      "score": 60,
+      "reasons": [
+        "direct: 20"
+      ]
+    },
+    {
+      "path": "install.ps1",
+      "score": 33,
+      "reasons": [
+        "direct: 11"
+      ]
+    },
+    {
+      "path": "docs/MENTION_SYSTEM_PLAN.md",
+      "score": 30,
+      "reasons": [
+        "direct: 10"
+      ]
+    },
+    {
+      "path": "demo/src/App.tsx",
+      "score": 27,
+      "reasons": [
+        "direct: 9"
+      ]
+    },
+    {
+      "path": "crates/ffs-core/src/file_picker.rs",
+      "score": 17,
+      "reasons": [
+        "direct: 5",
+        "imports: 1"
+      ]
+    },
+    {
+      "path": "crates/ffs-cli/src/commands/mod.rs",
+      "score": 11,
+      "reasons": [
+        "direct: 3",
+        "imports: 1"
+      ]
+    },
+    {
+      "path": "crates/ffs-cli/src/main.rs",
+      "score": 6,
+      "reasons": [
+        "direct: 2"
+      ]
+    },
+    {
+      "path": "crates/ffs-budget/src/lib.rs",
+      "score": 2,
+      "reasons": [
+        "imports: 1"
+      ]
+    },
+    {
+      "path": "crates/ffs-cli/src/commands/callers_bfs.rs",
+      "score": 2,
+      "reasons": [
+        "imports: 1"
+      ]
+    },
+    {
+      "path": "crates/ffs-core/src/shared.rs",
+      "score": 2,
+      "reasons": [
+        "imports: 1"
+      ]
+    }
+  ],
+  "total": 10,
+  "offset": 0,
+  "has_more": false
+}

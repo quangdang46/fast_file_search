@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/shared.rs",
+  "mode": "outline",
+  "body": "# crates/ffs-core/src/shared.rs (376 lines, ~3.2k tokens) [outline]\n\n[1-10]      imports: std(3), crate(6)\n[18-38]     function wait_for_git_index_lock_release\n            fn wait_for_git_index_lock_release(git_root: &Path) {\n[57-57]     struct SharedFilePicker\n            pub struct SharedFilePicker(pub(crate) Arc<SharedPickerInner>);\n[59-61]     struct SharedPickerInner\n            pub struct SharedPickerInner {\n[73-73]     struct WeakFilePicker\n            pub(crate) struct WeakFilePicker(Weak<SharedPickerInner>);\n[228-231]   struct SharedFrecency\n            pub struct SharedFrecency {\n[307-310]   struct SharedQueryTracker\n            pub struct SharedQueryTracker {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 746,
+  "footer_bytes": 0
+}

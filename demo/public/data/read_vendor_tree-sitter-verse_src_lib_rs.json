@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/lib.rs",
+  "mode": "outline",
+  "body": "# vendor/tree-sitter-verse/src/lib.rs (13 lines, ~97 tokens) [outline]\n\n[5-5]     module bindings\n          mod bindings;\n[7-7]     import <anonymous>\n          pub use bindings::LANGUAGE;\n[11-13]   function language\n          pub fn language() -> tree_sitter::Language {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 339,
+  "footer_bytes": 0
+}

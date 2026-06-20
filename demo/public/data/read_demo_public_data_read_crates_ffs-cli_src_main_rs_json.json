@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/demo/public/data/read_crates_ffs-cli_src_main_rs.json",
+  "mode": "full",
+  "body": "{\n  \"path\": \"/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/main.rs\",\n  \"mode\": \"outline\",\n  \"body\": \"# crates/ffs-cli/src/main.rs (40 lines, ~242 tokens) [outline]\\n\\n[1-2]     imports: anyhow, clap\\n[4-4]     module bigram\\n          mod bigram;\\n[5-5]     module cache\\n          mod cache;\\n[6-6]     module cli\\n          mod cli;\\n[7-7]     module commands\\n          mod commands;\\n[13-19]   function install_sigpipe_default\\n          fn install_sigpipe_default() {\\n[22-22]   function install_sigpipe_default\\n          fn install_sigpipe_default() {}\\n[24-40]   function main\\n          fn main() -> Result<()> {\\n\\n> Next: drill into a symbol with --section <name> or a line range\\n\",\n  \"kept_bytes\": 572,\n  \"footer_bytes\": 0\n}\n",
+  "kept_bytes": 760,
+  "footer_bytes": 0
+}

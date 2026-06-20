@@ -1,0 +1,6 @@
+{
+  "pattern": "*.sh",
+  "matches": [
+    "install.sh"
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/benches/bloom_bench.rs",
+  "mode": "outline",
+  "body": "# crates/ffs-symbol/benches/bloom_bench.rs (89 lines, ~686 tokens) [outline]\n\n[3-4]     imports: criterion, ffs_symbol\n[6-48]    function bench_insert_and_contains\n          fn bench_insert_and_contains(c: &mut Criterion) {\n[50-82]   function bench_identifier_extraction\n          fn bench_identifier_extraction(c: &mut Criterion) {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 400,
+  "footer_bytes": 0
+}

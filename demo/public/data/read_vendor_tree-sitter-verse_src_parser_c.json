@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+  "mode": "outline",
+  "body": "[generated file]\n# vendor/tree-sitter-verse/src/parser.c (77024 lines, ~561.1k tokens) [outline]\n\n[4105-4973]   function ts_lex\n              static bool ts_lex(TSLexer *lexer, TSStateId state) {\n[4975-6268]   function ts_lex_keywords\n              static bool ts_lex_keywords(TSLexer *lexer, TSStateId state) {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 379,
+  "footer_bytes": 0
+}

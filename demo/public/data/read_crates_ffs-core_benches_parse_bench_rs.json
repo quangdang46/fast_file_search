@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/benches/parse_bench.rs",
+  "mode": "outline",
+  "body": "# crates/ffs-core/benches/parse_bench.rs (180 lines, ~1.3k tokens) [outline]\n\n[1-2]       imports: criterion, ffs_query_parser\n[4-18]      function bench_parse_simple\n            fn bench_parse_simple(c: &mut Criterion) {\n[20-34]     function bench_parse_complex\n            fn bench_parse_complex(c: &mut Criterion) {\n[36-60]     function bench_parse_realistic_queries\n            fn bench_parse_realistic_queries(c: &mut Criterion) {\n[62-98]     function bench_parse_various_lengths\n            fn bench_parse_various_lengths(c: &mut Criterion) {\n[100-117]   function bench_config_comparison\n            fn bench_config_comparison(c: &mut Criterion) {\n[119-149]   function bench_constraint_types\n            fn bench_constraint_types(c: &mut Criterion) {\n[151-167]   function bench_worst_case\n            fn bench_worst_case(c: &mut Criterion) {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 915,
+  "footer_bytes": 0
+}

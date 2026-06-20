@@ -104,6 +104,7 @@ pub mod directory_grep;
 mod error;
 mod parallelism;
 mod score;
+pub mod role;
 mod sort_buffer;
 pub(crate) mod stable_vec;
 // this is pub only for benchmarks

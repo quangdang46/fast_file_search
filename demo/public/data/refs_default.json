@@ -1,0 +1,740 @@
+{
+  "name": "default",
+  "definitions": [
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/shared.rs",
+      "line": 64,
+      "end_line": 68,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/shared.rs",
+      "line": 234,
+      "end_line": 239,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/shared.rs",
+      "line": 313,
+      "end_line": 318,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/matcher.rs",
+      "line": 119,
+      "end_line": 121,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/mod.rs",
+      "line": 58,
+      "end_line": 64,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/mod.rs",
+      "line": 74,
+      "end_line": 76,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/mod.rs",
+      "line": 154,
+      "end_line": 156,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/mention/provider.rs",
+      "line": 151,
+      "end_line": 153,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/bloom.rs",
+      "line": 134,
+      "end_line": 136,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/grep.rs",
+      "line": 372,
+      "end_line": 387,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/file_picker.rs",
+      "line": 422,
+      "end_line": 432,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/outline_cache.rs",
+      "line": 27,
+      "end_line": 29,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/simd_path.rs",
+      "line": 50,
+      "end_line": 52,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/fuzzy_file_search.rs",
+      "line": 49,
+      "end_line": 55,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/session.rs",
+      "line": 28,
+      "end_line": 30,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/mention/resolver.rs",
+      "line": 94,
+      "end_line": 102,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/types.rs",
+      "line": 675,
+      "end_line": 680,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/types.rs",
+      "line": 744,
+      "end_line": 747,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/types.rs",
+      "line": 842,
+      "end_line": 844,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/mention.rs",
+      "line": 97,
+      "end_line": 103,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 241,
+      "end_line": 243,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/scanner.rs",
+      "line": 69,
+      "end_line": 71,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/dispatch.rs",
+      "line": 33,
+      "end_line": 40,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/dispatch.rs",
+      "line": 60,
+      "end_line": 62,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-budget/src/stream.rs",
+      "line": 91,
+      "end_line": 93,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 183,
+      "end_line": 185,
+      "kind": "function_item",
+      "weight": 100
+    }
+  ],
+  "usages": [
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1733,
+      "text": "  field_default = 10,"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1775,
+      "text": "  [field_default] = \"default\","
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 2128,
+      "text": "    {field_default, 5},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 2178,
+      "text": "    {field_default, 4},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 2213,
+      "text": "    {field_default, 5},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 4970,
+      "text": "    default:",
+      "enclosing": "ts_lex"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 6265,
+      "text": "    default:",
+      "enclosing": "ts_lex_keywords"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 76967,
+      "text": "#define TS_PUBLIC __attribute__((visibility(\"default\")))"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/DESIGN.md",
+      "line": 241,
+      "text": "2. CTAs default to `{rounded.md}` (8px). Cards use `{rounded.lg}` (12px)."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+      "line": 7,
+      "text": "    Pipe usage (no parameters — uses defaults or env-var overrides):"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+      "line": 20,
+      "text": "        $env:FFS_MCP_PROVIDERS    - comma-separated list (default: all detected)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+      "line": 21,
+      "text": "        $env:FFS_MCP_NAME         - server name (default: ffs)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+      "line": 28,
+      "text": "    How to persist PATH: 'User' (default), 'Profile' (append to $PROFILE), 'None'."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+      "line": 104,
+      "text": "        default { throw \"Unsupported architecture: $arch\" }"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+      "line": 384,
+      "text": "            default    { Write-Warn \"Unknown MCP provider: $p\" }"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+      "line": 554,
+      "text": "    # MCP registration (default ON unless -NoMcp)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/README.md",
+      "line": 108,
+      "text": "| `ffs_outline`   | Structural outline of a file (functions, classes, top-level decls). Agent-friendly default view. |"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 441,
+      "text": "        Self { picker, shared_frecency: None, opts: MentionOptions::default() }"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 470,
+      "text": "                let result = self.picker.fuzzy_search(&q, None, Default::default());"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 494,
+      "text": "                let dresult = self.picker.fuzzy_search_directories(&q, Default::default());"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 546,
+      "text": "    .with_options(MentionOptions { max_candidates: 10, ..Default::default() });"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 3,
+      "text": "# and atomically installs it to $DEST (default ~/.local/bin). By default"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 15,
+      "text": "#   --dest <dir>            install location (default ~/.local/bin)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 17,
+      "text": "#   --version <tag>         pin to a specific release tag (e.g. v0.1.0); default: latest"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 25,
+      "text": "# Flags (MCP registration; default ON):"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 27,
+      "text": "#   --mcp                   force MCP registration on (default; kept for back-compat)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 32,
+      "text": "#   --mcp-name <id>         server name written into MCP configs (default: ffs)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 39,
+      "text": "# default-on flow is safe even on machines with no AI agents installed."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 57,
+      "text": "MCP=1                    # default ON; --no-mcp to disable"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 353,
+      "text": "# Atomic JSON merge: read source (or default to {}), apply jq filter, write back."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/Makefile",
+      "line": 22,
+      "text": "# Install the C library and header under $(PREFIX) (default /usr/local)."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 93,
+      "text": "        ..EngineConfig::default()",
+      "enclosing": "ffs_engine_new"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 292,
+      "text": "        ..EngineConfig::default()",
+      "enclosing": "ffs_engine_read"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 466,
+      "text": "        let body_text = std::fs::read_to_string(&def.path).unwrap_or_default();",
+      "enclosing": "ffs_engine_flow"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 21,
+      "text": "//! * Numeric parameters: 0 means \"use default\" unless documented otherwise."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 97,
+      "text": "/// Apply \"0 means default\" convention."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 98,
+      "text": "fn default_u32(val: u32, default: u32) -> u32 {",
+      "enclosing": "default_u32"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 99,
+      "text": "    if val == 0 { default } else { val }",
+      "enclosing": "default_u32"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 102,
+      "text": "fn default_u64(val: u64, default: u64) -> u64 {",
+      "enclosing": "default_u64"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 103,
+      "text": "    if val == 0 { default } else { val }",
+      "enclosing": "default_u64"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 106,
+      "text": "fn default_i32(val: i32, default: i32) -> i32 {",
+      "enclosing": "default_i32"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 107,
+      "text": "    if val == 0 { default } else { val }",
+      "enclosing": "default_i32"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 174,
+      "text": "///   (NULL/empty defaults to `\"info\"`). Ignored when `log_file_path` is not set."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 181,
+      "text": "/// used: any field left at 0 falls back to its `unlimited()` default."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 217,
+      "text": "    let shared_picker = SharedFilePicker::default();",
+      "enclosing": "ffs_create_instance2"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 218,
+      "text": "    let shared_frecency = SharedFrecency::default();",
+      "enclosing": "ffs_create_instance2"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 219,
+      "text": "    let query_tracker = SharedQueryTracker::default();",
+      "enclosing": "ffs_create_instance2"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 328,
+      "text": "/// * `page_size`               – results per page (0 = default 100)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 329,
+      "text": "/// * `combo_boost_multiplier`  – score multiplier for combo matches (0 = default 100)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 330,
+      "text": "/// * `min_combo_count`         – minimum combo count before boost applies (0 = default 3)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 357,
+      "text": "    let page_size = default_u32(page_size, 100) as usize;",
+      "enclosing": "ffs_search"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 358,
+      "text": "    let min_combo_count = default_u32(min_combo_count, 3);",
+      "enclosing": "ffs_search"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 359,
+      "text": "    let combo_boost_multiplier = default_i32(combo_boost_multiplier, 100);",
+      "enclosing": "ffs_search"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 380,
+      "text": "    let parser = QueryParser::default();",
+      "enclosing": "ffs_search"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 412,
+      "text": "/// * `page_size`    – results per page (0 = default 100)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 437,
+      "text": "    let page_size = default_u32(page_size, 100) as usize;",
+      "enclosing": "ffs_search_directories"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 486,
+      "text": "/// * `page_size`               – results per page (0 = default 100)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 487,
+      "text": "/// * `combo_boost_multiplier`  – score multiplier for combo matches (0 = default 100)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 488,
+      "text": "/// * `min_combo_count`         – minimum combo count before boost applies (0 = default 3)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 515,
+      "text": "    let page_size = default_u32(page_size, 100) as usize;",
+      "enclosing": "ffs_search_mixed"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 516,
+      "text": "    let min_combo_count = default_u32(min_combo_count, 3);",
+      "enclosing": "ffs_search_mixed"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 517,
+      "text": "    let combo_boost_multiplier = default_i32(combo_boost_multiplier, 100);",
+      "enclosing": "ffs_search_mixed"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 567,
+      "text": "/// * `max_file_size`         – skip files larger than this in bytes (0 = default 10 MB)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 571,
+      "text": "/// * `page_limit`            – max matches to return (0 = default 50)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 625,
+      "text": "        max_file_size: default_u64(max_file_size, 10 * 1024 * 1024),",
+      "enclosing": "ffs_live_grep"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 629,
+      "text": "        page_limit: default_u32(page_limit, 50) as usize,",
+      "enclosing": "ffs_live_grep"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 654,
+      "text": "/// * `max_file_size`           – skip files larger than this in bytes (0 = default 10 MB)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 658,
+      "text": "/// * `page_limit`              – max matches to return (0 = default 50)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 728,
+      "text": "        max_file_size: default_u64(max_file_size, 10 * 1024 * 1024),",
+      "enclosing": "ffs_multi_grep"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 732,
+      "text": "        page_limit: default_u32(page_limit, 50) as usize,",
+      "enclosing": "ffs_multi_grep"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 920,
+      "text": "        (false, true, true, FfsMode::default())",
+      "enclosing": "ffs_restart_index"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 1071,
+      "text": "        .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());",
+      "enclosing": "ffs_health_check"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 1595,
+      "text": "///   * `\"max_tokens\"`: `u32` — body budget per mention (default 50_000)."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 1598,
+      "text": "///     large (default: none)."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 1599,
+      "text": "///   * `\"filter_level\"`: `\"none\" | \"minimal\" | \"aggressive\"` (default"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 1611,
+      "text": "///   or NULL (NULL/empty `options_json` uses the defaults)."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 1643,
+      "text": "        None => RawOptions::default(),",
+      "enclosing": "ffs_mention_search_json"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/Cargo.toml",
+      "line": 15,
+      "text": "default = []"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/lib.rs",
+      "line": 13,
+      "text": "//! let parser = QueryParser::default();"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/lib.rs",
+      "line": 63,
+      "text": "        let parser = QueryParser::default();",
+      "enclosing": "test_empty_query"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/lib.rs",
+      "line": 71,
+      "text": "        let parser = QueryParser::default();",
+      "enclosing": "test_whitespace_only"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/lib.rs",
+      "line": 79,
+      "text": "        let parser = QueryParser::default();",
+      "enclosing": "test_single_token"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/lib.rs",
+      "line": 87,
+      "text": "        let parser = QueryParser::default();",
+      "enclosing": "test_simple_text"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/lib.rs",
+      "line": 104,
+      "text": "        let parser = QueryParser::default();",
+      "enclosing": "test_extension_only"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/lib.rs",
+      "line": 114,
+      "text": "        let parser = QueryParser::default();",
+      "enclosing": "test_glob_pattern"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/lib.rs",
+      "line": 126,
+      "text": "        let parser = QueryParser::default();",
+      "enclosing": "test_negation_pattern"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/lib.rs",
+      "line": 139,
+      "text": "        let parser = QueryParser::default();",
+      "enclosing": "test_path_segment"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/lib.rs",
+      "line": 150,
+      "text": "        let parser = QueryParser::default();",
+      "enclosing": "test_git_status"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/lib.rs",
+      "line": 161,
+      "text": "        let parser = QueryParser::default();",
+      "enclosing": "test_file_type"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/lib.rs",
+      "line": 172,
+      "text": "        let parser = QueryParser::default();",
+      "enclosing": "test_complex_query"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/lib.rs",
+      "line": 214,
+      "text": "        let parser = QueryParser::default();",
+      "enclosing": "test_small_constraint_count"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/lib.rs",
+      "line": 221,
+      "text": "        let parser = QueryParser::default();",
+      "enclosing": "test_many_fuzzy_parts"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/benches/parse_bench.rs",
+      "line": 5,
+      "text": "    let parser = QueryParser::default();",
+      "enclosing": "bench_parse_simple"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/benches/parse_bench.rs",
+      "line": 21,
+      "text": "    let parser = QueryParser::default();",
+      "enclosing": "bench_parse_complex"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/benches/parse_bench.rs",
+      "line": 37,
+      "text": "    let parser = QueryParser::default();",
+      "enclosing": "bench_parse_realistic_queries"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/benches/parse_bench.rs",
+      "line": 63,
+      "text": "    let parser = QueryParser::default();",
+      "enclosing": "bench_parse_various_lengths"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/benches/parse_bench.rs",
+      "line": 120,
+      "text": "    let parser = QueryParser::default();",
+      "enclosing": "bench_constraint_types"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/benches/parse_bench.rs",
+      "line": 152,
+      "text": "    let parser = QueryParser::default();",
+      "enclosing": "bench_worst_case"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/Cargo.toml",
+      "line": 15,
+      "text": "default = []"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/scanner.rs",
+      "line": 82,
+      "text": "            progress: Arc::new(ScanProgress::default()),"
+    }
+  ],
+  "total_usages": 470,
+  "offset": 0,
+  "has_more": true
+}

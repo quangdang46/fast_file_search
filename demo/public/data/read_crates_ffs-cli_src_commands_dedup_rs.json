@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/dedup.rs",
+  "mode": "outline",
+  "body": "# crates/ffs-cli/src/commands/dedup.rs (57 lines, ~439 tokens) [outline]\n\n[6-7]       imports: std(2)\n[9-16]      function dedup_by\n            pub(crate) fn dedup_by<T, K, F>(items: Vec<T>, mut key: F) -> Vec<T>\n[19-57]     module tests\n            mod tests {\n  [20-20]   import <anonymous>\n            use super::dedup_by;\n  [23-26]   function empty_input_returns_empty\n            fn empty_input_returns_empty() {\n  [29-33]   function keeps_first_occurrence_of_each_key\n            fn keeps_first_occurrence_of_each_key() {\n  [36-41]   function key_can_be_a_subset_of_the_value\n            fn key_can_be_a_subset_of_the_value() {\n  [44-48]   function distinct_keys_pass_through_unchanged\n            fn distinct_keys_pass_through_unchanged() {\n  [51-56]   function composite_key_distinguishes_otherwise_equal_lhs\n            fn composite_key_distinguishes_otherwise_equal_lhs() {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 951,
+  "footer_bytes": 0
+}

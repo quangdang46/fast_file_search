@@ -1,0 +1,8 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/mention/trigger.rs",
+  "mode": "outline",
+  "body": "MentionTrigger pub struct MentionTrigger {\ndetect_trigger pub fn detect_trigger(input: &str, cursor: usize) -> Option<MentionTrigger> {\nparse_mention_suffix fn parse_mention_suffix(raw: &str) -> (String, bool, Option<(u32, u32)>) {\nparse_line_range fn parse_line_range(s: &str) -> Option<(u32, u32)> {\nprev_char_boundary fn prev_char_boundary(s: &str, i: usize) -> usize {\nclamp_to_char_boundary fn clamp_to_char_boundary(input: &str, cursor: usize) -> usize {\ntests mod tests {\n",
+  "kept_bytes": 479,
+  "footer_bytes": 0,
+  "view": "signatures"
+}

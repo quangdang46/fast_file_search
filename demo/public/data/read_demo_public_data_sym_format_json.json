@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/demo/public/data/sym_format.json",
+  "mode": "full",
+  "body": "{\"q\": \"format\", \"hits\": [{\"n\": \"format\", \"k\": \"function_item\", \"f\": \"crates/ffs-mcp/src/output.rs\", \"l\": 165}]}\n",
+  "kept_bytes": 112,
+  "footer_bytes": 0
+}

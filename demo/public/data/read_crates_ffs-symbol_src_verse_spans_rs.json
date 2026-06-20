@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/verse_spans.rs",
+  "mode": "outline",
+  "body": "# crates/ffs-symbol/src/verse_spans.rs (143 lines, ~1.1k tokens) [outline]\n\n[10-12]       imports: tree_sitter, crate\n[15-25]       function line_indent\n              pub fn line_indent(line: &str) -> u32 {\n[27-30]       function is_blank_or_comment\n              fn is_blank_or_comment(line: &str) -> bool {\n[35-54]       function verse_member_end_line\n              pub fn verse_member_end_line(lines: &[&str], start_line: u32, ast_end: u32) -> u32 {\n[57-71]       function verse_skip_spurious_definition\n              pub fn verse_skip_spurious_definition(node: Node, lines: &[&str]) -> bool {\n[74-88]       function verse_repair_end_line\n              pub fn verse_repair_end_line(\n[91-143]      module tests\n              mod tests {\n  [92-92]     import <anonymous>\n              use super::*;\n  [95-117]    function extends_if_guard_function_body\n              fn extends_if_guard_function_body() {\n  [120-134]   function extends_truncated_class_type_definition\n              fn extends_truncated_class_type_definition() {\n  [137-142]   function leaves_short_function_untouched_when_ast_span_covers_body\n              fn leaves_short_function_untouched_when_ast_span_covers_body() {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 1257,
+  "footer_bytes": 0
+}

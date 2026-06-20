@@ -1,0 +1,601 @@
+{
+  "name": "build",
+  "definitions": [
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/mod.rs",
+      "line": 88,
+      "end_line": 92,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/grep.rs",
+      "line": 97,
+      "end_line": 130,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/bigram.rs",
+      "line": 52,
+      "end_line": 78,
+      "kind": "function_item",
+      "weight": 100
+    }
+  ],
+  "usages": [
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/Cargo.toml",
+      "line": 13,
+      "text": "[build-dependencies]"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+      "line": 13,
+      "text": "- `make build` - build everything"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/scripts/determine-version.sh",
+      "line": 17,
+      "text": "    # Nightly / branch build: fall back to the ffs-cli Cargo.toml version."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/scripts/benchmark-claude.sh",
+      "line": 16,
+      "text": "#   - ffs MCP server built (cargo build --release, binary at target/release/ffs-mcp)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/scripts/benchmark-claude.sh",
+      "line": 122,
+      "text": "PROMPTS[11]=\"What files exist in this repository related to 'quote_builder'? List 10 paths from frontend and 10 from backend.\""
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/scripts/benchmark-claude.sh",
+      "line": 123,
+      "text": "TARGETS[11]=\"quote_builder\""
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 20,
+      "text": "#   --from-source           skip download, build with cargo (slow)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 203,
+      "text": "    # that has it — avoids 404s that silently fall back to slow cargo builds."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 226,
+      "text": "            log_warn \"No release has $asset — will attempt download and fall back to source build\""
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 312,
+      "text": "# === From-source build ==="
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 313,
+      "text": "build_from_source() {"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 324,
+      "text": "        cargo build --release --locked -p ffs-cli)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 610,
+      "text": "            build_from_source"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 637,
+      "text": "                log_warn \"Binary download failed — falling back to from-source build\""
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 638,
+      "text": "                build_from_source"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/Makefile",
+      "line": 9,
+      "text": ".PHONY: build build-c-lib install uninstall test test-rust header test-stress test-stress-seeded test-stress-random"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/Makefile",
+      "line": 13,
+      "text": "build:"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/Makefile",
+      "line": 14,
+      "text": "\tcargo build --release --features zlob"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/Makefile",
+      "line": 16,
+      "text": "build-c-lib:"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/Makefile",
+      "line": 17,
+      "text": "\tcargo build --release -p ffs-c --features zlob"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/Makefile",
+      "line": 25,
+      "text": "install: build-c-lib"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 109,
+      "text": "pub unsafe extern \"C\" fn ffs_engine_rebuild(engine: *mut FfsEngine) -> i32 {",
+      "enclosing": "ffs_engine_rebuild"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 337,
+      "text": "        .build()",
+      "enclosing": "ffs_engine_refs"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 525,
+      "text": "        .build()",
+      "enclosing": "ffs_engine_impact"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 167,
+      "text": "/// * `enable_content_indexing`     – build content index after the initial scan"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 1710,
+      "text": "        .build();",
+      "enclosing": "walk_files_simple"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/scanner.rs",
+      "line": 1,
+      "text": "//! Single filesystem walker that builds Bloom + Symbol indexes in parallel."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/scanner.rs",
+      "line": 130,
+      "text": "            .build();"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 619,
+      "text": "        let mut builder = ignore::gitignore::GitignoreBuilder::new(root);",
+      "enclosing": "glob_files"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 620,
+      "text": "        // Ignore builder errors — return empty results on invalid patterns",
+      "enclosing": "glob_files"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 621,
+      "text": "        if builder.add_line(None, pattern).is_err() {",
+      "enclosing": "glob_files"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 624,
+      "text": "        let Ok(matcher) = builder.build() else {",
+      "enclosing": "glob_files"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/glob.rs",
+      "line": 53,
+      "text": "    let mut builder = ignore::overrides::OverrideBuilder::new(root);",
+      "enclosing": "glob_files"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/glob.rs",
+      "line": 54,
+      "text": "    builder.add(pattern).ok();",
+      "enclosing": "glob_files"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/glob.rs",
+      "line": 55,
+      "text": "    let Ok(overrides) = builder.build() else {",
+      "enclosing": "glob_files"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/glob.rs",
+      "line": 67,
+      "text": "        .build()",
+      "enclosing": "glob_files"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 77,
+      "text": "        build_symbols_by_path(&root, args.symbols)",
+      "enclosing": "run"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 81,
+      "text": "    let tree = build_tree(&root, &args, bytes_per_token, &by_path);",
+      "enclosing": "run"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 92,
+      "text": "fn build_symbols_by_path(root: &Path, top_n: usize) -> HashMap<PathBuf, Vec<SymbolEntry>> {",
+      "enclosing": "build_symbols_by_path"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 117,
+      "text": "fn build_tree(",
+      "enclosing": "build_tree"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 129,
+      "text": "        .build()",
+      "enclosing": "build_tree"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 366,
+      "text": "        let tree = build_tree(root, &args, 4, &by_path);",
+      "enclosing": "map_aggregates_bytes_and_tokens_by_directory"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 387,
+      "text": "        let tree = build_tree(root, &args, 4, &by_path);",
+      "enclosing": "map_directories_sort_before_files"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 404,
+      "text": "        let tree = build_tree(root, &args, 4, &by_path);",
+      "enclosing": "map_depth_limit_truncates_children"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 427,
+      "text": "        let tree = build_tree(root, &args, 4, &by_path);",
+      "enclosing": "map_max_file_bytes_caps_token_estimate"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 460,
+      "text": "        let tree = build_tree(&root, &args, 4, &by_path);",
+      "enclosing": "symbols_attached_to_file_leaves_via_canonical_path"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 475,
+      "text": "        // run() skips building by_path when args.symbols == 0; mirror that here.",
+      "enclosing": "symbols_default_off_keeps_file_node_empty"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 477,
+      "text": "        let tree = build_tree(&root, &args, 4, &by_path);",
+      "enclosing": "symbols_default_off_keeps_file_node_empty"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 483,
+      "text": "    fn build_symbols_by_path_sorts_weight_desc_then_line_and_truncates() {",
+      "enclosing": "build_symbols_by_path_sorts_weight_desc_then_line_and_truncates"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 492,
+      "text": "        let by_path = build_symbols_by_path(&root, 2);",
+      "enclosing": "build_symbols_by_path_sorts_weight_desc_then_line_and_truncates"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/impact.rs",
+      "line": 72,
+      "text": "    let engine = crate::cache::load_or_build_engine(&root_canon);",
+      "enclosing": "run"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/impact.rs",
+      "line": 195,
+      "text": "        .build()",
+      "enclosing": "reverse_imports"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/deps.rs",
+      "line": 155,
+      "text": "        .build()",
+      "enclosing": "walk_workspace"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/index.rs",
+      "line": 15,
+      "text": "    /// Discard any existing `<root>/.ffs/` cache and rebuild from scratch.",
+      "enclosing": "Args"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/index.rs",
+      "line": 41,
+      "text": "        // load nor the stale-load fallback in load_or_build_engine could",
+      "enclosing": "run"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/index.rs",
+      "line": 59,
+      "text": "    let bigram = GrepBigram::build(&walk_paths);",
+      "enclosing": "run"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/dispatch.rs",
+      "line": 137,
+      "text": "        let mut builder = ignore::overrides::OverrideBuilder::new(root);",
+      "enclosing": "run_glob"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/dispatch.rs",
+      "line": 138,
+      "text": "        if builder.add(&expanded).is_err() {",
+      "enclosing": "run_glob"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/dispatch.rs",
+      "line": 141,
+      "text": "        let Ok(overrides) = builder.build() else {",
+      "enclosing": "run_glob"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/dispatch.rs",
+      "line": 148,
+      "text": "            .build()",
+      "enclosing": "run_glob"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/grep.rs",
+      "line": 113,
+      "text": "                .build()"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/grep.rs",
+      "line": 199,
+      "text": "    let (matcher, mode) = Matcher::build(&args)?;",
+      "enclosing": "run"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/bigram.rs",
+      "line": 172,
+      "text": "    fn build_and_filter_keeps_files_with_pattern() {",
+      "enclosing": "build_and_filter_keeps_files_with_pattern"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/bigram.rs",
+      "line": 177,
+      "text": "        let idx = GrepBigram::build(&[a.clone(), b.clone(), c.clone()]);",
+      "enclosing": "build_and_filter_keeps_files_with_pattern"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/bigram.rs",
+      "line": 188,
+      "text": "        let idx = GrepBigram::build(std::slice::from_ref(&a));",
+      "enclosing": "filter_returns_none_for_too_short_pattern"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/bigram.rs",
+      "line": 196,
+      "text": "        let idx = GrepBigram::build(std::slice::from_ref(&a));",
+      "enclosing": "filter_returns_empty_when_bigram_never_seen"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/bigram.rs",
+      "line": 206,
+      "text": "        let idx = GrepBigram::build(std::slice::from_ref(&a));",
+      "enclosing": "filter_is_case_insensitive_at_extraction"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/bigram.rs",
+      "line": 214,
+      "text": "    fn build_skips_binary_files_silently() {",
+      "enclosing": "build_skips_binary_files_silently"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/bigram.rs",
+      "line": 220,
+      "text": "        let idx = GrepBigram::build(&[bin.clone(), txt.clone()]);",
+      "enclosing": "build_skips_binary_files_silently"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 176,
+      "text": "    // Default token budget propagated to every Engine that we build.",
+      "enclosing": "EngineHolder"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 177,
+      "text": "    // We rebuild the engine if the cwd or token budget materially differs,",
+      "enclosing": "EngineHolder"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 197,
+      "text": "    /// Return the engine, building it (and running an index pass over `root`)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 199,
+      "text": "    pub fn get_or_build(&self, root: &Path, total_token_budget: u64) -> Arc<Engine> {"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 217,
+      "text": "    /// Pre-warm the engine by building it (idempotent). Call this after"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 221,
+      "text": "        self.get_or_build(root, total_token_budget);"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 247,
+      "text": "        .build();",
+      "enclosing": "find_call_sites"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 370,
+      "text": "        .build()",
+      "enclosing": "walk_code_files"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 835,
+      "text": "        .build()",
+      "enclosing": "format_map"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 896,
+      "text": "        .build()",
+      "enclosing": "format_overview"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 1080,
+      "text": "        .build()",
+      "enclosing": "find_dependents"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 1222,
+      "text": "        .build()",
+      "enclosing": "find_impact"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/ignore.rs",
+      "line": 44,
+      "text": "    let mut builder = OverrideBuilder::new(base_path);",
+      "enclosing": "non_git_repo_overrides"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/ignore.rs",
+      "line": 47,
+      "text": "        if let Err(e) = builder.add(&pattern) {",
+      "enclosing": "non_git_repo_overrides"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/ignore.rs",
+      "line": 52,
+      "text": "    builder.build().ok()",
+      "enclosing": "non_git_repo_overrides"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/fuzzy_file_search.rs",
+      "line": 81,
+      "text": "    for entry in walker.build() {",
+      "enclosing": "fuzzy_search_files"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/parallelism.rs",
+      "line": 11,
+      "text": "/// Dedicated thread pool for background work (scan, warmup, bigram build)."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/parallelism.rs",
+      "line": 35,
+      "text": "        .build()",
+      "enclosing": "BACKGROUND_THREAD_POOL"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/parallelism.rs",
+      "line": 88,
+      "text": "        .build()",
+      "enclosing": "SEARCH_THREAD_POOL"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/glob_matcher.rs",
+      "line": 44,
+      "text": "        .build()",
+      "enclosing": "fallback_glob"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/glob_matcher.rs",
+      "line": 54,
+      "text": "        .build()",
+      "enclosing": "fallback_glob"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/directory_grep.rs",
+      "line": 46,
+      "text": "    let re = match regex::RegexBuilder::new(pattern).multi_line(true).build() {",
+      "enclosing": "grep_directory"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/directory_grep.rs",
+      "line": 51,
+      "text": "    let mut walk_builder = ignore::WalkBuilder::new(root);",
+      "enclosing": "grep_directory"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/directory_grep.rs",
+      "line": 52,
+      "text": "    walk_builder",
+      "enclosing": "grep_directory"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/directory_grep.rs",
+      "line": 60,
+      "text": "    let walker = walk_builder.build();",
+      "enclosing": "grep_directory"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/grep.rs",
+      "line": 1065,
+      "text": "        .build(patterns)",
+      "enclosing": "multi_grep_search"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/grep.rs",
+      "line": 1066,
+      "text": "        .expect(\"Aho-Corasick build should not fail for literal patterns\");",
+      "enclosing": "multi_grep_search"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/grep.rs",
+      "line": 1073,
+      "text": "    .build();",
+      "enclosing": "multi_grep_search"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/grep.rs",
+      "line": 1128,
+      "text": "fn build_regex(pattern: &str, smart_case: bool) -> Result<regex::bytes::Regex, String> {",
+      "enclosing": "build_regex"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/grep.rs",
+      "line": 1149,
+      "text": "        .build()",
+      "enclosing": "build_regex"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/grep.rs",
+      "line": 2005,
+      "text": "        GrepMode::Regex => build_regex(&grep_text, options.smart_case)",
+      "enclosing": "grep_search"
+    }
+  ],
+  "total_usages": 109,
+  "offset": 0,
+  "has_more": true
+}

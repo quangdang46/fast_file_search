@@ -1,0 +1,207 @@
+{
+  "name": "search",
+  "cards": [
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/case_insensitive_memmem.rs",
+        "line": 535,
+        "end_line": 562,
+        "kind": "function_item",
+        "weight": 100
+      },
+      "header": "pub fn search(haystack: &[u8], needle_lower: &[u8]) -> bool {",
+      "body": "pub fn search(haystack: &[u8], needle_lower: &[u8]) -> bool {\n    let n = needle_lower.len();\n    if n == 0 {\n        return true;\n    }\n    if n > haystack.len() {\n        return false;\n    }\n\n    let search_space = &haystack[..=haystack.len() - n];\n    let first = needle_lower[0];\n\n    if first.is_ascii_lowercase() {\n        let alt = ascii_swap_case(first);\n        for pos in memchr::memchr2_iter(first, alt, search_space) {\n            if unsafe { verify_dispatch(haystack.as_ptr().add(pos), needle_lower) } {\n                return true;\n            }\n        }\n    } else {\n        for pos in memchr::memchr_iter(first, search_space) {\n            if unsafe { verify_dispatch(haystack.as_ptr().add(pos), needle_lower) } {\n                return true;\n            }\n        }\n    }\n    false\n}\n",
+      "body_start_line": 535,
+      "body_end_line": 562,
+      "kept_bytes": 1345,
+      "footer_bytes": 0,
+      "callees": [
+        {
+          "name": "add"
+        },
+        {
+          "name": "as_ptr",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/stable_vec.rs",
+          "line": 128
+        },
+        {
+          "name": "ascii_swap_case",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/case_insensitive_memmem.rs",
+          "line": 44
+        },
+        {
+          "name": "is_ascii_lowercase"
+        },
+        {
+          "name": "len",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/mention.rs",
+          "line": 501
+        }
+      ],
+      "total_callees": 8,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 3,
+          "text": "This repository contains **FFS**, a high-performance file search CLI and MCP server"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 36,
+          "text": "ffs-grep    (SIMD search)"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 51,
+          "text": "| `ffs-grep` | SIMD literal & regex content search |"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/scripts/benchmark-claude.sh",
+          "line": 3,
+          "text": "# Benchmark: ffs MCP vs Claude Code native tools on real search tasks"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/scripts/benchmark-claude.sh",
+          "line": 9,
+          "text": "#   - With ffs MCP tools (frecency-ranked, fuzzy search)"
+        }
+      ],
+      "total_callers": 250
+    },
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/score.rs",
+        "line": 1190,
+        "end_line": 1223,
+        "kind": "function_item",
+        "weight": 100
+      },
+      "header": "    fn search(files: &[FileItem], query: &str, arena: ArenaPtr) -> Vec<(String, Score)> {",
+      "body": "    fn search(files: &[FileItem], query: &str, arena: ArenaPtr) -> Vec<(String, Score)> {\n        let parser = QueryParser::default();\n        let parsed = parser.parse(query);\n\n        let effective_query = match &parsed.fuzzy_query {\n            FuzzyQuery::Text(t) => *t,\n            FuzzyQuery::Parts(parts) if !parts.is_empty() => parts[0],\n            _ => query,\n        };\n        let max_typos = (effective_query.len() as u16 / 4).clamp(2, 6);\n\n        let ctx = ScoringContext {\n            query: &parsed,\n            max_threads: 1,\n            max_typos,\n            current_file: None,\n            last_same_query_match: None,\n            project_path: None,\n            combo_boost_score_multiplier: 100,\n            min_combo_count: 3,\n\n            pagination: PaginationArgs {\n                offset: 0,\n                limit: 100,\n            },\n        };\n        let (items, scores, _) =\n            fuzzy_match_and_score_files(files, &ctx, files.len(), arena, arena);\n        items\n            .iter()\n            .zip(scores.iter())\n            .map(|(f, s)| (f.relative_path(arena).to_string(), s.clone()))\n            .collect()\n    }\n",
+      "body_start_line": 1190,
+      "body_end_line": 1223,
+      "kept_bytes": 2068,
+      "footer_bytes": 0,
+      "callees": [
+        {
+          "name": "clamp"
+        },
+        {
+          "name": "clone",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/stable_vec.rs",
+          "line": 189
+        },
+        {
+          "name": "collect"
+        },
+        {
+          "name": "default",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+          "line": 241
+        },
+        {
+          "name": "fuzzy_match_and_score_files",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/score.rs",
+          "line": 141
+        }
+      ],
+      "total_callees": 13,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 3,
+          "text": "This repository contains **FFS**, a high-performance file search CLI and MCP server"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 36,
+          "text": "ffs-grep    (SIMD search)"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 51,
+          "text": "| `ffs-grep` | SIMD literal & regex content search |"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/scripts/benchmark-claude.sh",
+          "line": 3,
+          "text": "# Benchmark: ffs MCP vs Claude Code native tools on real search tasks"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/scripts/benchmark-claude.sh",
+          "line": 9,
+          "text": "#   - With ffs MCP tools (frecency-ranked, fuzzy search)"
+        }
+      ],
+      "total_callers": 250
+    },
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/mention/resolver.rs",
+        "line": 149,
+        "end_line": 227,
+        "kind": "function_item",
+        "weight": 100
+      },
+      "header": "    pub fn search(&self, input: &str, cursor: usize) -> MentionResult<'a> {",
+      "body": "    pub fn search(&self, input: &str, cursor: usize) -> MentionResult<'a> {\n        // Phase A: short-circuit when the trigger's query is too short\n        // (we still return the trigger so the host can show a \"type more\"\n        // affordance, but with no candidates).\n        let trigger = match detect_trigger(input, cursor) {\n            Some(t) if t.query.chars().count() >= self.opts.min_query_chars => t,\n            Some(t) => {\n                return MentionResult {\n                    trigger: Some(t),\n                    candidates: vec![],\n                };\n            }\n            None => {\n                return MentionResult {\n                    trigger: None,\n                    candidates: vec![],\n                };\n            }\n        };\n\n        let parser = QueryParser::<ffs_query_parser::FileSearchConfig>::default();\n        let q = parser.parse(&trigger.query);\n\n        let mut out: Vec<MentionCandidate<'a>> = Vec::new();\n\n        // ---- FILES ---- reuse the existing fuzzy_search pipeline.\n        if self.opts.include_files {\n            let result = self.picker.fuzzy_search(&q, None, Default::default());\n            for (item, score) in result.items.iter().zip(result.scores.iter()) {\n                let path = item.relative_path(self.picker);\n                let cand = MentionCandidate {\n                    kind: MentionKind::File,\n                    display: path.clone(),\n                    relative_path: path,\n                    frecency_score: (item.access_frecency_score as i64)\n                        + (item.modification_frecency_score as i64),\n                    size: item.size,\n                    is_binary: item.is_binary(),\n                    modified: item.modified,\n                    // TODO: extract fuzzy match indices from frizbee once we have access to them.\n                    match_indices: vec![],\n                    score: score.total,\n                    file_item: Some(item),\n                };\n                out.push(cand);\n            }\n        }\n\n        // ---- DIRECTORIES ---- reuse the existing fuzzy_search_directories pipeline.\n        if self.opts.include_dirs {\n            let dresult = self.picker.fuzzy_search_directories(&q, Default::default());\n            for (dir, score) in dresult.items.iter().zip(dresult.scores.iter()) {\n                let path = dir.relative_path(self.picker);\n                let cand = MentionCandidate {\n                    kind: MentionKind::Directory,\n                    display: path.clone(),\n                    relative_path: path,\n                    frecency_score: dir.max_access_frecency() as i64,\n                    size: 0,\n                    is_binary: false,\n                    modified: 0,\n                    // TODO: extract fuzzy match indices from frizbee once we have access to them.\n                    match_indices: vec![],\n                    score: score.total,\n                    file_item: None,\n                };\n                out.push(cand);\n            }\n        }\n\n        // Cross-kind rank by frizbee's score (already comparable across kinds).\n        out.sort_by_key(|c| std::cmp::Reverse(c.score));\n        out.truncate(self.opts.max_candidates);\n\n        MentionResult {\n            trigger: Some(trigger),\n            candidates: out,\n        }\n    }\n",
+      "body_start_line": 149,
+      "body_end_line": 227,
+      "kept_bytes": 4771,
+      "footer_bytes": 0,
+      "callees": [
+        {
+          "name": "Reverse"
+        },
+        {
+          "name": "Some"
+        },
+        {
+          "name": "chars"
+        },
+        {
+          "name": "clone",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/stable_vec.rs",
+          "line": 189
+        },
+        {
+          "name": "count",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/lines.rs",
+          "line": 67
+        }
+      ],
+      "total_callees": 20,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 3,
+          "text": "This repository contains **FFS**, a high-performance file search CLI and MCP server"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 36,
+          "text": "ffs-grep    (SIMD search)"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 51,
+          "text": "| `ffs-grep` | SIMD literal & regex content search |"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/scripts/benchmark-claude.sh",
+          "line": 3,
+          "text": "# Benchmark: ffs MCP vs Claude Code native tools on real search tasks"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/scripts/benchmark-claude.sh",
+          "line": 9,
+          "text": "#   - With ffs MCP tools (frecency-ranked, fuzzy search)"
+        }
+      ],
+      "total_callers": 250
+    }
+  ],
+  "total_cards": 3,
+  "offset": 0,
+  "has_more": false
+}

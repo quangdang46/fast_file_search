@@ -1,6 +1,5 @@
 //! Engine tool helpers for the MCP server: lazily-built `ffs-engine` shared
 //! across all `engine_*` tool calls and the parameter / response shapes.
-//!
 //! Existing ffs tools (`ffs_find`, `ffs_grep`, `ffs_multi_grep`) are untouched.
 //! The engine tools are additive: they expose the symbol index, call-graph,
 //! and token-budgeted read APIs from `ffs-engine` to MCP clients.
@@ -13,23 +12,9 @@ use once_cell::sync::OnceCell;
 use parking_lot::Mutex;
 
 use ffs_budget::FilterLevel;
-use ffs_engine::dispatch::DispatchResult;
 use ffs_engine::{Engine, EngineConfig, PreFilterStack};
 use ffs_symbol::lang::detect_file_type;
 use ffs_symbol::symbol_index::SymbolLocation;
-
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
-pub struct EngineDispatchParams {
-    /// Free-form query. Auto-classified into file-path / glob / symbol / concept routing.
-    pub query: String,
-    /// Token budget for the response (default 25000).
-    #[serde(rename = "maxTokens")]
-    pub max_tokens: Option<f64>,
-    /// Maximum hits returned (default 50).
-    #[serde(rename = "maxResults")]
-    pub max_results: Option<f64>,
-}
-
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct EngineSymbolParams {
     /// Symbol name to look up. Trailing `*` switches to prefix search.
@@ -627,43 +612,6 @@ pub fn format_call_hits(hits: &[CallHit], header: &str) -> String {
         out.push_str(&format!("{}:{}: {}\n", h.path, h.line, h.text));
     }
     out
-}
-
-pub fn format_dispatch(result: &DispatchResult) -> String {
-    match result {
-        DispatchResult::Symbol { hits, classified } => {
-            let mut out = format!("[symbol] '{}' -> {} hits\n", classified.raw, hits.len());
-            for h in hits.iter().take(50) {
-                out.push_str(&format!("{}:{}: [{}]\n", h.path.display(), h.line, h.kind));
-            }
-            out
-        }
-        DispatchResult::SymbolGlob { hits, classified } => {
-            let mut out = format!(
-                "[symbol-glob] '{}' -> {} hits\n",
-                classified.raw,
-                hits.len()
-            );
-            for (name, h) in hits.iter().take(50) {
-                out.push_str(&format!("{name}\t{}:{}\n", h.path.display(), h.line));
-            }
-            out
-        }
-        DispatchResult::Glob {
-            classified,
-            pattern,
-        } => format!(
-            "[glob] '{}' (pattern={pattern}) — use engine_grep for full results\n",
-            classified.raw,
-        ),
-        DispatchResult::FilePath { classified, path } => {
-            format!("[file-path] '{}' -> {}\n", classified.raw, path.display(),)
-        }
-        DispatchResult::ContentFallback { classified } => format!(
-            "[concept] '{}' — fall back to engine_grep for content search\n",
-            classified.raw,
-        ),
-    }
 }
 
 /// Format the outline for a file. Returns agent-friendly text (header + tree).

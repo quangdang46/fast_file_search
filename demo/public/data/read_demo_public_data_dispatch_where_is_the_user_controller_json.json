@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/demo/public/data/dispatch_where_is_the_user_controller.json",
+  "mode": "full",
+  "body": "{\n  \"raw\": \"where is the user controller\",\n  \"classification\": \"content_fallback\",\n  \"summary\": [\n    \"[fallback to grep]\"\n  ]\n}\n",
+  "kept_bytes": 129,
+  "footer_bytes": 0
+}

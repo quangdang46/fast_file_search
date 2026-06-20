@@ -1,0 +1,153 @@
+{
+  "name": "read",
+  "hops": 3,
+  "hub_guard": 50,
+  "results": [
+    {
+      "path": "crates/ffs-core/tests/bigram_overlay_coherence_test.rs",
+      "score": 159,
+      "reasons": [
+        "direct: 53"
+      ]
+    },
+    {
+      "path": "crates/ffs-core/src/file_picker.rs",
+      "score": 143,
+      "reasons": [
+        "direct: 47",
+        "imports: 1"
+      ]
+    },
+    {
+      "path": "crates/ffs-core/tests/fuzz_git_watcher_stress.rs",
+      "score": 120,
+      "reasons": [
+        "direct: 40"
+      ]
+    },
+    {
+      "path": "crates/ffs-c/src/lib.rs",
+      "score": 99,
+      "reasons": [
+        "direct: 33"
+      ]
+    },
+    {
+      "path": "docs/MENTION_SYSTEM_PLAN.md",
+      "score": 93,
+      "reasons": [
+        "direct: 31"
+      ]
+    },
+    {
+      "path": "crates/ffs-core/src/background_watcher.rs",
+      "score": 83,
+      "reasons": [
+        "direct: 27",
+        "imports: 1"
+      ]
+    },
+    {
+      "path": "crates/ffs-cli/src/commands/read.rs",
+      "score": 78,
+      "reasons": [
+        "direct: 26"
+      ]
+    },
+    {
+      "path": "crates/ffs-core/src/bigram_filter.rs",
+      "score": 78,
+      "reasons": [
+        "direct: 26"
+      ]
+    },
+    {
+      "path": "crates/ffs-core/tests/new_directory_watcher_test.rs",
+      "score": 78,
+      "reasons": [
+        "direct: 26"
+      ]
+    },
+    {
+      "path": "crates/ffs-core/src/scan.rs",
+      "score": 77,
+      "reasons": [
+        "direct: 25",
+        "imports: 1"
+      ]
+    },
+    {
+      "path": "crates/ffs-core/src/dbs/lmdb.rs",
+      "score": 69,
+      "reasons": [
+        "direct: 23"
+      ]
+    },
+    {
+      "path": "crates/ffs-core/tests/lmdb_stale_lock_deadlock.rs",
+      "score": 69,
+      "reasons": [
+        "direct: 23"
+      ]
+    },
+    {
+      "path": "crates/ffs-cli/src/cache.rs",
+      "score": 63,
+      "reasons": [
+        "direct: 21"
+      ]
+    },
+    {
+      "path": "crates/ffs-core/tests/bigram_overlay_integration.rs",
+      "score": 57,
+      "reasons": [
+        "direct: 19"
+      ]
+    },
+    {
+      "path": "crates/ffs-core/tests/fuzz_file_operations.rs",
+      "score": 51,
+      "reasons": [
+        "direct: 17"
+      ]
+    },
+    {
+      "path": "crates/ffs-engine/src/mention.rs",
+      "score": 45,
+      "reasons": [
+        "direct: 15"
+      ]
+    },
+    {
+      "path": "crates/ffs-mcp/src/server.rs",
+      "score": 45,
+      "reasons": [
+        "direct: 15"
+      ]
+    },
+    {
+      "path": "scripts/benchmark-claude.sh",
+      "score": 45,
+      "reasons": [
+        "direct: 15"
+      ]
+    },
+    {
+      "path": "crates/ffs-cli/src/commands/mcp.rs",
+      "score": 36,
+      "reasons": [
+        "direct: 12"
+      ]
+    },
+    {
+      "path": "crates/ffs-cli/assets/AGENT_GUIDE.md",
+      "score": 33,
+      "reasons": [
+        "direct: 11"
+      ]
+    }
+  ],
+  "total": 33,
+  "offset": 0,
+  "has_more": true
+}

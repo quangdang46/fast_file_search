@@ -1,0 +1,750 @@
+{
+  "name": "run",
+  "definitions": [
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/siblings.rs",
+      "line": 62,
+      "end_line": 125,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/glue.rs",
+      "line": 29,
+      "end_line": 37,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/glue.rs",
+      "line": 65,
+      "end_line": 77,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/deps.rs",
+      "line": 60,
+      "end_line": 108,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/glob.rs",
+      "line": 84,
+      "end_line": 98,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 73,
+      "end_line": 90,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_suspicious.rs",
+      "line": 18,
+      "end_line": 30,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/overview.rs",
+      "line": 60,
+      "end_line": 149,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/cli.rs",
+      "line": 107,
+      "end_line": 155,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/guide.rs",
+      "line": 19,
+      "end_line": 24,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/index.rs",
+      "line": 37,
+      "end_line": 104,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/outline.rs",
+      "line": 81,
+      "end_line": 121,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_cache_symbol.rs",
+      "line": 15,
+      "end_line": 29,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_impact.rs",
+      "line": 15,
+      "end_line": 27,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/refs.rs",
+      "line": 63,
+      "end_line": 80,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_count_by.rs",
+      "line": 48,
+      "end_line": 60,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 67,
+      "end_line": 120,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/find.rs",
+      "line": 280,
+      "end_line": 378,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mention.rs",
+      "line": 71,
+      "end_line": 102,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/dispatch.rs",
+      "line": 25,
+      "end_line": 96,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callees.rs",
+      "line": 101,
+      "end_line": 159,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/scan.rs",
+      "line": 161,
+      "end_line": 294,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/flow.rs",
+      "line": 109,
+      "end_line": 166,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callers.rs",
+      "line": 151,
+      "end_line": 245,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/symbol.rs",
+      "line": 90,
+      "end_line": 143,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/impact.rs",
+      "line": 70,
+      "end_line": 182,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/grep.rs",
+      "line": 198,
+      "end_line": 350,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/read.rs",
+      "line": 145,
+      "end_line": 394,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-budget/src/stream.rs",
+      "line": 55,
+      "end_line": 87,
+      "kind": "function_item",
+      "weight": 100
+    }
+  ],
+  "usages": [
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+      "line": 265,
+      "text": "        Write-Info \"[mcp dry-run] would write $File\""
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+      "line": 278,
+      "text": "        Write-Info \"[mcp dry-run] claude mcp add -s user $McpName -- $cmd mcp\""
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+      "line": 295,
+      "text": "        Write-Info \"[mcp dry-run] codex mcp add $McpName -- $cmd mcp\""
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+      "line": 360,
+      "text": "        Write-Info \"[mcp dry-run] would write $file\""
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+      "line": 473,
+      "text": "                # Remove-Item on a running .exe is a no-op (the file stays"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+      "line": 476,
+      "text": "                # because the running process keeps its handle to the old"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+      "line": 498,
+      "text": "            # stub or a truncated download."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+      "line": 501,
+      "text": "                throw \"Installed $dest is only $($installed.Length) bytes - this is almost certainly an antivirus quarantine stub. Check Get-MpThreatDetection or your EDR console, then add an exclusion for $InstallDir and re-run the installer.\""
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+      "line": 514,
+      "text": "        # Always run a self-test. The cost is a single `--version` invocation;"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+      "line": 515,
+      "text": "        # the benefit is that we catch the \"installed but won't run\" failure"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.ps1",
+      "line": 542,
+      "text": "            Write-Host \"     Then add an exclusion for $InstallDir and re-run.\""
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 4,
+      "text": "> Goal: make `ffs_search::FilePicker` the fastest mention candidate search backend in the AI-coding-agent space. **ffs is search, not agent runtime.**"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 313,
+      "text": "    out.truncate(resolver.opts.max_candidates)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 516,
+      "text": "        out.truncate(self.opts.max_candidates);"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 605,
+      "text": "#[test] fn max_candidates_truncates_results() { ... }"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 704,
+      "text": "- `ffs-budget` integration: head-truncate, line-range truncation, hashline rendering"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 738,
+      "text": "**fence:** Phase D evaluators run after Phase A's API is stable (3-6 months in production)."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 746,
+      "text": "- [ ] **No payload resolution** — ffs does not read file contents, truncate, or render hashlines. That's `ffs-budget`'s job (Phase B)."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 754,
+      "text": "- [ ] **Streaming auto-read** — every reference repo loads the whole file then truncates. No progressive rendering. Defer until measured."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 806,
+      "text": "- Token-cost discipline (max files, head-truncate, PDF threshold)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 811,
+      "text": "- codebuff uses LLM-mediated dispatch; we reject (ffs is search, not agent runtime)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 19,
+      "text": "#   --verify                run `ffs --version` after install as a self-test"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 28,
+      "text": "#   --mcp-only              skip binary install; only run MCP registration"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 33,
+      "text": "#   --mcp-dry-run           print the writes without touching any config file"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 87,
+      "text": "    die \"Another install is running. If stuck: rm -rf $LOCK_DIR\""
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 111,
+      "text": "        --mcp-dry-run)     MCP=1; MCP_DRY_RUN=1; shift;;"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 304,
+      "text": "            log_warn \"Restart your shell or run: export PATH=\\\"$DEST:\\$PATH\\\"\""
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 307,
+      "text": "        log_warn \"Not on PATH. Add to your shell rc, or rerun with --easy-mode:\""
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 334,
+      "text": "# the provider's MCP config. Idempotent — re-runs do not duplicate or"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 371,
+      "text": "        log_info \"[mcp dry-run] would write $file:\""
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 393,
+      "text": "        log_info \"[mcp dry-run] would remove ${MCP_NAME} from $file\""
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 405,
+      "text": "        log_info \"[mcp dry-run] claude mcp add -s user $MCP_NAME -- $cmd mcp\""
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 421,
+      "text": "        log_info \"[mcp dry-run] claude mcp remove -s user $MCP_NAME\""
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 433,
+      "text": "        log_info \"[mcp dry-run] codex mcp add $MCP_NAME -- $cmd mcp\""
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 447,
+      "text": "        log_info \"[mcp dry-run] codex mcp remove $MCP_NAME\""
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 535,
+      "text": "        log_info \"[mcp dry-run] would write $file:\""
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 548,
+      "text": "        log_info \"[mcp dry-run] would delete $file\""
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 563,
+      "text": "mcp_run_provider() {"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 584,
+      "text": "    for p in $(mcp_provider_list); do mcp_run_provider \"$p\" register; done"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 589,
+      "text": "    for p in $(mcp_provider_list); do mcp_run_provider \"$p\" remove; done"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 680,
+      "text": "# curl|bash safety: buffer the whole script before running so a truncated"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/cli.rs",
+      "line": 52,
+      "text": "    /// Read a file with token-budget aware truncation (replaces `cat`).",
+      "enclosing": "Command"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/cli.rs",
+      "line": 134,
+      "text": "            Command::Find(a) => commands::find::run(a, &root, self.format),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/cli.rs",
+      "line": 135,
+      "text": "            Command::Glob(a) => commands::glob::run(a, &root, self.format),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/cli.rs",
+      "line": 136,
+      "text": "            Command::Grep(a) => commands::grep::run(a, &root, self.format),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/cli.rs",
+      "line": 137,
+      "text": "            Command::Read(a) => commands::read::run(a, &root, self.format),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/cli.rs",
+      "line": 138,
+      "text": "            Command::Outline(a) => commands::outline::run(a, &root, self.format),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/cli.rs",
+      "line": 139,
+      "text": "            Command::Symbol(a) => commands::symbol::run(a, &root, self.format),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/cli.rs",
+      "line": 140,
+      "text": "            Command::Callers(a) => commands::callers::run(a, &root, self.format),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/cli.rs",
+      "line": 141,
+      "text": "            Command::Callees(a) => commands::callees::run(a, &root, self.format),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/cli.rs",
+      "line": 142,
+      "text": "            Command::Refs(a) => commands::refs::run(a, &root, self.format),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/cli.rs",
+      "line": 143,
+      "text": "            Command::Flow(a) => commands::flow::run(a, &root, self.format),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/cli.rs",
+      "line": 144,
+      "text": "            Command::Siblings(a) => commands::siblings::run(a, &root, self.format),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/cli.rs",
+      "line": 145,
+      "text": "            Command::Deps(a) => commands::deps::run(a, &root, self.format),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/cli.rs",
+      "line": 146,
+      "text": "            Command::Impact(a) => commands::impact::run(a, &root, self.format),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/cli.rs",
+      "line": 147,
+      "text": "            Command::Dispatch(a) => commands::dispatch::run(a, &root, self.format),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/cli.rs",
+      "line": 148,
+      "text": "            Command::Index(a) => commands::index::run(a, &root, self.format),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/cli.rs",
+      "line": 149,
+      "text": "            Command::Map(a) => commands::map::run(a, &root, self.format),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/cli.rs",
+      "line": 150,
+      "text": "            Command::Overview(a) => commands::overview::run(a, &root, self.format),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/cli.rs",
+      "line": 151,
+      "text": "            Command::Mcp(a) => commands::mcp::run(a, &root),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/cli.rs",
+      "line": 152,
+      "text": "            Command::Mention(a) => commands::mention::run(a, &root, self.format),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/cli.rs",
+      "line": 153,
+      "text": "            Command::Guide(a) => commands::guide::run(a, &root, self.format),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 51,
+      "text": "    pub truncated: bool,",
+      "enclosing": "MapNode"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 112,
+      "text": "        syms.truncate(top_n);",
+      "enclosing": "build_symbols_by_path"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 207,
+      "text": "            truncated: false,",
+      "enclosing": "fold_tree"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 228,
+      "text": "    let truncated = cur_depth >= max_depth;",
+      "enclosing": "fold_tree"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 229,
+      "text": "    if !truncated {",
+      "enclosing": "fold_tree"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 246,
+      "text": "        truncated,",
+      "enclosing": "fold_tree"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 276,
+      "text": "        if node.truncated {",
+      "enclosing": "render_node"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 301,
+      "text": "    if node.truncated {",
+      "enclosing": "render_node"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 394,
+      "text": "    fn map_depth_limit_truncates_children() {",
+      "enclosing": "map_depth_limit_truncates_children"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 410,
+      "text": "        assert!(a.truncated);",
+      "enclosing": "map_depth_limit_truncates_children"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 475,
+      "text": "        // run() skips building by_path when args.symbols == 0; mirror that here.",
+      "enclosing": "symbols_default_off_keeps_file_node_empty"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 483,
+      "text": "    fn build_symbols_by_path_sorts_weight_desc_then_line_and_truncates() {",
+      "enclosing": "build_symbols_by_path_sorts_weight_desc_then_line_and_truncates"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 509,
+      "text": "            truncated: false,",
+      "enclosing": "render_node_prints_symbol_bullets_only_for_files"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/overview.rs",
+      "line": 126,
+      "text": "    languages.truncate(args.top_languages);",
+      "enclosing": "run"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/overview.rs",
+      "line": 130,
+      "text": "    entrypoints.truncate(args.top_entrypoints);",
+      "enclosing": "run"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/find.rs",
+      "line": 150,
+      "text": "    let min_run = ((needle_len as f64) * 0.5).ceil() as usize;",
+      "enclosing": "fuzzy_search_matches"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/find.rs",
+      "line": 151,
+      "text": "    let min_run = min_run.max(3);",
+      "enclosing": "fuzzy_search_matches"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/find.rs",
+      "line": 165,
+      "text": "            let run = longest_in_order_run(&basename, &needle_lower);",
+      "enclosing": "fuzzy_search_matches"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/find.rs",
+      "line": 166,
+      "text": "            if run >= min_run || (top_score > 0 && m.score >= score_floor) {",
+      "enclosing": "fuzzy_search_matches"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/find.rs",
+      "line": 175,
+      "text": "fn longest_in_order_run(haystack: &str, needle: &str) -> usize {",
+      "enclosing": "longest_in_order_run"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/find.rs",
+      "line": 255,
+      "text": "    let min_run = ((needle_len as f64) * 0.5).ceil() as usize;",
+      "enclosing": "fuzzy_search_dir_matches"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/find.rs",
+      "line": 256,
+      "text": "    let min_run = min_run.max(3);",
+      "enclosing": "fuzzy_search_dir_matches"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/find.rs",
+      "line": 270,
+      "text": "            let run = longest_in_order_run(&basename, &needle_lower);",
+      "enclosing": "fuzzy_search_dir_matches"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/find.rs",
+      "line": 271,
+      "text": "            if run >= min_run || (top_score > 0 && m.score >= score_floor) {",
+      "enclosing": "fuzzy_search_dir_matches"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/find.rs",
+      "line": 400,
+      "text": "        run(args, root, OutputFormat::Json).unwrap();",
+      "enclosing": "single_scope_matches_paths"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/find.rs",
+      "line": 470,
+      "text": "        run(args, root, OutputFormat::Json).unwrap();",
+      "enclosing": "directory_mode_finds_dirs"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mention.rs",
+      "line": 11,
+      "text": "//! This subcommand takes a single input string, splits it into tokens, runs"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mention.rs",
+      "line": 200,
+      "text": "    fn run_produces_resolved_mention_for_matched_file() {",
+      "enclosing": "run_produces_resolved_mention_for_matched_file"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mention.rs",
+      "line": 209,
+      "text": "        run(args, td.path(), OutputFormat::Json).unwrap();",
+      "enclosing": "run_produces_resolved_mention_for_matched_file"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mention.rs",
+      "line": 213,
+      "text": "    fn run_handles_text_format() {",
+      "enclosing": "run_handles_text_format"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mention.rs",
+      "line": 222,
+      "text": "        run(args, td.path(), OutputFormat::Text).unwrap();",
+      "enclosing": "run_handles_text_format"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mention.rs",
+      "line": 226,
+      "text": "    fn run_handles_unknown_format_as_json() {",
+      "enclosing": "run_handles_unknown_format_as_json"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mention.rs",
+      "line": 235,
+      "text": "        run(args, td.path(), OutputFormat::Json).unwrap();",
+      "enclosing": "run_handles_unknown_format_as_json"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mention.rs",
+      "line": 239,
+      "text": "    fn run_returns_no_mentions_for_no_match() {",
+      "enclosing": "run_returns_no_mentions_for_no_match"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mention.rs",
+      "line": 249,
+      "text": "        run(args, td.path(), OutputFormat::Json).unwrap();",
+      "enclosing": "run_returns_no_mentions_for_no_match"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/impact.rs",
+      "line": 24,
+      "text": "use crate::commands::callers_bfs::{run_bfs, BfsConfig, CandidateFile};",
+      "enclosing": "<anonymous>"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/impact.rs",
+      "line": 109,
+      "text": "    let bfs = run_bfs(",
+      "enclosing": "run"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mod.rs",
+      "line": 64,
+      "text": "/// in arrival order (non-deterministic across runs); callers that need"
+    }
+  ],
+  "total_usages": 166,
+  "offset": 0,
+  "has_more": true
+}

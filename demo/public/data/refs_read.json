@@ -1,0 +1,576 @@
+{
+  "name": "read",
+  "definitions": [
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mod.rs",
+      "line": 29,
+      "end_line": 29,
+      "kind": "mod_item",
+      "weight": 70
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/shared.rs",
+      "line": 93,
+      "end_line": 95,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/shared.rs",
+      "line": 257,
+      "end_line": 259,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/shared.rs",
+      "line": 336,
+      "end_line": 338,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/dispatch.rs",
+      "line": 150,
+      "end_line": 227,
+      "kind": "function_item",
+      "weight": 100
+    }
+  ],
+  "usages": [
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+      "line": 5,
+      "text": "frecency scoring, and token-budget aware file reading for AI agents."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+      "line": 38,
+      "text": "ffs-budget  (token-aware reader)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+      "line": 52,
+      "text": "| `ffs-budget` | Token-aware reader with filters |"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+      "line": 54,
+      "text": "| `ffs-cli` | CLI commands (find, grep, symbol, read, map, etc.) |"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+      "line": 69,
+      "text": "- Be very careful around locking - prefer RwLock over Mutex for read-heavy workloads"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/scripts/set-rust-version.lua",
+      "line": 21,
+      "text": "local function read_file(path)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/scripts/set-rust-version.lua",
+      "line": 23,
+      "text": "  local text = f:read('*a')"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/scripts/set-rust-version.lua",
+      "line": 56,
+      "text": "  local text = read_file(path)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/scripts/benchmark-claude.sh",
+      "line": 394,
+      "text": "  IFS='|' read -r ffs_cost ffs_turns ffs_dur ffs_wall ffs_err ffs_found <<< \"$ffs_data\""
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/scripts/benchmark-claude.sh",
+      "line": 395,
+      "text": "  IFS='|' read -r nat_cost nat_turns nat_dur nat_wall nat_err nat_found <<< \"$native_data\""
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/scripts/benchmark-claude.sh",
+      "line": 687,
+      "text": "    read_calls = [t for t in traces if t[\"name\"] == \"Read\"]"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/scripts/benchmark-claude.sh",
+      "line": 696,
+      "text": "    if read_calls and grep_calls:"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/scripts/benchmark-claude.sh",
+      "line": 697,
+      "text": "        read_files = set()"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/scripts/benchmark-claude.sh",
+      "line": 698,
+      "text": "        for rc in read_calls:"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/scripts/benchmark-claude.sh",
+      "line": 701,
+      "text": "                read_files.add(fp.split(\"/\")[-1])"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/scripts/benchmark-claude.sh",
+      "line": 702,
+      "text": "        issues.append(f\"Read calls after grep ({', '.join(read_files)}) — grep output wasn't sufficient\")"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/scripts/benchmark-claude.sh",
+      "line": 711,
+      "text": "    for rc in read_calls:"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/scripts/benchmark-claude.sh",
+      "line": 758,
+      "text": "total_reads_after_grep = sum("
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/scripts/benchmark-claude.sh",
+      "line": 773,
+      "text": "if total_reads_after_grep >= 3:"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/scripts/benchmark-claude.sh",
+      "line": 774,
+      "text": "    print(f\"  │ 1. EXPAND GREP CONTEXT: {total_reads_after_grep}/{len(rows)} concepts do Read after grep.\")"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/scripts/benchmark-claude.sh",
+      "line": 806,
+      "text": "        ffs_read_count = len([t for t in traces if t[\"name\"] == \"Read\"])"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/scripts/benchmark-claude.sh",
+      "line": 807,
+      "text": "        nat_read_count = len([t for t in nat_traces if t[\"name\"] == \"Read\"])"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/scripts/benchmark-claude.sh",
+      "line": 810,
+      "text": "        print(f\"  │   #{r['num']} {r['name']} ({savings:+.0f}%): ffs={ffs_grep_count}grep+{ffs_read_count}read vs nat={nat_grep_count}grep+{nat_read_count}read\")"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 17,
+      "text": "- `docs/FILE_PICKER_INIT_LATENCY_PLAN.md` — cold/warm scan perf (Option A incremental readiness)."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 29,
+      "text": "- Reuses the existing LMDB-backed `FrecencyTracker` (boosted via `FileItem.access_frecency_score` already populated per scan)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 30,
+      "text": "- Reuses `FilePicker::fuzzy_search()` and `fuzzy_search_directories()` for ranking (the SIMD-accelerated frizbee engine already there)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 32,
+      "text": "- Does **not** read files, resolve payloads, dispatch agents, or own any UX — host app decides"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 50,
+      "text": "- **Candidate ranking**: reuse `FilePicker::fuzzy_search()` and `fuzzy_search_directories()` directly. These already use the SIMD `frizbee` engine with frecency boost."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 52,
+      "text": "- **Tiered fuzzy**: reuse what `frizbee` already does (typo-tolerant subsequence). We don't reimplement — we expose what's there through the `MentionResolver` API."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 58,
+      "text": "| Reuse `fuzzy_search()` directly | this repo's `frizbee` | Zero new code for ranking; SIMD-accelerated; frecency-aware already | Bound to existing scoring semantics | **Adopt** |"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 60,
+      "text": "| New `frecency.jsonl` + own store | opencode | Decouples from LMDB | LMDB already there; ranking inconsistency between ffs find and ffs mention | **Reject** (review fix #2) |"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 64,
+      "text": "| Payload resolution + line ranges + binary policy in ffs-core | v1 plan | All-in-one | `ffs-budget` already owns token-aware reading; mixing concerns | **Reject** — move to Phase B (review fix #4) |"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 173,
+      "text": "/// Phase A resolver. Sync, single-thread. Borrows from `FilePicker`."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 176,
+      "text": "/// `External` kinds; the Phase A struct already leaves room for that"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 205,
+      "text": "- `FilePicker` (no `search_mentions()` method on the picker itself in Phase A — the resolver is the entry point and holds the picker borrow, matching the `fuzzy_search()` lifetime pattern that already exists)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 230,
+      "text": "            # escaped @ (i.e. \\@) was already rejected: the char before @ would be '\\\\'"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 310,
+      "text": "    # frizbee's score is already comparable across files and dirs"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 318,
+      "text": "**Why no new tiered fuzzy in Phase A:** `fuzzy_search` already uses the SIMD `frizbee` engine with typo tolerance, frecency boost, and bonus scoring. Adding a parallel tiered scorer would either duplicate it (perf regression) or replace it (lose the existing tuned ranking). The point of the resolver is to *expose* the existing pipeline under a `@`-triggered API, not to fork it."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 320,
+      "text": "**Why `fuzzy_min_chars` only gates subsequence:** frizbee's own threshold already handles short queries gracefully — it returns recent + prefix matches for `@x`. The `fuzzy_min_chars` knob is a Phase A escape hatch for callers who want to suppress subsequence fallback specifically (e.g. performance-sensitive TUI that wants only top-N prefix hits on `@`). Default 0 means \"let frizbee decide\"."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 349,
+      "text": "- in-string: `(@\"` (closing quote already passed)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 369,
+      "text": "            // boundary_ok already rejected it. Defensive check for clarity:"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 427,
+      "text": "/// Phase A resolver. Sync, single-thread, borrows from `FilePicker`."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 514,
+      "text": "        // Cross-kind rank by frizbee's score (already comparable across kinds)."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 531,
+      "text": "**No env vars introduced in Phase A.** Frecency path is already controlled by the existing `frecency_db_path` parameter on `ffs_create_instance2()` (C ABI) and the corresponding `SharedFrecency::init()` call. Mention resolution inherits the picker's frecency state."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 554,
+      "text": "Zero changes to jcode's existing `AtPicker::search()` — the resolver is a new code path that can be used to *replace* the existing one when ready."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 631,
+      "text": "#[test] fn thread_safety_unchanged_from_picker() { ... } // FilePicker still !Sync; resolver borrows &FilePicker"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 634,
+      "text": "**No tests in Phase A for:** payload resolution, line range injection into reads, binary policy, image handling, agent/tool/skill dispatch, IDE bridge, C ABI, MCP, CLI — all in later phases."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 703,
+      "text": "- Binary detection: `is_binary` already on `FileItem` from Phase A; consumers filter"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 706,
+      "text": "- Dedup-by-turn cache: `MentionResolver::search_cached(turn_id, candidates)` to avoid re-reading same path 5x"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 746,
+      "text": "- [ ] **No payload resolution** — ffs does not read file contents, truncate, or render hashlines. That's `ffs-budget`'s job (Phase B)."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 748,
+      "text": "- [ ] **No async / no parallel provider fan-out** — Phase A is sync single-thread over a `&FilePicker` borrow. Matches the existing `fuzzy_search()` API surface."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 754,
+      "text": "- [ ] **Streaming auto-read** — every reference repo loads the whole file then truncates. No progressive rendering. Defer until measured."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 772,
+      "text": "- [ ] Reuses existing LMDB-backed `FrecencyTracker` via `SharedFrecency::read()` (no new `frecency.jsonl`)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 819,
+      "text": "- No streaming auto-read"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 29,
+      "text": "#                           (assumes ffs is already on PATH or under --dest)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 215,
+      "text": "            [ \"$tag\" = \"$VERSION\" ] && continue  # already checked"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/install.sh",
+      "line": 353,
+      "text": "# Atomic JSON merge: read source (or default to {}), apply jq filter, write back."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 6,
+      "text": "//! access to the symbol index, dispatch, and token-budgeted read APIs."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 254,
+      "text": "pub unsafe extern \"C\" fn ffs_engine_read(",
+      "enclosing": "ffs_engine_read"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 295,
+      "text": "    let res = local.read(&abs);",
+      "enclosing": "ffs_engine_read"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 351,
+      "text": "        let Ok(content) = std::fs::read_to_string(&path) else {",
+      "enclosing": "ffs_engine_refs"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 466,
+      "text": "        let body_text = std::fs::read_to_string(&def.path).unwrap_or_default();",
+      "enclosing": "ffs_engine_flow"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 535,
+      "text": "        let Ok(content) = std::fs::read_to_string(&path) else {",
+      "enclosing": "ffs_engine_impact"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 216,
+      "text": "    // Create shared state that background threads will write into.",
+      "enclosing": "ffs_create_instance2"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 326,
+      "text": "/// * `max_threads`             – maximum worker threads (0 = auto-detect)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 340,
+      "text": "    max_threads: u32,",
+      "enclosing": "ffs_search"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 361,
+      "text": "    let picker_guard = match inst.picker.read() {",
+      "enclosing": "ffs_search"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 374,
+      "text": "    let qt_guard = match inst.query_tracker.read() {",
+      "enclosing": "ffs_search"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 387,
+      "text": "            max_threads: max_threads as usize,",
+      "enclosing": "ffs_search"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 410,
+      "text": "/// * `max_threads`  – maximum worker threads (0 = auto-detect)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 422,
+      "text": "    max_threads: u32,",
+      "enclosing": "ffs_search_directories"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 439,
+      "text": "    let picker_guard = match inst.picker.read() {",
+      "enclosing": "ffs_search_directories"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 457,
+      "text": "            max_threads: max_threads as usize,",
+      "enclosing": "ffs_search_directories"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 484,
+      "text": "/// * `max_threads`             – maximum worker threads (0 = auto-detect)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 498,
+      "text": "    max_threads: u32,",
+      "enclosing": "ffs_search_mixed"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 519,
+      "text": "    let picker_guard = match inst.picker.read() {",
+      "enclosing": "ffs_search_mixed"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 531,
+      "text": "    let qt_guard = match inst.query_tracker.read() {",
+      "enclosing": "ffs_search_mixed"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 544,
+      "text": "            max_threads: max_threads as usize,",
+      "enclosing": "ffs_search_mixed"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 605,
+      "text": "    let picker_guard = match inst.picker.read() {",
+      "enclosing": "ffs_live_grep"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 699,
+      "text": "    let picker_guard = match inst.picker.read() {",
+      "enclosing": "ffs_multi_grep"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 758,
+      "text": "    // Async: rescan runs on a BG thread, caller returns immediately.",
+      "enclosing": "ffs_scan_files"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 778,
+      "text": "        .read()",
+      "enclosing": "ffs_is_scanning"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 787,
+      "text": "/// field. Free the string with `ffs_free_string` after reading it."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 798,
+      "text": "    let guard = match inst.picker.read() {",
+      "enclosing": "ffs_get_base_path"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 822,
+      "text": "    let guard = match inst.picker.read() {",
+      "enclosing": "ffs_get_scan_progress"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 854,
+      "text": "/// Wait for the background file watcher to be ready."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 992,
+      "text": "        let guard = match inst.picker.read() {",
+      "enclosing": "ffs_track_query"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 1031,
+      "text": "        let guard = match inst.picker.read() {",
+      "enclosing": "ffs_get_historical_query"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 1041,
+      "text": "    let qt_guard = match inst.query_tracker.read() {",
+      "enclosing": "ffs_get_historical_query"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 1125,
+      "text": "        match inst.picker.read() {",
+      "enclosing": "ffs_health_check"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 1165,
+      "text": "        match inst.frecency.read() {",
+      "enclosing": "ffs_health_check"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 1204,
+      "text": "        match inst.query_tracker.read() {",
+      "enclosing": "ffs_health_check"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 1590,
+      "text": "/// which reads, classifies, filters, and truncates each path to fit the"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 1664,
+      "text": "        let guard = match inst.picker.read() {",
+      "enclosing": "ffs_mention_search_json"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 1700,
+      "text": "/// Single-threaded recursive directory walk. The mention surface does not"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 1709,
+      "text": "        .threads(1)",
+      "enclosing": "walk_files_simple"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/mention.rs",
+      "line": 4,
+      "text": "//! `resolve_mentions` reads each one, classifies it (text / binary / image /"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/mention.rs",
+      "line": 11,
+      "text": "//! without re-reading the file or re-applying the filter pipeline."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/mention.rs",
+      "line": 29,
+      "text": "/// Maximum bytes read for binary detection. The probe never reads more than"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/mention.rs",
+      "line": 65,
+      "text": "/// to surface \"why did this read cost so much\" without re-walking the"
+    }
+  ],
+  "total_usages": 596,
+  "offset": 0,
+  "has_more": true
+}

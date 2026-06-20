@@ -1,0 +1,259 @@
+{
+  "name": "find",
+  "cards": [
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/matcher.rs",
+        "line": 146,
+        "end_line": 148,
+        "kind": "function_item",
+        "weight": 100
+      },
+      "header": "    fn find(&self, haystack: &[u8]) -> Result<Option<Match>, Self::Error> {",
+      "body": "    fn find(&self, haystack: &[u8]) -> Result<Option<Match>, Self::Error> {\n        self.find_at(haystack, 0)\n    }\n",
+      "body_start_line": 146,
+      "body_end_line": 148,
+      "kept_bytes": 227,
+      "footer_bytes": 0,
+      "callees": [
+        {
+          "name": "find_at",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/grep.rs",
+          "line": 877
+        }
+      ],
+      "total_callees": 1,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 54,
+          "text": "| `ffs-cli` | CLI commands (find, grep, symbol, read, map, etc.) |"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 60,
+          "text": "| New `frecency.jsonl` + own store | opencode | Decouples from LMDB | LMDB already there; ranking inconsistency between ffs find and ffs mention | **Reject** (review fix #2) |"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 243,
+          "text": "        close = find matching '\"' in raw[1..] or return (raw, false, None)"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 246,
+          "text": "    if let Some(hash_idx) = raw.find('#'):"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 388,
+          "text": "        if let Some(close) = rest.find('\"') {"
+        }
+      ],
+      "total_callers": 153
+    },
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/matcher.rs",
+        "line": 167,
+        "end_line": 169,
+        "kind": "function_item",
+        "weight": 100
+      },
+      "header": "    fn find(&self, haystack: &[u8]) -> Result<Option<Match>, Self::Error> {",
+      "body": "    fn find(&self, haystack: &[u8]) -> Result<Option<Match>, Self::Error> {\n        (*self).find(haystack)\n    }\n",
+      "body_start_line": 167,
+      "body_end_line": 169,
+      "kept_bytes": 113,
+      "footer_bytes": 0,
+      "callees": [],
+      "total_callees": 0,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 54,
+          "text": "| `ffs-cli` | CLI commands (find, grep, symbol, read, map, etc.) |"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 60,
+          "text": "| New `frecency.jsonl` + own store | opencode | Decouples from LMDB | LMDB already there; ranking inconsistency between ffs find and ffs mention | **Reject** (review fix #2) |"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 243,
+          "text": "        close = find matching '\"' in raw[1..] or return (raw, false, None)"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 246,
+          "text": "    if let Some(hash_idx) = raw.find('#'):"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 388,
+          "text": "        if let Some(close) = rest.find('\"') {"
+        }
+      ],
+      "total_callers": 153
+    },
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/glue.rs",
+        "line": 114,
+        "end_line": 118,
+        "kind": "function_item",
+        "weight": 100
+      },
+      "header": "    fn find(&mut self) -> Result<Option<Range>, S::Error> {",
+      "body": "    fn find(&mut self) -> Result<Option<Range>, S::Error> {\n        self.core\n            .find(&self.slice[self.core.pos()..])\n            .map(|m| m.map(|m| m.offset(self.core.pos())))\n    }\n",
+      "body_start_line": 114,
+      "body_end_line": 118,
+      "kept_bytes": 493,
+      "footer_bytes": 0,
+      "callees": [
+        {
+          "name": "map",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mod.rs",
+          "line": 22
+        },
+        {
+          "name": "offset",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/matcher.rs",
+          "line": 48
+        },
+        {
+          "name": "pos",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/core.rs",
+          "line": 41
+        }
+      ],
+      "total_callees": 3,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 54,
+          "text": "| `ffs-cli` | CLI commands (find, grep, symbol, read, map, etc.) |"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 60,
+          "text": "| New `frecency.jsonl` + own store | opencode | Decouples from LMDB | LMDB already there; ranking inconsistency between ffs find and ffs mention | **Reject** (review fix #2) |"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 243,
+          "text": "        close = find matching '\"' in raw[1..] or return (raw, false, None)"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 246,
+          "text": "    if let Some(hash_idx) = raw.find('#'):"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 388,
+          "text": "        if let Some(close) = rest.find('\"') {"
+        }
+      ],
+      "total_callers": 153
+    },
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/core.rs",
+        "line": 53,
+        "end_line": 55,
+        "kind": "function_item",
+        "weight": 100
+      },
+      "header": "    pub(crate) fn find(&mut self, slice: &[u8]) -> Result<Option<Range>, S::Error> {",
+      "body": "    pub(crate) fn find(&mut self, slice: &[u8]) -> Result<Option<Range>, S::Error> {\n        self.matcher.find(slice).map_err(S::Error::error_message)\n    }\n",
+      "body_start_line": 53,
+      "body_end_line": 55,
+      "kept_bytes": 198,
+      "footer_bytes": 0,
+      "callees": [
+        {
+          "name": "map_err"
+        }
+      ],
+      "total_callees": 1,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 54,
+          "text": "| `ffs-cli` | CLI commands (find, grep, symbol, read, map, etc.) |"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 60,
+          "text": "| New `frecency.jsonl` + own store | opencode | Decouples from LMDB | LMDB already there; ranking inconsistency between ffs find and ffs mention | **Reject** (review fix #2) |"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 243,
+          "text": "        close = find matching '\"' in raw[1..] or return (raw, false, None)"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 246,
+          "text": "    if let Some(hash_idx) = raw.find('#'):"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 388,
+          "text": "        if let Some(close) = rest.find('\"') {"
+        }
+      ],
+      "total_callers": 153
+    },
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mod.rs",
+        "line": 15,
+        "end_line": 15,
+        "kind": "mod_item",
+        "weight": 70
+      },
+      "header": "pub mod find;",
+      "body": "pub mod find;\n",
+      "body_start_line": 15,
+      "body_end_line": 15,
+      "kept_bytes": 14,
+      "footer_bytes": 0,
+      "callees": [],
+      "total_callees": 0,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 54,
+          "text": "| `ffs-cli` | CLI commands (find, grep, symbol, read, map, etc.) |"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 60,
+          "text": "| New `frecency.jsonl` + own store | opencode | Decouples from LMDB | LMDB already there; ranking inconsistency between ffs find and ffs mention | **Reject** (review fix #2) |"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 243,
+          "text": "        close = find matching '\"' in raw[1..] or return (raw, false, None)"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 246,
+          "text": "    if let Some(hash_idx) = raw.find('#'):"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 388,
+          "text": "        if let Some(close) = rest.find('\"') {"
+        }
+      ],
+      "total_callers": 153
+    }
+  ],
+  "total_cards": 5,
+  "offset": 0,
+  "has_more": false
+}

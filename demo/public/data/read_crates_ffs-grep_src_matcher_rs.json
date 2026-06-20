@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/matcher.rs",
+  "mode": "outline",
+  "body": "# crates/ffs-grep/src/matcher.rs (175 lines, ~1.1k tokens) [outline]\n\n[5-8]         struct Match\n              pub struct Match {\n[95-95]       struct LineTerminator\n              pub struct LineTerminator(u8);\n[126-126]     struct NoError\n              pub struct NoError(());\n[137-156]     interface Matcher\n              pub trait Matcher {\n  [146-148]   function find\n              fn find(&self, haystack: &[u8]) -> Result<Option<Match>, Self::Error> {\n  [153-155]   function line_terminator\n              fn line_terminator(&self) -> Option<LineTerminator> {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 632,
+  "footer_bytes": 0
+}

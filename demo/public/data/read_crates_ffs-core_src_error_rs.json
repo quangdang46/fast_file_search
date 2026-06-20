@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/error.rs",
+  "mode": "outline",
+  "body": "# crates/ffs-core/src/error.rs (59 lines, ~563 tokens) [outline]\n\n[1-1]     imports: std\n[5-57]    enum Error\n          pub enum Error {\n[59-59]   type Result\n          pub type Result<T> = std::result::Result<T, Error>;\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 288,
+  "footer_bytes": 0
+}

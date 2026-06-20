@@ -1,0 +1,18 @@
+{
+  "target": "crates/ffs-core/src/fuzzy_file_search.rs",
+  "imports": [
+    {
+      "spec": "std::path::Path"
+    },
+    {
+      "spec": "super"
+    },
+    {
+      "spec": "std::fs"
+    }
+  ],
+  "dependents": [],
+  "total_dependents": 0,
+  "offset": 0,
+  "has_more": false
+}

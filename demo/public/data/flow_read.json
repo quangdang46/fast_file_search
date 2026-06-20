@@ -1,0 +1,271 @@
+{
+  "name": "read",
+  "cards": [
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/shared.rs",
+        "line": 93,
+        "end_line": 95,
+        "kind": "function_item",
+        "weight": 100
+      },
+      "header": "    pub fn read(&self) -> Result<parking_lot::RwLockReadGuard<'_, Option<FilePicker>>, Error> {",
+      "body": "    pub fn read(&self) -> Result<parking_lot::RwLockReadGuard<'_, Option<FilePicker>>, Error> {\n        Ok(self.0.picker.read())\n    }\n",
+      "body_start_line": 93,
+      "body_end_line": 95,
+      "kept_bytes": 171,
+      "footer_bytes": 0,
+      "callees": [
+        {
+          "name": "Ok"
+        }
+      ],
+      "total_callees": 1,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 5,
+          "text": "frecency scoring, and token-budget aware file reading for AI agents."
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 38,
+          "text": "ffs-budget  (token-aware reader)"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 52,
+          "text": "| `ffs-budget` | Token-aware reader with filters |"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 54,
+          "text": "| `ffs-cli` | CLI commands (find, grep, symbol, read, map, etc.) |"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 69,
+          "text": "- Be very careful around locking - prefer RwLock over Mutex for read-heavy workloads"
+        }
+      ],
+      "total_callers": 596
+    },
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/shared.rs",
+        "line": 257,
+        "end_line": 259,
+        "kind": "function_item",
+        "weight": 100
+      },
+      "header": "    pub fn read(&self) -> Result<RwLockReadGuard<'_, Option<FrecencyTracker>>, Error> {",
+      "body": "    pub fn read(&self) -> Result<RwLockReadGuard<'_, Option<FrecencyTracker>>, Error> {\n        self.inner.read().map_err(|_| Error::AcquireFrecencyLock)\n    }\n",
+      "body_start_line": 257,
+      "body_end_line": 259,
+      "kept_bytes": 201,
+      "footer_bytes": 0,
+      "callees": [
+        {
+          "name": "map_err"
+        }
+      ],
+      "total_callees": 1,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 5,
+          "text": "frecency scoring, and token-budget aware file reading for AI agents."
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 38,
+          "text": "ffs-budget  (token-aware reader)"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 52,
+          "text": "| `ffs-budget` | Token-aware reader with filters |"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 54,
+          "text": "| `ffs-cli` | CLI commands (find, grep, symbol, read, map, etc.) |"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 69,
+          "text": "- Be very careful around locking - prefer RwLock over Mutex for read-heavy workloads"
+        }
+      ],
+      "total_callers": 596
+    },
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/shared.rs",
+        "line": 336,
+        "end_line": 338,
+        "kind": "function_item",
+        "weight": 100
+      },
+      "header": "    pub fn read(&self) -> Result<RwLockReadGuard<'_, Option<QueryTracker>>, Error> {",
+      "body": "    pub fn read(&self) -> Result<RwLockReadGuard<'_, Option<QueryTracker>>, Error> {\n        self.inner.read().map_err(|_| Error::AcquireFrecencyLock)\n    }\n",
+      "body_start_line": 336,
+      "body_end_line": 338,
+      "kept_bytes": 198,
+      "footer_bytes": 0,
+      "callees": [
+        {
+          "name": "map_err"
+        }
+      ],
+      "total_callees": 1,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 5,
+          "text": "frecency scoring, and token-budget aware file reading for AI agents."
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 38,
+          "text": "ffs-budget  (token-aware reader)"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 52,
+          "text": "| `ffs-budget` | Token-aware reader with filters |"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 54,
+          "text": "| `ffs-cli` | CLI commands (find, grep, symbol, read, map, etc.) |"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 69,
+          "text": "- Be very careful around locking - prefer RwLock over Mutex for read-heavy workloads"
+        }
+      ],
+      "total_callers": 596
+    },
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/dispatch.rs",
+        "line": 150,
+        "end_line": 227,
+        "kind": "function_item",
+        "weight": 100
+      },
+      "header": "    pub fn read(&self, path: &Path) -> ReadResult {",
+      "body": "    pub fn read(&self, path: &Path) -> ReadResult {\n        let bytes = match std::fs::read(path) {\n            Ok(b) => b,\n            Err(e) => {\n                return ReadResult {\n                    path: path.to_path_buf(),\n                    body: format!(\"[error reading file: {e}]\"),\n                    outcome: TruncationOutcome {\n                        kept_lines: 0,\n                        dropped_lines: 0,\n                        kept_bytes: 0,\n                        footer_bytes: 0,\n                    },\n                    is_error: true,\n                    is_binary: false,\n                }\n            }\n        };\n\n        // Refuse binary content with a structured error rather than producing\n        // garbled output (and risk panicking inside char-boundary slicing).\n        if is_binary(&bytes) {\n            let body = format!(\n                \"[binary file: {} bytes; refusing to render. Use --full to force.]\",\n                bytes.len()\n            );\n            let kept = body.len();\n            return ReadResult {\n                path: path.to_path_buf(),\n                body,\n                outcome: TruncationOutcome {\n                    kept_lines: 1,\n                    dropped_lines: 0,\n                    kept_bytes: kept,\n                    footer_bytes: 0,\n                },\n                is_error: false,\n                is_binary: true,\n            };\n        }\n\n        let text = String::from_utf8_lossy(&bytes).into_owned();\n\n        let filter: Box<dyn FilterStrategy> = match self.config.filter_level {\n            FilterLevel::None => Box::new(NoFilter),\n            FilterLevel::Minimal => Box::new(MinimalFilter),\n            FilterLevel::Aggressive => Box::new(AggressiveFilter),\n        };\n        let filtered = filter.apply(&text);\n\n        let split = BudgetSplit::default_for(self.config.total_token_budget);\n        let body_budget_bytes = (split.body * 4) as usize;\n\n        let max_bytes = body_budget_bytes.min(self.config.max_bytes_per_result);\n        let mut buf = String::new();\n        let footer = \"[truncated to budget]\\n\";\n        let outcome = if filtered.len() <= max_bytes {\n            let (out, oc) = smart_truncate(&filtered, max_bytes);\n            buf.push_str(&out);\n            oc\n        } else {\n            apply_preserving_footer(&mut buf, max_bytes, footer, |target, budget| {\n                // Clip to a UTF-8 char boundary so we never split a multi-byte\n                // codepoint when handing the slice to downstream `&str` ops.\n                let take = floor_char_boundary(&filtered, filtered.len().min(budget));\n                target.push_str(&filtered[..take]);\n                take\n            })\n        };\n\n        ReadResult {\n            path: path.to_path_buf(),\n            body: buf,\n            outcome,\n            is_error: false,\n            is_binary: false,\n        }\n    }\n",
+      "body_start_line": 150,
+      "body_end_line": 227,
+      "kept_bytes": 3929,
+      "footer_bytes": 0,
+      "callees": [
+        {
+          "name": "apply",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-budget/src/filter.rs",
+          "line": 87
+        },
+        {
+          "name": "apply_preserving_footer",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-budget/src/truncate.rs",
+          "line": 88
+        },
+        {
+          "name": "default_for",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-budget/src/tokens.rs",
+          "line": 45
+        },
+        {
+          "name": "floor_char_boundary",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/dispatch.rs",
+          "line": 232
+        },
+        {
+          "name": "format",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/output.rs",
+          "line": 165
+        }
+      ],
+      "total_callees": 14,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 5,
+          "text": "frecency scoring, and token-budget aware file reading for AI agents."
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 38,
+          "text": "ffs-budget  (token-aware reader)"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 52,
+          "text": "| `ffs-budget` | Token-aware reader with filters |"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 54,
+          "text": "| `ffs-cli` | CLI commands (find, grep, symbol, read, map, etc.) |"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 69,
+          "text": "- Be very careful around locking - prefer RwLock over Mutex for read-heavy workloads"
+        }
+      ],
+      "total_callers": 596
+    },
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mod.rs",
+        "line": 29,
+        "end_line": 29,
+        "kind": "mod_item",
+        "weight": 70
+      },
+      "header": "pub mod read;",
+      "body": "pub mod read;\n",
+      "body_start_line": 29,
+      "body_end_line": 29,
+      "kept_bytes": 14,
+      "footer_bytes": 0,
+      "callees": [],
+      "total_callees": 0,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 5,
+          "text": "frecency scoring, and token-budget aware file reading for AI agents."
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 38,
+          "text": "ffs-budget  (token-aware reader)"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 52,
+          "text": "| `ffs-budget` | Token-aware reader with filters |"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 54,
+          "text": "| `ffs-cli` | CLI commands (find, grep, symbol, read, map, etc.) |"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 69,
+          "text": "- Be very careful around locking - prefer RwLock over Mutex for read-heavy workloads"
+        }
+      ],
+      "total_callers": 596
+    }
+  ],
+  "total_cards": 5,
+  "offset": 0,
+  "has_more": false
+}

@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/demo/eslint.config.js",
+  "mode": "outline",
+  "body": "# demo/eslint.config.js (22 lines, ~148 tokens) [outline]\n\n[1-6]    imports: @eslint/js, globals, eslint-plugin-react-hooks, eslint-plugin-react-refresh, typescript-eslint, eslint/config\n[8-22]   export <anonymous>\n         export default defineConfig([\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 321,
+  "footer_bytes": 0
+}

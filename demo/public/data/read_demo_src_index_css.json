@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/demo/src/index.css",
+  "mode": "full",
+  "body": "*,\n*::before,\n*::after {\n  box-sizing: border-box;\n  margin: 0;\n  padding: 0;\n}\n\n:root {\n  --bg:\n  --bg-elevated:\n  --bg-input:\n  --border:\n  --border-focus:\n  --text:\n  --text-dim:\n  --text-muted:\n  --accent:\n  --accent-bg: rgba(88, 166, 255, 0.1);\n  --accent-border: rgba(88, 166, 255, 0.4);\n  --orange:\n  --green:\n  --red:\n  --purple:\n  --font: 'Inter', system-ui, -apple-system, sans-serif;\n  --mono: 'JetBrains Mono', 'Fira Code', monospace;\n}\n\nhtml {\n  font-size: 14px;\n}\n\nbody {\n  font-family: var(--font);\n  background: var(--bg);\n  color: var(--text);\n  min-height: 100vh;\n  -webkit-font-smoothing: antialiased;\n}\n\n\n  min-height: 100vh;\n  display: flex;\n  flex-direction: column;\n}\n",
+  "kept_bytes": 691,
+  "footer_bytes": 0
+}

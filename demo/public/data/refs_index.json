@@ -1,0 +1,552 @@
+{
+  "name": "index",
+  "definitions": [
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/matcher.rs",
+      "line": 72,
+      "end_line": 74,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/matcher.rs",
+      "line": 88,
+      "end_line": 90,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mod.rs",
+      "line": 21,
+      "end_line": 21,
+      "kind": "mod_item",
+      "weight": 70
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/dispatch.rs",
+      "line": 113,
+      "end_line": 118,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/file_picker.rs",
+      "line": 1647,
+      "end_line": 1651,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/score.rs",
+      "line": 21,
+      "end_line": 26,
+      "kind": "function_item",
+      "weight": 100
+    }
+  ],
+  "usages": [
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 215,
+      "text": "  sym_index_expression = 193,"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 459,
+      "text": "  [sym_index_expression] = \"index_expression\","
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 703,
+      "text": "  [sym_index_expression] = sym_index_expression,"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1529,
+      "text": "  [sym_index_expression] = {"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1738,
+      "text": "  field_index = 15,"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1780,
+      "text": "  [field_index] = \"index\","
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1807,
+      "text": "  [1] = {.index = 0, .length = 1},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1808,
+      "text": "  [2] = {.index = 1, .length = 2},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1809,
+      "text": "  [3] = {.index = 3, .length = 1},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1810,
+      "text": "  [4] = {.index = 4, .length = 1},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1811,
+      "text": "  [5] = {.index = 5, .length = 1},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1812,
+      "text": "  [6] = {.index = 6, .length = 2},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1813,
+      "text": "  [7] = {.index = 8, .length = 1},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1814,
+      "text": "  [8] = {.index = 9, .length = 1},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1815,
+      "text": "  [9] = {.index = 10, .length = 3},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1816,
+      "text": "  [10] = {.index = 13, .length = 2},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1817,
+      "text": "  [11] = {.index = 15, .length = 2},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1818,
+      "text": "  [13] = {.index = 17, .length = 2},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1819,
+      "text": "  [14] = {.index = 19, .length = 3},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1820,
+      "text": "  [15] = {.index = 22, .length = 2},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1821,
+      "text": "  [16] = {.index = 24, .length = 1},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1822,
+      "text": "  [17] = {.index = 25, .length = 3},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1823,
+      "text": "  [18] = {.index = 28, .length = 2},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1824,
+      "text": "  [19] = {.index = 30, .length = 2},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1825,
+      "text": "  [20] = {.index = 32, .length = 2},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1826,
+      "text": "  [21] = {.index = 34, .length = 2},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1827,
+      "text": "  [22] = {.index = 36, .length = 3},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1828,
+      "text": "  [23] = {.index = 39, .length = 3},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1829,
+      "text": "  [24] = {.index = 42, .length = 1},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1830,
+      "text": "  [25] = {.index = 43, .length = 2},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1831,
+      "text": "  [26] = {.index = 45, .length = 2},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1832,
+      "text": "  [27] = {.index = 47, .length = 2},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1833,
+      "text": "  [28] = {.index = 49, .length = 2},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1834,
+      "text": "  [29] = {.index = 51, .length = 2},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1835,
+      "text": "  [30] = {.index = 53, .length = 2},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1836,
+      "text": "  [31] = {.index = 55, .length = 1},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1837,
+      "text": "  [32] = {.index = 56, .length = 1},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1838,
+      "text": "  [33] = {.index = 57, .length = 3},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1839,
+      "text": "  [34] = {.index = 60, .length = 4},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1840,
+      "text": "  [35] = {.index = 64, .length = 2},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1841,
+      "text": "  [36] = {.index = 66, .length = 4},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1842,
+      "text": "  [37] = {.index = 70, .length = 3},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1843,
+      "text": "  [38] = {.index = 73, .length = 3},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1844,
+      "text": "  [39] = {.index = 76, .length = 3},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1845,
+      "text": "  [40] = {.index = 79, .length = 3},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1846,
+      "text": "  [41] = {.index = 82, .length = 3},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1847,
+      "text": "  [42] = {.index = 85, .length = 2},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1848,
+      "text": "  [43] = {.index = 87, .length = 2},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1849,
+      "text": "  [44] = {.index = 89, .length = 2},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1850,
+      "text": "  [45] = {.index = 91, .length = 4},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1851,
+      "text": "  [46] = {.index = 95, .length = 4},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1852,
+      "text": "  [47] = {.index = 99, .length = 2},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1853,
+      "text": "  [48] = {.index = 101, .length = 3},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1854,
+      "text": "  [49] = {.index = 104, .length = 4},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1855,
+      "text": "  [50] = {.index = 108, .length = 3},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1856,
+      "text": "  [51] = {.index = 111, .length = 4},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1857,
+      "text": "  [52] = {.index = 115, .length = 1},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1858,
+      "text": "  [53] = {.index = 116, .length = 1},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1859,
+      "text": "  [54] = {.index = 117, .length = 2},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1860,
+      "text": "  [55] = {.index = 119, .length = 4},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1861,
+      "text": "  [56] = {.index = 123, .length = 4},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1862,
+      "text": "  [57] = {.index = 127, .length = 4},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1863,
+      "text": "  [58] = {.index = 131, .length = 1},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1864,
+      "text": "  [59] = {.index = 132, .length = 3},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1865,
+      "text": "  [60] = {.index = 135, .length = 2},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1866,
+      "text": "  [61] = {.index = 137, .length = 5},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1867,
+      "text": "  [62] = {.index = 142, .length = 3},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1868,
+      "text": "  [63] = {.index = 145, .length = 5},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1869,
+      "text": "  [64] = {.index = 150, .length = 1},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1870,
+      "text": "  [65] = {.index = 151, .length = 4},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1871,
+      "text": "  [66] = {.index = 155, .length = 3},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1872,
+      "text": "  [67] = {.index = 158, .length = 4},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1873,
+      "text": "  [68] = {.index = 162, .length = 3},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1874,
+      "text": "  [69] = {.index = 165, .length = 2},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1875,
+      "text": "  [70] = {.index = 167, .length = 2},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1876,
+      "text": "  [71] = {.index = 169, .length = 4},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1877,
+      "text": "  [72] = {.index = 173, .length = 5},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1878,
+      "text": "  [73] = {.index = 178, .length = 2},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1879,
+      "text": "  [74] = {.index = 180, .length = 3},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1880,
+      "text": "  [75] = {.index = 183, .length = 3},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1881,
+      "text": "  [76] = {.index = 186, .length = 2},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1882,
+      "text": "  [77] = {.index = 188, .length = 5},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1883,
+      "text": "  [78] = {.index = 193, .length = 3},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1884,
+      "text": "  [79] = {.index = 196, .length = 3},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1885,
+      "text": "  [80] = {.index = 199, .length = 5},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1886,
+      "text": "  [81] = {.index = 204, .length = 5},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1887,
+      "text": "  [82] = {.index = 209, .length = 4},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1888,
+      "text": "  [83] = {.index = 213, .length = 4},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1889,
+      "text": "  [84] = {.index = 217, .length = 4},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1890,
+      "text": "  [85] = {.index = 221, .length = 4},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1891,
+      "text": "  [86] = {.index = 225, .length = 6},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1892,
+      "text": "  [87] = {.index = 231, .length = 4},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1893,
+      "text": "  [88] = {.index = 235, .length = 5},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1894,
+      "text": "  [89] = {.index = 240, .length = 5},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1895,
+      "text": "  [90] = {.index = 245, .length = 5},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1896,
+      "text": "  [91] = {.index = 250, .length = 2},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1897,
+      "text": "  [92] = {.index = 252, .length = 5},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1898,
+      "text": "  [93] = {.index = 257, .length = 5},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1899,
+      "text": "  [94] = {.index = 262, .length = 5},"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/parser.c",
+      "line": 1900,
+      "text": "  [95] = {.index = 267, .length = 6},"
+    }
+  ],
+  "total_usages": 1031,
+  "offset": 0,
+  "has_more": true
+}

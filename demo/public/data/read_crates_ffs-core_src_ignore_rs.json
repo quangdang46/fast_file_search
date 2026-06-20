@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/ignore.rs",
+  "mode": "outline",
+  "body": "# crates/ffs-core/src/ignore.rs (69 lines, ~553 tokens) [outline]\n\n[1-1]     imports: std\n[3-14]    const NON_GIT_IGNORED_DIRS\n          pub(crate) const NON_GIT_IGNORED_DIRS: &[&str] = &[\n[17-26]   const PLATFORM_IGNORED_DIRS\n          pub(crate) const PLATFORM_IGNORED_DIRS: &[&str] = &[\n[29-36]   const PLATFORM_IGNORED_DIRS\n          pub(crate) const PLATFORM_IGNORED_DIRS: &[&str] = &[\n[39-39]   const PLATFORM_IGNORED_DIRS\n          pub(crate) const PLATFORM_IGNORED_DIRS: &[&str] = &[];\n[41-53]   function non_git_repo_overrides\n          pub(crate) fn non_git_repo_overrides(base_path: &Path) -> Option<ignore::overrides::Override> {\n[55-69]   function is_non_code_directory\n          pub(crate) fn is_non_code_directory(path: &Path) -> bool {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 819,
+  "footer_bytes": 0
+}

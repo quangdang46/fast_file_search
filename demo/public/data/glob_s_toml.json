@@ -1,0 +1,8 @@
+{
+  "pattern": "*.toml",
+  "matches": [
+    "_typos.toml",
+    "Cargo.toml",
+    "rust-toolchain.toml"
+  ]
+}

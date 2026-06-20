@@ -1,0 +1,8 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+  "mode": "outline",
+  "body": "<anonymous> use crate::ConstraintVec;\n<anonymous> use crate::config::ParserConfig;\n<anonymous> use crate::constraints::{Constraint, GitStatusFilter, TextPartsBuffer};\n<anonymous> use crate::glob_detect::has_wildcards;\n<anonymous> use crate::location::{Location, parse_location};\nFuzzyQuery pub enum FuzzyQuery<'a> {\nFfsQuery pub struct FfsQuery<'a> {\nQueryParser pub struct QueryParser<C: ParserConfig> {\nstrip_leading_backslash fn strip_leading_backslash(token: &str) -> &str {\nparse_token fn parse_token<'a, C: ParserConfig>(token: &'a str, config: &C) -> Option<Constraint<'a>> {\nmemchr fn memchr(needle: u8, haystack: &[u8]) -> Option<usize> {\nparse_extension fn parse_extension(token: &str) -> Option<Constraint<'_>> {\nparse_negation fn parse_negation<'a, C: ParserConfig>(token: &'a str, config: &C) -> Option<Constraint<'a>> {\nparse_token_without_negation fn parse_token_without_negation<'a, C: ParserConfig>(\nparse_path_segment fn parse_path_segment(token: &str) -> Option<Constraint<'_>> {\nparse_path_segment_trailing fn parse_path_segment_trailing(token: &str) -> Option<Constraint<'_>> {\nparse_git_status fn parse_git_status(value: &str) -> Option<Constraint<'_>> {\ntests mod tests {\n",
+  "kept_bytes": 1195,
+  "footer_bytes": 0,
+  "view": "signatures"
+}

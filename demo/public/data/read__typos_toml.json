@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/_typos.toml",
+  "mode": "full",
+  "body": "[files]\nextend-exclude = [\"/CHANGELOG.md\", \"data/filetypes/base.lua\", \"demo/public/data/**\"]\n\n[default.extend-words]\nnoice = \"noice\"\nfo = \"fo\"\nba = \"ba\"\nue = \"ue\"\n\nfpr = \"fpr\"\nFPR = \"FPR\"\n\nthm = \"thm\"\n\ncomparsion = \"comparsion\"\nmodfiers = \"modfiers\"\nshcema = \"shcema\"\n\n\ntmplate = \"tmplate\"\n\n\nisntall = \"isntall\"\n\n\nthay = \"thay\"\n\n[default]\nextend-ignore-re = [\n\n  \"\\\\[[0-9a-f]{7}\\\\]\",\n\n  \"(?Rm)^.*(#|--|//)\\\\s*spellchecker:disable-line$\",\n\n  \"(?s)(#|--|//|)\\\\s*spellchecker:off.*?\\\\n\\\\s*(#|--|//)\\\\s*spellchecker:on\",\n\n  \"vim:.+:\"\n]\n",
+  "kept_bytes": 532,
+  "footer_bytes": 0
+}

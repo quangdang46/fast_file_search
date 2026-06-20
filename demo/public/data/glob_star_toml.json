@@ -1,0 +1,19 @@
+{
+  "pattern": "**/*.toml",
+  "matches": [
+    "_typos.toml",
+    "Cargo.toml",
+    "rust-toolchain.toml",
+    "vendor/tree-sitter-verse/Cargo.toml",
+    "crates/ffs-c/Cargo.toml",
+    "crates/ffs-c/cbindgen.toml",
+    "crates/ffs-query-parser/Cargo.toml",
+    "crates/ffs-engine/Cargo.toml",
+    "crates/ffs-budget/Cargo.toml",
+    "crates/ffs-grep/Cargo.toml",
+    "crates/ffs-cli/Cargo.toml",
+    "crates/ffs-mcp/Cargo.toml",
+    "crates/ffs-symbol/Cargo.toml",
+    "crates/ffs-core/Cargo.toml"
+  ]
+}

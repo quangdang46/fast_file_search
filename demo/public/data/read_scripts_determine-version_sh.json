@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/scripts/determine-version.sh",
+  "mode": "full",
+  "body": "#!/bin/bash\nset -e\n\nREPO_ROOT=\"$(cd \"$(dirname \"$0\")/..\" && pwd)\"\n\n\nIS_RELEASE=\"false\"\nif [[ \"$GITHUB_REF\" == refs/tags/v* ]]; then\n    IS_RELEASE=\"true\"\nfi\n\nif [[ \"$IS_RELEASE\" == \"true\" ]]; then\n\n\n    VERSION=\"${GITHUB_REF#refs/tags/v}\"\nelse\n\n    VERSION=$(grep -E '^version = ' \"$REPO_ROOT/crates/ffs-cli/Cargo.toml\" | head -1 | sed 's/.*= *\"\\([^\"]*\\)\".*/\\1/')\nfi\n\n\necho \"version=$VERSION\"\necho \"npm_tag=latest\"\necho \"is_release=$IS_RELEASE\"\n\n\nif [[ -n \"$GITHUB_OUTPUT\" ]]; then\n    echo \"version=$VERSION\" >> \"$GITHUB_OUTPUT\"\n    echo \"npm_tag=latest\" >> \"$GITHUB_OUTPUT\"\n    echo \"is_release=$IS_RELEASE\" >> \"$GITHUB_OUTPUT\"\nfi\n",
+  "kept_bytes": 633,
+  "footer_bytes": 0
+}

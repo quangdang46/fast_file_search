@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/scripts/diagnose_lockmdb.py",
+  "mode": "outline",
+  "body": "# scripts/diagnose_lockmdb.py (233 lines, ~2.1k tokens) [outline]\n\n[15-18]     imports: os, struct, sys, pathlib\n[27-37]     function mutex_state\n            def mutex_state(data, off):\n[40-47]     function fmt_mutex\n            def fmt_mutex(m):\n[50-54]     function get_comm\n            def get_comm(pid):\n[57-61]     function get_cmdline\n            def get_cmdline(pid):\n[64-68]     function get_wchan\n            def get_wchan(pid_or_tid, path):\n[71-79]     function get_syscall\n            def get_syscall(tid_path):\n[82-105]    function get_mmap_regions\n            def get_mmap_regions(pid, target_inode):\n[108-229]   function main\n            def main():\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 731,
+  "footer_bytes": 0
+}

@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/tests/path_separator_constraint_test.rs",
+  "mode": "outline",
+  "body": "# crates/ffs-core/tests/path_separator_constraint_test.rs (248 lines, ~2.0k tokens) [outline]\n\n[8-14]      imports: std(2), tempfile, ffs_search(3)\n[16-33]     function create_picker\n            fn create_picker(base: &Path, specs: &[(&str, &str)]) -> FilePicker {\n[35-50]     function plain_opts\n            fn plain_opts() -> GrepSearchOptions {\n[52-72]     function fuzzy_search_paths\n            fn fuzzy_search_paths(picker: &FilePicker, query: &str) -> Vec<String> {\n[76-78]     function has_segment\n            fn has_segment(path: &str, segment: &str) -> bool {\n[83-113]    function grep_with_path_segment_constraint_nested\n            fn grep_with_path_segment_constraint_nested() {\n[117-153]   function multi_grep_with_path_segment_constraint\n            fn multi_grep_with_path_segment_constraint() {\n[158-185]   function fuzzy_search_with_path_segment_constraint\n            fn fuzzy_search_with_path_segment_constraint() {\n[190-223]   function multi_grep_with_file_path_suffix_constraint\n            fn multi_grep_with_file_path_suffix_constraint() {\n[228-248]   function fuzzy_search_with_glob_constraint_matches_on_windows_paths\n            fn fuzzy_search_with_glob_constraint_matches_on_windows_paths() {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 1289,
+  "footer_bytes": 0
+}

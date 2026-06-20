@@ -1,0 +1,522 @@
+{
+  "name": "new",
+  "cards": [
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/scanner.rs",
+        "line": 77,
+        "end_line": 84,
+        "kind": "function_item",
+        "weight": 100
+      },
+      "header": "    pub fn new() -> Self {",
+      "body": "    pub fn new() -> Self {\n        Self {\n            bloom: Arc::new(BloomFilterCache::new()),\n            symbols: Arc::new(SymbolIndex::new()),\n            outlines: Arc::new(OutlineCache::new()),\n            progress: Arc::new(ScanProgress::default()),\n        }\n    }\n",
+      "body_start_line": 77,
+      "body_end_line": 84,
+      "kept_bytes": 396,
+      "footer_bytes": 0,
+      "callees": [
+        {
+          "name": "default",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/mention/provider.rs",
+          "line": 151
+        }
+      ],
+      "total_callees": 1,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/build.rs",
+          "line": 4,
+          "text": "    let src_dir = Path::new(\"src\");",
+          "enclosing": "main"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/build.rs",
+          "line": 5,
+          "text": "    cc::Build::new()",
+          "enclosing": "main"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 67,
+          "text": "- If there are more than 2 impl blocks in a file, extract to a new file"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 9,
+          "text": "3. **Reuse** existing `FrecencyTracker`/`SharedFrecency` (LMDB-backed). No new `frecency.jsonl`."
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 58,
+          "text": "| Reuse `fuzzy_search()` directly | this repo's `frizbee` | Zero new code for ranking; SIMD-accelerated; frecency-aware already | Bound to existing scoring semantics | **Adopt** |"
+        }
+      ],
+      "total_callers": 1474
+    },
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/lines.rs",
+        "line": 26,
+        "end_line": 32,
+        "kind": "function_item",
+        "weight": 100
+      },
+      "header": "    pub fn new(line_term: u8, start: usize, end: usize) -> LineStep {",
+      "body": "    pub fn new(line_term: u8, start: usize, end: usize) -> LineStep {\n        LineStep {\n            line_term,\n            pos: start,\n            end,\n        }\n    }\n",
+      "body_start_line": 26,
+      "body_end_line": 32,
+      "kept_bytes": 169,
+      "footer_bytes": 0,
+      "callees": [],
+      "total_callees": 0,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/build.rs",
+          "line": 4,
+          "text": "    let src_dir = Path::new(\"src\");",
+          "enclosing": "main"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/build.rs",
+          "line": 5,
+          "text": "    cc::Build::new()",
+          "enclosing": "main"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 67,
+          "text": "- If there are more than 2 impl blocks in a file, extract to a new file"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 9,
+          "text": "3. **Reuse** existing `FrecencyTracker`/`SharedFrecency` (LMDB-backed). No new `frecency.jsonl`."
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 58,
+          "text": "| Reuse `fuzzy_search()` directly | this repo's `frizbee` | Zero new code for ranking; SIMD-accelerated; frecency-aware already | Bound to existing scoring semantics | **Adopt** |"
+        }
+      ],
+      "total_callers": 1474
+    },
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/prefilter.rs",
+        "line": 28,
+        "end_line": 30,
+        "kind": "function_item",
+        "weight": 100
+      },
+      "header": "    pub fn new(bloom: Arc<BloomFilterCache>) -> Self {",
+      "body": "    pub fn new(bloom: Arc<BloomFilterCache>) -> Self {\n        Self { bloom }\n    }\n",
+      "body_start_line": 28,
+      "body_end_line": 30,
+      "kept_bytes": 84,
+      "footer_bytes": 0,
+      "callees": [],
+      "total_callees": 0,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/build.rs",
+          "line": 4,
+          "text": "    let src_dir = Path::new(\"src\");",
+          "enclosing": "main"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/build.rs",
+          "line": 5,
+          "text": "    cc::Build::new()",
+          "enclosing": "main"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 67,
+          "text": "- If there are more than 2 impl blocks in a file, extract to a new file"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 9,
+          "text": "3. **Reuse** existing `FrecencyTracker`/`SharedFrecency` (LMDB-backed). No new `frecency.jsonl`."
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 58,
+          "text": "| Reuse `fuzzy_search()` directly | this repo's `frizbee` | Zero new code for ranking; SIMD-accelerated; frecency-aware already | Bound to existing scoring semantics | **Adopt** |"
+        }
+      ],
+      "total_callers": 1474
+    },
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-budget/src/stream.rs",
+        "line": 33,
+        "end_line": 38,
+        "kind": "function_item",
+        "weight": 100
+      },
+      "header": "    pub fn new() -> Self {",
+      "body": "    pub fn new() -> Self {\n        Self {\n            filters: Vec::new(),\n            handler: None,\n        }\n    }\n",
+      "body_start_line": 33,
+      "body_end_line": 38,
+      "kept_bytes": 118,
+      "footer_bytes": 0,
+      "callees": [],
+      "total_callees": 0,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/build.rs",
+          "line": 4,
+          "text": "    let src_dir = Path::new(\"src\");",
+          "enclosing": "main"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/build.rs",
+          "line": 5,
+          "text": "    cc::Build::new()",
+          "enclosing": "main"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 67,
+          "text": "- If there are more than 2 impl blocks in a file, extract to a new file"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 9,
+          "text": "3. **Reuse** existing `FrecencyTracker`/`SharedFrecency` (LMDB-backed). No new `frecency.jsonl`."
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 58,
+          "text": "| Reuse `fuzzy_search()` directly | this repo's `frizbee` | Zero new code for ranking; SIMD-accelerated; frecency-aware already | Bound to existing scoring semantics | **Adopt** |"
+        }
+      ],
+      "total_callers": 1474
+    },
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/bloom.rs",
+        "line": 26,
+        "end_line": 52,
+        "kind": "function_item",
+        "weight": 100
+      },
+      "header": "    pub fn new(expected_items: usize, target_fpr: f64) -> Self {",
+      "body": "    pub fn new(expected_items: usize, target_fpr: f64) -> Self {\n        assert!(expected_items > 0, \"expected_items must be > 0\");\n        assert!(\n            target_fpr > 0.0 && target_fpr < 1.0,\n            \"target_fpr must be in (0, 1)\"\n        );\n\n        let n = expected_items as f64;\n        let ln2 = std::f64::consts::LN_2;\n\n        // Optimal number of bits: m = -(n * ln(p)) / (ln(2)^2)\n        let m = (-(n * target_fpr.ln()) / (ln2 * ln2)).ceil() as usize;\n        let m = m.max(64);\n\n        // Optimal number of hash functions: k = (m/n) * ln(2)\n        let k = ((m as f64 / n) * ln2).ceil() as u8;\n        let k = k.clamp(1, 32);\n\n        let num_words = m.div_ceil(64);\n        let num_bits = num_words * 64;\n\n        Self {\n            bits: vec![0u64; num_words],\n            num_hashes: k,\n            num_bits,\n        }\n    }\n",
+      "body_start_line": 26,
+      "body_end_line": 52,
+      "kept_bytes": 999,
+      "footer_bytes": 0,
+      "callees": [
+        {
+          "name": "assert"
+        },
+        {
+          "name": "ceil"
+        },
+        {
+          "name": "clamp"
+        },
+        {
+          "name": "div_ceil"
+        },
+        {
+          "name": "ln"
+        }
+      ],
+      "total_callees": 7,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/build.rs",
+          "line": 4,
+          "text": "    let src_dir = Path::new(\"src\");",
+          "enclosing": "main"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/build.rs",
+          "line": 5,
+          "text": "    cc::Build::new()",
+          "enclosing": "main"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 67,
+          "text": "- If there are more than 2 impl blocks in a file, extract to a new file"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 9,
+          "text": "3. **Reuse** existing `FrecencyTracker`/`SharedFrecency` (LMDB-backed). No new `frecency.jsonl`."
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 58,
+          "text": "| Reuse `fuzzy_search()` directly | this repo's `frizbee` | Zero new code for ranking; SIMD-accelerated; frecency-aware already | Bound to existing scoring semantics | **Adopt** |"
+        }
+      ],
+      "total_callers": 1474
+    },
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/bloom.rs",
+        "line": 142,
+        "end_line": 144,
+        "kind": "function_item",
+        "weight": 100
+      },
+      "header": "    pub fn new() -> Self {",
+      "body": "    pub fn new() -> Self {\n        Self::with_limit(DEFAULT_FILTER_CACHE_LIMIT)\n    }\n",
+      "body_start_line": 142,
+      "body_end_line": 144,
+      "kept_bytes": 210,
+      "footer_bytes": 0,
+      "callees": [
+        {
+          "name": "with_limit",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/outline_cache.rs",
+          "line": 41
+        }
+      ],
+      "total_callees": 1,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/build.rs",
+          "line": 4,
+          "text": "    let src_dir = Path::new(\"src\");",
+          "enclosing": "main"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/build.rs",
+          "line": 5,
+          "text": "    cc::Build::new()",
+          "enclosing": "main"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 67,
+          "text": "- If there are more than 2 impl blocks in a file, extract to a new file"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 9,
+          "text": "3. **Reuse** existing `FrecencyTracker`/`SharedFrecency` (LMDB-backed). No new `frecency.jsonl`."
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 58,
+          "text": "| Reuse `fuzzy_search()` directly | this repo's `frizbee` | Zero new code for ranking; SIMD-accelerated; frecency-aware already | Bound to existing scoring semantics | **Adopt** |"
+        }
+      ],
+      "total_callers": 1474
+    },
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/memory.rs",
+        "line": 48,
+        "end_line": 58,
+        "kind": "function_item",
+        "weight": 100
+      },
+      "header": "    pub fn new(",
+      "body": "    pub fn new(\n        bloom: Arc<BloomFilterCache>,\n        symbols: Arc<SymbolIndex>,\n        outlines: Arc<OutlineCache>,\n    ) -> Self {\n        Self {\n            bloom,\n            symbols,\n            outlines,\n        }\n    }\n",
+      "body_start_line": 48,
+      "body_end_line": 58,
+      "kept_bytes": 235,
+      "footer_bytes": 0,
+      "callees": [],
+      "total_callees": 0,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/build.rs",
+          "line": 4,
+          "text": "    let src_dir = Path::new(\"src\");",
+          "enclosing": "main"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/build.rs",
+          "line": 5,
+          "text": "    cc::Build::new()",
+          "enclosing": "main"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 67,
+          "text": "- If there are more than 2 impl blocks in a file, extract to a new file"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 9,
+          "text": "3. **Reuse** existing `FrecencyTracker`/`SharedFrecency` (LMDB-backed). No new `frecency.jsonl`."
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 58,
+          "text": "| Reuse `fuzzy_search()` directly | this repo's `frizbee` | Zero new code for ranking; SIMD-accelerated; frecency-aware already | Bound to existing scoring semantics | **Adopt** |"
+        }
+      ],
+      "total_callers": 1474
+    },
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/bloom.rs",
+        "line": 272,
+        "end_line": 279,
+        "kind": "function_item",
+        "weight": 100
+      },
+      "header": "    fn new(content: &'a str) -> Self {",
+      "body": "    fn new(content: &'a str) -> Self {\n        Self {\n            bytes: content.as_bytes(),\n            src: content,\n            pos: 0,\n            state: ScanState::Code,\n        }\n    }\n",
+      "body_start_line": 272,
+      "body_end_line": 279,
+      "kept_bytes": 306,
+      "footer_bytes": 0,
+      "callees": [
+        {
+          "name": "as_bytes",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/matcher.rs",
+          "line": 112
+        }
+      ],
+      "total_callees": 1,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/build.rs",
+          "line": 4,
+          "text": "    let src_dir = Path::new(\"src\");",
+          "enclosing": "main"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/build.rs",
+          "line": 5,
+          "text": "    cc::Build::new()",
+          "enclosing": "main"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 67,
+          "text": "- If there are more than 2 impl blocks in a file, extract to a new file"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 9,
+          "text": "3. **Reuse** existing `FrecencyTracker`/`SharedFrecency` (LMDB-backed). No new `frecency.jsonl`."
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 58,
+          "text": "| Reuse `fuzzy_search()` directly | this repo's `frizbee` | Zero new code for ranking; SIMD-accelerated; frecency-aware already | Bound to existing scoring semantics | **Adopt** |"
+        }
+      ],
+      "total_callers": 1474
+    },
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/matcher.rs",
+        "line": 13,
+        "end_line": 16,
+        "kind": "function_item",
+        "weight": 100
+      },
+      "header": "    pub fn new(start: usize, end: usize) -> Match {",
+      "body": "    pub fn new(start: usize, end: usize) -> Match {\n        debug_assert!(start <= end);\n        Match { start, end }\n    }\n",
+      "body_start_line": 13,
+      "body_end_line": 16,
+      "kept_bytes": 170,
+      "footer_bytes": 0,
+      "callees": [
+        {
+          "name": "debug_assert"
+        }
+      ],
+      "total_callees": 1,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/build.rs",
+          "line": 4,
+          "text": "    let src_dir = Path::new(\"src\");",
+          "enclosing": "main"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/build.rs",
+          "line": 5,
+          "text": "    cc::Build::new()",
+          "enclosing": "main"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 67,
+          "text": "- If there are more than 2 impl blocks in a file, extract to a new file"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 9,
+          "text": "3. **Reuse** existing `FrecencyTracker`/`SharedFrecency` (LMDB-backed). No new `frecency.jsonl`."
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 58,
+          "text": "| Reuse `fuzzy_search()` directly | this repo's `frizbee` | Zero new code for ranking; SIMD-accelerated; frecency-aware already | Bound to existing scoring semantics | **Adopt** |"
+        }
+      ],
+      "total_callers": 1474
+    },
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/outline_cache.rs",
+        "line": 35,
+        "end_line": 37,
+        "kind": "function_item",
+        "weight": 100
+      },
+      "header": "    pub fn new() -> Self {",
+      "body": "    pub fn new() -> Self {\n        Self::with_limit(DEFAULT_OUTLINE_CACHE_LIMIT)\n    }\n",
+      "body_start_line": 35,
+      "body_end_line": 37,
+      "kept_bytes": 211,
+      "footer_bytes": 0,
+      "callees": [
+        {
+          "name": "with_limit",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/outline_cache.rs",
+          "line": 41
+        }
+      ],
+      "total_callees": 1,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/build.rs",
+          "line": 4,
+          "text": "    let src_dir = Path::new(\"src\");",
+          "enclosing": "main"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/build.rs",
+          "line": 5,
+          "text": "    cc::Build::new()",
+          "enclosing": "main"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 67,
+          "text": "- If there are more than 2 impl blocks in a file, extract to a new file"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 9,
+          "text": "3. **Reuse** existing `FrecencyTracker`/`SharedFrecency` (LMDB-backed). No new `frecency.jsonl`."
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 58,
+          "text": "| Reuse `fuzzy_search()` directly | this repo's `frizbee` | Zero new code for ranking; SIMD-accelerated; frecency-aware already | Bound to existing scoring semantics | **Adopt** |"
+        }
+      ],
+      "total_callers": 1474
+    }
+  ],
+  "total_cards": 44,
+  "offset": 0,
+  "has_more": true
+}

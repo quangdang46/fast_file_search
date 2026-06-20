@@ -1,0 +1,508 @@
+{
+  "name": "search",
+  "hits": [
+    {
+      "name": "clone",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/types.rs",
+      "line": 113
+    },
+    {
+      "name": "clone",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/types.rs",
+      "line": 249
+    },
+    {
+      "name": "clone",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/stable_vec.rs",
+      "line": 189
+    },
+    {
+      "name": "default",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/mod.rs",
+      "line": 58
+    },
+    {
+      "name": "default",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/mod.rs",
+      "line": 74
+    },
+    {
+      "name": "default",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/mod.rs",
+      "line": 154
+    },
+    {
+      "name": "default",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/shared.rs",
+      "line": 64
+    },
+    {
+      "name": "default",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/shared.rs",
+      "line": 234
+    },
+    {
+      "name": "default",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/shared.rs",
+      "line": 313
+    },
+    {
+      "name": "default",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/matcher.rs",
+      "line": 119
+    },
+    {
+      "name": "default",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/session.rs",
+      "line": 28
+    },
+    {
+      "name": "default",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-budget/src/stream.rs",
+      "line": 91
+    },
+    {
+      "name": "default",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/outline_cache.rs",
+      "line": 27
+    },
+    {
+      "name": "default",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/simd_path.rs",
+      "line": 50
+    },
+    {
+      "name": "default",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/bloom.rs",
+      "line": 134
+    },
+    {
+      "name": "default",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/dispatch.rs",
+      "line": 33
+    },
+    {
+      "name": "default",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/dispatch.rs",
+      "line": 60
+    },
+    {
+      "name": "default",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/types.rs",
+      "line": 675
+    },
+    {
+      "name": "default",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/types.rs",
+      "line": 744
+    },
+    {
+      "name": "default",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/types.rs",
+      "line": 842
+    },
+    {
+      "name": "default",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/scanner.rs",
+      "line": 69
+    },
+    {
+      "name": "default",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/mention.rs",
+      "line": 97
+    },
+    {
+      "name": "default",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/grep.rs",
+      "line": 372
+    },
+    {
+      "name": "default",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 183
+    },
+    {
+      "name": "default",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 241
+    },
+    {
+      "name": "default",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/fuzzy_file_search.rs",
+      "line": 49
+    },
+    {
+      "name": "default",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/mention/resolver.rs",
+      "line": 94
+    },
+    {
+      "name": "default",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/mention/provider.rs",
+      "line": 151
+    },
+    {
+      "name": "default",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/file_picker.rs",
+      "line": 422
+    },
+    {
+      "name": "fuzzy_match_and_score_files",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/score.rs",
+      "line": 141
+    },
+    {
+      "name": "is_empty",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/matcher.rs",
+      "line": 63
+    },
+    {
+      "name": "is_empty",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/outline_cache.rs",
+      "line": 62
+    },
+    {
+      "name": "is_empty",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/bloom.rs",
+      "line": 170
+    },
+    {
+      "name": "is_empty",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/symbol_index.rs",
+      "line": 65
+    },
+    {
+      "name": "len",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/matcher.rs",
+      "line": 57
+    },
+    {
+      "name": "len",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/outline_cache.rs",
+      "line": 56
+    },
+    {
+      "name": "len",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/bloom.rs",
+      "line": 164
+    },
+    {
+      "name": "len",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/symbol_index.rs",
+      "line": 59
+    },
+    {
+      "name": "len",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/mention.rs",
+      "line": 501
+    },
+    {
+      "name": "len",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/stable_vec.rs",
+      "line": 123
+    },
+    {
+      "name": "map",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mod.rs",
+      "line": 22
+    },
+    {
+      "name": "map",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/demo/src/App.tsx",
+      "line": 100
+    },
+    {
+      "name": "parse",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 37
+    },
+    {
+      "name": "relative_path",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/types.rs",
+      "line": 168
+    },
+    {
+      "name": "relative_path",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/types.rs",
+      "line": 333
+    },
+    {
+      "name": "as_ptr",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/simd_path.rs",
+      "line": 33
+    },
+    {
+      "name": "as_ptr",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/stable_vec.rs",
+      "line": 128
+    },
+    {
+      "name": "ascii_swap_case",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/case_insensitive_memmem.rs",
+      "line": 44
+    },
+    {
+      "name": "verify_dispatch",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/case_insensitive_memmem.rs",
+      "line": 352
+    },
+    {
+      "name": "count",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/lines.rs",
+      "line": 67
+    },
+    {
+      "name": "detect_trigger",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/mention/trigger.rs",
+      "line": 32
+    },
+    {
+      "name": "detect_trigger",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/mention/resolver.rs",
+      "line": 144
+    },
+    {
+      "name": "fuzzy_search",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/file_picker.rs",
+      "line": 839
+    },
+    {
+      "name": "fuzzy_search_directories",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/file_picker.rs",
+      "line": 940
+    },
+    {
+      "name": "is_binary",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/detection.rs",
+      "line": 4
+    },
+    {
+      "name": "is_binary",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/types.rs",
+      "line": 418
+    },
+    {
+      "name": "max_access_frecency",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/types.rs",
+      "line": 146
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/core.rs",
+      "line": 22
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/mod.rs",
+      "line": 81
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/scan.rs",
+      "line": 387
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/mod.rs",
+      "line": 116
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/glue.rs",
+      "line": 15
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/glue.rs",
+      "line": 49
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/matcher.rs",
+      "line": 13
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/overview.rs",
+      "line": 260
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/session.rs",
+      "line": 10
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/lines.rs",
+      "line": 26
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-budget/src/stream.rs",
+      "line": 33
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/outline_cache.rs",
+      "line": 35
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 32
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/simd_path.rs",
+      "line": 23
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/simd_path.rs",
+      "line": 87
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/simd_path.rs",
+      "line": 297
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/bloom.rs",
+      "line": 26
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/bloom.rs",
+      "line": 142
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/bloom.rs",
+      "line": 272
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/dbs/lmdb.rs",
+      "line": 39
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/dispatch.rs",
+      "line": 68
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/background_watcher.rs",
+      "line": 38
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/types.rs",
+      "line": 129
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/symbol_index.rs",
+      "line": 53
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/memory.rs",
+      "line": 48
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/prefilter.rs",
+      "line": 28
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/scanner.rs",
+      "line": 77
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/mention.rs",
+      "line": 455
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/dbs/query_tracker.rs",
+      "line": 110
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/dbs/frecency.rs",
+      "line": 110
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 190
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/server.rs",
+      "line": 224
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 33
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/cursor.rs",
+      "line": 20
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/bigram_filter.rs",
+      "line": 37
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/bigram_filter.rs",
+      "line": 463
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/bigram_filter.rs",
+      "line": 544
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/mention/resolver.rs",
+      "line": 120
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/mention/provider.rs",
+      "line": 124
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/mention/provider.rs",
+      "line": 171
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/output.rs",
+      "line": 44
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/file_picker.rs",
+      "line": 126
+    },
+    {
+      "name": "new",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/file_picker.rs",
+      "line": 307
+    }
+  ],
+  "total": 104,
+  "offset": 0,
+  "has_more": true
+}

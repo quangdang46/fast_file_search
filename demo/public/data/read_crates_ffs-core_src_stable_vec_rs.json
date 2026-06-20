@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/stable_vec.rs",
+  "mode": "outline",
+  "body": "# crates/ffs-core/src/stable_vec.rs (220 lines, ~1.8k tokens) [outline]\n\n[1-4]     imports: std(4)\n[13-15]   struct StableVec\n          pub(crate) struct StableVec<T> {\n[17-31]   struct StableBuf\n          struct StableBuf<T> {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 295,
+  "footer_bytes": 0
+}

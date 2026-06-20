@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/glob_detect.rs",
+  "mode": "outline",
+  "body": "# crates/ffs-query-parser/src/glob_detect.rs (18 lines, ~165 tokens) [outline]\n\n[10-12]   function has_wildcards\n          pub fn has_wildcards(s: &str) -> bool {\n[16-18]   function has_wildcards\n          pub fn has_wildcards(s: &str) -> bool {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 313,
+  "footer_bytes": 0
+}

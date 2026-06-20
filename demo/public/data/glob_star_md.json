@@ -1,0 +1,13 @@
+{
+  "pattern": "**/*.md",
+  "matches": [
+    "README.md",
+    "DESIGN.md",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "docs/MENTION_SYSTEM_PLAN.md",
+    "crates/ffs-cli/assets/AGENT_GUIDE.md",
+    "crates/ffs-core/README.md",
+    "demo/README.md"
+  ]
+}

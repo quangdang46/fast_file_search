@@ -1,0 +1,578 @@
+{
+  "name": "parse",
+  "definitions": [
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 37,
+      "end_line": 196,
+      "kind": "function_item",
+      "weight": 100
+    }
+  ],
+  "usages": [
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/scripts/release.sh",
+      "line": 20,
+      "text": "if git rev-parse \"$TAG\" >/dev/null 2>&1; then"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/README.md",
+      "line": 54,
+      "text": "re-parse and load the cache directly — sub-200 ms on a Linux-kernel-sized repo."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/README.md",
+      "line": 168,
+      "text": "│  ffs-query-parser    `*.rs !test/ shcema` → constraints + modes      │"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/README.md",
+      "line": 198,
+      "text": "| `ffs-query-parser` | Parses the query DSL (globs, negations, regex, fuzzy fallback).                    |"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/README.md",
+      "line": 221,
+      "text": "   ┌─────────────┐    parse query DSL        │ index + bloom│"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/README.md",
+      "line": 223,
+      "text": "   │ parser      │                                  │"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/README.md",
+      "line": 257,
+      "text": "                                           │  parse · extract │"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/README.md",
+      "line": 275,
+      "text": "`refs` / `flow` / `siblings` / `impact` invocations skip the re-parse"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/README.md",
+      "line": 346,
+      "text": "### Query parser (ffs-query-parser)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/README.md",
+      "line": 380,
+      "text": "  -p ffs-search -p ffs-query-parser \\"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/README.md",
+      "line": 433,
+      "text": "  ffs-query-parser/ # query language parser (constraints, fuzzy, regex modes)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 132,
+      "text": "    /// Line-range suffix parsed: `(start_line, end_line)` if `@path#L10-20`."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 233,
+      "text": "            (query, quoted, line_range) = parse_mention_suffix(raw)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 240,
+      "text": "FUNCTION parse_mention_suffix(raw: str) -> (query, quoted, line_range):"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 249,
+      "text": "            (start_line, end_line) = parse_line_range(rest) or (path_part, false, None)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 270,
+      "text": "        q = FfsQuery::parse(trigger.query)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 292,
+      "text": "        dq = FfsQuery::parse(trigger.query)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 374,
+      "text": "            let (query, quoted, line_range) = parse_mention_suffix(raw);"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 385,
+      "text": "fn parse_mention_suffix(raw: &str) -> (String, bool, Option<(u32, u32)>) {"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 397,
+      "text": "            if let Some((s, e)) = parse_line_range(rest) {"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 405,
+      "text": "fn parse_line_range(s: &str) -> Option<(u32, u32)> {"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 408,
+      "text": "    let start: u32 = parts.next()?.parse().ok()?;"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 411,
+      "text": "        Some(rest) => rest.parse().ok()?,"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 421,
+      "text": "use crate::query_parser::FfsQuery;"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 469,
+      "text": "            if let Ok(q) = FfsQuery::parse(&trigger.query) {"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 493,
+      "text": "            if let Ok(q) = FfsQuery::parse(&trigger.query) {"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 567,
+      "text": "| `parseSlashCommand` + coexist with `@` | claude-code | `src/utils/slashCommandParsing.ts:25` | https://github.com/claude-code-best/claude-code/blob/main/src/utils/slashCommandParsing.ts#L25 |"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 572,
+      "text": "| `parseAtInLine` reject email/URL/escape | codebuff | `cli/src/hooks/use-suggestion-engine.ts:106-144` | https://github.com/CodebuffAI/codebuff/blob/main/cli/src/hooks/use-suggestion-engine.ts#L106 |"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 675,
+      "text": "| Trigger detect only | n/a | **< 50µs** | (no I/O, pure parser) |"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 766,
+      "text": "- [ ] Trigger detection in < 50µs (pure parser, no I/O)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 798,
+      "text": "| LOW | oh-my-codex | `$`-prefix for skills; `parseMentionAllowedMentions` is Discord-only |"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 380,
+      "text": "    let parser = QueryParser::default();",
+      "enclosing": "ffs_search"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 381,
+      "text": "    let parsed = parser.parse(query_str);",
+      "enclosing": "ffs_search"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 384,
+      "text": "        &parsed,",
+      "enclosing": "ffs_search"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 451,
+      "text": "    let parser = QueryParser::new(ffs_query_parser::DirSearchConfig);",
+      "enclosing": "ffs_search_directories"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 452,
+      "text": "    let parsed = parser.parse(query_str);",
+      "enclosing": "ffs_search_directories"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 455,
+      "text": "        &parsed,",
+      "enclosing": "ffs_search_directories"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 537,
+      "text": "    let parser = QueryParser::new(ffs_query_parser::MixedSearchConfig);",
+      "enclosing": "ffs_search_mixed"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 538,
+      "text": "    let parsed = parser.parse(query_str);",
+      "enclosing": "ffs_search_mixed"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 541,
+      "text": "        &parsed,",
+      "enclosing": "ffs_search_mixed"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 618,
+      "text": "    let parsed = if is_ai {",
+      "enclosing": "ffs_live_grep"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 619,
+      "text": "        ffs::QueryParser::new(ffs_query_parser::AiGrepConfig).parse(query_str)",
+      "enclosing": "ffs_live_grep"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 621,
+      "text": "        ffs::grep::parse_grep_query(query_str)",
+      "enclosing": "ffs_live_grep"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 639,
+      "text": "    let result = picker.grep(&parsed, &options);",
+      "enclosing": "ffs_live_grep"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 714,
+      "text": "    let parsed_constraints = constraints_str.map(|c| {",
+      "enclosing": "ffs_multi_grep"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 716,
+      "text": "            ffs::QueryParser::new(ffs_query_parser::AiGrepConfig).parse(c)",
+      "enclosing": "ffs_multi_grep"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 718,
+      "text": "            ffs::grep::parse_grep_query(c)",
+      "enclosing": "ffs_multi_grep"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 722,
+      "text": "    let constraint_refs: &[ffs::Constraint<'_>] = match &parsed_constraints {",
+      "enclosing": "ffs_multi_grep"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 1641,
+      "text": "            Err(e) => return FfsResult::err(&format!(\"options_json parse error: {e}\")),",
+      "enclosing": "ffs_mention_search_json"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 1660,
+      "text": "    // the indexed DB and the AI-mode parse grammar; a plain walk is",
+      "enclosing": "ffs_mention_search_json"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 1805,
+      "text": "        let parsed: serde_json::Value =",
+      "enclosing": "mention_search_json_returns_valid_json_array"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 1807,
+      "text": "        let arr = parsed.as_array().expect(\"expected JSON array\");",
+      "enclosing": "mention_search_json_returns_valid_json_array"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 1831,
+      "text": "        let parsed: serde_json::Value = serde_json::from_str(json).unwrap();",
+      "enclosing": "mention_search_json_empty_input_returns_empty_array"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 1832,
+      "text": "        assert!(parsed.as_array().unwrap().is_empty());",
+      "enclosing": "mention_search_json_empty_input_returns_empty_array"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/lib.rs",
+      "line": 1850,
+      "text": "    fn mention_search_json_options_parse_error() {",
+      "enclosing": "mention_search_json_options_parse_error"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 5,
+      "text": "use crate::location::{Location, parse_location};",
+      "enclosing": "<anonymous>"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 26,
+      "text": "/// Main query parser - zero-cost wrapper around configuration"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 47,
+      "text": "            // Try to parse as constraint first"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 48,
+      "text": "            if let Some(constraint) = parse_token(query, config) {"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 85,
+      "text": "                let (query_without_loc, location) = parse_location(query);"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 118,
+      "text": "            match parse_token(token, config) {"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 145,
+      "text": "        // parser.rs:48-64: promote FilePath → fuzzy text so e.g. `profile.h`"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 160,
+      "text": "            let (without_loc, loc) = parse_location(text_parts[last_idx]);"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 204,
+      "text": "    /// signal to the parser and should not appear in the final pattern."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 247,
+      "text": "fn parse_token<'a, C: ParserConfig>(token: &'a str, config: &C) -> Option<Constraint<'a>> {",
+      "enclosing": "parse_token"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 264,
+      "text": "            if let Some(constraint) = parse_extension(token) {",
+      "enclosing": "parse_token"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 278,
+      "text": "        b'!' if config.enable_exclude() => parse_negation(token, config),",
+      "enclosing": "parse_token"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 279,
+      "text": "        b'/' if config.enable_path_segments() => parse_path_segment(token),",
+      "enclosing": "parse_token"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 282,
+      "text": "            parse_path_segment_trailing(token)",
+      "enclosing": "parse_token"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 300,
+      "text": "                        return parse_git_status(value);",
+      "enclosing": "parse_token"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 306,
+      "text": "            // Try custom parsers",
+      "enclosing": "parse_token"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 307,
+      "text": "            config.parse_custom(token)",
+      "enclosing": "parse_token"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 320,
+      "text": "fn parse_extension(token: &str) -> Option<Constraint<'_>> {",
+      "enclosing": "parse_extension"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 331,
+      "text": "fn parse_negation<'a, C: ParserConfig>(token: &'a str, config: &C) -> Option<Constraint<'a>> {",
+      "enclosing": "parse_negation"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 338,
+      "text": "    // Try to parse the inner token as any constraint",
+      "enclosing": "parse_negation"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 339,
+      "text": "    if let Some(inner_constraint) = parse_token_without_negation(inner_token, config) {",
+      "enclosing": "parse_negation"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 351,
+      "text": "fn parse_token_without_negation<'a, C: ParserConfig>(",
+      "enclosing": "parse_token_without_negation"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 365,
+      "text": "            if let Some(constraint) = parse_extension(token) {",
+      "enclosing": "parse_token_without_negation"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 377,
+      "text": "        b'/' if config.enable_path_segments() => parse_path_segment(token),",
+      "enclosing": "parse_token_without_negation"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 380,
+      "text": "            parse_path_segment_trailing(token)",
+      "enclosing": "parse_token_without_negation"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 398,
+      "text": "                        return parse_git_status(value);",
+      "enclosing": "parse_token_without_negation"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 404,
+      "text": "            config.parse_custom(token)",
+      "enclosing": "parse_token_without_negation"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 411,
+      "text": "fn parse_path_segment(token: &str) -> Option<Constraint<'_>> {",
+      "enclosing": "parse_path_segment"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 427,
+      "text": "fn parse_path_segment_trailing(token: &str) -> Option<Constraint<'_>> {",
+      "enclosing": "parse_path_segment_trailing"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 442,
+      "text": "fn parse_git_status(value: &str) -> Option<Constraint<'_>> {",
+      "enclosing": "parse_git_status"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 472,
+      "text": "    fn test_parse_extension() {",
+      "enclosing": "test_parse_extension"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 473,
+      "text": "        assert_eq!(parse_extension(\"*.rs\"), Some(Constraint::Extension(\"rs\")));",
+      "enclosing": "test_parse_extension"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 475,
+      "text": "            parse_extension(\"*.toml\"),",
+      "enclosing": "test_parse_extension"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 478,
+      "text": "        assert_eq!(parse_extension(\"*\"), None);",
+      "enclosing": "test_parse_extension"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 479,
+      "text": "        assert_eq!(parse_extension(\"*.\"), None);",
+      "enclosing": "test_parse_extension"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 486,
+      "text": "        assert_eq!(parse_token(\"*\", &config), None);",
+      "enclosing": "test_incomplete_patterns_ignored"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 487,
+      "text": "        assert_eq!(parse_token(\"*.\", &config), None);",
+      "enclosing": "test_incomplete_patterns_ignored"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 491,
+      "text": "    fn test_parse_path_segment() {",
+      "enclosing": "test_parse_path_segment"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 493,
+      "text": "            parse_path_segment(\"/src/\"),",
+      "enclosing": "test_parse_path_segment"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 497,
+      "text": "            parse_path_segment(\"/lib\"),",
+      "enclosing": "test_parse_path_segment"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 500,
+      "text": "        assert_eq!(parse_path_segment(\"/\"), None);",
+      "enclosing": "test_parse_path_segment"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 504,
+      "text": "    fn test_parse_path_segment_trailing() {",
+      "enclosing": "test_parse_path_segment_trailing"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 506,
+      "text": "            parse_path_segment_trailing(\"www/\"),",
+      "enclosing": "test_parse_path_segment_trailing"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 510,
+      "text": "            parse_path_segment_trailing(\"src/\"),",
+      "enclosing": "test_parse_path_segment_trailing"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/parser.rs",
+      "line": 515,
+      "text": "            parse_path_segment_trailing(\"src/lib/\"),",
+      "enclosing": "test_parse_path_segment_trailing"
+    }
+  ],
+  "total_usages": 564,
+  "offset": 0,
+  "has_more": true
+}

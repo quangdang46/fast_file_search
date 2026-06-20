@@ -1,0 +1,48 @@
+{
+  "name": "find",
+  "hits": [
+    {
+      "name": "map",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/demo/src/App.tsx",
+      "line": 100
+    },
+    {
+      "name": "map",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mod.rs",
+      "line": 22
+    },
+    {
+      "name": "offset",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/matcher.rs",
+      "line": 48
+    },
+    {
+      "name": "pos",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/core.rs",
+      "line": 41
+    },
+    {
+      "name": "find_at",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/matcher.rs",
+      "line": 162
+    },
+    {
+      "name": "find_at",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/grep.rs",
+      "line": 434
+    },
+    {
+      "name": "find_at",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/grep.rs",
+      "line": 472
+    },
+    {
+      "name": "find_at",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/grep.rs",
+      "line": 877
+    }
+  ],
+  "total": 8,
+  "offset": 0,
+  "has_more": false
+}

@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/mention/mod.rs",
+  "mode": "outline",
+  "body": "# crates/ffs-core/src/mention/mod.rs (72 lines, ~725 tokens) [outline]\n\n[61-61]   module resolver\n          mod resolver;\n[62-62]   module trigger\n          mod trigger;\n[65-65]   module provider\n          pub mod provider;\n[67-70]   import <anonymous>\n          pub use provider::{\n[71-71]   import <anonymous>\n          pub use resolver::{MentionCandidate, MentionKind, MentionOptions, MentionResolver, MentionResult};\n[72-72]   import <anonymous>\n          pub use trigger::{MentionTrigger, detect_trigger};\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 578,
+  "footer_bytes": 0
+}

@@ -1,0 +1,167 @@
+{
+  "name": "dispatch",
+  "cards": [
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/lib.rs",
+        "line": 5,
+        "end_line": 5,
+        "kind": "mod_item",
+        "weight": 70
+      },
+      "header": "pub mod dispatch;",
+      "body": "pub mod dispatch;\n",
+      "body_start_line": 5,
+      "body_end_line": 5,
+      "kept_bytes": 18,
+      "footer_bytes": 0,
+      "callees": [],
+      "total_callees": 0,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 35,
+          "text": "ffs-engine  (dispatch, ranking, memory)"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 53,
+          "text": "| `ffs-engine` | Unified scanner, dispatch, ranking |"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 24,
+          "text": "ffs is fast at the *scan* but its `@` surface today is just `fuzzy_search()` called with `@`-prefixed query text. Reference repos (codex, opencode, claude-code/CCB, oh-my-pi, codebuff) converge on a layered pipeline: **cursor-aware trigger detect → tiered candidate search → structured dispatch → context attachment with token-cost discipline**. v1 over-scoped: it conflated candidate search (the part that belongs in ffs) with payload resolution, agent dispatch, IDE bridge, and surface plumbing (all of which belong downstream). v2 splits cleanly: **ffs owns the candidate search; the host app owns the rest**."
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 32,
+          "text": "- Does **not** read files, resolve payloads, dispatch agents, or own any UX — host app decides"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 573,
+          "text": "| LLM-mediated dispatch (rejected) | codebuff | `agents/base2/base2.ts:144` | https://github.com/CodebuffAI/codebuff/blob/main/agents/base2/base2.ts#L144 |"
+        }
+      ],
+      "total_callers": 53
+    },
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/dispatch.rs",
+        "line": 121,
+        "end_line": 147,
+        "kind": "function_item",
+        "weight": 100
+      },
+      "header": "    pub fn dispatch(&self, raw: &str, cwd: &Path) -> DispatchResult {",
+      "body": "    pub fn dispatch(&self, raw: &str, cwd: &Path) -> DispatchResult {\n        let classified = classify_query(raw, cwd);\n        match &classified.query {\n            QueryType::Symbol(name) => DispatchResult::Symbol {\n                classified: classified.clone(),\n                hits: self.handles.symbols.lookup_exact(name),\n            },\n            QueryType::SymbolGlob(prefix) => DispatchResult::SymbolGlob {\n                classified: classified.clone(),\n                hits: self\n                    .handles\n                    .symbols\n                    .lookup_prefix(prefix.trim_end_matches('*')),\n            },\n            QueryType::Concept(_) | QueryType::Fallthrough(_) => DispatchResult::ContentFallback {\n                classified: classified.clone(),\n            },\n            QueryType::FilePath(p) | QueryType::FilePathLine(p, _) => DispatchResult::FilePath {\n                classified: classified.clone(),\n                path: p.clone(),\n            },\n            QueryType::Glob(pattern) => DispatchResult::Glob {\n                classified: classified.clone(),\n                pattern: pattern.clone(),\n            },\n        }\n    }\n",
+      "body_start_line": 121,
+      "body_end_line": 147,
+      "kept_bytes": 1631,
+      "footer_bytes": 0,
+      "callees": [
+        {
+          "name": "classify_query",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/classify.rs",
+          "line": 27
+        },
+        {
+          "name": "clone",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/stable_vec.rs",
+          "line": 189
+        },
+        {
+          "name": "lookup_exact",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/symbol_index.rs",
+          "line": 90
+        },
+        {
+          "name": "lookup_prefix",
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/symbol_index.rs",
+          "line": 98
+        },
+        {
+          "name": "trim_end_matches"
+        }
+      ],
+      "total_callees": 5,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 35,
+          "text": "ffs-engine  (dispatch, ranking, memory)"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 53,
+          "text": "| `ffs-engine` | Unified scanner, dispatch, ranking |"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 24,
+          "text": "ffs is fast at the *scan* but its `@` surface today is just `fuzzy_search()` called with `@`-prefixed query text. Reference repos (codex, opencode, claude-code/CCB, oh-my-pi, codebuff) converge on a layered pipeline: **cursor-aware trigger detect → tiered candidate search → structured dispatch → context attachment with token-cost discipline**. v1 over-scoped: it conflated candidate search (the part that belongs in ffs) with payload resolution, agent dispatch, IDE bridge, and surface plumbing (all of which belong downstream). v2 splits cleanly: **ffs owns the candidate search; the host app owns the rest**."
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 32,
+          "text": "- Does **not** read files, resolve payloads, dispatch agents, or own any UX — host app decides"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 573,
+          "text": "| LLM-mediated dispatch (rejected) | codebuff | `agents/base2/base2.ts:144` | https://github.com/CodebuffAI/codebuff/blob/main/agents/base2/base2.ts#L144 |"
+        }
+      ],
+      "total_callers": 53
+    },
+    {
+      "def": {
+        "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mod.rs",
+        "line": 12,
+        "end_line": 12,
+        "kind": "mod_item",
+        "weight": 70
+      },
+      "header": "pub mod dispatch;",
+      "body": "pub mod dispatch;\n",
+      "body_start_line": 12,
+      "body_end_line": 12,
+      "kept_bytes": 18,
+      "footer_bytes": 0,
+      "callees": [],
+      "total_callees": 0,
+      "callers": [
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 35,
+          "text": "ffs-engine  (dispatch, ranking, memory)"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+          "line": 53,
+          "text": "| `ffs-engine` | Unified scanner, dispatch, ranking |"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 24,
+          "text": "ffs is fast at the *scan* but its `@` surface today is just `fuzzy_search()` called with `@`-prefixed query text. Reference repos (codex, opencode, claude-code/CCB, oh-my-pi, codebuff) converge on a layered pipeline: **cursor-aware trigger detect → tiered candidate search → structured dispatch → context attachment with token-cost discipline**. v1 over-scoped: it conflated candidate search (the part that belongs in ffs) with payload resolution, agent dispatch, IDE bridge, and surface plumbing (all of which belong downstream). v2 splits cleanly: **ffs owns the candidate search; the host app owns the rest**."
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 32,
+          "text": "- Does **not** read files, resolve payloads, dispatch agents, or own any UX — host app decides"
+        },
+        {
+          "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+          "line": 573,
+          "text": "| LLM-mediated dispatch (rejected) | codebuff | `agents/base2/base2.ts:144` | https://github.com/CodebuffAI/codebuff/blob/main/agents/base2/base2.ts#L144 |"
+        }
+      ],
+      "total_callers": 53
+    }
+  ],
+  "total_cards": 3,
+  "offset": 0,
+  "has_more": false
+}

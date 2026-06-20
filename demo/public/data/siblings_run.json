@@ -1,0 +1,1008 @@
+{
+  "name": "run",
+  "hits": [
+    {
+      "name": "Style",
+      "kind": "enum",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/outline.rs",
+      "line": 15,
+      "end_line": 22,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/outline.rs",
+      "target_line": 81
+    },
+    {
+      "name": "Args",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/outline.rs",
+      "line": 25,
+      "end_line": 32,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/outline.rs",
+      "target_line": 81
+    },
+    {
+      "name": "OutlineOutput",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/outline.rs",
+      "line": 35,
+      "end_line": 39,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/outline.rs",
+      "target_line": 81
+    },
+    {
+      "name": "OutlineEntryDto",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/outline.rs",
+      "line": 42,
+      "end_line": 49,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/outline.rs",
+      "target_line": 81
+    },
+    {
+      "name": "kind_str",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/outline.rs",
+      "line": 64,
+      "end_line": 79,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/outline.rs",
+      "target_line": 81
+    },
+    {
+      "name": "render_agent",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/outline.rs",
+      "line": 125,
+      "end_line": 144,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/outline.rs",
+      "target_line": 81
+    },
+    {
+      "name": "Args",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 20,
+      "end_line": 24,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "target_line": 67
+    },
+    {
+      "name": "McpState",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 26,
+      "end_line": 29,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "target_line": 67
+    },
+    {
+      "name": "Request",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 48,
+      "end_line": 55,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "target_line": 67
+    },
+    {
+      "name": "Response",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 58,
+      "end_line": 65,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "target_line": 67
+    },
+    {
+      "name": "handle_method",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 122,
+      "end_line": 143,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "target_line": 67
+    },
+    {
+      "name": "tools_list",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 147,
+      "end_line": 300,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "target_line": 67
+    },
+    {
+      "name": "tool",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 302,
+      "end_line": 308,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "target_line": 67
+    },
+    {
+      "name": "object_schema",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 310,
+      "end_line": 318,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "target_line": 67
+    },
+    {
+      "name": "handle_tool",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 320,
+      "end_line": 529,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "target_line": 67
+    },
+    {
+      "name": "text_json",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 531,
+      "end_line": 533,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "target_line": 67
+    },
+    {
+      "name": "get_string",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 535,
+      "end_line": 539,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "target_line": 67
+    },
+    {
+      "name": "get_query",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 542,
+      "end_line": 547,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "target_line": 67
+    },
+    {
+      "name": "get_limit",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 549,
+      "end_line": 564,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "target_line": 67
+    },
+    {
+      "name": "GrepHit",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 567,
+      "end_line": 571,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "target_line": 67
+    },
+    {
+      "name": "grep_files",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 573,
+      "end_line": 603,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "target_line": 67
+    },
+    {
+      "name": "glob_files",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 605,
+      "end_line": 639,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "target_line": 67
+    },
+    {
+      "name": "CallerHit",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 642,
+      "end_line": 646,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "target_line": 67
+    },
+    {
+      "name": "collect_callers",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 651,
+      "end_line": 675,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "target_line": 67
+    },
+    {
+      "name": "CalleeHit",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 678,
+      "end_line": 681,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "target_line": 67
+    },
+    {
+      "name": "collect_callees",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 683,
+      "end_line": 711,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "target_line": 67
+    },
+    {
+      "name": "SiblingHit",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 714,
+      "end_line": 719,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "target_line": 67
+    },
+    {
+      "name": "collect_siblings",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 721,
+      "end_line": 762,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "target_line": 67
+    },
+    {
+      "name": "sibling_peers",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 764,
+      "end_line": 786,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "target_line": 67
+    },
+    {
+      "name": "sibling_in_children",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 788,
+      "end_line": 812,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "target_line": 67
+    },
+    {
+      "name": "read_section_excerpt",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 814,
+      "end_line": 828,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "target_line": 67
+    },
+    {
+      "name": "list_imports",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 830,
+      "end_line": 844,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "target_line": 67
+    },
+    {
+      "name": "render_simple_map",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 846,
+      "end_line": 863,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "target_line": 67
+    },
+    {
+      "name": "lang_label",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 865,
+      "end_line": 888,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "target_line": 67
+    },
+    {
+      "name": "display_path",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 890,
+      "end_line": 895,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "target_line": 67
+    },
+    {
+      "name": "symbol_locs_to_json",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 897,
+      "end_line": 911,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "target_line": 67
+    },
+    {
+      "name": "symbol_glob_to_json",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 913,
+      "end_line": 928,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "target_line": 67
+    },
+    {
+      "name": "tests",
+      "kind": "module",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 931,
+      "end_line": 1032,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "target_line": 67
+    },
+    {
+      "name": "Args",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/dispatch.rs",
+      "line": 13,
+      "end_line": 16,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/dispatch.rs",
+      "target_line": 25
+    },
+    {
+      "name": "DispatchOutput",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/dispatch.rs",
+      "line": 19,
+      "end_line": 23,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/dispatch.rs",
+      "target_line": 25
+    },
+    {
+      "name": "ALWAYS_HIDE",
+      "kind": "constant",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/dispatch.rs",
+      "line": 99,
+      "end_line": 99,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/dispatch.rs",
+      "target_line": 25
+    },
+    {
+      "name": "run_glob",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/dispatch.rs",
+      "line": 101,
+      "end_line": 164,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/dispatch.rs",
+      "target_line": 25
+    },
+    {
+      "name": "TARGET_DEF",
+      "kind": "constant",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_count_by.rs",
+      "line": 12,
+      "end_line": 14,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_count_by.rs",
+      "target_line": 48
+    },
+    {
+      "name": "A_RS",
+      "kind": "constant",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_count_by.rs",
+      "line": 17,
+      "end_line": 25,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_count_by.rs",
+      "target_line": 48
+    },
+    {
+      "name": "B_RS",
+      "kind": "constant",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_count_by.rs",
+      "line": 28,
+      "end_line": 32,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_count_by.rs",
+      "target_line": 48
+    },
+    {
+      "name": "binary",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_count_by.rs",
+      "line": 34,
+      "end_line": 36,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_count_by.rs",
+      "target_line": 48
+    },
+    {
+      "name": "write_workspace",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_count_by.rs",
+      "line": 38,
+      "end_line": 46,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_count_by.rs",
+      "target_line": 48
+    },
+    {
+      "name": "count_by_default_is_none_and_field_is_absent",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_count_by.rs",
+      "line": 63,
+      "end_line": 70,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_count_by.rs",
+      "target_line": 48
+    },
+    {
+      "name": "count_by_file_groups_by_path",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_count_by.rs",
+      "line": 73,
+      "end_line": 83,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_count_by.rs",
+      "target_line": 48
+    },
+    {
+      "name": "count_by_caller_groups_by_enclosing_symbol",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_count_by.rs",
+      "line": 86,
+      "end_line": 100,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_count_by.rs",
+      "target_line": 48
+    },
+    {
+      "name": "count_by_text_appends_aggregated_section",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_count_by.rs",
+      "line": 103,
+      "end_line": 115,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_count_by.rs",
+      "target_line": 48
+    },
+    {
+      "name": "Args",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callees.rs",
+      "line": 25,
+      "end_line": 49,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callees.rs",
+      "target_line": 101
+    },
+    {
+      "name": "CalleeHit",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callees.rs",
+      "line": 52,
+      "end_line": 62,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callees.rs",
+      "target_line": 101
+    },
+    {
+      "name": "CallSiteDto",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callees.rs",
+      "line": 65,
+      "end_line": 73,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callees.rs",
+      "target_line": 101
+    },
+    {
+      "name": "CalleesOutput",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callees.rs",
+      "line": 89,
+      "end_line": 99,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callees.rs",
+      "target_line": 101
+    },
+    {
+      "name": "single_hop",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callees.rs",
+      "line": 161,
+      "end_line": 192,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callees.rs",
+      "target_line": 101
+    },
+    {
+      "name": "single_hop_detailed",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callees.rs",
+      "line": 194,
+      "end_line": 241,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callees.rs",
+      "target_line": 101
+    },
+    {
+      "name": "render_text",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callees.rs",
+      "line": 243,
+      "end_line": 279,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callees.rs",
+      "target_line": 101
+    },
+    {
+      "name": "binary",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_suspicious.rs",
+      "line": 14,
+      "end_line": 16,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_suspicious.rs",
+      "target_line": 18
+    },
+    {
+      "name": "write_file",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_suspicious.rs",
+      "line": 32,
+      "end_line": 36,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_suspicious.rs",
+      "target_line": 18
+    },
+    {
+      "name": "default_hops_omits_new_telemetry_fields",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_suspicious.rs",
+      "line": 39,
+      "end_line": 52,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_suspicious.rs",
+      "target_line": 18
+    },
+    {
+      "name": "suspicious_hops_reports_name_defined_in_multiple_roots",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_suspicious.rs",
+      "line": 55,
+      "end_line": 82,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_suspicious.rs",
+      "target_line": 18
+    },
+    {
+      "name": "auto_hubs_promoted_fires_when_hub_guard_kicks_in",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_suspicious.rs",
+      "line": 85,
+      "end_line": 104,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_suspicious.rs",
+      "target_line": 18
+    },
+    {
+      "name": "telemetry_renders_text_sections_when_nonempty",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_suspicious.rs",
+      "line": 107,
+      "end_line": 124,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_suspicious.rs",
+      "target_line": 18
+    },
+    {
+      "name": "skip_hubs_prevents_propagation",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_suspicious.rs",
+      "line": 127,
+      "end_line": 150,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_suspicious.rs",
+      "target_line": 18
+    },
+    {
+      "name": "Args",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/siblings.rs",
+      "line": 16,
+      "end_line": 33,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/siblings.rs",
+      "target_line": 62
+    },
+    {
+      "name": "SiblingHit",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/siblings.rs",
+      "line": 36,
+      "end_line": 51,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/siblings.rs",
+      "target_line": 62
+    },
+    {
+      "name": "SiblingsOutput",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/siblings.rs",
+      "line": 54,
+      "end_line": 60,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/siblings.rs",
+      "target_line": 62
+    },
+    {
+      "name": "load_outline",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/siblings.rs",
+      "line": 127,
+      "end_line": 142,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/siblings.rs",
+      "target_line": 62
+    },
+    {
+      "name": "find_siblings",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/siblings.rs",
+      "line": 147,
+      "end_line": 171,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/siblings.rs",
+      "target_line": 62
+    },
+    {
+      "name": "find_in_children",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/siblings.rs",
+      "line": 173,
+      "end_line": 197,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/siblings.rs",
+      "target_line": 62
+    },
+    {
+      "name": "tests",
+      "kind": "module",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/siblings.rs",
+      "line": 200,
+      "end_line": 281,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/siblings.rs",
+      "target_line": 62
+    },
+    {
+      "name": "Args",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/glob.rs",
+      "line": 10,
+      "end_line": 17,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/glob.rs",
+      "target_line": 84
+    },
+    {
+      "name": "GlobResult",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/glob.rs",
+      "line": 20,
+      "end_line": 23,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/glob.rs",
+      "target_line": 84
+    },
+    {
+      "name": "ALWAYS_HIDE",
+      "kind": "constant",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/glob.rs",
+      "line": 26,
+      "end_line": 26,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/glob.rs",
+      "target_line": 84
+    },
+    {
+      "name": "glob_files",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/glob.rs",
+      "line": 29,
+      "end_line": 49,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/glob.rs",
+      "target_line": 84
+    },
+    {
+      "name": "glob_files",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/glob.rs",
+      "line": 52,
+      "end_line": 82,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/glob.rs",
+      "target_line": 84
+    },
+    {
+      "name": "Args",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callers.rs",
+      "line": 23,
+      "end_line": 56,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callers.rs",
+      "target_line": 151
+    },
+    {
+      "name": "CountBy",
+      "kind": "enum",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callers.rs",
+      "line": 59,
+      "end_line": 64,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callers.rs",
+      "target_line": 151
+    },
+    {
+      "name": "CallerHit",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callers.rs",
+      "line": 67,
+      "end_line": 75,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callers.rs",
+      "target_line": 151
+    },
+    {
+      "name": "CallersOutput",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callers.rs",
+      "line": 78,
+      "end_line": 96,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callers.rs",
+      "target_line": 151
+    },
+    {
+      "name": "SuspiciousHopOut",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callers.rs",
+      "line": 99,
+      "end_line": 103,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callers.rs",
+      "target_line": 151
+    },
+    {
+      "name": "AutoHubOut",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callers.rs",
+      "line": 106,
+      "end_line": 110,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callers.rs",
+      "target_line": 151
+    },
+    {
+      "name": "SkippedHubOut",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callers.rs",
+      "line": 113,
+      "end_line": 116,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callers.rs",
+      "target_line": 151
+    },
+    {
+      "name": "ProximitySuspicionOut",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callers.rs",
+      "line": 119,
+      "end_line": 123,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callers.rs",
+      "target_line": 151
+    },
+    {
+      "name": "Aggregation",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callers.rs",
+      "line": 146,
+      "end_line": 149,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callers.rs",
+      "target_line": 151
+    },
+    {
+      "name": "aggregate",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callers.rs",
+      "line": 249,
+      "end_line": 275,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callers.rs",
+      "target_line": 151
+    },
+    {
+      "name": "populate_enclosing",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callers.rs",
+      "line": 279,
+      "end_line": 303,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callers.rs",
+      "target_line": 151
+    },
+    {
+      "name": "single_hop",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callers.rs",
+      "line": 305,
+      "end_line": 357,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callers.rs",
+      "target_line": 151
+    },
+    {
+      "name": "render_text",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callers.rs",
+      "line": 359,
+      "end_line": 413,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callers.rs",
+      "target_line": 151
+    },
+    {
+      "name": "render_aggregations",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callers.rs",
+      "line": 415,
+      "end_line": 422,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callers.rs",
+      "target_line": 151
+    },
+    {
+      "name": "tests",
+      "kind": "module",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callers.rs",
+      "line": 425,
+      "end_line": 574,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callers.rs",
+      "target_line": 151
+    },
+    {
+      "name": "Args",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 16,
+      "end_line": 38,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "target_line": 73
+    },
+    {
+      "name": "MapNode",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 41,
+      "end_line": 54,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "target_line": 73
+    },
+    {
+      "name": "SymbolEntry",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 57,
+      "end_line": 62,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "target_line": 73
+    },
+    {
+      "name": "MapOutput",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 65,
+      "end_line": 71,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "target_line": 73
+    },
+    {
+      "name": "build_symbols_by_path",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 92,
+      "end_line": 115,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "target_line": 73
+    },
+    {
+      "name": "build_tree",
+      "kind": "function",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 117,
+      "end_line": 165,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "target_line": 73
+    },
+    {
+      "name": "DirAcc",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 168,
+      "end_line": 170,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "target_line": 73
+    },
+    {
+      "name": "FileEntry",
+      "kind": "struct",
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "line": 173,
+      "end_line": 178,
+      "parent": "<file>",
+      "target_path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
+      "target_line": 73
+    }
+  ],
+  "total": 232,
+  "offset": 0,
+  "has_more": true
+}

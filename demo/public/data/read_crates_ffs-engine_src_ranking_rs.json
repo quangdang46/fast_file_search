@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/ranking.rs",
+  "mode": "outline",
+  "body": "# crates/ffs-engine/src/ranking.rs (133 lines, ~895 tokens) [outline]\n\n[10-10]       imports: ffs_symbol\n[14-20]       struct RankInputs\n              pub struct RankInputs {\n[24-39]       function score_one\n              pub fn score_one(inputs: RankInputs) -> u64 {\n[43-70]       function rank_matches\n              pub fn rank_matches<F>(matches: &mut [Match], frecency_lookup: F)\n[72-90]       function apply_permutation\n              fn apply_permutation<T>(slice: &mut [T], perm: &[usize]) {\n[93-133]      module tests\n              mod tests {\n  [94-94]     import <anonymous>\n              use super::*;\n  [97-113]    function definition_outranks_usage\n              fn definition_outranks_usage() {\n  [116-132]   function comment_match_penalized\n              fn comment_match_penalized() {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 867,
+  "footer_bytes": 0
+}

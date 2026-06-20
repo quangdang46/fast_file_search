@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/fuzzy_file_search.rs",
+  "mode": "outline",
+  "body": "# crates/ffs-core/src/fuzzy_file_search.rs (249 lines, ~1.9k tokens) [outline]\n\n[24-24]       imports: std\n[28-35]       struct FuzzyFileMatch\n              pub struct FuzzyFileMatch {\n[39-46]       struct FuzzySearchOptions\n              pub struct FuzzySearchOptions {\n[60-138]      function fuzzy_search_files\n              pub fn fuzzy_search_files(\n[141-249]     module tests\n              mod tests {\n  [142-142]   import <anonymous>\n              use super::*;\n  [143-143]   import <anonymous>\n              use std::fs;\n  [146-164]   function test_fuzzy_filename_match\n              fn test_fuzzy_filename_match() {\n  [167-174]   function test_fuzzy_case_insensitive\n              fn test_fuzzy_case_insensitive() {\n  [177-188]   function test_fuzzy_scoring_filename_boost\n              fn test_fuzzy_scoring_filename_boost() {\n  [191-197]   function test_fuzzy_no_match\n              fn test_fuzzy_no_match() {\n  [200-215]   function test_fuzzy_respects_limit\n              fn test_fuzzy_respects_limit() {\n  [218-222]   function test_fuzzy_empty_query\n              fn test_fuzzy_empty_query() {\n  [225-232]   function test_fuzzy_skips_binary\n              fn test_fuzzy_skips_binary() {\n  [235-248]   function test_fuzzy_zero_max\n              fn test_fuzzy_zero_max() {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 1349,
+  "footer_bytes": 0
+}

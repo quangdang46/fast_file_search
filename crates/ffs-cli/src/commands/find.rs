@@ -6,6 +6,7 @@ use clap::{Parser, ValueEnum};
 use serde::Serialize;
 
 use crate::cli::OutputFormat;
+use ffs_search::role::{Role, detect_role};
 use crate::commands::pagination::{footer, Page};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -46,6 +47,10 @@ pub struct Args {
     /// Search mode: files, directories, or mixed (both).
     #[arg(long, value_enum, default_value_t = SearchMode::Files)]
     pub mode: SearchMode,
+
+    /// Annotate results with role and score.
+    #[arg(long)]
+    pub scored: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -62,6 +67,15 @@ struct FindResult {
     /// "file", "directory", or "mixed".
     mode: &'static str,
     schema: &'static str,
+}
+
+#[derive(Debug, Serialize)]
+struct ScoredMatch {
+    path: String,
+    score: i32,
+    role: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    role_bonus: Option<i32>,
 }
 
 fn resolve_scopes(scopes: &[PathBuf], root: &Path) -> Vec<PathBuf> {
@@ -361,7 +375,26 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         mode: mode_label,
         schema: "v1",
     };
-    super::emit(format, &payload, |p| {
+    // When --scored is set, annotate with role and score
+    if args.scored {
+        let scored: Vec<ScoredMatch> = payload.matches.iter().map(|m| {
+            let path = std::path::Path::new(m);
+            let role = detect_role(path);
+            ScoredMatch {
+                path: m.clone(),
+                score: role.score_bonus(),
+                role: role.as_str().to_string(),
+                role_bonus: Some(role.score_bonus()),
+            }
+        }).collect();
+        for s in &scored {
+            let bonus = if s.score > 0 { format!("+{}", s.score) } else { s.score.to_string() };
+            println!("{}  [{}] ({})", s.path, s.role, bonus);
+        }
+        return Ok(());
+    }
+
+        super::emit(format, &payload, |p| {
         let mut out = String::new();
         if p.fuzzy_fallback && !p.matches.is_empty() {
             out.push_str("# fuzzy fallback (no exact match)\n");

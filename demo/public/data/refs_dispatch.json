@@ -1,0 +1,329 @@
+{
+  "name": "dispatch",
+  "definitions": [
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/lib.rs",
+      "line": 5,
+      "end_line": 5,
+      "kind": "mod_item",
+      "weight": 70
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/dispatch.rs",
+      "line": 121,
+      "end_line": 147,
+      "kind": "function_item",
+      "weight": 100
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mod.rs",
+      "line": 12,
+      "end_line": 12,
+      "kind": "mod_item",
+      "weight": 70
+    }
+  ],
+  "usages": [
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+      "line": 35,
+      "text": "ffs-engine  (dispatch, ranking, memory)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/AGENTS.md",
+      "line": 53,
+      "text": "| `ffs-engine` | Unified scanner, dispatch, ranking |"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 24,
+      "text": "ffs is fast at the *scan* but its `@` surface today is just `fuzzy_search()` called with `@`-prefixed query text. Reference repos (codex, opencode, claude-code/CCB, oh-my-pi, codebuff) converge on a layered pipeline: **cursor-aware trigger detect → tiered candidate search → structured dispatch → context attachment with token-cost discipline**. v1 over-scoped: it conflated candidate search (the part that belongs in ffs) with payload resolution, agent dispatch, IDE bridge, and surface plumbing (all of which belong downstream). v2 splits cleanly: **ffs owns the candidate search; the host app owns the rest**."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 32,
+      "text": "- Does **not** read files, resolve payloads, dispatch agents, or own any UX — host app decides"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 573,
+      "text": "| LLM-mediated dispatch (rejected) | codebuff | `agents/base2/base2.ts:144` | https://github.com/CodebuffAI/codebuff/blob/main/agents/base2/base2.ts#L144 |"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 634,
+      "text": "**No tests in Phase A for:** payload resolution, line range injection into reads, binary policy, image handling, agent/tool/skill dispatch, IDE bridge, C ABI, MCP, CLI — all in later phases."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 777,
+      "text": "- [ ] 1 HIGH-relevance pattern explicitly rejected: LLM-mediated dispatch (codebuff)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 794,
+      "text": "| HIGH | codebuff | spawnable agents filter; 4-agent pipeline; image attachment orthogonal; rejected: LLM-mediated dispatch |"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 804,
+      "text": "- Typed structured dispatch (`FilePart` / `AgentPart` / `ImageContent`)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/docs/MENTION_SYSTEM_PLAN.md",
+      "line": 811,
+      "text": "- codebuff uses LLM-mediated dispatch; we reject (ffs is search, not agent runtime)"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 6,
+      "text": "//! access to the symbol index, dispatch, and token-budgeted read APIs."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 19,
+      "text": "use ffs_engine::dispatch::DispatchResult;",
+      "enclosing": "<anonymous>"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 152,
+      "text": "pub unsafe extern \"C\" fn ffs_engine_dispatch(",
+      "enclosing": "ffs_engine_dispatch"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 163,
+      "text": "    let result = e.inner.dispatch(q, &e.root);",
+      "enclosing": "ffs_engine_dispatch"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 208,
+      "text": "/// `ffs_engine_dispatch`."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c/src/engine_ffi.rs",
+      "line": 252,
+      "text": "/// constraints as `ffs_engine_dispatch`."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/lib.rs",
+      "line": 1,
+      "text": "//! Orchestration layer: classify queries, run the unified scanner, dispatch"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/lib.rs",
+      "line": 13,
+      "text": "pub use dispatch::{DispatchResult, Engine, EngineConfig, EngineHandles, ReadResult};",
+      "enclosing": "<anonymous>"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/dispatch.rs",
+      "line": 1,
+      "text": "//! Top-level engine — owns shared caches, runs the scanner, and dispatches"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/dispatch.rs",
+      "line": 120,
+      "text": "    /// Classify and dispatch a free-form query to the best-matching backend."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/dispatch.rs",
+      "line": 243,
+      "text": "/// Result of [`Engine::dispatch`] — points to the right backend."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/dispatch.rs",
+      "line": 284,
+      "text": "    fn engine_indexes_and_dispatches_symbol() {",
+      "enclosing": "engine_indexes_and_dispatches_symbol"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/dispatch.rs",
+      "line": 291,
+      "text": "        let result = engine.dispatch(\"alpha\", dir.path());",
+      "enclosing": "engine_indexes_and_dispatches_symbol"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/dispatch.rs",
+      "line": 297,
+      "text": "            other => panic!(\"expected Symbol dispatch, got {other:?}\"),",
+      "enclosing": "engine_indexes_and_dispatches_symbol"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/benches/dispatch_bench.rs",
+      "line": 1,
+      "text": "//! Microbenchmarks for query classification, ranking, and end-to-end dispatch."
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/benches/dispatch_bench.rs",
+      "line": 88,
+      "text": "fn bench_engine_dispatch(c: &mut Criterion) {",
+      "enclosing": "bench_engine_dispatch"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/benches/dispatch_bench.rs",
+      "line": 95,
+      "text": "    c.bench_function(\"engine_dispatch_symbol\", |b| {",
+      "enclosing": "bench_engine_dispatch"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/benches/dispatch_bench.rs",
+      "line": 96,
+      "text": "        b.iter(|| engine.dispatch(black_box(\"worker_05_3\"), black_box(tmp.path())));",
+      "enclosing": "bench_engine_dispatch"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/benches/dispatch_bench.rs",
+      "line": 98,
+      "text": "    c.bench_function(\"engine_dispatch_glob\", |b| {",
+      "enclosing": "bench_engine_dispatch"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/benches/dispatch_bench.rs",
+      "line": 99,
+      "text": "        b.iter(|| engine.dispatch(black_box(\"**/*.rs\"), black_box(tmp.path())));",
+      "enclosing": "bench_engine_dispatch"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/benches/dispatch_bench.rs",
+      "line": 101,
+      "text": "    c.bench_function(\"engine_dispatch_filepath\", |b| {",
+      "enclosing": "bench_engine_dispatch"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/benches/dispatch_bench.rs",
+      "line": 102,
+      "text": "        b.iter(|| engine.dispatch(black_box(\"mod_03/file_2.rs\"), black_box(tmp.path())));",
+      "enclosing": "bench_engine_dispatch"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/benches/dispatch_bench.rs",
+      "line": 104,
+      "text": "    c.bench_function(\"engine_dispatch_concept\", |b| {",
+      "enclosing": "bench_engine_dispatch"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/benches/dispatch_bench.rs",
+      "line": 106,
+      "text": "            engine.dispatch(",
+      "enclosing": "bench_engine_dispatch"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/benches/dispatch_bench.rs",
+      "line": 118,
+      "text": "    bench_engine_dispatch,"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/cli.rs",
+      "line": 83,
+      "text": "    Dispatch(commands::dispatch::Args),",
+      "enclosing": "Command"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/cli.rs",
+      "line": 147,
+      "text": "            Command::Dispatch(a) => commands::dispatch::run(a, &root, self.format),"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 13,
+      "text": "use ffs_engine::dispatch::DispatchResult;",
+      "enclosing": "<anonymous>"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 292,
+      "text": "            \"ffs_dispatch\",",
+      "enclosing": "tools_list"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 366,
+      "text": "        \"ffs_dispatch\" => {",
+      "enclosing": "handle_tool"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mcp.rs",
+      "line": 369,
+      "text": "            let result = state.engine.dispatch(query, root);",
+      "enclosing": "handle_tool"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/dispatch.rs",
+      "line": 7,
+      "text": "use ffs_engine::dispatch::DispatchResult;",
+      "enclosing": "<anonymous>"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/dispatch.rs",
+      "line": 30,
+      "text": "            \"ffs dispatch: query is empty; pass a non-empty term\"",
+      "enclosing": "run"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/dispatch.rs",
+      "line": 37,
+      "text": "    let result = engine.dispatch(&args.query, root);",
+      "enclosing": "run"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/dispatch.rs",
+      "line": 103,
+      "text": "    // tree\"; expand them to `**/*.py` so the dispatch result matches user",
+      "enclosing": "run_glob"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 16,
+      "text": "use ffs_engine::dispatch::DispatchResult;",
+      "enclosing": "<anonymous>"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/engine_tools.rs",
+      "line": 632,
+      "text": "pub fn format_dispatch(result: &DispatchResult) -> String {",
+      "enclosing": "format_dispatch"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/demo/src/App.tsx",
+      "line": 145,
+      "text": "      dispatch: 'ol_crates_ffs-engine_src_dispatch.rs',",
+      "enclosing": "App"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/demo/src/App.tsx",
+      "line": 181,
+      "text": "    ? ['run', 'new', 'find', 'search', 'fuzzy_search', 'dispatch']",
+      "enclosing": "App"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/demo/src/App.tsx",
+      "line": 183,
+      "text": "    ? ['run', 'new', 'fuzzy_search', 'dispatch']",
+      "enclosing": "App"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/demo/src/App.tsx",
+      "line": 187,
+      "text": "    ? ['fuzzy_file_search', 'file_picker', 'cli', 'dispatch', 'symbol_index']",
+      "enclosing": "App"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/demo/src/App.tsx",
+      "line": 455,
+      "text": "      <p>View the structural outline of a file — functions, structs, enums, and their children. Try <strong>fuzzy_file_search</strong>, <strong>file_picker</strong>, or <strong>dispatch</strong>.</p>",
+      "enclosing": "OutlinePanel"
+    },
+    {
+      "path": "/Users/tranquangdang21/Projects/fast_file_search/demo/src/App.tsx",
+      "line": 495,
+      "text": "ffs-engine  (dispatch, ranking)",
+      "enclosing": "AboutPanel"
+    }
+  ],
+  "total_usages": 53,
+  "offset": 0,
+  "has_more": false
+}

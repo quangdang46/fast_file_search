@@ -1,0 +1,129 @@
+{
+  "name": "search",
+  "hops": 3,
+  "hub_guard": 50,
+  "results": [
+    {
+      "path": "docs/MENTION_SYSTEM_PLAN.md",
+      "score": 165,
+      "reasons": [
+        "direct: 55"
+      ]
+    },
+    {
+      "path": "crates/ffs-core/benches/mention_bench.rs",
+      "score": 69,
+      "reasons": [
+        "direct: 23"
+      ]
+    },
+    {
+      "path": "demo/src/App.tsx",
+      "score": 63,
+      "reasons": [
+        "direct: 21"
+      ]
+    },
+    {
+      "path": "README.md",
+      "score": 45,
+      "reasons": [
+        "direct: 15"
+      ]
+    },
+    {
+      "path": "scripts/benchmark-claude.sh",
+      "score": 45,
+      "reasons": [
+        "direct: 15"
+      ]
+    },
+    {
+      "path": "demo/src/App.css",
+      "score": 24,
+      "reasons": [
+        "direct: 8"
+      ]
+    },
+    {
+      "path": "demo/src/index.css",
+      "score": 24,
+      "reasons": [
+        "direct: 8"
+      ]
+    },
+    {
+      "path": "crates/ffs-core/benches/memmem_bench.rs",
+      "score": 15,
+      "reasons": [
+        "direct: 5"
+      ]
+    },
+    {
+      "path": "crates/ffs-cli/Cargo.toml",
+      "score": 12,
+      "reasons": [
+        "direct: 4"
+      ]
+    },
+    {
+      "path": "crates/ffs-cli/assets/AGENT_GUIDE.md",
+      "score": 12,
+      "reasons": [
+        "direct: 4"
+      ]
+    },
+    {
+      "path": "crates/ffs-core/README.md",
+      "score": 12,
+      "reasons": [
+        "direct: 4"
+      ]
+    },
+    {
+      "path": "crates/ffs-engine/Cargo.toml",
+      "score": 12,
+      "reasons": [
+        "direct: 4"
+      ]
+    },
+    {
+      "path": "AGENTS.md",
+      "score": 9,
+      "reasons": [
+        "direct: 3"
+      ]
+    },
+    {
+      "path": "Makefile",
+      "score": 6,
+      "reasons": [
+        "direct: 2"
+      ]
+    },
+    {
+      "path": "crates/ffs-core/src/file_picker.rs",
+      "score": 2,
+      "reasons": [
+        "imports: 1"
+      ]
+    },
+    {
+      "path": "crates/ffs-core/src/grep.rs",
+      "score": 2,
+      "reasons": [
+        "imports: 1"
+      ]
+    },
+    {
+      "path": "crates/ffs-core/src/mention/mod.rs",
+      "score": 2,
+      "reasons": [
+        "imports: 1"
+      ]
+    }
+  ],
+  "total": 17,
+  "offset": 0,
+  "has_more": false
+}

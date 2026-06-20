@@ -1,0 +1,103 @@
+{
+  "target": "crates/ffs-cli/src/cli.rs",
+  "imports": [
+    {
+      "spec": "std::path::PathBuf"
+    },
+    {
+      "spec": "anyhow::Result"
+    },
+    {
+      "spec": "clap"
+    },
+    {
+      "spec": "crate::commands",
+      "resolved": "crates/ffs-cli/src/commands/mod.rs"
+    }
+  ],
+  "dependents": [
+    {
+      "path": "crates/ffs-cli/src/commands/grep.rs",
+      "spec": "crate::cli::OutputFormat"
+    },
+    {
+      "path": "crates/ffs-cli/src/commands/symbol.rs",
+      "spec": "crate::cli::OutputFormat"
+    },
+    {
+      "path": "crates/ffs-cli/src/commands/flow.rs",
+      "spec": "crate::cli::OutputFormat"
+    },
+    {
+      "path": "crates/ffs-cli/src/commands/callers.rs",
+      "spec": "crate::cli::OutputFormat"
+    },
+    {
+      "path": "crates/ffs-cli/src/commands/callees.rs",
+      "spec": "crate::cli::OutputFormat"
+    },
+    {
+      "path": "crates/ffs-cli/src/commands/dispatch.rs",
+      "spec": "crate::cli::OutputFormat"
+    },
+    {
+      "path": "crates/ffs-cli/src/commands/index.rs",
+      "spec": "crate::cli::OutputFormat"
+    },
+    {
+      "path": "crates/ffs-cli/src/commands/guide.rs",
+      "spec": "crate::cli::OutputFormat"
+    },
+    {
+      "path": "crates/ffs-cli/src/commands/deps.rs",
+      "spec": "crate::cli::OutputFormat"
+    },
+    {
+      "path": "crates/ffs-cli/src/commands/mod.rs",
+      "spec": "crate::cli::OutputFormat"
+    },
+    {
+      "path": "crates/ffs-cli/src/commands/read.rs",
+      "spec": "crate::cli::OutputFormat"
+    },
+    {
+      "path": "crates/ffs-cli/src/commands/impact.rs",
+      "spec": "crate::cli::OutputFormat"
+    },
+    {
+      "path": "crates/ffs-cli/src/commands/mention.rs",
+      "spec": "crate::cli::OutputFormat"
+    },
+    {
+      "path": "crates/ffs-cli/src/commands/find.rs",
+      "spec": "crate::cli::OutputFormat"
+    },
+    {
+      "path": "crates/ffs-cli/src/commands/refs.rs",
+      "spec": "crate::cli::OutputFormat"
+    },
+    {
+      "path": "crates/ffs-cli/src/commands/overview.rs",
+      "spec": "crate::cli::OutputFormat"
+    },
+    {
+      "path": "crates/ffs-cli/src/commands/map.rs",
+      "spec": "crate::cli::OutputFormat"
+    },
+    {
+      "path": "crates/ffs-cli/src/commands/glob.rs",
+      "spec": "crate::cli::OutputFormat"
+    },
+    {
+      "path": "crates/ffs-cli/src/commands/siblings.rs",
+      "spec": "crate::cli::OutputFormat"
+    },
+    {
+      "path": "crates/ffs-cli/src/commands/outline.rs",
+      "spec": "crate::cli::OutputFormat"
+    }
+  ],
+  "total_dependents": 20,
+  "offset": 0,
+  "has_more": false
+}

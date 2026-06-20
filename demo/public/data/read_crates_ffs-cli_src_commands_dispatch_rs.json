@@ -1,0 +1,7 @@
+{
+  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/dispatch.rs",
+  "mode": "outline",
+  "body": "# crates/ffs-cli/src/commands/dispatch.rs (164 lines, ~1.4k tokens) [outline]\n\n[1-10]      imports: std, anyhow, clap, serde, ffs_engine(2), crate\n[13-16]     struct Args\n            pub struct Args {\n[19-23]     struct DispatchOutput\n            struct DispatchOutput {\n[25-96]     function run\n            pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {\n[99-99]     const ALWAYS_HIDE\n            const ALWAYS_HIDE: &[&str] = &[\".git\", \"node_modules\", \"target\", \".ffs\"];\n[101-164]   function run_glob\n            fn run_glob(root: &Path, pattern: &str) -> Vec<String> {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
+  "kept_bytes": 664,
+  "footer_bytes": 0
+}
