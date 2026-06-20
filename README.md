@@ -40,11 +40,12 @@ verify the SHA-256 sidecar, and atomically install to `~/.local/bin/ffs`
 ffs --help
 ffs index                                  # one-time warm-up (~200ms on a 10k-file repo)
 ffs find UnifiedScanner
+ffs find grep --scored                     # role-aware file search (+20 impl, -15 test)
 ffs grep '\bTODO\b' --root crates/
+ffs grep 'fn main' --group                # symbol-grouped grep output
 ffs symbol FilePicker
 ffs callers UnifiedScanner
 ffs read crates/ffs-engine/src/lib.rs --budget 5000 --filter minimal
-ffs dispatch 'where is the user controller'
 ffs map --depth 3
 ffs mcp                                    # run as MCP server over stdio
 ```
@@ -59,9 +60,9 @@ repository's own `.gitignore` already does this).
 ## Subcommands
 
 ```
-ffs find        Find files by name (replaces find, fd)
+ffs find        Find files by name. --scored for role-aware ranking (impl +20, test -15)
 ffs glob        Match files by glob (replaces glob, shell **)
-ffs grep        Search file contents (replaces grep, rg)
+ffs grep        Search file contents. --group for symbol-grouped output
 ffs read        Read a file with token-budget aware truncation (replaces cat)
 ffs outline     Render a file's structural outline
 ffs symbol      Look up symbol definitions (tree-sitter powered)
@@ -72,10 +73,9 @@ ffs flow        Drill-down envelope per definition (def + body + callees + calle
 ffs siblings    Sibling symbols (peers in the same parent scope)
 ffs deps        File imports + the workspace files that depend on it
 ffs impact      Rank files by how much they'd be affected if a symbol changed
-ffs dispatch    Auto-classify a free-form query and route it to the right backend
 ffs index       Build / refresh the on-disk indexes (Bigram, Bloom, Symbol, Outline)
 ffs map         Render the workspace as a tree annotated with file count and tokens
-ffs overview    High-signal summary of the workspace (languages, top symbols, …)
+ffs overview    High-signal summary of the workspace (languages, top symbols, ...)
 ffs mcp         Run as an MCP server over stdio
 ffs guide       Print the embedded agent guide
 ```
@@ -88,7 +88,7 @@ the working directory globally.
 ## MCP server
 
 `ffs mcp` (or the standalone `ffs-mcp` binary) speaks JSON-RPC over stdio
-and registers 16 tools that any MCP-capable agent (Claude Code, Codex,
+and registers 15 tools that any MCP-capable agent (Claude Code, Codex,
 OpenCode, Cursor, Cline, …) can call:
 
 ### Tools registered
@@ -98,7 +98,6 @@ OpenCode, Cursor, Cline, …) can call:
 | `ffs_find`    | Fuzzy file-name search. Smart-case, frecency-ranked, glob constraints, git-aware.                |
 | `ffs_grep`      | Content search. Plain / regex / fuzzy auto-detect, pagination cursor, definition-first hinting.  |
 | `ffs_multi_grep`    | OR-logic multi-pattern content search via SIMD Aho-Corasick.                                     |
-| `ffs_dispatch`  | Auto-classify a free-form query (path, glob, identifier, concept) and route through the engine.  |
 | `ffs_symbol`    | Exact + prefix lookup over the tree-sitter symbol index (16 languages).                          |
 | `ffs_callers`   | Find call sites of a symbol. Bloom-filter narrowed candidates → literal-text confirm pass.       |
 | `ffs_callees`   | Symbols referenced inside the body of a definition.                                              |
@@ -440,6 +439,46 @@ install-mcp.sh      # MCP server installer
 ```
 
 ---
+
+---
+
+## Rust library API
+
+FFS crates can be used directly as Rust dependencies:
+
+```toml
+[dependencies]
+ffs-engine = { git = "https://github.com/quangdang46/fast_file_search" }
+ffs-search = { git = "https://github.com/quangdang46/fast_file_search" }
+ffs-symbol = { git = "https://github.com/quangdang46/fast_file_search" }
+```
+
+### High-level API (`ffs_engine::api`)
+
+```rust
+use ffs_engine::api::{grep, find, outline, GrepOptions, FindOptions};
+
+// Grep with symbol grouping
+let result = grep(root, "fn main", &GrepOptions::default());
+// result.files[0].groups[0].matches — grouped by enclosing symbol
+
+// Find with role-based scoring
+let result = find(root, "auth", &FindOptions::default());
+// result.files[0].score, .role, .score_breakdown
+
+// File outline
+let result = outline(Path::new("src/main.rs"));
+// result.entries — tree-sitter OutlineEntry[]
+```
+
+### Role detection (`ffs_search::role`)
+
+```rust
+use ffs_search::role::detect_role;
+
+let role = detect_role(Path::new("src/tests/mod.rs"));
+assert_eq!(role.as_str(), "test");  // auto-penalized: -15
+```
 
 ## Contributing
 
