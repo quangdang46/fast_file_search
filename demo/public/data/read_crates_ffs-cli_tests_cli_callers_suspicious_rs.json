@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_callers_suspicious.rs",
-  "mode": "outline",
-  "body": "# crates/ffs-cli/tests/cli_callers_suspicious.rs (150 lines, ~1.4k tokens) [outline]\n\n[8-12]      imports: std(2), serde_json, tempfile\n[14-16]     function binary\n            fn binary() -> std::path::PathBuf {\n[18-30]     function run\n            fn run(root: &Path, extra: &[&str]) -> Value {\n[32-36]     function write_file\n            fn write_file(dir: &Path, rel: &str, body: &str) {\n[39-52]     function default_hops_omits_new_telemetry_fields\n            fn default_hops_omits_new_telemetry_fields() {\n[55-82]     function suspicious_hops_reports_name_defined_in_multiple_roots\n            fn suspicious_hops_reports_name_defined_in_multiple_roots() {\n[85-104]    function auto_hubs_promoted_fires_when_hub_guard_kicks_in\n            fn auto_hubs_promoted_fires_when_hub_guard_kicks_in() {\n[107-124]   function telemetry_renders_text_sections_when_nonempty\n            fn telemetry_renders_text_sections_when_nonempty() {\n[127-150]   function skip_hubs_prevents_propagation\n            fn skip_hubs_prevents_propagation() {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 1100,
-  "footer_bytes": 0
-}

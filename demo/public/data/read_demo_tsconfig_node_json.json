@@ -1,7 +1,1 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/demo/tsconfig.node.json",
-  "mode": "full",
-  "body": "{\n  \"compilerOptions\": {\n    \"tsBuildInfoFile\": \"./node_modules/.tmp/tsconfig.node.tsbuildinfo\",\n    \"target\": \"es2023\",\n    \"lib\": [\"ES2023\"],\n    \"module\": \"esnext\",\n    \"types\": [\"node\"],\n    \"skipLibCheck\": true,\n\n    /* Bundler mode */\n    \"moduleResolution\": \"bundler\",\n    \"allowImportingTsExtensions\": true,\n    \"verbatimModuleSyntax\": true,\n    \"moduleDetection\": \"force\",\n    \"noEmit\": true,\n\n    /* Linting */\n    \"noUnusedLocals\": true,\n    \"noUnusedParameters\": true,\n    \"erasableSyntaxOnly\": true,\n    \"noFallthroughCasesInSwitch\": true\n  },\n  \"include\": [\"vite.config.ts\"]\n}\n",
-  "kept_bytes": 591,
-  "footer_bytes": 0
-}
+{"path": "/Users/tranquangdang21/Projects/fast_file_search/demo/tsconfig.node.json", "mode": "raw", "body": "{\n  \"compilerOptions\": {\n    \"tsBuildInfoFile\": \"./node_modules/.tmp/tsconfig.node.tsbuildinfo\",\n    \"target\": \"es2023\",\n    \"lib\": [\"ES2023\"],\n    \"module\": \"esnext\",\n    \"types\": [\"node\"],\n    \"skipLibCheck\": true,\n\n    /* Bundler mode */\n    \"moduleResolution\": \"bundler\",\n    \"allowImportingTsExtensions\": true,\n    \"verbatimModuleSyntax\": true,\n    \"moduleDetection\": \"force\",\n    \"noEmit\": true,\n\n    /* Linting */\n    \"noUnusedLocals\": true,\n    \"noUnusedParameters\": true,\n    \"erasableSyntaxOnly\": true,\n    \"noFallthroughCasesInSwitch\": true\n  },\n  \"include\": [\"vite.config.ts\"]\n}\n", "kept_bytes": 591, "footer_bytes": 0}

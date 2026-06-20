@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/demo/public/data/read_crates_ffs-cli_src_cli_rs.json",
-  "mode": "full",
-  "body": "{\n  \"path\": \"/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/cli.rs\",\n  \"mode\": \"outline\",\n  \"body\": \"# crates/ffs-cli/src/cli.rs (156 lines, ~1.5k tokens) [outline]\\n\\n[3-8]      imports: std, anyhow, clap, crate\\n[18-33]    struct Cli\\n           pub struct Cli {\\n[36-39]    enum OutputFormat\\n           pub enum OutputFormat {\\n[42-104]   enum Command\\n           pub enum Command {\\n\\n> Next: drill into a symbol with --section <name> or a line range\\n\",\n  \"kept_bytes\": 345,\n  \"footer_bytes\": 0\n}\n",
-  "kept_bytes": 524,
-  "footer_bytes": 0
-}

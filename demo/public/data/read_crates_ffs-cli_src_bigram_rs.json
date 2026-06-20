@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/bigram.rs",
-  "mode": "outline",
-  "body": "# crates/ffs-cli/src/bigram.rs (226 lines, ~2.1k tokens) [outline]\n\n[15-19]       imports: std(2), rayon, serde\n[24-24]       const MAX_FILE_BYTES\n              const MAX_FILE_BYTES: u64 = 4 * 1024 * 1024;\n[28-32]       struct GrepBigram\n              pub struct GrepBigram {\n[133-158]     function extract_file_bigrams\n              fn extract_file_bigrams(path: &Path) -> Option<HashSet<u16>> {\n[161-226]     module tests\n              mod tests {\n  [162-162]   import <anonymous>\n              use super::*;\n  [164-169]   function write\n              fn write(dir: &Path, rel: &str, body: &str) -> PathBuf {\n  [172-182]   function build_and_filter_keeps_files_with_pattern\n              fn build_and_filter_keeps_files_with_pattern() {\n  [185-190]   function filter_returns_none_for_too_short_pattern\n              fn filter_returns_none_for_too_short_pattern() {\n  [193-200]   function filter_returns_empty_when_bigram_never_seen\n              fn filter_returns_empty_when_bigram_never_seen() {\n  [203-211]   function filter_is_case_insensitive_at_extraction\n              fn filter_is_case_insensitive_at_extraction() {\n  [214-225]   function build_skips_binary_files_silently\n              fn build_skips_binary_files_silently() {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 1304,
-  "footer_bytes": 0
-}

@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/detection.rs",
-  "mode": "outline",
-  "body": "# crates/ffs-symbol/src/detection.rs (92 lines, ~650 tokens) [outline]\n\n[4-7]       function is_binary\n            pub fn is_binary(buf: &[u8]) -> bool {\n[10-15]     function is_generated_by_name\n            pub fn is_generated_by_name(name: &str) -> bool {\n[17-30]     function is_generated_filename\n            fn is_generated_filename(name: &str) -> bool {\n[32-44]     function is_generated_extension\n            fn is_generated_extension(name: &str) -> bool {\n[46-59]     const GENERATED_MARKERS\n            const GENERATED_MARKERS: &[&[u8]] = &[\n[62-67]     function is_generated_by_content\n            pub fn is_generated_by_content(buf: &[u8]) -> bool {\n[70-92]     module tests\n            mod tests {\n  [71-71]   import <anonymous>\n            use super::*;\n  [74-77]   function detects_binary\n            fn detects_binary() {\n  [80-84]   function detects_generated_filename\n            fn detects_generated_filename() {\n  [87-91]   function detects_generated_content\n            fn detects_generated_content() {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 1090,
-  "footer_bytes": 0
-}

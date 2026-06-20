@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/constraints.rs",
-  "mode": "outline",
-  "body": "# crates/ffs-query-parser/src/constraints.rs (47 lines, ~343 tokens) [outline]\n\n[3-36]    enum Constraint\n          pub enum Constraint<'a> {\n[39-44]   enum GitStatusFilter\n          pub enum GitStatusFilter {\n[47-47]   type TextPartsBuffer\n          pub(crate) type TextPartsBuffer<'a> = Vec<&'a str>;\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 370,
-  "footer_bytes": 0
-}

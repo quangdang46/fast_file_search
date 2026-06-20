@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/lib.rs",
-  "mode": "outline",
-  "body": "# crates/ffs-symbol/src/lib.rs (39 lines, ~370 tokens) [outline]\n\n[15-15]   module artifact\n          pub mod artifact;\n[16-16]   module batch\n          pub mod batch;\n[17-17]   module bloom\n          pub mod bloom;\n[18-18]   module detection\n          pub mod detection;\n[19-19]   module lang\n          pub mod lang;\n[20-20]   module outline\n          pub mod outline;\n[21-21]   module outline_cache\n          pub mod outline_cache;\n[22-22]   module symbol_index\n          pub mod symbol_index;\n[23-23]   module treesitter\n          pub mod treesitter;\n[24-24]   module types\n          pub mod types;\n[25-25]   module verse_spans\n          mod verse_spans;\n[27-27]   import <anonymous>\n          pub use bloom::{BloomFilter, BloomFilterCache};\n[28-28]   import <anonymous>\n          pub use lang::{detect_file_type, package_root};\n[29-29]   import <anonymous>\n          pub use outline::{get_outline_entries, outline_language};\n[30-30]   import <anonymous>\n          pub use outline_cache::OutlineCache;\n[31-31]   import <anonymous>\n          pub use symbol_index::{SymbolIndex, SymbolIndexSnapshot, SymbolLocation};\n[32-35]   import <anonymous>\n          pub use treesitter::{\n[36-39]   import <anonymous>\n          pub use types::{\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 1302,
-  "footer_bytes": 0
-}

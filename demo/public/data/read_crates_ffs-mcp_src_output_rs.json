@@ -1,8 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-mcp/src/output.rs",
-  "mode": "outline",
-  "body": "<anonymous> use ffs::GrepMatch;\n<anonymous> use ffs::file_picker::FilePicker;\n<anonymous> use ffs::git::format_git_status_opt;\n<anonymous> use ffs::grep::is_import_line;\n<anonymous> use ffs::types::FileItem;\n<anonymous> use crate::cursor::CursorStore;\nfrecency_word fn frecency_word(score: i32) -> Option<&'static str> {\nfile_suffix pub fn file_suffix(git_status: Option<git2::Status>, frecency_score: i32) -> String {\nOutputMode pub enum OutputMode {\nLARGE_FILE_BYTES const LARGE_FILE_BYTES: u64 = 20_000;\nsize_tag fn size_tag(bytes: u64) -> String {\nMAX_PREVIEW const MAX_PREVIEW: usize = 120;\nMAX_LINE_LEN const MAX_LINE_LEN: usize = 180;\nMAX_DEF_EXPAND_FIRST const MAX_DEF_EXPAND_FIRST: usize = 8;\nMAX_DEF_EXPAND const MAX_DEF_EXPAND: usize = 5;\nMAX_FIRST_MATCH_EXPAND const MAX_FIRST_MATCH_EXPAND: usize = 8;\ntrauncate_line_for_ai fn trauncate_line_for_ai(\nfloor_char_boundary fn floor_char_boundary(s: &str, index: usize) -> usize {\nceil_char_boundary fn ceil_char_boundary(s: &str, index: usize) -> usize {\nFileMeta struct FileMeta<'a> {\nGrepFormatter pub struct GrepFormatter<'a> {\nformat_files_with_matches fn format_files_with_matches(\nformat_count fn format_count(\ncollect_file_preview fn collect_file_preview<'a>(\ntests mod tests {\n",
-  "kept_bytes": 1244,
-  "footer_bytes": 0,
-  "view": "signatures"
-}

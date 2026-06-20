@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/benches/mention_bench.rs",
-  "mode": "outline",
-  "body": "# crates/ffs-core/benches/mention_bench.rs (136 lines, ~1.4k tokens) [outline]\n\n[20-27]     imports: std(2), criterion, ffs_search(4)\n[35-52]     function build_tree\n            fn build_tree(dir: &Path, count: usize) {\n[56-69]     function build_picker\n            fn build_picker(root: &Path) -> FilePicker {\n[74-78]     function bench_trigger_only\n            fn bench_trigger_only(c: &mut Criterion) {\n[83-92]     function bench_candidate_search_warm_10k\n            fn bench_candidate_search_warm_10k(c: &mut Criterion) {\n[98-107]    function bench_candidate_search_cold_40k\n            fn bench_candidate_search_cold_40k(c: &mut Criterion) {\n[112-127]   function bench_candidate_search_with_options\n            fn bench_candidate_search_with_options(c: &mut Criterion) {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 844,
-  "footer_bytes": 0
-}

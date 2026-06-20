@@ -32,11 +32,10 @@ interface DepImport { spec: string; resolved?: string }
 interface DepDependent { path: string; spec: string }
 interface ImpactData { name: string; results: ImpactResult[]; total: number; hops?: number }
 interface ImpactResult { path: string; score: number; reasons: string[] }
-interface DispatchData { raw: string; classification: string; summary: string[] }
 interface MapData { root: string; total_files: number; total_bytes: number; total_est_tokens: number; tree: MapNode }
 interface MapNode { name: string; is_dir: boolean; bytes: number; est_tokens: number; file_count: number; children: MapNode[]; truncated?: boolean; symbols?: { name: string; kind: string; line: number; weight: number }[] }
 
-type Tab = 'files' | 'symbol' | 'callers' | 'callees' | 'grep' | 'outline' | 'glob' | 'read' | 'refs' | 'flow' | 'siblings' | 'deps' | 'impact' | 'dispatch' | 'map' | 'about'
+type Tab = 'files' | 'symbol' | 'callers' | 'callees' | 'grep' | 'outline' | 'glob' | 'read' | 'refs' | 'flow' | 'siblings' | 'deps' | 'impact' | 'map' | 'about'
 
 /* ─── Helpers ───────────────────────────────────────── */
 function fuzzyScore(query: string, text: string): number {
@@ -99,7 +98,7 @@ function dataPrefix(tab: Tab): string {
     symbol: 'sym', callers: 'callers', callees: 'callees',
     grep: 'grep', outline: 'ol', glob: 'glob', read: 'read',
     refs: 'refs', flow: 'flow', siblings: 'siblings', deps: 'deps',
-    impact: 'impact', dispatch: 'dispatch',
+    impact: 'impact', 
   }
   return map[tab] || tab
 }
@@ -108,7 +107,7 @@ const TAB_LABELS: Record<Tab, string> = {
   files: '📁 Find', symbol: '◎ Symbol', callers: '↗ Callers', callees: '↘ Callees',
   grep: '🔍 Grep', outline: '📋 Outline', glob: '🌐 Glob', read: '📖 Read',
   refs: '🔗 Refs', flow: '💧 Flow', siblings: '👥 Siblings', deps: '📦 Deps',
-  impact: '🎯 Impact', dispatch: '🤖 Dispatch', map: '🗺 Map', about: 'ℹ About'
+  impact: '🎯 Impact', map: '🗺 Map', about: 'ℹ About'
 }
 
 const PRESETS: Partial<Record<Tab, Array<{ label: string; key: string }>>> = {
@@ -118,39 +117,31 @@ const PRESETS: Partial<Record<Tab, Array<{ label: string; key: string }>>> = {
   callees: ['run', 'new', 'dispatch', 'fuzzy_search'].map(k => ({ label: k, key: k })),
   grep: ['unsafe', 'RwLock', 'fn_', 'struct_', 'TODO', 'fuzzy_file_search'].map(k => ({ label: k.replace(/_$/, ' ').replace(/_/g, ' '), key: k })),
   outline: [
-    { label: 'cli.rs', key: 'crates_ffs-cli_src_cli_rs' },
-    { label: 'dispatch.rs', key: 'crates_ffs-engine_src_dispatch_rs' },
-    { label: 'fuzzy_file_search.rs', key: 'crates_ffs-core_src_fuzzy_file_search_rs' },
-    { label: 'symbol_index.rs', key: 'crates_ffs-symbol_src_symbol_index_rs' },
-    { label: 'file_picker.rs', key: 'crates_ffs-core_src_file_picker_rs' },
+    { label: 'cli.rs', key: 'crates_ffs_cli_src_cli_rs' },
+    { label: 'dispatch.rs', key: 'crates_ffs_engine_src_dispatch_rs' },
+    { label: 'fuzzy_file_search.rs', key: 'crates_ffs_core_src_fuzzy_file_search_rs' },
+    { label: 'symbol_index.rs', key: 'crates_ffs_symbol_src_symbol_index_rs' },
+    { label: 'file_picker.rs', key: 'crates_ffs_core_src_file_picker_rs' },
   ],
   glob: ['*.rs', '*.toml', '*.md', '*.sh', '*.json', '*.c', '*.py'].map(k => ({ label: k, key: 'star_' + k.slice(2).replace('.', '_') })),
   read: [
-    { label: 'cli.rs', key: 'crates_ffs-cli_src_cli_rs' },
-    { label: 'dispatch.rs', key: 'crates_ffs-engine_src_dispatch_rs' },
-    { label: 'lib.rs', key: 'crates_ffs-engine_src_lib_rs' },
-    { label: 'main.rs', key: 'crates_ffs-cli_src_main_rs' },
-    { label: 'fuzzy_file_search.rs', key: 'crates_ffs-core_src_fuzzy_file_search_rs' },
-    { label: 'mod.rs', key: 'crates_ffs-cli_src_commands_mod_rs' },
+    { label: 'cli.rs', key: 'crates_ffs_cli_src_cli_rs' },
+    { label: 'dispatch.rs', key: 'crates_ffs_engine_src_dispatch_rs' },
+    { label: 'lib.rs', key: 'crates_ffs_engine_src_lib_rs' },
+    { label: 'main.rs', key: 'crates_ffs_cli_src_main_rs' },
+    { label: 'fuzzy_file_search.rs', key: 'crates_ffs_core_src_fuzzy_file_search_rs' },
+    { label: 'mod.rs', key: 'crates_ffs_cli_src_commands_mod_rs' },
   ],
   refs: ['find', 'run', 'search', 'dispatch', 'read', 'new', 'build', 'parse'].map(k => ({ label: k, key: k })),
   flow: ['find', 'run', 'search', 'dispatch', 'read', 'new'].map(k => ({ label: k, key: k })),
   siblings: ['find', 'run', 'read', 'new', 'search'].map(k => ({ label: k, key: k })),
   deps: [
-    { label: 'cli.rs', key: 'crates_ffs-cli_src_cli_rs' },
-    { label: 'dispatch.rs', key: 'crates_ffs-engine_src_dispatch_rs' },
-    { label: 'fuzzy_file_search.rs', key: 'crates_ffs-core_src_fuzzy_file_search_rs' },
+    { label: 'cli.rs', key: 'crates_ffs_cli_src_cli_rs' },
+    { label: 'dispatch.rs', key: 'crates_ffs_engine_src_dispatch_rs' },
+    { label: 'fuzzy_file_search.rs', key: 'crates_ffs_core_src_fuzzy_file_search_rs' },
   ],
   impact: ['find', 'run', 'search', 'dispatch', 'read'].map(k => ({ label: k, key: k })),
-  dispatch: [
-    { label: 'UnifiedScanner → symbol', key: 'unifiedscanner' },
-    { label: 'FilePicker → symbol', key: 'filepicker' },
-    { label: 'fuzzy_search → symbol', key: 'fuzzy_search' },
-    { label: 'find all TODO → grep fallback', key: 'find_all_TODO_comments' },
-    { label: 'list all Rust files → grep', key: 'list_all_Rust_files' },
-    { label: 'where is controller → grep', key: 'where_is_the_user_controller' },
-    { label: 'Cargo.toml → grep', key: 'cargo_toml' },
-  ],
+
   map: [],
 }
 
@@ -182,8 +173,7 @@ export default function App() {
   const [siblingsQ, setSiblingsQ] = useState(''); const [siblingsData, setSiblingsData] = useState<SiblingsData | null>(null)
   const [depsQ, setDepsQ] = useState(''); const [depsData, setDepsData] = useState<DepsData | null>(null)
   const [impactQ, setImpactQ] = useState(''); const [impactData, setImpactData] = useState<ImpactData | null>(null)
-  const [dispatchQ, setDispatchQ] = useState(''); const [dispatchData, setDispatchData] = useState<DispatchData | null>(null)
-  const [mapData, setMapData] = useState<MapData | null>(null)
+    const [mapData, setMapData] = useState<MapData | null>(null)
 
   // Detail panel
   const [detail, setDetail] = useState<{ title: string; modeTag: string; body: ReactElement }>({
@@ -229,7 +219,7 @@ export default function App() {
     const key = safeKey(file)
     let data = await fetchJSON<OutlineData>(`/data/ol_${key}.json`)
     if (!data) {
-      const allFiles = ['crates_ffs-cli_src_cli_rs', 'crates_ffs-core_src_file_picker_rs', 'crates_ffs-core_src_fuzzy_file_search_rs', 'crates_ffs-engine_src_dispatch_rs', 'crates_ffs-symbol_src_symbol_index_rs']
+      const allFiles = ['crates_ffs_cli_src_cli_rs', 'crates_ffs_core_src_file_picker_rs', 'crates_ffs_core_src_fuzzy_file_search_rs', 'crates_ffs_engine_src_dispatch_rs', 'crates_ffs_symbol_src_symbol_index_rs']
       const match = allFiles.find(f => f.includes(key))
       if (match) data = await fetchJSON<OutlineData>(`/data/ol_${match}.json`)
     }
@@ -243,7 +233,7 @@ export default function App() {
     const key = safeKey(file)
     let data = await fetchJSON<ReadData>(`/data/read_${key}.json`)
     if (!data) {
-      const allFiles = ['crates_ffs-cli_src_cli_rs', 'crates_ffs-engine_src_dispatch_rs', 'crates_ffs-core_src_fuzzy_file_search_rs', 'crates_ffs-core_src_file_picker_rs', 'crates_ffs-symbol_src_symbol_index_rs', 'crates_ffs-cli_src_main_rs', 'crates_ffs-engine_src_lib_rs', 'crates_ffs-cli_src_commands_mod_rs']
+      const allFiles = ['crates_ffs_cli_src_cli_rs', 'crates_ffs_engine_src_dispatch_rs', 'crates_ffs_core_src_fuzzy_file_search_rs', 'crates_ffs-core_src_file_picker_rs', 'crates_ffs-symbol_src_symbol_index_rs', 'crates_ffs-cli_src_main_rs', 'crates_ffs-engine_src_lib_rs', 'crates_ffs-cli_src_commands_mod_rs']
       const match = allFiles.find(f => f.includes(key))
       if (match) data = await fetchJSON<ReadData>(`/data/read_${match}.json`)
     }
@@ -258,7 +248,7 @@ export default function App() {
     const key = safeKey(file)
     let data = await fetchJSON<DepsData>(`/data/deps_${key}.json`)
     if (!data) {
-      const allFiles = ['crates_ffs-cli_src_cli_rs', 'crates_ffs-engine_src_dispatch_rs', 'crates_ffs-core_src_fuzzy_file_search_rs']
+      const allFiles = ['crates_ffs_cli_src_cli_rs', 'crates_ffs_engine_src_dispatch_rs', 'crates_ffs_core_src_fuzzy_file_search_rs']
       const match = allFiles.find(f => f.includes(key))
       if (match) data = await fetchJSON<DepsData>(`/data/deps_${match}.json`)
     }
@@ -267,14 +257,6 @@ export default function App() {
   }, [])
 
   /* ─── Dispatch loader ─── */
-  const loadDispatch = useCallback(async (query: string) => {
-    if (!query.trim()) { setDispatchData(null); return }
-    const key = safeKey(query)
-    const data = await fetchJSON<DispatchData>(`/data/dispatch_${key}.json`)
-    setDispatchData(data)
-    if (data) setDetail({ title: data.raw, modeTag: data.classification, body: <DispatchDetail data={data} /> })
-  }, [])
-
   /* ─── Auto-select first result for detail view ─── */
   const autoSelectFirstFile = useCallback(async (paths: string[], _query: string) => {
     if (paths.length === 0) return
@@ -364,8 +346,6 @@ export default function App() {
   useEffect(() => { if (siblingsData) setDetail({ title: `Siblings: ${siblingsData.name}`, modeTag: 'siblings', body: <SiblingsDetail data={siblingsData} /> }) }, [siblingsData])
   useEffect(() => { if (impactData) setDetail({ title: `Impact: ${impactData.name}`, modeTag: 'impact', body: <ImpactDetail data={impactData} /> }) }, [impactData])
   useEffect(() => { if (depsData) setDetail({ title: depsData.target.split('/').pop() || '', modeTag: 'deps', body: <DepsDetail data={depsData} /> }) }, [depsData])
-  useEffect(() => { if (dispatchData) setDetail({ title: dispatchData.raw, modeTag: dispatchData.classification, body: <DispatchDetail data={dispatchData} /> }) }, [dispatchData])
-
   /* On files search, auto-select first match */
   useEffect(() => {
     if (results.length > 0 && q.trim()) autoSelectFirstFile(results.map(r => r.path), q)
@@ -404,8 +384,7 @@ export default function App() {
     else if (t2 === 'siblings') { setSiblingsQ(key); loadData(tab, key) }
     else if (t2 === 'deps') { setDepsQ(key); loadDeps(key) }
     else if (t2 === 'impact') { setImpactQ(key); loadData(tab, key) }
-    else if (t2 === 'dispatch') { setDispatchQ(key); loadDispatch(key) }
-  }, [files, tab, loadData, loadOutline, loadRead, loadDeps, loadDispatch])
+  }, [files, tab, loadData, loadOutline, loadRead, loadDeps])
 
   return (
     <div className="app">
@@ -480,14 +459,7 @@ export default function App() {
                 onKeyDown={e => { if (e.key === 'Enter' && depsQ.trim()) loadDeps(depsQ.trim()); }} />
             </div>
           )}
-          {(tab as string) === 'dispatch' && (
-            <div className="search-bar">
-              <span className="icon">🤖</span>
-              <input ref={inputRef} type="text" className="search-input" placeholder="Ask anything..." value={dispatchQ}
-                onChange={e => setDispatchQ(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && dispatchQ.trim()) loadDispatch(dispatchQ.trim()); }} />
-            </div>
-          )}
+
           <div className="search-meta">
             <div className="presets">
               {PRESETS[tab]?.slice(0, 8).map(p => (
@@ -515,8 +487,7 @@ export default function App() {
             {tab === 'siblings' && <SiblingsPanel query={siblingsQ} data={siblingsData} />}
             {tab === 'deps' && <DepsPanel file={depsQ} data={depsData} />}
             {tab === 'impact' && <ImpactPanel query={impactQ} data={impactData} />}
-            {tab === 'dispatch' && <DispatchPanel query={dispatchQ} data={dispatchData} />}
-            {tab === 'map' && <MapPanel data={mapData} />}
+                        {tab === 'map' && <MapPanel data={mapData} />}
             {tab === 'about' && <AboutPanel overview={overview} />}
           </main>
         </div>
@@ -817,37 +788,6 @@ function ImpactPanel({ query, data }: { query: string; data: ImpactData | null }
   </>)
 }
 
-/* ─── Dispatch ─── */
-function DispatchPanel({ query, data }: { query: string; data: DispatchData | null }) {
-  if (!query.trim()) return emptyState('🤖', 'Dispatch', 'Auto-classify free-form queries.', 'find all TODO')
-  if (!data) return emptyResult('No dispatch', `No dispatch for "${query}"`)
-  return (<>
-    <div className="result-count">Dispatch: &ldquo;{data.raw}&rdquo;</div>
-    <div className="dispatch-card">
-      <div className="dispatch-classification">
-        <span className="dispatch-badge">{data.classification}</span>
-        <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>classification</span>
-      </div>
-      <div className="dispatch-summary">
-        {data.summary?.map((s, i) => (
-          <div key={i} className="dispatch-item">
-            <span className="dispatch-arrow">→</span>
-            <code>{s}</code>
-          </div>
-        ))}
-      </div>
-      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8, lineHeight: 1.6 }}>
-        Classification rules:<br/>
-        <kbd>CamelCase/snake_case</kbd> → symbol lookup ✅<br/>
-        <kbd>path/to/file</kbd> → file path ✅<br/>
-        <kbd>*.rs</kbd> → glob ✅<br/>
-        <kbd>natural language</kbd> → fallback to <kbd>grep</kbd> 🔍<br/>
-        <span style={{ color: "var(--text-dim)" }}>Natural language = just grep. No AI, no semantics.</span>
-      </div>
-    </div>
-  </>)
-}
-
 /* ─── Map ─── */
 function MapNodeDisplay({ node, depth, files }: { node: MapNode; depth: number; files: number }) {
   const pct = files > 0 ? ((node.file_count / files) * 100).toFixed(1) : '0'
@@ -1038,34 +978,6 @@ function DepsDetail({ data }: { data: DepsData }) {
       </div>
     ))}
   </>)
-}
-
-function DispatchDetail({ data }: { data: DispatchData }) {
-  const isFallback = data.classification === 'content_fallback'
-  return (
-    <div style={{ padding: 16 }}>
-      <div className="dispatch-card" style={{ margin: 0 }}>
-        <div className="dispatch-classification">
-          <span className="dispatch-badge" style={isFallback ? { background: 'rgba(248,81,73,0.1)', color: 'var(--red)', borderColor: 'rgba(248,81,73,0.3)' } : {}}>{data.classification}</span>
-          <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>{isFallback ? '→ falls back to grep' : '→ matched query type'}</span>
-        </div>
-        <div className="dispatch-summary">
-          {data.summary?.map((s, i) => (
-            <div key={i} className="dispatch-item">
-              <span className="dispatch-arrow">{isFallback ? '🔍' : '→'}</span>
-              <code>{s}</code>
-            </div>
-          ))}
-        </div>
-        {isFallback && (
-          <div style={{ marginTop: 8, padding: '6px 8px', background: 'rgba(248,81,73,0.05)', borderRadius: 4, border: '1px solid rgba(248,81,73,0.15)', fontSize: 11, color: 'var(--text-dim)', lineHeight: 1.5 }}>
-            ⚠ Natural language query không được hiểu — dispatch rơi vào grep.<br/>
-            Chỉ <kbd>CamelCase</kbd>, <kbd>snake_case</kbd>, <kbd>path/file</kbd>, <kbd>glob</kbd> mới dispatch đúng backend.
-          </div>
-        )}
-      </div>
-    </div>
-  )
 }
 
 /* ─── Helpers ─── */

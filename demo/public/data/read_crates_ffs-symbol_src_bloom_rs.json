@@ -1,8 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/bloom.rs",
-  "mode": "outline",
-  "body": "<anonymous> use std::collections::hash_map::DefaultHasher;\n<anonymous> use std::hash::{Hash, Hasher};\n<anonymous> use std::path::{Path, PathBuf};\n<anonymous> use std::time::SystemTime;\n<anonymous> use dashmap::DashMap;\nBloomFilter pub struct BloomFilter {\ndouble_hash fn double_hash(item: &str) -> (u64, u64) {\ncombined_hash fn combined_hash(h1: u64, h2: u64, i: u64, num_bits: usize) -> usize {\nhash_with_seed fn hash_with_seed(item: &str, seed: u64) -> u64 {\nDEFAULT_FILTER_CACHE_LIMIT pub const DEFAULT_FILTER_CACHE_LIMIT: usize = 10_000;\nBloomFilterCache pub struct BloomFilterCache {\nbuild_filter pub fn build_filter(content: &str) -> BloomFilter {\nextract_identifiers pub fn extract_identifiers(content: &str) -> impl Iterator<Item = &str> {\nScanState enum ScanState {\nIdentifierIter struct IdentifierIter<'a> {\nis_ident_start fn is_ident_start(b: u8) -> bool {\nis_ident_continue fn is_ident_continue(b: u8) -> bool {\ntests mod tests {\n",
-  "kept_bytes": 942,
-  "footer_bytes": 0,
-  "view": "signatures"
-}

@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/memory.rs",
-  "mode": "outline",
-  "body": "# crates/ffs-engine/src/memory.rs (116 lines, ~863 tokens) [outline]\n\n[11-14]       imports: std, ffs_symbol(2)\n[18-23]       enum RepoSize\n              pub enum RepoSize {\n[39-43]       struct MemoryGuard\n              pub struct MemoryGuard {\n[87-116]      module tests\n              mod tests {\n  [88-88]     import <anonymous>\n              use super::*;\n  [91-97]     function classify_repos\n              fn classify_repos() {\n  [100-115]   function apply_clears_outline_for_large\n              fn apply_clears_outline_for_large() {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 607,
-  "footer_bytes": 0
-}

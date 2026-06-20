@@ -1,8 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/map.rs",
-  "mode": "outline",
-  "body": "<anonymous> use std::collections::{BTreeMap, HashMap};\n<anonymous> use std::path::{Path, PathBuf};\n<anonymous> use anyhow::Result;\n<anonymous> use clap::Parser;\n<anonymous> use ffs_engine::Engine;\n<anonymous> use ignore::WalkBuilder;\n<anonymous> use serde::Serialize;\n<anonymous> use crate::cli::OutputFormat;\nArgs pub struct Args {\nMapNode pub struct MapNode {\nSymbolEntry pub struct SymbolEntry {\nMapOutput struct MapOutput {\nrun pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {\nbuild_symbols_by_path fn build_symbols_by_path(root: &Path, top_n: usize) -> HashMap<PathBuf, Vec<SymbolEntry>> {\nbuild_tree fn build_tree(\nDirAcc struct DirAcc {\nFileEntry struct FileEntry {\nfold_tree fn fold_tree(\nrender_text fn render_text(p: &MapOutput) -> String {\nrender_node fn render_node(node: &MapNode, prefix: &str, is_last: bool, out: &mut String) {\nhumanize_bytes fn humanize_bytes(b: u64) -> String {\nhumanize_tokens fn humanize_tokens(t: u64) -> String {\ntests mod tests {\n",
-  "kept_bytes": 994,
-  "footer_bytes": 0,
-  "view": "signatures"
-}

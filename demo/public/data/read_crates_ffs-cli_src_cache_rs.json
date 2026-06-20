@@ -1,8 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/cache.rs",
-  "mode": "outline",
-  "body": "<anonymous> use std::fs;\n<anonymous> use std::io::Write;\n<anonymous> use std::path::{Path, PathBuf};\n<anonymous> use std::sync::Arc;\n<anonymous> use std::time::{Duration, SystemTime, UNIX_EPOCH};\n<anonymous> use anyhow::{Context, Result};\n<anonymous> use serde::{Deserialize, Serialize};\n<anonymous> use ffs_engine::{Engine, EngineConfig};\n<anonymous> use ffs_symbol::{SymbolIndex, SymbolIndexSnapshot};\n<anonymous> use crate::bigram::GrepBigram;\nSCHEMA_VERSION const SCHEMA_VERSION: &str = \"v1\";\nFFS_VERSION const FFS_VERSION: &str = env!(\"CARGO_PKG_VERSION\");\nMETA_FILE const META_FILE: &str = \"meta.json\";\nSYMBOL_FILE const SYMBOL_FILE: &str = \"symbol_index.postcard.zst\";\nBIGRAM_FILE const BIGRAM_FILE: &str = \"bigram.postcard.zst\";\nZSTD_LEVEL const ZSTD_LEVEL: i32 = 19;\nCacheMeta struct CacheMeta {\nCacheDir pub struct CacheDir {\nload_or_build_engine pub fn load_or_build_engine(root: &Path) -> Engine {\nrefresh_symbol_index pub fn refresh_symbol_index(idx: &SymbolIndex, root: &Path) {\nhead_matches fn head_matches(root: &Path, expected: Option<&str>) -> bool {\nfile_count_within_tolerance fn file_count_within_tolerance(root: &Path, expected: usize) -> bool {\nread_git_head fn read_git_head(root: &Path) -> Option<String> {\natomic_write fn atomic_write(path: &Path, bytes: &[u8]) -> Result<()> {\ntests mod tests {\n",
-  "kept_bytes": 1322,
-  "footer_bytes": 0,
-  "view": "signatures"
-}

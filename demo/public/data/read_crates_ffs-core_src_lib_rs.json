@@ -1,8 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/lib.rs",
-  "mode": "outline",
-  "body": "background_watcher mod background_watcher;\nscan mod scan;\nbigram_filter pub mod bigram_filter;\nbigram_query pub mod bigram_query;\nconstraints mod constraints;\ndirectory_grep pub mod directory_grep;\nerror mod error;\nparallelism mod parallelism;\nscore mod score;\nsort_buffer mod sort_buffer;\nstable_vec pub(crate) mod stable_vec;\ncase_insensitive_memmem pub mod case_insensitive_memmem;\nsimd_path pub mod simd_path;\nglob_matcher pub mod glob_matcher;\nfuzzy_file_search pub mod fuzzy_file_search;\nfile_picker pub mod file_picker;\ndbs pub mod dbs;\n<anonymous> pub use dbs::frecency;\ngit pub mod git;\ngrep pub mod grep;\nmention pub mod mention;\nlog pub mod log;\npath_utils pub mod path_utils;\n<anonymous> pub use dbs::query_tracker;\ntypes pub mod types;\nignore mod ignore;\nshared pub mod shared;\n<anonymous> pub use bigram_filter::*;\n<anonymous> pub use dbs::db_healthcheck::{DbHealth, DbHealthChecker};\n<anonymous> pub use error::{Error, Result};\n<anonymous> pub use ffs_query_parser::*;\n<anonymous> pub use file_picker::*;\n<anonymous> pub use frecency::*;\n<anonymous> pub use grep::*;\n<anonymous> pub use query_tracker::*;\n<anonymous> pub use shared::*;\n<anonymous> pub use types::*;\n",
-  "kept_bytes": 1181,
-  "footer_bytes": 0,
-  "view": "signatures"
-}

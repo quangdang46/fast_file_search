@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/searcher/mod.rs",
-  "mode": "outline",
-  "body": "# crates/ffs-grep/src/searcher/mod.rs (194 lines, ~1.4k tokens) [outline]\n\n[1-5]       imports: crate\n[7-7]       module core\n            mod core;\n[8-8]       module glue\n            mod glue;\n[13-13]     type Range\n            type Range = Match;\n[18-27]     enum ConfigError\n            pub(crate) enum ConfigError {\n[48-55]     struct Config\n            pub(crate) struct Config {\n[69-71]     struct SearcherBuilder\n            pub struct SearcherBuilder {\n[110-112]   struct Searcher\n            pub struct Searcher {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 590,
-  "footer_bytes": 0
-}

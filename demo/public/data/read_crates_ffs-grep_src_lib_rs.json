@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/src/lib.rs",
-  "mode": "outline",
-  "body": "# crates/ffs-grep/src/lib.rs (19 lines, ~112 tokens) [outline]\n\n[10-14]   imports: <anonymous>\n[16-16]   module lines\n          pub mod lines;\n[17-17]   module matcher\n          pub mod matcher;\n[18-18]   module searcher\n          mod searcher;\n[19-19]   module sink\n          mod sink;\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 354,
-  "footer_bytes": 0
-}

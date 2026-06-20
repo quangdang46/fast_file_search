@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/index.rs",
-  "mode": "outline",
-  "body": "# crates/ffs-cli/src/commands/index.rs (104 lines, ~865 tokens) [outline]\n\n[1-11]     imports: std, anyhow, clap, serde, ffs_engine, crate(3)\n[14-20]    struct Args\n           pub struct Args {\n[23-35]    struct IndexOutput\n           struct IndexOutput {\n[37-104]   function run\n           pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 432,
-  "footer_bytes": 0
-}

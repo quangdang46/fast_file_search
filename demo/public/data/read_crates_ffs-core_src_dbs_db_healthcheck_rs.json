@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/dbs/db_healthcheck.rs",
-  "mode": "outline",
-  "body": "# crates/ffs-core/src/dbs/db_healthcheck.rs (37 lines, ~281 tokens) [outline]\n\n[1-1]       imports: crate\n[5-14]      struct DbHealth\n            pub struct DbHealth {\n[16-37]     interface DbHealthChecker\n            pub trait DbHealthChecker {\n  [23-36]   function get_health\n            fn get_health(&self) -> Result<DbHealth> {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 400,
-  "footer_bytes": 0
-}

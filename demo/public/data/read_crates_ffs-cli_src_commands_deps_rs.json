@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/deps.rs",
-  "mode": "outline",
-  "body": "# crates/ffs-cli/src/commands/deps.rs (207 lines, ~1.5k tokens) [outline]\n\n[4-17]      imports: std(2), anyhow, clap, ignore, serde, ffs_symbol(2), crate(3)\n[20-35]     struct Args\n            pub struct Args {\n[38-42]     struct ImportEntry\n            struct ImportEntry {\n[45-48]     struct DependentEntry\n            struct DependentEntry {\n[51-58]     struct DepsOutput\n            struct DepsOutput {\n[60-108]    function run\n            pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {\n[110-131]   function imports_for_file\n            fn imports_for_file(path: &Path, root: &Path) -> Vec<ImportEntry> {\n[133-141]   function raw_imports_for\n            fn raw_imports_for(path: &Path) -> Vec<String> {\n[143-148]   function code_lang\n            fn code_lang(path: &Path) -> Option<ffs_symbol::types::Lang> {\n[150-167]   function walk_workspace\n            fn walk_workspace(root: &Path) -> Vec<PathBuf> {\n[169-174]   function display_relative\n            fn display_relative(path: &Path, root: &Path) -> String {\n[176-207]   function render_text\n            fn render_text(p: &DepsOutput) -> String {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 1200,
-  "footer_bytes": 0
-}

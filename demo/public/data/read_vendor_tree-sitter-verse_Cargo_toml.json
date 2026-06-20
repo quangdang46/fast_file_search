@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/Cargo.toml",
-  "mode": "full",
-  "body": "[package]\nname = \"tree-sitter-verse\"\nversion = \"0.1.11\"\nedition = \"2021\"\nlicense = \"MIT\"\ndescription = \"Tree-sitter grammar for Epic Games Verse (UEFN)\"\nrepository = \"https://github.com/taku25/tree-sitter-verse\"\n\n[dependencies]\ntree-sitter = { workspace = true }\ntree-sitter-language = { workspace = true }\n\n[build-dependencies]\ncc = \"1\"\n",
-  "kept_bytes": 338,
-  "footer_bytes": 0
-}

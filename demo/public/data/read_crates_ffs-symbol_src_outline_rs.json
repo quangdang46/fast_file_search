@@ -1,8 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/outline.rs",
-  "mode": "outline",
-  "body": "<anonymous> use tree_sitter::{Language, Node, Parser};\n<anonymous> use crate::treesitter::{\n<anonymous> use crate::types::{Lang, OutlineEntry, OutlineKind};\n<anonymous> use crate::verse_spans::{verse_repair_end_line, verse_skip_spurious_definition};\noutline_language pub fn outline_language(lang: Lang) -> Option<Language> {\nget_outline_entries pub fn get_outline_entries(content: &str, lang: Lang) -> Vec<OutlineEntry> {\nwalk_top_level fn walk_top_level(\nnode_to_entry fn node_to_entry(node: Node, lines: &[&str], content: &str, lang: Lang) -> Option<OutlineEntry> {\nextract_doc_comment fn extract_doc_comment(node: Node, content: &str, lang: Lang) -> Option<String> {\nextract_rust_doc_comment fn extract_rust_doc_comment(node: Node, content: &str) -> Option<String> {\nextract_js_doc_comment fn extract_js_doc_comment(node: Node, content: &str) -> Option<String> {\nextract_python_doc_comment fn extract_python_doc_comment(node: Node, content: &str) -> Option<String> {\noutline_kind_for fn outline_kind_for(node: Node, lang: Lang) -> Option<OutlineKind> {\nverse_type_definition_kind fn verse_type_definition_kind(node: Node) -> Option<OutlineKind> {\ndecorated_definition_kind fn decorated_definition_kind(node: Node) -> Option<OutlineKind> {\ncollect_children fn collect_children(\nextract_signature fn extract_signature(node: Node, lines: &[&str]) -> Option<String> {\ntests mod tests {\n",
-  "kept_bytes": 1385,
-  "footer_bytes": 0,
-  "view": "signatures"
-}

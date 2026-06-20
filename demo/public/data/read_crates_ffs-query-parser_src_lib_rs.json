@@ -1,8 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/src/lib.rs",
-  "mode": "outline",
-  "body": "config mod config;\nconstraints mod constraints;\nglob_detect pub mod glob_detect;\nlocation pub mod location;\nparser mod parser;\n<anonymous> pub use config::{\n<anonymous> pub use constraints::{Constraint, GitStatusFilter};\n<anonymous> pub use location::Location;\n<anonymous> pub use parser::{FfsQuery, FuzzyQuery, QueryParser};\nConstraintVec pub type ConstraintVec<'a> = Vec<Constraint<'a>>;\ntests mod tests {\n",
-  "kept_bytes": 408,
-  "footer_bytes": 0,
-  "view": "signatures"
-}

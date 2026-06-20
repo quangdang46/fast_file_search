@@ -1,8 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/symbol.rs",
-  "mode": "outline",
-  "body": "<anonymous> use std::path::Path;\n<anonymous> use std::path::PathBuf;\n<anonymous> use anyhow::Result;\n<anonymous> use clap::Parser;\n<anonymous> use serde::Serialize;\n<anonymous> use ffs_engine::Engine;\n<anonymous> use ffs_symbol::symbol_index::SymbolLocation;\n<anonymous> use crate::cli::OutputFormat;\n<anonymous> use crate::commands::did_you_mean::{suggest, Suggestion};\n<anonymous> use crate::commands::expand::{expand_hit, per_hit_budget_bytes, Expanded};\n<anonymous> use crate::commands::facets::Facets;\n<anonymous> use crate::commands::pagination::{footer, Page};\nArgs pub struct Args {\nSymbolOutput struct SymbolOutput {\nMultiSymbolOutput struct MultiSymbolOutput {\nSymbolHit struct SymbolHit {\nloc_to_hit fn loc_to_hit(name: &str, loc: SymbolLocation) -> SymbolHit {\nrun pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {\nparse_names fn parse_names(raw: &str) -> Vec<String> {\nbuild_group fn build_group(\nrender_single fn render_single(p: &SymbolOutput) -> String {\nrender_multi fn render_multi(p: &MultiSymbolOutput) -> String {\npush_group_lines fn push_group_lines(out: &mut String, p: &SymbolOutput, indent: bool) {\ntests mod tests {\n",
-  "kept_bytes": 1166,
-  "footer_bytes": 0,
-  "view": "signatures"
-}

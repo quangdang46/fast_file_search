@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/facets.rs",
-  "mode": "outline",
-  "body": "# crates/ffs-cli/src/commands/facets.rs (66 lines, ~505 tokens) [outline]\n\n[5-7]       imports: std, serde\n[10-14]     struct Facets\n            pub(crate) struct Facets {\n[33-66]     module tests\n            mod tests {\n  [34-34]   import <anonymous>\n            use super::Facets;\n  [37-41]   function empty_input_yields_zero_total_and_no_buckets\n            fn empty_input_yields_zero_total_and_no_buckets() {\n  [44-49]   function counts_grouped_by_kind\n            fn counts_grouped_by_kind() {\n  [52-56]   function buckets_are_sorted_alphabetically\n            fn buckets_are_sorted_alphabetically() {\n  [59-65]   function accepts_owned_strings_too\n            fn accepts_owned_strings_too() {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 766,
-  "footer_bytes": 0
-}

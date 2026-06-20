@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/outline.rs",
-  "mode": "outline",
-  "body": "# crates/ffs-cli/src/commands/outline.rs (144 lines, ~1.1k tokens) [outline]\n\n[1-12]      imports: std, anyhow, clap, serde, ffs_symbol(3), crate(2)\n[15-22]     enum Style\n            pub enum Style {\n[25-32]     struct Args\n            pub struct Args {\n[35-39]     struct OutlineOutput\n            struct OutlineOutput {\n[42-49]     struct OutlineEntryDto\n            struct OutlineEntryDto {\n[64-79]     function kind_str\n            fn kind_str(k: OutlineKind) -> &'static str {\n[81-121]    function run\n            pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {\n[125-144]   function render_agent\n            pub fn render_agent(path: &Path, display_path: &str) -> Result<String> {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 780,
-  "footer_bytes": 0
-}

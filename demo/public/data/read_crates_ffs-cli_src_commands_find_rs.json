@@ -1,8 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/find.rs",
-  "mode": "outline",
-  "body": "<anonymous> use std::collections::HashSet;\n<anonymous> use std::path::{Path, PathBuf};\n<anonymous> use anyhow::Result;\n<anonymous> use clap::{Parser, ValueEnum};\n<anonymous> use serde::Serialize;\n<anonymous> use crate::cli::OutputFormat;\n<anonymous> use crate::commands::pagination::{footer, Page};\nSearchMode pub enum SearchMode {\nArgs pub struct Args {\nFindResult struct FindResult {\nresolve_scopes fn resolve_scopes(scopes: &[PathBuf], root: &Path) -> Vec<PathBuf> {\nsearch_matches pub(crate) fn search_matches(scopes: &[PathBuf], needle: &str) -> Vec<String> {\nfuzzy_search_matches pub(crate) fn fuzzy_search_matches(scopes: &[PathBuf], needle: &str) -> Vec<String> {\nlongest_in_order_run fn longest_in_order_run(haystack: &str, needle: &str) -> usize {\nsearch_dir_matches pub(crate) fn search_dir_matches(scopes: &[PathBuf], needle: &str) -> Vec<String> {\nfuzzy_search_dir_matches pub(crate) fn fuzzy_search_dir_matches(scopes: &[PathBuf], needle: &str) -> Vec<String> {\nrun pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {\ntests mod tests {\n",
-  "kept_bytes": 1072,
-  "footer_bytes": 0,
-  "view": "signatures"
-}

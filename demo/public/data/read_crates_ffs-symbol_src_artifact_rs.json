@@ -1,8 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/artifact.rs",
-  "mode": "outline",
-  "body": "ArtifactAnchor pub struct ArtifactAnchor {\nextract_artifact_anchors pub fn extract_artifact_anchors(content: &str) -> (Vec<ArtifactAnchor>, usize) {\nsearch_anchor_matches pub fn search_anchor_matches(content: &str, query: &str) -> Vec<ArtifactAnchor> {\nis_artifact_js_ts_file pub fn is_artifact_js_ts_file(path: &std::path::Path) -> bool {\nes_export_names fn es_export_names(line: &str) -> Vec<String> {\ncjs_export_names fn cjs_export_names(line: &str) -> Vec<String> {\namd_define_names fn amd_define_names(line: &str) -> Vec<String> {\numd_global_names fn umd_global_names(line: &str) -> Vec<String> {\nclean_export_name fn clean_export_name(text: &str) -> String {\nclean_amd_name fn clean_amd_name(text: &str) -> String {\ntests mod tests {\n",
-  "kept_bytes": 740,
-  "footer_bytes": 0,
-  "view": "signatures"
-}

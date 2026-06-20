@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-engine/src/lib.rs",
-  "mode": "outline",
-  "body": "# crates/ffs-engine/src/lib.rs (21 lines, ~190 tokens) [outline]\n\n[4-4]     module classify\n          pub mod classify;\n[5-5]     module dispatch\n          pub mod dispatch;\n[6-6]     module memory\n          pub mod memory;\n[7-7]     module mention\n          pub mod mention;\n[8-8]     module prefilter\n          pub mod prefilter;\n[9-9]     module ranking\n          pub mod ranking;\n[10-10]   module scanner\n          pub mod scanner;\n[12-12]   import <anonymous>\n          pub use classify::{classify_query, ClassifiedQuery};\n[13-13]   import <anonymous>\n          pub use dispatch::{DispatchResult, Engine, EngineConfig, EngineHandles, ReadResult};\n[14-14]   import <anonymous>\n          pub use memory::{MemoryGuard, RepoSize};\n[15-18]   import <anonymous>\n          pub use mention::{\n[19-19]   import <anonymous>\n          pub use prefilter::{PreFilterStack, PreFilteredCandidate};\n[20-20]   import <anonymous>\n          pub use ranking::{rank_matches, RankInputs};\n[21-21]   import <anonymous>\n          pub use scanner::{IndexedFile, ScanProgress, ScanReport, UnifiedScanner};\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 1152,
-  "footer_bytes": 0
-}

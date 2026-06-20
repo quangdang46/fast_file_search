@@ -1,7 +1,1 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/demo/vercel.json",
-  "mode": "full",
-  "body": "{\n  \"framework\": \"vite\"\n}\n",
-  "kept_bytes": 26,
-  "footer_bytes": 0
-}
+{"path": "/Users/tranquangdang21/Projects/fast_file_search/demo/vercel.json", "mode": "raw", "body": "{\n  \"framework\": \"vite\"\n}\n", "kept_bytes": 26, "footer_bytes": 0}

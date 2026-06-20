@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/scan.rs",
-  "mode": "outline",
-  "body": "# crates/ffs-core/src/scan.rs (498 lines, ~4.6k tokens) [outline]\n\n[25-41]     imports: std(3), tracing, crate(10), rayon\n[44-57]     struct ScanSignals\n            pub(crate) struct ScanSignals {\n[61-68]     struct ScanConfig\n            pub(crate) struct ScanConfig {\n[75-86]     struct ScanJob\n            pub(crate) struct ScanJob {\n[381-384]   struct ScanningGuard\n            struct ScanningGuard<'a> {\n[409-424]   function rescubscribe_watcher_post_scan\n            fn rescubscribe_watcher_post_scan(shared_picker: &SharedFilePicker) {\n[426-498]   function apply_git_status_and_frecency\n            fn apply_git_status_and_frecency(\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 707,
-  "footer_bytes": 0
-}

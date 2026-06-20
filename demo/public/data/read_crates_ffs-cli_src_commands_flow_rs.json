@@ -1,8 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/flow.rs",
-  "mode": "outline",
-  "body": "<anonymous> use std::collections::HashSet;\n<anonymous> use std::path::{Path, PathBuf};\n<anonymous> use std::time::SystemTime;\n<anonymous> use anyhow::Result;\n<anonymous> use clap::Parser;\n<anonymous> use serde::Serialize;\n<anonymous> use ffs_engine::{Engine, PreFilterStack};\n<anonymous> use ffs_symbol::lang::detect_file_type;\n<anonymous> use ffs_symbol::types::FileType;\n<anonymous> use crate::cli::OutputFormat;\n<anonymous> use crate::commands::callers_bfs::{enclosing_symbol, CandidateFile};\n<anonymous> use crate::commands::did_you_mean::{suggest, Suggestion};\n<anonymous> use crate::commands::expand::{expand_hit, per_hit_budget_bytes, CALLS_DIVIDER};\n<anonymous> use crate::commands::pagination::{footer, Page};\nArgs pub struct Args {\nFlowDef struct FlowDef {\nFlowCallee struct FlowCallee {\nFlowCaller struct FlowCaller {\nFlowCard struct FlowCard {\nFlowOutput struct FlowOutput {\nrun pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {\nbuild_card fn build_card(\nstrip_calls_block fn strip_calls_block(body: &str) -> String {\nbuild_candidates fn build_candidates(root: &Path) -> Vec<CandidateFile> {\ncollect_usages fn collect_usages(engine: &Engine, name: &str, candidates: &[CandidateFile]) -> Vec<FlowCaller> {\nrender_text fn render_text(p: &FlowOutput) -> String {\ntests mod tests {\n",
-  "kept_bytes": 1314,
-  "footer_bytes": 0,
-  "view": "signatures"
-}

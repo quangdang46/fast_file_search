@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_impact.rs",
-  "mode": "outline",
-  "body": "# crates/ffs-cli/tests/cli_impact.rs (188 lines, ~1.5k tokens) [outline]\n\n[5-9]       imports: std(2), serde_json, tempfile\n[11-13]     function binary\n            fn binary() -> std::path::PathBuf {\n[15-27]     function run\n            fn run(root: &Path, args: &[&str]) -> Value {\n[29-33]     function write_file\n            fn write_file(dir: &Path, rel: &str, body: &str) {\n[36-43]     function empty_workspace_reports_zero_total\n            fn empty_workspace_reports_zero_total() {\n[46-87]     function direct_callers_weighted_three_to_one_over_transitive\n            fn direct_callers_weighted_three_to_one_over_transitive() {\n[90-131]    function reverse_imports_contribute_weight_two\n            fn reverse_imports_contribute_weight_two() {\n[134-164]   function hub_guard_prevents_propagation_past_popular_helper\n            fn hub_guard_prevents_propagation_past_popular_helper() {\n[167-188]   function pagination_respects_limit_and_offset\n            fn pagination_respects_limit_and_offset() {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 1073,
-  "footer_bytes": 0
-}

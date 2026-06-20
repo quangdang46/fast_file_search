@@ -1,7 +1,1 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/demo/public/data/sym_find.json",
-  "mode": "full",
-  "body": "{\"q\": \"find\", \"hits\": [{\"n\": \"find\", \"k\": \"function_item\", \"f\": \"crates/ffs-grep/src/searcher/glue.rs\", \"l\": 114}, {\"n\": \"find\", \"k\": \"function_item\", \"f\": \"crates/ffs-grep/src/matcher.rs\", \"l\": 146}, {\"n\": \"find\", \"k\": \"function_item\", \"f\": \"crates/ffs-grep/src/matcher.rs\", \"l\": 167}, {\"n\": \"find\", \"k\": \"function_item\", \"f\": \"crates/ffs-grep/src/searcher/core.rs\", \"l\": 53}, {\"n\": \"find\", \"k\": \"mod_item\", \"f\": \"crates/ffs-cli/src/commands/mod.rs\", \"l\": 15}]}\n",
-  "kept_bytes": 463,
-  "footer_bytes": 0
-}
+{"path": "/Users/tranquangdang21/Projects/fast_file_search/demo/public/data/sym_find.json", "mode": "raw", "body": "{\"q\": \"find\", \"hits\": [{\"n\": \"find\", \"k\": \"function_item\", \"f\": \"crates/ffs-grep/src/searcher/glue.rs\", \"l\": 114}, {\"n\": \"find\", \"k\": \"function_item\", \"f\": \"crates/ffs-grep/src/matcher.rs\", \"l\": 146}, {\"n\": \"find\", \"k\": \"function_item\", \"f\": \"crates/ffs-grep/src/matcher.rs\", \"l\": 167}, {\"n\": \"find\", \"k\": \"function_item\", \"f\": \"crates/ffs-grep/src/searcher/core.rs\", \"l\": 53}, {\"n\": \"find\", \"k\": \"mod_item\", \"f\": \"crates/ffs-cli/src/commands/mod.rs\", \"l\": 15}]}\n", "kept_bytes": 463, "footer_bytes": 0}

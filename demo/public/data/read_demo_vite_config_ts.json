@@ -1,7 +1,1 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/demo/vite.config.ts",
-  "mode": "outline",
-  "body": "# demo/vite.config.ts (7 lines, ~41 tokens) [outline]\n\n[1-2]   imports: vite, @vitejs/plugin-react\n[5-7]   export <anonymous>\n        export default defineConfig({\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 231,
-  "footer_bytes": 0
-}
+{"path": "/Users/tranquangdang21/Projects/fast_file_search/demo/vite.config.ts", "mode": "raw", "body": "import { defineConfig } from 'vite'\nimport react from '@vitejs/plugin-react'\n\n// https://vite.dev/config/\nexport default defineConfig({\n  plugins: [react()],\n})\n", "kept_bytes": 231, "footer_bytes": 0}

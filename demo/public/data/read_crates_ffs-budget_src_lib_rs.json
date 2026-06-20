@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-budget/src/lib.rs",
-  "mode": "outline",
-  "body": "# crates/ffs-budget/src/lib.rs (25 lines, ~242 tokens) [outline]\n\n[11-11]   module cascade\n          pub mod cascade;\n[12-12]   module filter\n          pub mod filter;\n[13-13]   module stream\n          pub mod stream;\n[14-14]   module tokens\n          pub mod tokens;\n[15-15]   module truncate\n          pub mod truncate;\n[17-19]   import <anonymous>\n          pub use filter::{\n[20-20]   import <anonymous>\n          pub use stream::{BlockHandler, BlockStreamFilter, StreamFilter};\n[21-24]   import <anonymous>\n          pub use tokens::{\n[25-25]   import <anonymous>\n          pub use truncate::{apply_preserving_footer, smart_truncate, TruncationOutcome};\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 726,
-  "footer_bytes": 0
-}

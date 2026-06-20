@@ -1,8 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/bigram_filter.rs",
-  "mode": "outline",
-  "body": "<anonymous> use ahash::AHashMap;\n<anonymous> use rayon::iter::{IndexedParallelIterator, ParallelIterator};\n<anonymous> use rayon::slice::ParallelSlice;\n<anonymous> use std::cell::UnsafeCell;\n<anonymous> use std::sync::OnceLock;\n<anonymous> use std::sync::atomic::{AtomicU16, AtomicUsize, Ordering};\nMAX_BIGRAM_COLUMNS const MAX_BIGRAM_COLUMNS: usize = 5000;\nNO_COLUMN const NO_COLUMN: u16 = u16::MAX;\nBigramIndexBuilder pub struct BigramIndexBuilder {\nBigramFilter pub struct BigramFilter {\nbitset_and fn bitset_and(result: &mut [u64], bitset: &[u64]) {\nnormalize_byte_scalar fn normalize_byte_scalar(b: u8) -> u16 {\nextract_bigrams pub fn extract_bigrams(content: &[u8]) -> Vec<u16> {\nBigramOverlay pub struct BigramOverlay {\nBIGRAM_CONTENT_CAP pub const BIGRAM_CONTENT_CAP: usize = 64 * 1024;\nBIGRAM_CHUNK_FILES const BIGRAM_CHUNK_FILES: usize = 4 * 64;\nSKIP_INDEX_MIN_DENSITY_PCT const SKIP_INDEX_MIN_DENSITY_PCT: u32 = 12;\nFileOutcome enum FileOutcome {\nbuild_bigram_index pub(crate) fn build_bigram_index(\nprocess_file fn process_file(\nread_file_content fn read_file_content(\nread_file_content_unix fn read_file_content_unix(\nopen_base_dir_fd fn open_base_dir_fd(base_path: &std::path::Path) -> libc::c_int {\nread_file_content_std fn read_file_content_std(\ntests mod tests {\n",
-  "kept_bytes": 1280,
-  "footer_bytes": 0,
-  "view": "signatures"
-}

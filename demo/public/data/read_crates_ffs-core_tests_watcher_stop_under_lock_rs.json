@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/tests/watcher_stop_under_lock.rs",
-  "mode": "outline",
-  "body": "# crates/ffs-core/tests/watcher_stop_under_lock.rs (165 lines, ~1.5k tokens) [outline]\n\n[21-27]     imports: std(3), tempfile, ffs_search(2)\n[32-51]     function run_with_deadlock_guard\n            fn run_with_deadlock_guard(\n[53-81]     function make_watched_picker\n            fn make_watched_picker(base: &std::path::Path) -> (SharedFilePicker, SharedFrecency) {\n[86-122]    function stop_background_monitor_under_write_lock_does_not_deadlock_file_events\n            fn stop_background_monitor_under_write_lock_does_not_deadlock_file_events() {\n[128-165]   function stop_background_monitor_under_write_lock_does_not_deadlock_new_dirs\n            fn stop_background_monitor_under_write_lock_does_not_deadlock_new_dirs() {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 791,
-  "footer_bytes": 0
-}

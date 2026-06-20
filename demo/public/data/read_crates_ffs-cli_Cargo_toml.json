@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/Cargo.toml",
-  "mode": "full",
-  "body": "[package]\nname = \"ffs-cli\"\nversion = \"0.1.11\"\nedition = \"2021\"\nlicense = \"MIT\"\ndescription = \"Command line interface for ffs — unified code search and read tool.\"\n\n[[bin]]\nname = \"ffs\"\npath = \"src/main.rs\"\n\n[features]\ndefault = [\"zlob\"]\n\n\nzlob = [\"ffs-search/zlob\", \"dep:zlob\"]\n\n[dependencies]\nffs-search = { path = \"../ffs-core\", version = \"0.1.11\" }\nffs-engine = { workspace = true }\nffs-symbol = { workspace = true }\nffs-budget = { workspace = true }\nneo_frizbee = { workspace = true }\ntree-sitter = { workspace = true }\nanyhow = { workspace = true }\nclap = { workspace = true }\nclap_complete = \"4.5\"\nignore = { workspace = true }\nzlob = { workspace = true, optional = true }\nserde = { workspace = true }\nserde_json = { workspace = true }\nregex = { workspace = true }\nrayon = { workspace = true }\nmemchr = { workspace = true }\nmemmap2 = { workspace = true }\npostcard = { version = \"1\", features = [\"use-std\"] }\nzstd = \"0.13\"\n\n[target.'cfg(unix)'.dependencies]\nlibc = \"0.2\"\n\n[dev-dependencies]\ntempfile = { workspace = true }\n\n",
-  "kept_bytes": 1031,
-  "footer_bytes": 0
-}

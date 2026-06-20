@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/batch.rs",
-  "mode": "outline",
-  "body": "# crates/ffs-symbol/src/batch.rs (92 lines, ~711 tokens) [outline]\n\n[3-5]       imports: aho_corasick, crate\n[9-12]      struct BatchResult\n            pub struct BatchResult {\n[16-26]     function batch_lookup\n            pub fn batch_lookup(index: &SymbolIndex, names: &[&str]) -> Vec<BatchResult> {\n[30-47]     function scan_bytes\n            pub fn scan_bytes<'a>(patterns: &'a [&'a str], haystack: &[u8]) -> Vec<&'a str> {\n[50-92]     module tests\n            mod tests {\n  [51-51]   import <anonymous>\n            use super::*;\n  [54-69]   function batch_lookup_groups_symbols\n            fn batch_lookup_groups_symbols() {\n  [72-77]   function batch_dedups_duplicates\n            fn batch_dedups_duplicates() {\n  [80-85]   function scan_bytes_finds_patterns\n            fn scan_bytes_finds_patterns() {\n  [88-91]   function scan_bytes_empty_is_noop\n            fn scan_bytes_empty_is_noop() {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 967,
-  "footer_bytes": 0
-}

@@ -1,8 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/pagination.rs",
-  "mode": "outline",
-  "body": "<anonymous> use serde::Serialize;\nPage pub(crate) struct Page<T> {\nfooter pub(crate) fn footer(total: usize, offset: usize, returned: usize, has_more: bool) -> String {\ntests mod tests {\n",
-  "kept_bytes": 187,
-  "footer_bytes": 0,
-  "view": "signatures"
-}

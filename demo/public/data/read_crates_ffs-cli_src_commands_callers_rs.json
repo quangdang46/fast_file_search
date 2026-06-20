@@ -1,8 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callers.rs",
-  "mode": "outline",
-  "body": "<anonymous> use std::collections::HashMap;\n<anonymous> use std::path::Path;\n<anonymous> use std::time::SystemTime;\n<anonymous> use anyhow::Result;\n<anonymous> use clap::{Parser, ValueEnum};\n<anonymous> use serde::Serialize;\n<anonymous> use ffs_engine::{Engine, PreFilterStack};\n<anonymous> use ffs_symbol::lang::detect_file_type;\n<anonymous> use ffs_symbol::types::FileType;\n<anonymous> use crate::cli::OutputFormat;\n<anonymous> use crate::commands::callers_bfs::{\n<anonymous> use crate::commands::pagination::{footer, Page};\nArgs pub struct Args {\nCountBy pub enum CountBy {\nCallerHit pub struct CallerHit {\nCallersOutput struct CallersOutput {\nSuspiciousHopOut pub(crate) struct SuspiciousHopOut {\nAutoHubOut pub(crate) struct AutoHubOut {\nSkippedHubOut pub(crate) struct SkippedHubOut {\nProximitySuspicionOut pub(crate) struct ProximitySuspicionOut {\nAggregation pub(crate) struct Aggregation {\nrun pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {\naggregate pub(crate) fn aggregate(hits: &[CallerHit], mode: CountBy) -> Option<Vec<Aggregation>> {\npopulate_enclosing fn populate_enclosing(engine: &Engine, hits: &mut [CallerHit], candidates: &[CandidateFile]) {\nsingle_hop fn single_hop(engine: &Engine, name: &str, candidates: &[CandidateFile]) -> Vec<CallerHit> {\nrender_text fn render_text(p: &CallersOutput) -> String {\nrender_aggregations fn render_aggregations(aggs: &[Aggregation]) -> String {\ntests mod tests {\n",
-  "kept_bytes": 1446,
-  "footer_bytes": 0,
-  "view": "signatures"
-}

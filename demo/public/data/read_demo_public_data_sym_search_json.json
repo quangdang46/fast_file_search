@@ -1,7 +1,1 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/demo/public/data/sym_search.json",
-  "mode": "full",
-  "body": "{\"q\": \"search\", \"hits\": [{\"n\": \"search\", \"k\": \"function_item\", \"f\": \"crates/ffs-core/src/mention/resolver.rs\", \"l\": 149}, {\"n\": \"search\", \"k\": \"function_item\", \"f\": \"crates/ffs-core/src/case_insensitive_memmem.rs\", \"l\": 535}, {\"n\": \"search\", \"k\": \"function_item\", \"f\": \"crates/ffs-core/src/score.rs\", \"l\": 1190}]}\n",
-  "kept_bytes": 314,
-  "footer_bytes": 0
-}
+{"path": "/Users/tranquangdang21/Projects/fast_file_search/demo/public/data/sym_search.json", "mode": "raw", "body": "{\"q\": \"search\", \"hits\": [{\"n\": \"search\", \"k\": \"function_item\", \"f\": \"crates/ffs-core/src/mention/resolver.rs\", \"l\": 149}, {\"n\": \"search\", \"k\": \"function_item\", \"f\": \"crates/ffs-core/src/case_insensitive_memmem.rs\", \"l\": 535}, {\"n\": \"search\", \"k\": \"function_item\", \"f\": \"crates/ffs-core/src/score.rs\", \"l\": 1190}]}\n", "kept_bytes": 314, "footer_bytes": 0}

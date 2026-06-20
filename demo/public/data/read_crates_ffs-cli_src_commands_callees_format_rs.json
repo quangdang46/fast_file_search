@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callees_format.rs",
-  "mode": "outline",
-  "body": "# crates/ffs-cli/src/commands/callees_format.rs (90 lines, ~563 tokens) [outline]\n\n[3-3]       imports: super\n[5-25]      function format_call_site\n            pub fn format_call_site(site: &CallSite) -> String {\n[27-37]     function compact_arg\n            fn compact_arg(arg: &str) -> String {\n[40-90]     module tests\n            mod tests {\n  [41-41]   import <anonymous>\n            use super::*;\n  [43-58]   function site\n            fn site(\n  [61-70]   function formats_assignment\n            fn formats_assignment() {\n  [73-76]   function formats_bare_call\n            fn formats_bare_call() {\n  [79-82]   function formats_return_call\n            fn formats_return_call() {\n  [85-89]   function compacts_long_arg\n            fn compacts_long_arg() {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 826,
-  "footer_bytes": 0
-}

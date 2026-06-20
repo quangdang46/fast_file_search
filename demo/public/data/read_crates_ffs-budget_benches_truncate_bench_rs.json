@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-budget/benches/truncate_bench.rs",
-  "mode": "outline",
-  "body": "# crates/ffs-budget/benches/truncate_bench.rs (69 lines, ~590 tokens) [outline]\n\n[3-4]     imports: criterion, ffs_budget\n[6-16]    function make_input\n          fn make_input(lines: usize) -> String {\n[18-37]   function bench_smart_truncate\n          fn bench_smart_truncate(c: &mut Criterion) {\n[39-66]   function bench_apply_preserving_footer\n          fn bench_apply_preserving_footer(c: &mut Criterion) {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 477,
-  "footer_bytes": 0
-}

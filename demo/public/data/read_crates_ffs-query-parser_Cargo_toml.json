@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-query-parser/Cargo.toml",
-  "mode": "full",
-  "body": "[package]\nname = \"ffs-query-parser\"\nversion = \"0.1.11\"\nedition = \"2024\"\nlicense = \"MIT\"\ndescription = \"Query parser for ffs file finder — includes specific syntax for various constraints like globs, extensions, regex etc\"\nrepository = \"https://github.com/quangdang46/fast_file_search\"\nhomepage = \"https://github.com/quangdang46/fast_file_search\"\ndocumentation = \"https://github.com/quangdang46/fast_file_search#readme\"\n\n[lib]\npath = \"src/lib.rs\"\n\n[features]\ndefault = []\nzlob = [\"dep:zlob\"]\n\n[dependencies]\nzlob = { workspace = true, optional = true }\n\n[dev-dependencies]\ncriterion = { version = \"0.5\", features = [\"html_reports\"] }\n\n[[bench]]\nname = \"parse_bench\"\nharness = false\n\n",
-  "kept_bytes": 684,
-  "footer_bytes": 0
-}

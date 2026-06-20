@@ -1,7 +1,0 @@
-{
-  "raw": "find all TODO comments",
-  "classification": "content_fallback",
-  "summary": [
-    "[fallback to grep]"
-  ]
-}

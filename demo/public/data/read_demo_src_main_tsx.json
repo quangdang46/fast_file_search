@@ -1,7 +1,1 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/demo/src/main.tsx",
-  "mode": "outline",
-  "body": "# demo/src/main.tsx (10 lines, ~58 tokens) [outline]\n\n[1-4]   imports: react, react-dom/client, ./index.css, ./App.tsx\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 186,
-  "footer_bytes": 0
-}
+{"path": "/Users/tranquangdang21/Projects/fast_file_search/demo/src/main.tsx", "mode": "raw", "body": "import { StrictMode } from 'react'\nimport { createRoot } from 'react-dom/client'\nimport './index.css'\nimport App from './App.tsx'\n\ncreateRoot(document.getElementById('root')!).render(\n  <StrictMode>\n    <App />\n  </StrictMode>,\n)\n", "kept_bytes": 186, "footer_bytes": 0}

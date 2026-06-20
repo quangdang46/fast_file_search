@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-grep/Cargo.toml",
-  "mode": "full",
-  "body": "[package]\nname = \"ffs-grep\"\ndescription = \"File grepping logic for ffs\"\nlicense = \"MIT\"\nauthors = [\"Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>\"]\nversion = \"0.1.11\"\nedition = \"2024\"\nrepository = \"https://github.com/quangdang46/fast_file_search\"\nhomepage = \"https://github.com/quangdang46/fast_file_search\"\ndocumentation = \"https://github.com/quangdang46/fast_file_search#readme\"\n\n[dependencies]\nbstr = { version = \"1.6.2\", default-features = false, features = [\"std\"] }\nmemchr = \"2.6.3\"\n\n",
-  "kept_bytes": 491,
-  "footer_bytes": 0
-}

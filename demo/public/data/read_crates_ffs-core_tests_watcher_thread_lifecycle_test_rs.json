@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/tests/watcher_thread_lifecycle_test.rs",
-  "mode": "outline",
-  "body": "# crates/ffs-core/tests/watcher_thread_lifecycle_test.rs (197 lines, ~1.5k tokens) [outline]\n\n[3-10]     imports: std(3), tempfile, ffs_search(2)\n[16-16]    const WATCHER_OWNER_THREAD_NAME\n           const WATCHER_OWNER_THREAD_NAME: &str = \"ffs-watcher-own\";\n[20-34]    function count_live_threads_named\n           fn count_live_threads_named(name: &str) -> usize {\n[37-49]    function wait_for_thread_count\n           fn wait_for_thread_count(name: &str, expected: usize, timeout: Duration) -> usize {\n[51-61]    function seed_repo\n           fn seed_repo(base: &std::path::Path) {\n[63-91]    function spawn_watched_picker\n           fn spawn_watched_picker(base: PathBuf) -> (SharedFilePicker, SharedFrecency) {\n[94-197]   function watcher_threads_do_not_leak_across_picker_lifetimes\n           fn watcher_threads_do_not_leak_across_picker_lifetimes() {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 923,
-  "footer_bytes": 0
-}

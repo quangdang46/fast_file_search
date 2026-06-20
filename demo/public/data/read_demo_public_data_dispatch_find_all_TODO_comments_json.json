@@ -1,7 +1,1 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/demo/public/data/dispatch_find_all_TODO_comments.json",
-  "mode": "full",
-  "body": "{\n  \"raw\": \"find all TODO comments\",\n  \"classification\": \"content_fallback\",\n  \"summary\": [\n    \"[fallback to grep]\"\n  ]\n}\n",
-  "kept_bytes": 123,
-  "footer_bytes": 0
-}
+{"path": "/Users/tranquangdang21/Projects/fast_file_search/demo/public/data/dispatch_find_all_TODO_comments.json", "mode": "raw", "body": "{\n  \"raw\": \"find all TODO comments\",\n  \"classification\": \"content_fallback\",\n  \"summary\": [\n    \"[fallback to grep]\"\n  ]\n}\n", "kept_bytes": 123, "footer_bytes": 0}

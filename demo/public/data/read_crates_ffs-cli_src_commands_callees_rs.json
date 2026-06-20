@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callees.rs",
-  "mode": "outline",
-  "body": "# crates/ffs-cli/src/commands/callees.rs (279 lines, ~2.3k tokens) [outline]\n\n[5-22]      imports: std, anyhow, clap, serde, ffs_engine, ffs_symbol(2), crate(8)\n[25-49]     struct Args\n            pub struct Args {\n[52-62]     struct CalleeHit\n            struct CalleeHit {\n[65-73]     struct CallSiteDto\n            struct CallSiteDto {\n[89-99]     struct CalleesOutput\n            struct CalleesOutput {\n[101-159]   function run\n            pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {\n[161-192]   function single_hop\n            fn single_hop(engine: &Engine, name: &str) -> Vec<CalleeHit> {\n[194-241]   function single_hop_detailed\n            fn single_hop_detailed(engine: &Engine, name: &str) -> Vec<CalleeHit> {\n[243-279]   function render_text\n            fn render_text(p: &CalleesOutput) -> String {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 908,
-  "footer_bytes": 0
-}

@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/benches/memmem_bench.rs",
-  "mode": "outline",
-  "body": "# crates/ffs-core/benches/memmem_bench.rs (93 lines, ~846 tokens) [outline]\n\n[1-3]     imports: criterion, ffs_search, std\n[7-41]    function load_real_files\n          fn load_real_files() -> Vec<(&'static str, Vec<u8>)> {\n[43-90]   function bench_memmem\n          fn bench_memmem(c: &mut Criterion) {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 369,
-  "footer_bytes": 0
-}

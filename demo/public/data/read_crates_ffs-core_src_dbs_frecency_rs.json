@@ -1,8 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/dbs/frecency.rs",
-  "mode": "outline",
-  "body": "<anonymous> use super::db_healthcheck::DbHealthChecker;\n<anonymous> use super::lmdb::{DbHealth, LmdbStore, is_map_full};\n<anonymous> use crate::error::{Error, Result};\n<anonymous> use crate::file_picker::FfsMode;\n<anonymous> use crate::git::is_modified_status;\n<anonymous> use crate::shared::SharedFrecency;\n<anonymous> use heed::types::{Bytes, SerdeBincode};\n<anonymous> use heed::{Database, Env};\n<anonymous> use std::fs;\n<anonymous> use std::path::PathBuf;\n<anonymous> use std::time::{SystemTime, UNIX_EPOCH};\n<anonymous> use std::{collections::VecDeque, path::Path};\nDECAY_CONSTANT const DECAY_CONSTANT: f64 = 0.0693; // ln(2)/10 for 10-day half-life\nSECONDS_PER_DAY const SECONDS_PER_DAY: f64 = 86400.0;\nMAX_HISTORY_DAYS const MAX_HISTORY_DAYS: f64 = 30.0; // Only consider accesses within 30 days\nMAX_TIMESTAMPS_PER_FILE const MAX_TIMESTAMPS_PER_FILE: usize = 128;\nAI_DECAY_CONSTANT const AI_DECAY_CONSTANT: f64 = 0.231; // ln(2)/3 for 3-day half-life\nAI_MAX_HISTORY_DAYS const AI_MAX_HISTORY_DAYS: f64 = 7.0; // Only consider accesses within 7 days\nFrecencyTracker pub struct FrecencyTracker {\nMODIFICATION_THRESHOLDS const MODIFICATION_THRESHOLDS: [(i64, u64); 5] = [\nAI_MODIFICATION_THRESHOLDS const AI_MODIFICATION_THRESHOLDS: [(i64, u64); 5] = [\ntests mod tests {\n",
-  "kept_bytes": 1275,
-  "footer_bytes": 0,
-  "view": "signatures"
-}

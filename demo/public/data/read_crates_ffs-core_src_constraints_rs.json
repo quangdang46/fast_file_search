@@ -1,8 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/constraints.rs",
-  "mode": "outline",
-  "body": "<anonymous> use ahash::AHashSet;\n<anonymous> use ffs_query_parser::{Constraint, GitStatusFilter};\n<anonymous> use smallvec::SmallVec;\n<anonymous> use crate::git::is_modified_status;\n<anonymous> use crate::simd_path::ArenaPtr;\ncontains_ascii_ci fn contains_ascii_ci(haystack: &str, needle: &str) -> bool {\nPAR_THRESHOLD const PAR_THRESHOLD: usize = 10_000;\nConstrainable pub(crate) trait Constrainable {\nis_path_sep fn is_path_sep(b: u8) -> bool {\npath_slice_eq fn path_slice_eq(a: &[u8], b: &[u8]) -> bool {\npath_ends_with_suffix pub fn path_ends_with_suffix(path: &str, suffix: &str) -> bool {\nfile_has_extension pub fn file_has_extension(file_name: &str, ext: &str) -> bool {\npath_contains_segment pub fn path_contains_segment(path: &str, segment: &str) -> bool {\nitem_matches_constraint_at_index fn item_matches_constraint_at_index<T: Constrainable>(\napply_constraints pub(crate) fn apply_constraints<'a, T: Constrainable + Sync>(\nprecompute_glob_matches fn precompute_glob_matches<'a>(\ncollect_glob_indices fn collect_glob_indices<'a>(\nmatch_glob_pattern fn match_glob_pattern(pattern: &str, paths: &[&str]) -> AHashSet<usize> {\nmatch_glob_pattern fn match_glob_pattern(pattern: &str, paths: &[&str]) -> AHashSet<usize> {\ntests mod tests {\n",
-  "kept_bytes": 1244,
-  "footer_bytes": 0,
-  "view": "signatures"
-}

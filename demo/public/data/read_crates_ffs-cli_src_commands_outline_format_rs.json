@@ -1,8 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/outline_format.rs",
-  "mode": "outline",
-  "body": "<anonymous> use ffs_symbol::types::{OutlineEntry, OutlineKind};\nAgentHeader pub(crate) struct AgentHeader<'a> {\nagent pub(crate) fn agent(entries: &[OutlineEntry], header: AgentHeader<'_>) -> String {\nformat_tokens fn format_tokens(tokens: u64) -> String {\ncompute_range_width fn compute_range_width(entries: &[OutlineEntry], depth: usize) -> usize {\nrange_token fn range_token(e: &OutlineEntry) -> String {\npush_agent_entry fn push_agent_entry(out: &mut String, e: &OutlineEntry, depth: usize, range_width: usize) {\nrender_imports_bundle fn render_imports_bundle(entries: &[OutlineEntry], out: &mut String, range_width: usize) -> usize {\nparse_import_source fn parse_import_source(sig: &str) -> Option<String> {\nmarkdown pub(crate) fn markdown(entries: &[OutlineEntry]) -> String {\npush_markdown fn push_markdown(out: &mut String, e: &OutlineEntry, depth: usize) {\nstructured pub(crate) fn structured(entries: &[OutlineEntry]) -> String {\npush_structured fn push_structured(out: &mut String, e: &OutlineEntry, prefix: &str, is_last: bool) {\ntabular pub(crate) fn tabular(entries: &[OutlineEntry]) -> String {\npush_tabular_rows fn push_tabular_rows(\ntruncate fn truncate(s: &str, max: usize) -> String {\nkind_label fn kind_label(k: OutlineKind) -> &'static str {\ntests mod tests {\n",
-  "kept_bytes": 1281,
-  "footer_bytes": 0,
-  "view": "signatures"
-}

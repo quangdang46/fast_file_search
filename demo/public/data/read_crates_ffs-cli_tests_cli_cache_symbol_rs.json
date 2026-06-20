@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_cache_symbol.rs",
-  "mode": "outline",
-  "body": "# crates/ffs-cli/tests/cli_cache_symbol.rs (147 lines, ~1.3k tokens) [outline]\n\n[5-9]       imports: std(2), serde_json, tempfile\n[11-13]     function binary\n            fn binary() -> std::path::PathBuf {\n[15-29]     function run\n            fn run(root: &Path, args: &[&str]) -> (Value, std::time::Duration) {\n[31-35]     function write_file\n            fn write_file(dir: &Path, rel: &str, body: &str) {\n[38-74]     function ffs_index_writes_cache_and_symbol_reuses_it\n            fn ffs_index_writes_cache_and_symbol_reuses_it() {\n[77-87]     function ffs_symbol_works_without_prior_index\n            fn ffs_symbol_works_without_prior_index() {\n[90-108]    function cache_invalidates_when_file_count_changes_substantially\n            fn cache_invalidates_when_file_count_changes_substantially() {\n[111-136]   function ffs_index_writes_bigram_cache_and_grep_uses_it\n            fn ffs_index_writes_bigram_cache_and_grep_uses_it() {\n[139-147]   function ffs_grep_works_without_bigram_cache\n            fn ffs_grep_works_without_bigram_cache() {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 1114,
-  "footer_bytes": 0
-}

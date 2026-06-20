@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/parallelism.rs",
-  "mode": "outline",
-  "body": "# crates/ffs-core/src/parallelism.rs (90 lines, ~840 tokens) [outline]\n\n[9-9]     imports: std\n[14-37]   const BACKGROUND_THREAD_POOL\n          pub(crate) static BACKGROUND_THREAD_POOL: LazyLock<rayon::ThreadPool> = LazyLock::new(|| {\n[43-63]   function performance_core_count\n          fn performance_core_count() -> usize {\n[68-90]   const SEARCH_THREAD_POOL\n          pub(crate) static SEARCH_THREAD_POOL: LazyLock<rayon::ThreadPool> = LazyLock::new(|| {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 525,
-  "footer_bytes": 0
-}

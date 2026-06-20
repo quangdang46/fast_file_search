@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/tests/cli_read_outline_default.rs",
-  "mode": "outline",
-  "body": "# crates/ffs-cli/tests/cli_read_outline_default.rs (181 lines, ~1.4k tokens) [outline]\n\n[4-6]       imports: std, tempfile\n[8-30]      const SAMPLE\n            const SAMPLE: &str = \"\\\n[32-35]     function binary\n            fn binary() -> std::path::PathBuf {\n[37-41]     function write_sample\n            fn write_sample(dir: &std::path::Path) -> std::path::PathBuf {\n[44-78]     function read_with_no_flags_emits_agent_outline_for_code_files\n            fn read_with_no_flags_emits_agent_outline_for_code_files() {\n[81-103]    function read_with_full_flag_returns_raw_body\n            fn read_with_full_flag_returns_raw_body() {\n[106-131]   function read_with_line_suffix_drills_into_section\n            fn read_with_line_suffix_drills_into_section() {\n[134-155]   function outline_default_style_is_agent\n            fn outline_default_style_is_agent() {\n[158-181]   function outline_legacy_styles_still_work\n            fn outline_legacy_styles_still_work() {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 1030,
-  "footer_bytes": 0
-}

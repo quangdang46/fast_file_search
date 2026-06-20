@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/vendor/tree-sitter-verse/src/bindings.rs",
-  "mode": "outline",
-  "body": "# vendor/tree-sitter-verse/src/bindings.rs (8 lines, ~61 tokens) [outline]\n\n[1-1]   imports: tree_sitter_language\n[8-8]   const LANGUAGE\n        pub const LANGUAGE: LanguageFn = unsafe { LanguageFn::from_raw(tree_sitter_verse) };\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 297,
-  "footer_bytes": 0
-}

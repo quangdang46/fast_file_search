@@ -1,8 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/mention.rs",
-  "mode": "outline",
-  "body": "<anonymous> use std::path::{Path, PathBuf};\n<anonymous> use anyhow::Result;\n<anonymous> use clap::Parser;\n<anonymous> use serde::Serialize;\n<anonymous> use ffs_budget::FilterLevel;\n<anonymous> use ffs_engine::mention::{resolve_mentions, ResolveOptions, ResolvedMention};\n<anonymous> use crate::cli::OutputFormat;\nArgs pub struct Args {\nMentionSearchOutput struct MentionSearchOutput {\nrun pub fn run(args: Args, root: &Path, default_format: OutputFormat) -> Result<()> {\nrender_text fn render_text(p: &MentionSearchOutput) -> String {\ncollect_candidates fn collect_candidates(root: &Path, input: &str) -> Vec<String> {\ntests mod tests {\n",
-  "kept_bytes": 637,
-  "footer_bytes": 0,
-  "view": "signatures"
-}

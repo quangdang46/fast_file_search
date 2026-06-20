@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/session.rs",
-  "mode": "outline",
-  "body": "# crates/ffs-cli/src/commands/session.rs (56 lines, ~333 tokens) [outline]\n\n[1-3]       imports: std(3)\n[5-7]       struct Session\n            pub struct Session {\n[34-56]     module tests\n            mod tests {\n  [35-35]   import <anonymous>\n            use super::*;\n  [38-45]   function session_tracks_expanded\n            fn session_tracks_expanded() {\n  [48-55]   function session_isolated_per_instance\n            fn session_isolated_per_instance() {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 525,
-  "footer_bytes": 0
-}

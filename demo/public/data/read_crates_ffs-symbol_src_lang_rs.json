@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-symbol/src/lang.rs",
-  "mode": "outline",
-  "body": "# crates/ffs-symbol/src/lang.rs (115 lines, ~889 tokens) [outline]\n\n[3-5]         imports: std, crate\n[8-36]        function detect_file_type\n              pub fn detect_file_type(path: &Path) -> FileType {\n[38-46]       function file_type_from_name\n              fn file_type_from_name(path: &Path) -> FileType {\n[49-70]       function package_root\n              pub fn package_root(path: &Path) -> Option<&Path> {\n[73-115]      module tests\n              mod tests {\n  [74-74]     import <anonymous>\n              use super::*;\n  [77-82]     function detect_rust\n              fn detect_rust() {\n  [85-98]     function detect_typescript_variants\n              fn detect_typescript_variants() {\n  [101-106]   function detect_dockerfile_by_name\n              fn detect_dockerfile_by_name() {\n  [109-114]   function detect_verse\n              fn detect_verse() {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 929,
-  "footer_bytes": 0
-}

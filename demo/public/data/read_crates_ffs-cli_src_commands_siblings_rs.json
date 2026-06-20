@@ -1,8 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/siblings.rs",
-  "mode": "outline",
-  "body": "<anonymous> use std::path::{Path, PathBuf};\n<anonymous> use std::time::SystemTime;\n<anonymous> use anyhow::Result;\n<anonymous> use clap::Parser;\n<anonymous> use serde::Serialize;\n<anonymous> use ffs_engine::Engine;\n<anonymous> use ffs_symbol::lang::detect_file_type;\n<anonymous> use ffs_symbol::types::{FileType, OutlineEntry, OutlineKind};\n<anonymous> use crate::cli::OutputFormat;\n<anonymous> use crate::commands::pagination::{footer, Page};\nArgs pub struct Args {\nSiblingHit struct SiblingHit {\nSiblingsOutput struct SiblingsOutput {\nrun pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {\nload_outline fn load_outline(engine: &Engine, path: &PathBuf) -> Option<Vec<OutlineEntry>> {\nfind_siblings fn find_siblings(\nfind_in_children fn find_in_children(\ntests mod tests {\n",
-  "kept_bytes": 796,
-  "footer_bytes": 0,
-  "view": "signatures"
-}

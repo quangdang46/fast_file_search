@@ -1,8 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/callers_bfs.rs",
-  "mode": "outline",
-  "body": "<anonymous> use std::collections::{BTreeSet, HashMap, HashSet};\n<anonymous> use std::path::{Path, PathBuf};\n<anonymous> use std::time::SystemTime;\n<anonymous> use ffs_engine::{Engine, PreFilterStack};\n<anonymous> use ffs_symbol::types::{Lang, OutlineEntry};\n<anonymous> use crate::commands::callers::CallerHit;\n<anonymous> use crate::commands::session::Session;\nPROXIMITY_MIN_HITS const PROXIMITY_MIN_HITS: usize = 50;\nPROXIMITY_RELATED_RATIO_NUM const PROXIMITY_RELATED_RATIO_NUM: usize = 1;\nPROXIMITY_RELATED_RATIO_DEN const PROXIMITY_RELATED_RATIO_DEN: usize = 5;\nBfsConfig pub struct BfsConfig {\nBfsTelemetry pub struct BfsTelemetry {\nSuspiciousHop pub struct SuspiciousHop {\nProximitySuspicion pub struct ProximitySuspicion {\nAutoHub pub struct AutoHub {\nBfsResult pub struct BfsResult {\npackage_root pub(crate) fn package_root(path: &Path, root: &Path) -> String {\nCandidateFile pub struct CandidateFile {\nrun_bfs pub fn run_bfs(\ncompute_proximity_suspicions pub fn compute_proximity_suspicions(hits: &[CallerHit]) -> Vec<ProximitySuspicion> {\nenclosing_symbol pub fn enclosing_symbol(entries: &[OutlineEntry], line: u32) -> Option<String> {\ntests mod tests {\n",
-  "kept_bytes": 1166,
-  "footer_bytes": 0,
-  "view": "signatures"
-}

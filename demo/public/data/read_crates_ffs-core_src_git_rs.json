@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/git.rs",
-  "mode": "outline",
-  "body": "# crates/ffs-core/src/git.rs (245 lines, ~2.1k tokens) [outline]\n\n[1-8]         imports: crate, ahash, git2, std, tracing\n[10-17]       function default_status_options\n              pub(crate) fn default_status_options() -> StatusOptions {\n[20-20]       struct GitStatusCache\n              pub(crate) struct GitStatusCache(AHashMap<PathBuf, Status>);\n[124-132]     function is_modified_status\n              pub fn is_modified_status(status: Status) -> bool {\n[134-161]     function format_git_status_opt\n              pub fn format_git_status_opt(status: Option<Status>) -> Option<&'static str> {\n[163-165]     function format_git_status\n              pub fn format_git_status(status: Option<Status>) -> &'static str {\n[168-245]     module tests\n              mod tests {\n  [169-169]   import <anonymous>\n              use super::*;\n  [170-170]   import <anonymous>\n              use std::fs;\n  [171-171]   import <anonymous>\n              use std::process::Command;\n  [172-172]   import <anonymous>\n              use tempfile::TempDir;\n  [174-185]   function git\n              fn git(dir: &Path, args: &[&str]) {\n  [195-244]   function lookup_is_case_exact_regardless_of_libgit2_sort_order\n              fn lookup_is_case_exact_regardless_of_libgit2_sort_order() {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 1333,
-  "footer_bytes": 0
-}

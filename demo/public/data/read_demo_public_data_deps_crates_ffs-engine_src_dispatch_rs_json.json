@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/demo/public/data/deps_crates_ffs-engine_src_dispatch_rs.json",
-  "mode": "full",
-  "body": "{\n  \"target\": \"crates/ffs-engine/src/dispatch.rs\",\n  \"imports\": [\n    {\n      \"spec\": \"std::path\"\n    },\n    {\n      \"spec\": \"std::sync::Arc\"\n    },\n    {\n      \"spec\": \"serde\"\n    },\n    {\n      \"spec\": \"ffs_budget\"\n    },\n    {\n      \"spec\": \"ffs_symbol::detection::is_binary\"\n    },\n    {\n      \"spec\": \"ffs_symbol::outline_cache::OutlineCache\"\n    },\n    {\n      \"spec\": \"ffs_symbol::symbol_index::SymbolLocation\"\n    },\n    {\n      \"spec\": \"ffs_symbol::types::QueryType\"\n    },\n    {\n      \"spec\": \"ffs_symbol\"\n    },\n    {\n      \"spec\": \"crate::classify\",\n      \"resolved\": \"crates/ffs-engine/src/classify.rs\"\n    },\n    {\n      \"spec\": \"crate::memory\",\n      \"resolved\": \"crates/ffs-engine/src/memory.rs\"\n    },\n    {\n      \"spec\": \"crate::scanner\",\n      \"resolved\": \"crates/ffs-engine/src/scanner.rs\"\n    },\n    {\n      \"spec\": \"super\"\n    }\n  ],\n  \"dependents\": [\n    {\n      \"path\": \"crates/ffs-engine/src/lib.rs\",\n      \"spec\": \"dispatch\"\n    }\n  ],\n  \"total_dependents\": 1,\n  \"offset\": 0,\n  \"has_more\": false\n}\n",
-  "kept_bytes": 1024,
-  "footer_bytes": 0
-}

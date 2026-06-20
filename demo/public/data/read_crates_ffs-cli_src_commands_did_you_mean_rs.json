@@ -1,8 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-cli/src/commands/did_you_mean.rs",
-  "mode": "outline",
-  "body": "<anonymous> use std::collections::BTreeSet;\n<anonymous> use serde::Serialize;\n<anonymous> use ffs_engine::Engine;\n<anonymous> use ffs_symbol::symbol_index::SymbolLocation;\nMAX_SUGGESTIONS const MAX_SUGGESTIONS: usize = 5;\nFUZZY_MAX_TYPOS const FUZZY_MAX_TYPOS: u16 = 2;\nSuggestion pub struct Suggestion {\nSuggestionHit pub struct SuggestionHit {\nsuggest pub fn suggest(engine: &Engine, query: &str) -> Vec<Suggestion> {\ncase_variants pub fn case_variants(name: &str) -> Vec<String> {\nsplit_words fn split_words(name: &str) -> Vec<String> {\nto_snake fn to_snake(words: &[String]) -> String {\nto_kebab fn to_kebab(words: &[String]) -> String {\nto_screaming fn to_screaming(words: &[String]) -> String {\nto_pascal fn to_pascal(words: &[String]) -> String {\nto_camel fn to_camel(words: &[String]) -> String {\ncapitalize fn capitalize(w: &str) -> String {\nfuzzy_candidates fn fuzzy_candidates(query: &str, names: &[String], top_n: usize) -> Vec<String> {\ntests mod tests {\n",
-  "kept_bytes": 968,
-  "footer_bytes": 0,
-  "view": "signatures"
-}

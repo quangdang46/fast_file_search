@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-budget/src/tokens.rs",
-  "mode": "outline",
-  "body": "# crates/ffs-budget/src/tokens.rs (100 lines, ~739 tokens) [outline]\n\n[7-7]       const DEFAULT_PERCENT_HEADER\n            pub const DEFAULT_PERCENT_HEADER: u8 = 2;\n[9-9]       const DEFAULT_PERCENT_BODY\n            pub const DEFAULT_PERCENT_BODY: u8 = 85;\n[11-11]     const DEFAULT_PERCENT_FOOTER\n            pub const DEFAULT_PERCENT_FOOTER: u8 = 10;\n[13-13]     const EMERGENCY_RESERVE_PCT\n            pub const EMERGENCY_RESERVE_PCT: u8 = 3;\n[17-19]     function estimate_tokens\n            pub fn estimate_tokens(byte_len: u64) -> u64 {\n[23-25]     function tokens_to_bytes\n            pub fn tokens_to_bytes(tokens: u64) -> u64 {\n[29-31]     function percent_budget\n            pub fn percent_budget(total: u64, pct: u8) -> u64 {\n[35-40]     struct BudgetSplit\n            pub struct BudgetSplit {\n[73-100]    module tests\n            mod tests {\n  [74-74]   import <anonymous>\n            use super::*;\n  [77-81]   function estimate_basic\n            fn estimate_basic() {\n  [84-90]   function split_proportions\n            fn split_proportions() {\n  [93-99]   function custom_split_zero_total\n            fn custom_split_zero_total() {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 1211,
-  "footer_bytes": 0
-}

@@ -1,8 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/simd_path.rs",
-  "mode": "outline",
-  "body": "<anonymous> use ahash::AHashMap;\n<anonymous> use smallvec::SmallVec;\n<anonymous> use std::borrow::Cow;\nSIMD_CHUNK_BYTES pub(crate) const SIMD_CHUNK_BYTES: usize = 16;\nINLINE_CHUNKS const INLINE_CHUNKS: usize = 4;\nChunkIndices pub(crate) type ChunkIndices = SmallVec<[u32; INLINE_CHUNKS]>;\nArenaPtr pub struct ArenaPtr(pub(crate) *const u8);\nSimdChunk pub(crate) struct SimdChunk(pub(crate) [u8; SIMD_CHUNK_BYTES]);\nPATH_BUF_SIZE pub const PATH_BUF_SIZE: usize = 4096;\nChunkedString pub(crate) struct ChunkedString {\nchunks_needed const fn chunks_needed(byte_len: usize) -> usize {\nChunkedPathStore pub(crate) struct ChunkedPathStore {\nChunkedPathStoreBuilder pub(crate) struct ChunkedPathStoreBuilder {\nbuild_chunked_path_store_from_strings pub(crate) fn build_chunked_path_store_from_strings(\ntests mod tests {\n",
-  "kept_bytes": 812,
-  "footer_bytes": 0,
-  "view": "signatures"
-}

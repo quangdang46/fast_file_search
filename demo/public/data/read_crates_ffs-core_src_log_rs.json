@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-core/src/log.rs",
-  "mode": "outline",
-  "body": "# crates/ffs-core/src/log.rs (150 lines, ~1.3k tokens) [outline]\n\n[7-11]      imports: std(2), tracing_appender, tracing_subscriber(2)\n[13-14]     const TRACING_INITIALIZED\n            static TRACING_INITIALIZED: std::sync::OnceLock<tracing_appender::non_blocking::WorkerGuard> =\n[16-16]     const CRASH_HANDLERS_INSTALLED\n            static CRASH_HANDLERS_INSTALLED: std::sync::OnceLock<()> = std::sync::OnceLock::new();\n[19-19]     const LOG_FILE_PATH\n            static LOG_FILE_PATH: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();\n[21-36]     function write_crash_report\n            fn write_crash_report(header: &str, body: &str) {\n[38-46]     function sigsegv_handler\n            extern \"C\" fn sigsegv_handler(sig: libc::c_int) {\n[49-86]     function install_panic_hook\n            pub fn install_panic_hook() {\n[89-98]     function parse_log_level\n            pub fn parse_log_level(level: Option<&str>) -> tracing::Level {\n[101-150]   function init_tracing\n            pub fn init_tracing(log_file_path: &str, log_level: Option<&str>) -> Result<String, io::Error> {\n\n> Next: drill into a symbol with --section <name> or a line range\n",
-  "kept_bytes": 1153,
-  "footer_bytes": 0
-}

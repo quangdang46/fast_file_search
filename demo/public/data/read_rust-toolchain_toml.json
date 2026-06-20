@@ -1,7 +1,0 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/rust-toolchain.toml",
-  "mode": "full",
-  "body": "[toolchain]\nchannel = \"stable\"\ncomponents = [\n  \"clippy\",\n  \"rustfmt\",\n  \"llvm-tools\",\n  \"rust-src\",\n  \"rust-analyzer\",\n]\n",
-  "kept_bytes": 122,
-  "footer_bytes": 0
-}

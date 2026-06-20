@@ -1,7 +1,1 @@
-{
-  "path": "/Users/tranquangdang21/Projects/fast_file_search/demo/public/data/callees_dispatch.json",
-  "mode": "full",
-  "body": "{\"q\": \"dispatch\", \"hits\": [{\"n\": \"classify_query\", \"f\": \"crates/ffs-engine/src/classify.rs\", \"l\": 27}, {\"n\": \"clone\", \"f\": \"crates/ffs-core/src/stable_vec.rs\", \"l\": 189}, {\"n\": \"clone\", \"f\": \"crates/ffs-core/src/types.rs\", \"l\": 113}, {\"n\": \"clone\", \"f\": \"crates/ffs-core/src/types.rs\", \"l\": 249}, {\"n\": \"lookup_exact\", \"f\": \"crates/ffs-symbol/src/symbol_index.rs\", \"l\": 90}, {\"n\": \"lookup_prefix\", \"f\": \"crates/ffs-symbol/src/symbol_index.rs\", \"l\": 98}], \"total\": 6}\n",
-  "kept_bytes": 467,
-  "footer_bytes": 0
-}
+{"path": "/Users/tranquangdang21/Projects/fast_file_search/demo/public/data/callees_dispatch.json", "mode": "raw", "body": "{\"q\": \"dispatch\", \"hits\": [{\"n\": \"classify_query\", \"f\": \"crates/ffs-engine/src/classify.rs\", \"l\": 27}, {\"n\": \"clone\", \"f\": \"crates/ffs-core/src/stable_vec.rs\", \"l\": 189}, {\"n\": \"clone\", \"f\": \"crates/ffs-core/src/types.rs\", \"l\": 113}, {\"n\": \"clone\", \"f\": \"crates/ffs-core/src/types.rs\", \"l\": 249}, {\"n\": \"lookup_exact\", \"f\": \"crates/ffs-symbol/src/symbol_index.rs\", \"l\": 90}, {\"n\": \"lookup_prefix\", \"f\": \"crates/ffs-symbol/src/symbol_index.rs\", \"l\": 98}], \"total\": 6}\n", "kept_bytes": 467, "footer_bytes": 0}
