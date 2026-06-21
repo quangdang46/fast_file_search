@@ -28,5 +28,8 @@ scripts/benchmark-results/
 # ffs on-disk symbol-index cache
 .ffs/
 
+# OpenCode work tracking
+.omo/
+
 # Instruments traces
 *.trace/
