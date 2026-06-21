@@ -42,8 +42,8 @@ pub struct Args {
     pub cursor: Option<usize>,
 
     /// Output format. Defaults to JSON for stability across hosts.
-    #[arg(long, default_value = "json")]
-    pub format: String,
+    #[arg(long = "output-format", default_value = "json")]
+    pub output_format: String,
 
     /// Maximum tokens of body allowed per resolved mention. Default 50_000
     /// (mirrors `ResolveOptions::default`).
@@ -65,11 +65,11 @@ struct MentionSearchOutput {
 /// contains any of the input's whitespace-separated tokens (case-sensitive
 /// substring), then hands the candidate paths to the Phase B resolver.
 ///
-/// `format` is supplied as a string (per the spec's `format` arg). Anything
+/// `output_format` is supplied as a string (per the spec's `output-format` arg). Anything
 /// other than `"text"` is treated as JSON for forward compatibility with new
 /// formats (yaml, toon, …).
-pub fn run(args: Args, root: &Path, default_format: OutputFormat) -> Result<()> {
-    let format = match args.format.to_ascii_lowercase().as_str() {
+pub fn run(args: Args, root: &Path, _default_format: OutputFormat) -> Result<()> {
+    let format = match args.output_format.to_ascii_lowercase().as_str() {
         "text" => OutputFormat::Text,
         _ => OutputFormat::Json,
     };
@@ -77,7 +77,7 @@ pub fn run(args: Args, root: &Path, default_format: OutputFormat) -> Result<()> 
     // subcommand's own `--format` flag wins when present (and it always is,
     // since we set a default). Kept in the signature for symmetry with
     // other commands and to make it easy to flip the precedence later.
-    let _ = default_format;
+    let _ = _default_format;
 
     let candidates = collect_candidates(root, &args.input);
     let paths: Vec<PathBuf> = candidates.iter().map(PathBuf::from).collect();
@@ -203,7 +203,7 @@ mod tests {
         let args = Args {
             input: "alpha".into(),
             cursor: None,
-            format: "json".into(),
+            output_format: "json".into(),
             max_tokens: 1000,
         };
         run(args, td.path(), OutputFormat::Json).unwrap();
@@ -216,7 +216,7 @@ mod tests {
         let args = Args {
             input: "alpha".into(),
             cursor: Some(0),
-            format: "text".into(),
+            output_format: "text".into(),
             max_tokens: 1000,
         };
         run(args, td.path(), OutputFormat::Text).unwrap();
@@ -229,7 +229,7 @@ mod tests {
         let args = Args {
             input: "alpha".into(),
             cursor: None,
-            format: "yaml".into(),
+            output_format: "yaml".into(),
             max_tokens: 1000,
         };
         run(args, td.path(), OutputFormat::Json).unwrap();
@@ -242,7 +242,7 @@ mod tests {
         let args = Args {
             input: "this_file_does_not_exist_zzz".into(),
             cursor: None,
-            format: "json".into(),
+            output_format: "json".into(),
             max_tokens: 1000,
         };
         // No candidates => empty Vec<ResolvedMention>. No error.

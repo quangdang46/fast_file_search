@@ -391,13 +391,17 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
                 }
             })
             .collect();
-        for s in &scored {
-            let bonus = if s.score > 0 {
-                format!("+{}", s.score)
-            } else {
-                s.score.to_string()
-            };
-            println!("{}  [{}] ({})", s.path, s.role, bonus);
+        if format == OutputFormat::Json {
+            println!("{}", serde_json::to_string_pretty(&scored)?);
+        } else {
+            for s in &scored {
+                let bonus = if s.score > 0 {
+                    format!("+{}", s.score)
+                } else {
+                    s.score.to_string()
+                };
+                println!("{}  [{}] ({})", s.path, s.role, bonus);
+            }
         }
         return Ok(());
     }

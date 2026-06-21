@@ -200,6 +200,11 @@ fn byte_to_line(haystack: &[u8], offset: usize) -> (u32, &[u8]) {
 }
 
 pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
+    if args.needle.is_empty() {
+        return Err(anyhow::anyhow!(
+            "ffs grep: needle is empty; pass a non-empty pattern"
+        ));
+    }
     let (matcher, mode) = Matcher::build(&args)?;
 
     // Bigram prefilter: only safe (and helpful) for literal patterns.
