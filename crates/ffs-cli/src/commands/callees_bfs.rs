@@ -22,6 +22,7 @@ use ffs_symbol::lang::detect_file_type;
 use ffs_symbol::types::FileType;
 
 use crate::commands::callees_resolve::collect_callees;
+use crate::commands::session::Session;
 
 pub struct BfsConfig {
     pub max_hops: u32,
@@ -44,6 +45,7 @@ pub fn run_bfs(engine: &Engine, initial: &str, cfg: BfsConfig) -> Vec<CalleeHit>
     let mut all_hits: Vec<CalleeHit> = Vec::new();
 
     let max_hops = cfg.max_hops.clamp(1, 5);
+    let session = Session::new();
 
     for depth in 1..=max_hops {
         if frontier.is_empty() {
@@ -79,6 +81,10 @@ pub fn run_bfs(engine: &Engine, initial: &str, cfg: BfsConfig) -> Vec<CalleeHit>
                     }
                     idents_this_name.push(result.symbol.clone());
                     for loc in result.locations {
+                        if session.is_expanded(&loc.path, loc.line) {
+                            continue;
+                        }
+                        session.record_expand(&loc.path, loc.line);
                         all_hits.push(CalleeHit {
                             name: result.symbol.clone(),
                             path: loc.path.to_string_lossy().to_string(),
