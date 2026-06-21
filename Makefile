@@ -87,8 +87,7 @@ CRATES_TO_PUBLISH= ffs-c ffs-grep ffs-query-parser ffs-budget ffs-engine ffs-mcp
 
 set-version:
 	@test -n "$(V)" || (echo "V is required. Usage: make set-version V=0.2.0" && exit 1)
-	cargo install cargo-edit
-	cargo set-version $(V) || lua scripts/set-rust-version.lua "$(V)"
+	bash scripts/set-version.sh "$(V)"
 
 publish-crates:
 	@test -n "$(V)" || (echo "V is required. Usage: make publish-crates V=0.2.0" && exit 1)

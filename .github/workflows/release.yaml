@@ -93,6 +93,7 @@ jobs:
         run: bash scripts/determine-version.sh
 
       - name: Set version
+        shell: bash
         run: make set-version V="${{ steps.version.outputs.version }}"
 
       - name: Install Rust
@@ -206,6 +207,7 @@ jobs:
         run: bash scripts/determine-version.sh
 
       - name: Set version
+        shell: bash
         run: make set-version V="${{ steps.version.outputs.version }}"
 
       - name: Install Rust
@@ -306,6 +308,7 @@ jobs:
         run: bash scripts/determine-version.sh
 
       - name: Set version
+        shell: bash
         run: make set-version V="${{ steps.version.outputs.version }}"
 
       - name: Install Rust
