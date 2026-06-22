@@ -95,12 +95,16 @@ fn parse_mention_suffix(raw: &str) -> (String, bool, Option<(u32, u32)>) {
         return (raw.to_string(), false, None);
     }
     // Line range suffix: @path#L10 or @path#L10-20
+    // Invalid suffix (e.g. @path#L10-20-30, @path#L-10) still
+    // strips the #L... from the query to avoid polluting the path.
     if let Some(hash_idx) = raw.find('#') {
         let path_part = &raw[..hash_idx];
-        if let Some(rest) = raw[hash_idx + 1..].strip_prefix('L')
-            && let Some((s, e)) = parse_line_range(rest)
-        {
-            return (path_part.to_string(), false, Some((s, e)));
+        if let Some(rest) = raw[hash_idx + 1..].strip_prefix('L') {
+            if let Some((s, e)) = parse_line_range(rest) {
+                return (path_part.to_string(), false, Some((s, e)));
+            }
+            // Has #L prefix but invalid range → use path, no range
+            return (path_part.to_string(), false, None);
         }
     }
     (raw.to_string(), false, None)
@@ -265,6 +269,38 @@ mod tests {
         let t = detect_trigger("@src/main.rs#L42", 16).expect("trigger should fire");
         assert_eq!(t.query, "src/main.rs");
         assert_eq!(t.line_range, Some((42, 42)));
+    }
+
+    #[test]
+    fn line_range_invalid_suffix_strips_hash_l() {
+        // @path#L10-20-30 → query "path", no range (invalid 2nd suffix dropped)
+        let t = detect_trigger("@path#L10-20-30", 15).expect("trigger should fire");
+        assert_eq!(t.query, "path");
+        assert_eq!(t.line_range, None);
+    }
+
+    #[test]
+    fn line_range_negative_start_strips_hash_l() {
+        // @path#L-10 → query "path", no range (negative start rejected)
+        let t = detect_trigger("@path#L-10", 11).expect("trigger should fire");
+        assert_eq!(t.query, "path");
+        assert_eq!(t.line_range, None);
+    }
+
+    #[test]
+    fn line_range_non_numeric_strips_hash_l() {
+        // @path#Labc → query "path", no range (Labc isn't a number)
+        let t = detect_trigger("@path#Labc", 11).expect("trigger should fire");
+        assert_eq!(t.query, "path");
+        assert_eq!(t.line_range, None);
+    }
+
+    #[test]
+    fn line_range_lone_l_strips_hash_l() {
+        // @path#L → query "path", no range
+        let t = detect_trigger("@path#L", 7).expect("trigger should fire");
+        assert_eq!(t.query, "path");
+        assert_eq!(t.line_range, None);
     }
 
     #[test]
@@ -487,18 +523,18 @@ mod tests {
 
     #[test]
     fn line_range_garbage_after_hash_falls_back_to_raw() {
-        // `@path#Lxyz` — `L` followed by garbage, not a number. Parser
-        // leaves the suffix in the raw query.
+        // `@path#Lxyz` — `L` followed by garbage, not a number.
+        // Fix strips the `#L` suffix; query is clean path.
         let t = detect_trigger("@path#Lxyz", 10).expect("trigger should fire");
-        assert_eq!(t.query, "path#Lxyz");
+        assert_eq!(t.query, "path");
         assert_eq!(t.line_range, None);
     }
 
     #[test]
     fn line_range_with_letter_only() {
-        // `@path#L` — `L` without digits. Parser leaves it raw.
+        // `@path#L` — `L` without digits. Fix strips it so path is clean.
         let t = detect_trigger("@path#L", 7).expect("trigger should fire");
-        assert_eq!(t.query, "path#L");
+        assert_eq!(t.query, "path");
         assert_eq!(t.line_range, None);
     }
 

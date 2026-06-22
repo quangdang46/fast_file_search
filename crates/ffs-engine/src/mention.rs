@@ -369,9 +369,26 @@ fn resolve_directory(path: &Path, metadata: &fs::Metadata) -> ResolvedMention {
 
 fn resolve_text(path: &Path, size: u64, raw: String, opts: &ResolveOptions) -> ResolvedMention {
     // 1. Apply line range slice (1-based, inclusive on both ends).
+    //    Defensive normalization:
+    //      - start < 1 → clamp to 1
+    //      - start > end → swap so range is always [min, max]
     let sliced = match opts.line_range {
-        Some((start, end)) if start > 0 => slice_lines(&raw, start, end),
-        _ => raw.clone(),
+        Some((mut start, mut end)) => {
+            // start=0 không hợp lệ (1-based) → clamp lên 1
+            if start == 0 {
+                start = 1;
+            }
+            if end == 0 {
+                end = 1;
+            }
+            if start <= end {
+                slice_lines(&raw, start, end)
+            } else {
+                // Inverted range: swap so user gets content from end→start
+                slice_lines(&raw, end, start)
+            }
+        }
+        None => raw.clone(),
     };
 
     // 2. Apply filter.
@@ -417,7 +434,9 @@ fn apply_filter(input: &str, level: FilterLevel) -> String {
 /// Slice `input` to the inclusive 1-based line range `[start, end]`. Out-
 /// of-range `start` past EOF yields an empty string; `end` is clamped to
 /// the last line. We work in `split('\n')` and re-join so the trailing
-/// newline behaviour matches the rest of the budget pipeline.
+/// newline behaviour matches the rest of the budget pipeline. Trailing
+/// newline from the original is preserved if the last kept line was
+/// the last line of the file.
 fn slice_lines(input: &str, start: u32, end: u32) -> String {
     let lines: Vec<&str> = input.split('\n').collect();
     let s = (start as usize).saturating_sub(1).min(lines.len());
@@ -425,12 +444,48 @@ fn slice_lines(input: &str, start: u32, end: u32) -> String {
     if s >= e {
         return String::new();
     }
-    lines[s..e].join("\n")
+    let had_trailing_nl = input.ends_with('\n');
+    // When input ends with '\n', split('\n') produces a trailing empty
+    // element. The last CONTENT line is at lines.len() - 2.
+    let last_content_index = if had_trailing_nl {
+        lines.len().saturating_sub(2)
+    } else {
+        lines.len().saturating_sub(1)
+    };
+    let last_kept_is_eof = e.saturating_sub(1) >= last_content_index;
+    let mut out = lines[s..e].join("\n");
+    if had_trailing_nl && last_kept_is_eof && !out.is_empty() {
+        out.push('\n');
+    }
+    out
 }
 
 // ---------------------------------------------------------------------------
 // Dedup-by-turn cache
 // ---------------------------------------------------------------------------
+
+/// Composite cache key. Two resolutions dedup only when ALL of
+/// (path, line_range, max_tokens, filter_level) match. Without this,
+/// resolving `@a.rs#L1-5` then `@a.rs#L10-15` in the same turn would
+/// return the wrong cached result (the L1-5 content).
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+struct CacheKey {
+    path: PathBuf,
+    line_range: Option<(u32, u32)>,
+    max_tokens: u32,
+    filter_level: FilterLevel,
+}
+
+impl CacheKey {
+    fn new(path: PathBuf, opts: &ResolveOptions) -> Self {
+        Self {
+            path,
+            line_range: opts.line_range,
+            max_tokens: opts.max_tokens,
+            filter_level: opts.filter_level,
+        }
+    }
+}
 
 /// Lightweight per-turn memoization of `resolve_mentions`.
 ///
@@ -442,9 +497,10 @@ fn slice_lines(input: &str, start: u32, end: u32) -> String {
 /// share it. Phase D will add a `DashMap` if the trait surface demands it.
 #[derive(Debug, Default)]
 pub struct MentionResolverCache {
-    /// Per-turn entries. Keyed by absolute path so two relative paths
-    /// pointing at the same file dedup correctly.
-    by_turn: HashMap<u64, HashMap<PathBuf, ResolvedMention>>,
+    /// Per-turn entries. Keyed by [`CacheKey`] so two resolutions of
+    /// the same path with different `line_range` / `max_tokens` /
+    /// `filter_level` dedup independently.
+    by_turn: HashMap<u64, HashMap<CacheKey, ResolvedMention>>,
     /// Most recent `turn_id` passed to `resolve_cached`. Used as a
     /// micro-optimization so the common case ("still in turn N") skips
     /// a `HashMap::get` on `by_turn`.
@@ -456,13 +512,14 @@ impl MentionResolverCache {
         Self::default()
     }
 
-    /// Resolve `path` (or return the cached `ResolvedMention` if `path`
-    /// was already resolved in this `turn_id`).
+    /// Resolve `path` (or return the cached `ResolvedMention` if the
+    /// `(path, opts)` combination was already resolved in this `turn_id`).
     ///
-    /// `opts` is *ignored* on a cache hit — the cached result was built
-    /// with whatever options were used the first time. Hosts that need
-    /// option-aware dedup should pass a synthetic cache key (e.g. hash
-    /// of `opts`) instead of using this convenience method.
+    /// The cache key includes `line_range`, `max_tokens`, and
+    /// `filter_level` — different option values resolve independently
+    /// within the same turn. This avoids the "wrong cached content
+    /// for the same path" bug that hit hosts when only the path was
+    /// used as the key.
     pub fn resolve_cached(
         &mut self,
         path: &Path,
@@ -484,22 +541,26 @@ impl MentionResolverCache {
         // Canonicalize so a path string like "./foo.rs" and "/abs/foo.rs"
         // dedup correctly. If canonicalize fails, use the path verbatim
         // and proceed; the resolver itself will also try to canonicalize.
-        let key = fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+        let canonical = fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+        let key = CacheKey::new(canonical, opts);
 
         if let Some(hit) = bucket.get(&key) {
             return hit.clone();
         }
 
-        let resolved = resolve_one(&key, opts);
+        let resolved = resolve_one(&key.path, opts);
         bucket.insert(key, resolved.clone());
         resolved
     }
 
-    /// Number of paths currently memoized across all known turns.
-    /// Test-only.
-    #[cfg(test)]
-    fn len(&self) -> usize {
+    /// Number of `(path, opts)` entries currently memoized across all
+    /// known turns.
+    pub fn len(&self) -> usize {
         self.by_turn.values().map(|b| b.len()).sum()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     /// Drop all cached entries. Call between turns if you'd rather not
