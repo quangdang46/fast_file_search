@@ -240,33 +240,47 @@ function Get-McpFfsCommand {
     return $path
 }
 
-function Test-HasJq {
-    return [bool](Get-Command jq -ErrorAction SilentlyContinue)
+function ConvertTo-Hashtable {
+    param([Parameter(Mandatory)]$InputObject)
+    if ($InputObject -is [System.Collections.IDictionary]) {
+        $hash = @{}
+        foreach ($entry in $InputObject.GetEnumerator()) { $hash[$entry.Key] = ConvertTo-Hashtable $entry.Value }
+        return $hash
+    }
+    if ($InputObject -is [PSCustomObject]) {
+        $hash = @{}
+        foreach ($prop in $InputObject.PSObject.Properties) { $hash[$prop.Name] = ConvertTo-Hashtable $prop.Value }
+        return $hash
+    }
+    if ($InputObject -is [System.Collections.IEnumerable] -and $InputObject -isnot [string]) {
+        $list = @()
+        foreach ($item in $InputObject) { $list += ConvertTo-Hashtable $item }
+        return $list
+    }
+    return $InputObject
 }
 
-function Invoke-JqMerge {
-    param([string]$File, [string]$Filter)
-    if (-not (Test-HasJq)) {
-        Write-Warn "jq not installed - skipping $File"
-        return
-    }
+function Invoke-JsonMerge {
+    param([string]$File, [string]$Key, [hashtable]$Value, [string]$Container = 'mcpServers')
     $dir = Split-Path $File -Parent
     if ($dir -and -not (Test-Path $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
-    $existing = '{}'
-    if (Test-Path $File) { $existing = Get-Content $File -Raw }
-    if (-not $existing -or $existing.Trim() -eq '') { $existing = '{}' }
-
-    $merged = $existing | & jq $Filter 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        Write-Warn "jq merge failed for $File"
-        return
-    }
-    if ($McpDryRun) {
-        Write-Info "[mcp dry-run] would write $File"
-        Write-Host $merged
-    } else {
-        Set-Content -Path $File -Value $merged -Encoding UTF8
-        Write-Success "[mcp] wrote $File"
+    $json = '{}'
+    if (Test-Path $File) { $json = Get-Content $File -Raw }
+    if (-not $json -or $json.Trim() -eq '') { $json = '{}' }
+    try {
+        $obj = ConvertTo-Hashtable ($json | ConvertFrom-Json)
+        if (-not $obj.ContainsKey($Container)) { $obj[$Container] = @{} }
+        $obj[$Container][$Key] = $Value
+        $merged = $obj | ConvertTo-Json -Depth 10
+        if ($McpDryRun) {
+            Write-Info "[mcp dry-run] would write $File"
+            Write-Host $merged
+        } else {
+            Set-Content -Path $File -Value $merged -Encoding UTF8
+            Write-Success "[mcp] wrote $File"
+        }
+    } catch {
+        Write-Warn "JSON merge failed for $File: $_"
     }
 }
 
@@ -312,7 +326,11 @@ function Register-McpCursor {
     }
     $cmd = Get-McpFfsCommand
     $file = Join-Path $cursorDir 'mcp.json'
-    Invoke-JqMerge -File $file -Filter ".mcpServers = (.mcpServers // {}) | .mcpServers[\`"$McpName\`"] = {\`"command\`":\`"$($cmd -replace '\\', '\\\\')\`",\`"args\`":[\`"mcp\`"],\`"type\`":\`"stdio\`"}"
+    Invoke-JsonMerge -File $file -Key $McpName -Value @{
+        command = ($cmd -replace '\\', '\\')
+        args    = @('mcp')
+        type    = 'stdio'
+    }
 }
 
 function Register-McpCline {
@@ -323,7 +341,11 @@ function Register-McpCline {
         return
     }
     $cmd = Get-McpFfsCommand
-    Invoke-JqMerge -File $file -Filter ".mcpServers = (.mcpServers // {}) | .mcpServers[\`"$McpName\`"] = {\`"command\`":\`"$($cmd -replace '\\', '\\\\')\`",\`"args\`":[\`"mcp\`"],\`"transportType\`":\`"stdio\`"}"
+    Invoke-JsonMerge -File $file -Key $McpName -Value @{
+        command        = ($cmd -replace '\\', '\\')
+        args           = @('mcp')
+        transportType  = 'stdio'
+    }
 }
 
 function Register-McpOpenCode {
@@ -334,7 +356,11 @@ function Register-McpOpenCode {
     }
     $cmd = Get-McpFfsCommand
     $file = Join-Path $dir 'opencode.json'
-    Invoke-JqMerge -File $file -Filter ".mcp = (.mcp // {}) | .mcp[\`"$McpName\`"] = {\`"type\`":\`"local\`",\`"command\`":[\`"$($cmd -replace '\\', '\\\\')\`",\`"mcp\`"],\`"enabled\`":true}"
+    Invoke-JsonMerge -File $file -Key $McpName -Container mcp -Value @{
+        type    = 'local'
+        command = @(($cmd -replace '\\', '\\'), 'mcp')
+        enabled = $true
+    }
 }
 
 function Register-McpContinue {
@@ -400,8 +426,17 @@ function Invoke-McpUninstall {
     }
     # Cursor
     $cursorMcp = Join-Path $env:USERPROFILE '.cursor\mcp.json'
-    if ((Test-Path $cursorMcp) -and (Test-HasJq)) {
-        Get-Content $cursorMcp -Raw | & jq "del(.mcpServers[\`"$McpName\`"])" | Set-Content $cursorMcp -Encoding UTF8
+    if (Test-Path $cursorMcp) {
+        try {
+            $obj = ConvertTo-Hashtable (Get-Content $cursorMcp -Raw | ConvertFrom-Json)
+            if ($obj.ContainsKey('mcpServers') -and $obj['mcpServers'].ContainsKey($McpName)) {
+                $obj['mcpServers'].Remove($McpName)
+                $obj | ConvertTo-Json -Depth 10 | Set-Content $cursorMcp -Encoding UTF8
+                Write-Success "[mcp] removed $McpName from Cursor"
+            }
+        } catch {
+            Write-Warn "Failed to update $cursorMcp: $_"
+        }
     }
     # Continue
     $continueFile = Join-Path $env:USERPROFILE ".continue\mcpServers\$McpName.yaml"
