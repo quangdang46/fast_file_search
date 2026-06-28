@@ -8,9 +8,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use tempfile::tempdir;
 
-use ffs_engine::mention::{
-    resolve_mentions, MentionKind, MentionResolverCache, ResolveOptions,
-};
+use ffs_engine::mention::{resolve_mentions, MentionKind, MentionResolverCache, ResolveOptions};
 
 // ─── Helpers ────────────────────────────────────────────────────────
 
@@ -160,8 +158,13 @@ fn hashline_start_gt_end_swapped() {
         ..ResolveOptions::default()
     };
     let out = resolve_mentions(&paths, &opts);
-    assert_lines_eq(&out[0], &["line 10", "line 11", "line 12", "line 13", "line 14",
-        "line 15", "line 16", "line 17", "line 18", "line 19", "line 20"]);
+    assert_lines_eq(
+        &out[0],
+        &[
+            "line 10", "line 11", "line 12", "line 13", "line 14", "line 15", "line 16", "line 17",
+            "line 18", "line 19", "line 20",
+        ],
+    );
 }
 
 #[test]
@@ -183,12 +186,18 @@ fn hashline_empty_file() {
 fn hashline_single_line_file_range() {
     // 1-line file with various ranges
     let (_dir, paths) = write_files(&[("single.txt", b"the only line\n")]);
-    
-    let opts = ResolveOptions { line_range: Some((1, 1)), ..ResolveOptions::default() };
+
+    let opts = ResolveOptions {
+        line_range: Some((1, 1)),
+        ..ResolveOptions::default()
+    };
     let out = resolve_mentions(&paths, &opts);
     assert_lines_eq(&out[0], &["the only line"]);
-    
-    let opts = ResolveOptions { line_range: Some((1, 5)), ..ResolveOptions::default() };
+
+    let opts = ResolveOptions {
+        line_range: Some((1, 5)),
+        ..ResolveOptions::default()
+    };
     let out = resolve_mentions(&paths, &opts);
     assert_lines_eq(&out[0], &["the only line"]);
 }
@@ -214,7 +223,7 @@ fn hashline_with_truncation() {
     let (_dir, paths) = write_files(&[("big.txt", body.as_bytes())]);
     let opts = ResolveOptions {
         line_range: Some((1, 3)),
-        max_tokens: 10,  // very small budget
+        max_tokens: 10, // very small budget
         ..ResolveOptions::default()
     };
     let out = resolve_mentions(&paths, &opts);
@@ -225,7 +234,10 @@ fn hashline_with_truncation() {
         "expected at least line 1 or truncation footer: {c}"
     );
     // Should NEVER contain line 100 (line range was 1-3)
-    assert!(!c.contains("line 100"), "line 100 should be excluded by range");
+    assert!(
+        !c.contains("line 100"),
+        "line 100 should be excluded by range"
+    );
 }
 
 #[test]
@@ -282,16 +294,31 @@ fn hashline_different_ranges_different_cache_entries() {
     let (_dir, paths) = write_files(&[("a.txt", n_lines_file(20).as_bytes())]);
     let p = paths[0].clone();
     let mut cache = MentionResolverCache::new();
-    let opts1 = ResolveOptions { line_range: Some((1, 5)), ..ResolveOptions::default() };
-    let opts2 = ResolveOptions { line_range: Some((10, 15)), ..ResolveOptions::default() };
+    let opts1 = ResolveOptions {
+        line_range: Some((1, 5)),
+        ..ResolveOptions::default()
+    };
+    let opts2 = ResolveOptions {
+        line_range: Some((10, 15)),
+        ..ResolveOptions::default()
+    };
     let r1 = cache.resolve_cached(&p, &opts1, 1);
     let r2 = cache.resolve_cached(&p, &opts2, 1);
     // r1 has lines 1-5
     assert_lines_eq(&r1, &["line 1", "line 2", "line 3", "line 4", "line 5"]);
     // r2 has lines 10-15 (NOT the cached r1 content)
-    assert_lines_eq(&r2, &["line 10", "line 11", "line 12", "line 13", "line 14", "line 15"]);
+    assert_lines_eq(
+        &r2,
+        &[
+            "line 10", "line 11", "line 12", "line 13", "line 14", "line 15",
+        ],
+    );
     // Two distinct cache entries (one per line_range)
-    assert_eq!(cache.len(), 2, "different line_ranges should be 2 cache entries");
+    assert_eq!(
+        cache.len(),
+        2,
+        "different line_ranges should be 2 cache entries"
+    );
 }
 
 #[test]
@@ -299,22 +326,32 @@ fn hashline_batch_multiple_ranges() {
     // Resolve multiple paths with different line_ranges in one batch call
     let mut spec = Vec::new();
     for i in 0..5 {
-        spec.push((format!("file_{i}.txt"), n_lines_file(100).as_bytes().to_vec()));
+        spec.push((
+            format!("file_{i}.txt"),
+            n_lines_file(100).as_bytes().to_vec(),
+        ));
     }
-    let file_specs: Vec<(&str, &[u8])> = spec.iter().map(|(n, b)| (n.as_str(), b.as_slice())).collect();
+    let file_specs: Vec<(&str, &[u8])> = spec
+        .iter()
+        .map(|(n, b)| (n.as_str(), b.as_slice()))
+        .collect();
     let (dir, paths) = write_files(&file_specs);
-    
+
     // Each file gets a different line_range
-    let results: Vec<_> = paths.iter().enumerate().map(|(i, p)| {
-        let start = (i * 10 + 1) as u32;
-        let end = (i * 10 + 5) as u32;
-        let opts = ResolveOptions {
-            line_range: Some((start, end)),
-            ..ResolveOptions::default()
-        };
-        resolve_mentions(&[p.clone()], &opts)
-    }).collect();
-    
+    let results: Vec<_> = paths
+        .iter()
+        .enumerate()
+        .map(|(i, p)| {
+            let start = (i * 10 + 1) as u32;
+            let end = (i * 10 + 5) as u32;
+            let opts = ResolveOptions {
+                line_range: Some((start, end)),
+                ..ResolveOptions::default()
+            };
+            resolve_mentions(&[p.clone()], &opts)
+        })
+        .collect();
+
     for (i, res) in results.iter().enumerate() {
         let m = &res[0];
         assert_eq!(m.kind, MentionKind::File);
@@ -483,7 +520,11 @@ fn hashline_file_with_only_newlines() {
     // After trim -> ""
     let c = out[0].content.as_deref().unwrap();
     // Just verify it doesn't panic
-    assert!(c.len() <= 3, "expected at most 3 newlines, got len={}", c.len());
+    assert!(
+        c.len() <= 3,
+        "expected at most 3 newlines, got len={}",
+        c.len()
+    );
 }
 
 #[test]
@@ -493,16 +534,27 @@ fn hashline_different_ranges_same_path_no_cache_cross_talk() {
     let (_dir, paths) = write_files(&[("a.txt", n_lines_file(50).as_bytes())]);
     let p = paths[0].clone();
     let mut cache = MentionResolverCache::new();
-    
+
     // Turn 1: range (1, 5)
-    let opts1 = ResolveOptions { line_range: Some((1, 5)), ..ResolveOptions::default() };
+    let opts1 = ResolveOptions {
+        line_range: Some((1, 5)),
+        ..ResolveOptions::default()
+    };
     let r1 = cache.resolve_cached(&p, &opts1, 1);
     assert_lines_eq(&r1, &["line 1", "line 2", "line 3", "line 4", "line 5"]);
-    
+
     // Turn 2: range (10, 15) — different turn, fresh cache
-    let opts2 = ResolveOptions { line_range: Some((10, 15)), ..ResolveOptions::default() };
+    let opts2 = ResolveOptions {
+        line_range: Some((10, 15)),
+        ..ResolveOptions::default()
+    };
     let r2 = cache.resolve_cached(&p, &opts2, 2);
-    assert_lines_eq(&r2, &["line 10", "line 11", "line 12", "line 13", "line 14", "line 15"]);
+    assert_lines_eq(
+        &r2,
+        &[
+            "line 10", "line 11", "line 12", "line 13", "line 14", "line 15",
+        ],
+    );
 }
 
 #[test]
@@ -511,28 +563,37 @@ fn hashline_ten_files_different_ranges_batch() {
     // Enough to find overflow / off-by-one / boundary bugs
     let n_files = 10;
     let lines_per_file = 50;
-    
+
     let mut specs = Vec::new();
     for i in 0..n_files {
         let name = format!("f{i}.rs");
-        let body: String = (1..=lines_per_file).map(|j| format!("// line {j} of file {i}\n")).collect();
+        let body: String = (1..=lines_per_file)
+            .map(|j| format!("// line {j} of file {i}\n"))
+            .collect();
         specs.push((name, body.into_bytes()));
     }
-    let spec_refs: Vec<(&str, &[u8])> = specs.iter().map(|(n, b)| (n.as_str(), b.as_slice())).collect();
+    let spec_refs: Vec<(&str, &[u8])> = specs
+        .iter()
+        .map(|(n, b)| (n.as_str(), b.as_slice()))
+        .collect();
     let (dir, paths) = write_files(&spec_refs);
-    
-    let results: Vec<_> = paths.iter().enumerate().map(|(i, p)| {
-        let start = (i * 3 + 2) as u32;
-        let end = (i * 3 + 6) as u32;
-        let opts = ResolveOptions {
+
+    let results: Vec<_> = paths
+        .iter()
+        .enumerate()
+        .map(|(i, p)| {
+            let start = (i * 3 + 2) as u32;
+            let end = (i * 3 + 6) as u32;
+            let opts = ResolveOptions {
                 line_range: Some((start, end.min(lines_per_file as u32))),
                 max_tokens: 1000,
                 filter_level: ffs_budget::FilterLevel::None,
                 ..ResolveOptions::default()
             };
-        resolve_mentions(&[p.clone()], &opts)
-    }).collect();
-    
+            resolve_mentions(&[p.clone()], &opts)
+        })
+        .collect();
+
     for (i, res) in results.iter().enumerate() {
         let m = &res[0];
         let body = m.content.as_deref().unwrap();
@@ -552,7 +613,7 @@ fn hashline_ten_files_different_ranges_batch() {
 fn hashline_content_without_newline_at_end_still_counts() {
     // File ending without \n on the last line. split('\n') gives
     // [..., "last line"] — last line is counted.
-    let body = "a\nb\nc\nd";  // 4 lines, d has no trailing newline
+    let body = "a\nb\nc\nd"; // 4 lines, d has no trailing newline
     let (_dir, paths) = write_files(&[("x.txt", body.as_bytes())]);
     let opts = ResolveOptions {
         line_range: Some((3, 4)),
@@ -570,7 +631,7 @@ fn hashline_content_without_newline_at_end_still_counts() {
 fn hashline_trailing_newline_preserved() {
     // When a file ends with \n, slice_lines now preserves the trailing
     // newline if the last kept line is the last line of the file.
-    let body = "a\nb\nc\n";  // 3 lines with trailing newline
+    let body = "a\nb\nc\n"; // 3 lines with trailing newline
     let (_dir, paths) = write_files(&[("nl.txt", body.as_bytes())]);
     let opts = ResolveOptions {
         line_range: Some((1, 3)),
@@ -579,8 +640,11 @@ fn hashline_trailing_newline_preserved() {
     let out = resolve_mentions(&paths, &opts);
     let c = out[0].content.as_deref().unwrap();
     // Fix: trailing newline preserved when slice reaches EOF.
-    assert_eq!(c.as_bytes().last().copied(), Some(b'\n'),
-        "trailing newline should be preserved: {c:?}");
+    assert_eq!(
+        c.as_bytes().last().copied(),
+        Some(b'\n'),
+        "trailing newline should be preserved: {c:?}"
+    );
     assert_eq!(c, "a\nb\nc\n");
 }
 
@@ -602,7 +666,7 @@ fn hashline_trailing_newline_not_added_if_no_eof() {
 #[test]
 fn hashline_no_trailing_newline_stays_clean() {
     // File WITHOUT trailing newline → output should NOT add one.
-    let body = "a\nb\nc";  // 3 lines, no trailing newline
+    let body = "a\nb\nc"; // 3 lines, no trailing newline
     let (_dir, paths) = write_files(&[("clean.txt", body.as_bytes())]);
     let opts = ResolveOptions {
         line_range: Some((1, 3)),
@@ -611,8 +675,11 @@ fn hashline_no_trailing_newline_stays_clean() {
     let out = resolve_mentions(&paths, &opts);
     let c = out[0].content.as_deref().unwrap();
     assert_eq!(c, "a\nb\nc");
-    assert_eq!(c.as_bytes().last().copied(), Some(b'c'),
-        "no trailing newline when input has none: {c:?}");
+    assert_eq!(
+        c.as_bytes().last().copied(),
+        Some(b'c'),
+        "no trailing newline when input has none: {c:?}"
+    );
 }
 
 #[test]
@@ -626,7 +693,10 @@ fn hashline_inverted_range_now_swaps() {
     let out = resolve_mentions(&paths, &opts);
     let m = &out[0];
     let c = m.content.as_deref().unwrap();
-    assert!(!c.trim().is_empty(), "inverted range should swap, not return empty");
+    assert!(
+        !c.trim().is_empty(),
+        "inverted range should swap, not return empty"
+    );
     assert!(c.contains("line 3"), "should contain line 3 (swapped): {c}");
     assert!(c.contains("line 8"), "should contain line 8 (swapped): {c}");
     assert!(!c.contains("line 1"), "should NOT contain line 1: {c}");
