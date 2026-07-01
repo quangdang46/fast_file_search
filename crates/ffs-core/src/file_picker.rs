@@ -720,6 +720,14 @@ impl FilePicker {
         let scanned_files_counter = picker.scanned_files_counter();
         let path = picker.base_path.clone();
 
+        // Pre-arm `scanning` BEFORE publishing the new picker. `ScanJob::spawn`
+        // also sets it, but that runs after this function returns; consumers
+        // that grab the signal Arc between publish and spawn would otherwise
+        // observe scanning=false and skip the wait, racing the walker.
+        signals
+            .scanning
+            .store(true, std::sync::atomic::Ordering::Release);
+
         {
             let mut guard = shared_picker.write()?;
             *guard = Some(picker);
