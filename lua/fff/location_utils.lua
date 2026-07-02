@@ -154,6 +154,7 @@ function M.highlight_grep_matches(bufnr, location, namespace)
 
   local line_count = vim.api.nvim_buf_line_count(bufnr)
   local extmarks = {}
+  local grep_hl = require('fff.conf').get().hl.grep_match or 'IncSearch'
 
   -- Pin CursorLine + CursorLineNr to the target match line via extmark, so
   -- the highlight stays anchored when the user pages the preview viewport
@@ -181,7 +182,7 @@ function M.highlight_grep_matches(bufnr, location, namespace)
       local end_byte = range[2] -- 0-based exclusive end
       local ok, mark_id = pcall(vim.api.nvim_buf_set_extmark, bufnr, namespace, target_line - 1, start_byte, {
         end_col = end_byte,
-        hl_group = 'IncSearch',
+        hl_group = grep_hl,
         priority = 1000,
       })
       if ok then table.insert(extmarks, { id = mark_id, line = target_line - 1 }) end
@@ -225,7 +226,7 @@ function M.highlight_grep_matches(bufnr, location, namespace)
       -- s and e are 1-based byte positions; extmarks need 0-based
       local ok, mark_id = pcall(vim.api.nvim_buf_set_extmark, bufnr, namespace, i - 1, s - 1, {
         end_col = e,
-        hl_group = 'IncSearch',
+        hl_group = grep_hl,
         priority = 1000,
       })
       if ok then table.insert(extmarks, { id = mark_id, line = i - 1 }) end
