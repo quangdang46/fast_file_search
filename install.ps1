@@ -280,7 +280,7 @@ function Invoke-JsonMerge {
             Write-Success "[mcp] wrote $File"
         }
     } catch {
-        Write-Warn "JSON merge failed for $File: $_"
+        Write-Warn "JSON merge failed for ${File}: $_"
     }
 }
 
@@ -435,7 +435,7 @@ function Invoke-McpUninstall {
                 Write-Success "[mcp] removed $McpName from Cursor"
             }
         } catch {
-            Write-Warn "Failed to update $cursorMcp: $_"
+            Write-Warn "Failed to update ${cursorMcp}: $_"
         }
     }
     # Continue
