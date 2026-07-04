@@ -622,8 +622,8 @@ pub fn format_outline(path: &std::path::Path) -> Result<String, String> {
         ffs_symbol::types::FileType::Code(l) => l,
         _ => return Err(format!("not a code file: {}", path.display())),
     };
-    let content = ffs::bom::read_file(path)
-        .map_err(|e| format!("failed to read {}: {e}", path.display()))?;
+    let content =
+        ffs::bom::read_file(path).map_err(|e| format!("failed to read {}: {e}", path.display()))?;
     let entries = ffs_symbol::outline::get_outline_entries(&content, lang);
     let total_lines = content.lines().count();
     let total_tokens = ffs_symbol::types::estimate_tokens(content.len() as u64);

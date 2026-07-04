@@ -222,7 +222,10 @@ fn single_hop_detailed(engine: &Engine, name: &str) -> Vec<CalleeHit> {
                 continue;
             }
             let first = callee_sites[0];
-            let locations: Vec<_> = engine.handles.symbols.lookup_exact(&callee)
+            let locations: Vec<_> = engine
+                .handles
+                .symbols
+                .lookup_exact(&callee)
                 .into_iter()
                 .filter(|loc| matches!(detect_file_type(&loc.path), FileType::Code(l) if l == lang))
                 .collect();

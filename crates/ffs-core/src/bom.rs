@@ -5,9 +5,7 @@ const UTF8_BOM: &[u8] = b"\xEF\xBB\xBF";
 pub fn read_file(path: impl AsRef<std::path::Path>) -> std::io::Result<String> {
     let mut bytes = std::fs::read(path)?;
     strip_bom_bytes(&mut bytes);
-    String::from_utf8(bytes).map_err(|e| std::io::Error::new(
-        std::io::ErrorKind::InvalidData, e,
-    ))
+    String::from_utf8(bytes).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
 }
 
 /// Read a file, strip the UTF-8 BOM, and return content + mtime.
@@ -20,9 +18,8 @@ pub fn read_file_with_mtime(
         .and_then(|m| m.modified())
         .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
     strip_bom_bytes(&mut bytes);
-    let content = String::from_utf8(bytes).map_err(|e| {
-        std::io::Error::new(std::io::ErrorKind::InvalidData, e)
-    })?;
+    let content = String::from_utf8(bytes)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
     Ok((content, mtime))
 }
 

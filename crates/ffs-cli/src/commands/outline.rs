@@ -91,8 +91,8 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         _ => return Err(anyhow!("not a code file: {}", p.display())),
     };
 
-    let content =
-        ffs_search::bom::read_file(&p).map_err(|e| anyhow!("failed to read {}: {e}", p.display()))?;
+    let content = ffs_search::bom::read_file(&p)
+        .map_err(|e| anyhow!("failed to read {}: {e}", p.display()))?;
     let entries = get_outline_entries(&content, lang);
 
     let payload = OutlineOutput {
