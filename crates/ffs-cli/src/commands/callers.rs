@@ -167,7 +167,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         .filter_map(|path| {
             let meta = std::fs::metadata(path).ok()?;
             let mtime = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
-            let content = std::fs::read_to_string(path).ok()?;
+            let content = ffs_search::bom::read_file(path).ok()?;
             let lang = match detect_file_type(path) {
                 FileType::Code(l) => Some(l),
                 _ => None,

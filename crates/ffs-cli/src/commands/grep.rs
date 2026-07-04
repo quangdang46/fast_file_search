@@ -437,7 +437,7 @@ fn build_grouped_result(needle: &str, hits: &[GrepHit], mode: &'static str) -> G
     let mut files: Vec<FileGroup> = Vec::new();
     for (path, file_hits) in &by_file {
         // Try to parse the file outline for symbol grouping
-        let content = std::fs::read_to_string(path).ok();
+        let content = ffs_search::bom::read_file(path).ok();
         let entries = content
             .as_deref()
             .map(get_simple_outline)
@@ -680,7 +680,7 @@ fn find_block_end(lines: &[&str], start: usize) -> usize {
                 depth -= 1;
             }
         }
-        if first_brace && depth <= 0 && i > 0 {
+        if first_brace && depth <= 0 {
             return abs_line;
         }
     }

@@ -129,7 +129,7 @@ fn load_outline(engine: &Engine, path: &PathBuf) -> Option<Vec<OutlineEntry>> {
         FileType::Code(l) => l,
         _ => return None,
     };
-    let content = std::fs::read_to_string(path).ok()?;
+    let content = ffs_search::bom::read_file(path).ok()?;
     let mtime = std::fs::metadata(path)
         .and_then(|m| m.modified())
         .unwrap_or(SystemTime::UNIX_EPOCH);

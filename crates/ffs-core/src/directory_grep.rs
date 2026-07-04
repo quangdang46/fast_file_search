@@ -82,7 +82,7 @@ pub fn grep_directory(root: &Path, pattern: &str, max_matches: usize) -> Vec<Dir
         }
 
         // Read the file as text.
-        let content = match std::fs::read_to_string(path) {
+        let content = match crate::bom::read_file(path) {
             Ok(c) => c,
             Err(_) => continue,
         };

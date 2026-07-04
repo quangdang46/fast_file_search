@@ -64,7 +64,7 @@ pub fn run_bfs(engine: &Engine, initial: &str, cfg: BfsConfig) -> Vec<CalleeHit>
                     FileType::Code(l) => l,
                     _ => continue,
                 };
-                let Ok(content) = std::fs::read_to_string(&def.path) else {
+                let Ok(content) = ffs_search::bom::read_file(&def.path) else {
                     continue;
                 };
                 let Some(idents) = collect_callees(&content, lang, def.line, def.end_line) else {
@@ -79,8 +79,16 @@ pub fn run_bfs(engine: &Engine, initial: &str, cfg: BfsConfig) -> Vec<CalleeHit>
                     if result.locations.is_empty() {
                         continue;
                     }
+                    // Filter locations by language to match the caller's language
+                    let filtered_locations: Vec<_> = result.locations
+                        .into_iter()
+                        .filter(|loc| matches!(detect_file_type(&loc.path), FileType::Code(l) if l == lang))
+                        .collect();
+                    if filtered_locations.is_empty() {
+                        continue;
+                    }
                     idents_this_name.push(result.symbol.clone());
-                    for loc in result.locations {
+                    for loc in filtered_locations {
                         if session.is_expanded(&loc.path, loc.line) {
                             continue;
                         }

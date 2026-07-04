@@ -111,7 +111,7 @@ fn imports_for_file(path: &Path, root: &Path) -> Vec<ImportEntry> {
     let Some(lang) = code_lang(path) else {
         return Vec::new();
     };
-    let Ok(content) = std::fs::read_to_string(path) else {
+    let Ok(content) = ffs_search::bom::read_file(path) else {
         return Vec::new();
     };
     let raw = extract_imports(&content, lang);
@@ -134,7 +134,7 @@ fn raw_imports_for(path: &Path) -> Vec<String> {
     let Some(lang) = code_lang(path) else {
         return Vec::new();
     };
-    let Ok(content) = std::fs::read_to_string(path) else {
+    let Ok(content) = ffs_search::bom::read_file(path) else {
         return Vec::new();
     };
     extract_imports(&content, lang)

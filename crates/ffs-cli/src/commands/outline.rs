@@ -92,7 +92,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     };
 
     let content =
-        std::fs::read_to_string(&p).map_err(|e| anyhow!("failed to read {}: {e}", p.display()))?;
+        ffs_search::bom::read_file(&p).map_err(|e| anyhow!("failed to read {}: {e}", p.display()))?;
     let entries = get_outline_entries(&content, lang);
 
     let payload = OutlineOutput {
@@ -128,7 +128,7 @@ pub fn render_agent(path: &Path, display_path: &str) -> Result<String> {
         FileType::Code(l) => l,
         _ => return Err(anyhow!("not a code file: {}", path.display())),
     };
-    let content = std::fs::read_to_string(path)
+    let content = ffs_search::bom::read_file(path)
         .map_err(|e| anyhow!("failed to read {}: {e}", path.display()))?;
     let entries = get_outline_entries(&content, lang);
     let total_lines = content.lines().count() as u64;

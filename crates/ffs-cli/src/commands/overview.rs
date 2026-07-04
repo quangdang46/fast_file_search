@@ -100,7 +100,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
 
         if let FileType::Code(lang) = detect_file_type(path) {
             code_files += 1;
-            let lines = std::fs::read_to_string(path)
+            let lines = ffs_search::bom::read_file(path)
                 .map(|c| c.lines().count())
                 .unwrap_or(0);
             total_lines += lines;

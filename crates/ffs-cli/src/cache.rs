@@ -230,7 +230,7 @@ pub fn refresh_symbol_index(idx: &SymbolIndex, root: &Path) {
         if meta.len() == 0 || meta.len() > 4 * 1024 * 1024 {
             return;
         }
-        let Ok(content) = std::fs::read_to_string(path) else {
+        let Ok(content) = ffs_search::bom::read_file(path) else {
             return;
         };
         idx.index_file(path, mtime, &content);

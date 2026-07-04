@@ -166,7 +166,7 @@ fn single_hop(engine: &Engine, name: &str) -> Vec<CalleeHit> {
             FileType::Code(l) => l,
             _ => continue,
         };
-        let Ok(content) = std::fs::read_to_string(&def.path) else {
+        let Ok(content) = ffs_search::bom::read_file(&def.path) else {
             continue;
         };
         let Some(names) = collect_callees(&content, lang, def.line, def.end_line) else {
@@ -177,6 +177,12 @@ fn single_hop(engine: &Engine, name: &str) -> Vec<CalleeHit> {
                 continue;
             }
             for loc in engine.handles.symbols.lookup_exact(&ident) {
+                // Skip definitions in a different language (e.g. Rust `add`
+                // vs Python `add`). The caller's language was already detected
+                // as `lang` above.
+                if !matches!(detect_file_type(&loc.path), FileType::Code(l) if l == lang) {
+                    continue;
+                }
                 hits.push(CalleeHit {
                     name: ident.clone(),
                     path: loc.path.to_string_lossy().to_string(),
@@ -202,7 +208,7 @@ fn single_hop_detailed(engine: &Engine, name: &str) -> Vec<CalleeHit> {
             FileType::Code(l) => l,
             _ => continue,
         };
-        let Ok(content) = std::fs::read_to_string(&def.path) else {
+        let Ok(content) = ffs_search::bom::read_file(&def.path) else {
             continue;
         };
         let sites = extract_call_sites(&content, lang, def.line, def.end_line, &known);
@@ -216,7 +222,10 @@ fn single_hop_detailed(engine: &Engine, name: &str) -> Vec<CalleeHit> {
                 continue;
             }
             let first = callee_sites[0];
-            let locations = engine.handles.symbols.lookup_exact(&callee);
+            let locations: Vec<_> = engine.handles.symbols.lookup_exact(&callee)
+                .into_iter()
+                .filter(|loc| matches!(detect_file_type(&loc.path), FileType::Code(l) if l == lang))
+                .collect();
             // Emit exactly one hit per callee. Resolved location is the first
             // definition if any, otherwise the call site itself.
             let (target_path, target_line) = locations

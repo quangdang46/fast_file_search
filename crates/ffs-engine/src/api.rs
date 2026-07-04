@@ -157,7 +157,7 @@ pub fn grep(root: &Path, needle: &str, options: &GrepOptions) -> GrepResult {
 
     let mut result_files: Vec<GrepFile> = Vec::new();
     for (path_str, file_hits) in &by_file {
-        let content = std::fs::read_to_string(path_str).ok();
+        let content = ffs_search::bom::read_file(path_str).ok();
         let language = path_str.rsplit('.').next().unwrap_or("").to_string();
         let entries = content.as_deref().map(simple_outline).unwrap_or_default();
 
@@ -359,7 +359,7 @@ pub fn outline(path: &Path) -> Option<OutlineResult> {
     use ffs_symbol::lang::detect_file_type;
     use ffs_symbol::outline::get_outline_entries;
 
-    let content = std::fs::read_to_string(path).ok()?;
+    let content = ffs_search::bom::read_file(path).ok()?;
     let ft = detect_file_type(path);
     let lang = match ft {
         ffs_symbol::types::FileType::Code(l) => l,
@@ -500,7 +500,7 @@ fn find_block_end(lines: &[&str], start: usize) -> usize {
                 depth -= 1;
             }
         }
-        if first_brace && depth <= 0 && i > 0 {
+        if first_brace && depth <= 0 {
             return start + i;
         }
     }

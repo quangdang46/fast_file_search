@@ -252,7 +252,7 @@ pub fn find_call_sites(engine: &Engine, root: &Path, symbol: &str, limit: usize)
             continue;
         };
         let mtime = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
-        let Ok(content) = std::fs::read_to_string(&path) else {
+        let Ok(content) = ffs::bom::read_file(&path) else {
             continue;
         };
         candidates.push((path, mtime, content));
@@ -314,7 +314,7 @@ pub fn find_callee_sites(
     }
     let mut hits = Vec::new();
     for def in definitions {
-        let Ok(content) = std::fs::read_to_string(&def.path) else {
+        let Ok(content) = ffs::bom::read_file(&def.path) else {
             continue;
         };
         let path_str = def.path.display().to_string();
@@ -369,7 +369,7 @@ fn walk_code_files(root: &Path) -> Vec<(std::path::PathBuf, SystemTime, String)>
             continue;
         };
         let mtime = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
-        let Ok(content) = std::fs::read_to_string(&path) else {
+        let Ok(content) = ffs::bom::read_file(&path) else {
             continue;
         };
         out.push((path, mtime, content));
@@ -622,7 +622,7 @@ pub fn format_outline(path: &std::path::Path) -> Result<String, String> {
         ffs_symbol::types::FileType::Code(l) => l,
         _ => return Err(format!("not a code file: {}", path.display())),
     };
-    let content = std::fs::read_to_string(path)
+    let content = ffs::bom::read_file(path)
         .map_err(|e| format!("failed to read {}: {e}", path.display()))?;
     let entries = ffs_symbol::outline::get_outline_entries(&content, lang);
     let total_lines = content.lines().count();
@@ -706,7 +706,7 @@ pub fn find_siblings(
             ffs_symbol::types::FileType::Code(l) => l,
             _ => continue,
         };
-        let Ok(content) = std::fs::read_to_string(&def.path) else {
+        let Ok(content) = ffs::bom::read_file(&def.path) else {
             continue;
         };
         let entries = ffs_symbol::outline::get_outline_entries(&content, lang);
@@ -926,7 +926,7 @@ pub fn find_deps(root: &Path, target: &str, limit: usize, _offset: usize) -> Str
     };
 
     let mut out = String::new();
-    let Ok(content) = std::fs::read_to_string(&target_path) else {
+    let Ok(content) = ffs::bom::read_file(&target_path) else {
         out.push_str(&format!("[cannot read {}]\n", target_path.display()));
         return out;
     };
@@ -1038,7 +1038,7 @@ fn find_dependents(root: &Path, target_name: &str, limit: usize) -> Vec<std::pat
         ) {
             continue;
         }
-        let Ok(content) = std::fs::read_to_string(&path) else {
+        let Ok(content) = ffs::bom::read_file(&path) else {
             continue;
         };
         if content.contains(target_name) {
@@ -1084,7 +1084,7 @@ pub fn find_flow(
         ));
 
         // Body excerpt
-        if let Ok(content) = std::fs::read_to_string(&def.path) {
+        if let Ok(content) = ffs::bom::read_file(&def.path) {
             let start = def.line.saturating_sub(1) as usize;
             let end = (def.end_line as usize).min(content.lines().count());
             out.push_str(&format!("body [{}..{}]:\n", def.line, end));
@@ -1184,7 +1184,7 @@ pub fn find_impact(
         ) {
             continue;
         }
-        let Ok(content) = std::fs::read_to_string(&path) else {
+        let Ok(content) = ffs::bom::read_file(&path) else {
             continue;
         };
         for def_path in &def_paths {

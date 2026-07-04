@@ -348,7 +348,7 @@ pub unsafe extern "C" fn ffs_engine_refs(
             continue;
         };
         let mtime = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
-        let Ok(content) = std::fs::read_to_string(&path) else {
+        let Ok(content) = ffs::bom::read_file(&path) else {
             continue;
         };
         candidates.push((path, mtime, content));
@@ -463,7 +463,7 @@ pub unsafe extern "C" fn ffs_engine_flow(
 
     let mut cards: Vec<serde_json::Value> = Vec::new();
     for def in &page {
-        let body_text = std::fs::read_to_string(&def.path).unwrap_or_default();
+        let body_text = ffs::bom::read_file(&def.path).unwrap_or_default();
         let body_lines: Vec<&str> = body_text.lines().collect();
         let start = (def.line.saturating_sub(1) as usize).min(body_lines.len());
         let end = (def.end_line as usize).min(body_lines.len());
@@ -532,7 +532,7 @@ pub unsafe extern "C" fn ffs_engine_impact(
         if !matches!(detect_file_type(&path), FileType::Code(_)) {
             continue;
         }
-        let Ok(content) = std::fs::read_to_string(&path) else {
+        let Ok(content) = ffs::bom::read_file(&path) else {
             continue;
         };
         candidates.push((path, content));

@@ -578,7 +578,7 @@ fn grep_files(root: &Path, query: &str, limit: usize) -> Vec<GrepHit> {
         if hits.len() >= limit {
             break;
         }
-        let Ok(text) = std::fs::read_to_string(&path) else {
+        let Ok(text) = ffs_search::bom::read_file(&path) else {
             continue;
         };
         for (line_idx, line) in text.lines().enumerate() {
@@ -655,7 +655,7 @@ fn collect_callers(_state: &mut McpState, root: &Path, name: &str, limit: usize)
         if hits.len() >= limit {
             break;
         }
-        let Ok(text) = std::fs::read_to_string(&path) else {
+        let Ok(text) = ffs_search::bom::read_file(&path) else {
             continue;
         };
         for (line_idx, line) in text.lines().enumerate() {
@@ -684,7 +684,7 @@ fn collect_callees(state: &mut McpState, _root: &Path, name: &str, limit: usize)
     let mut hits = Vec::new();
     let defs = state.engine.handles.symbols.lookup_exact(name);
     for d in defs {
-        let Ok(content) = std::fs::read_to_string(&d.path) else {
+        let Ok(content) = ffs_search::bom::read_file(&d.path) else {
             continue;
         };
         let start = d.line.saturating_sub(1) as usize;
@@ -728,7 +728,7 @@ fn collect_siblings(state: &mut McpState, name: &str, limit: usize) -> Vec<Sibli
             FileType::Code(l) => l,
             _ => continue,
         };
-        let Ok(content) = std::fs::read_to_string(&def.path) else {
+        let Ok(content) = ffs_search::bom::read_file(&def.path) else {
             continue;
         };
         let mtime = std::fs::metadata(&def.path)
@@ -812,7 +812,7 @@ fn sibling_in_children(
 }
 
 fn read_section_excerpt(path: &Path, start_line: u32, end_line: u32, max_lines: usize) -> String {
-    let Ok(content) = std::fs::read_to_string(path) else {
+    let Ok(content) = ffs_search::bom::read_file(path) else {
         return String::new();
     };
     let start = start_line.saturating_sub(1) as usize;
@@ -832,7 +832,7 @@ fn list_imports(path: &Path) -> Vec<String> {
         FileType::Code(l) => l,
         _ => return Vec::new(),
     };
-    let Ok(content) = std::fs::read_to_string(path) else {
+    let Ok(content) = ffs_search::bom::read_file(path) else {
         return Vec::new();
     };
     let entries = get_outline_entries(&content, lang);

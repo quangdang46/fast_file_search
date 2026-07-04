@@ -77,7 +77,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         .filter_map(|path| {
             let meta = std::fs::metadata(path).ok()?;
             let mtime = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
-            let content = std::fs::read_to_string(path).ok()?;
+            let content = ffs_search::bom::read_file(path).ok()?;
             let lang = match detect_file_type(path) {
                 FileType::Code(l) => Some(l),
                 _ => None,
@@ -136,10 +136,6 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     paths.extend(direct.keys().cloned());
     paths.extend(transitive.keys().cloned());
     paths.extend(imports.keys().cloned());
-    // The symbol's own defn file is not "impacted by" the symbol — drop it.
-    for d in &defn_paths {
-        paths.remove(&display_relative(d, &root_canon));
-    }
 
     let mut rows: Vec<ImpactResult> = paths
         .into_iter()
@@ -206,7 +202,7 @@ fn reverse_imports(root: &Path, defn_paths: &BTreeSet<PathBuf>) -> BTreeMap<Stri
         let Some(lang) = code_lang(&path_canon) else {
             continue;
         };
-        let Ok(content) = std::fs::read_to_string(&path_canon) else {
+        let Ok(content) = ffs_search::bom::read_file(&path_canon) else {
             continue;
         };
         let mut count = 0u32;

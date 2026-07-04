@@ -22,62 +22,13 @@ struct GlobResult {
     matches: Vec<String>,
 }
 
-/// Directories always filtered out regardless of gitignore / zlob rules.
-const ALWAYS_HIDE: &[&str] = &[".git", "node_modules", "target", ".ffs"];
-
-#[cfg(feature = "zlob")]
+/// Delegate to the shared core glob function which handles Windows correctly
+/// (falling back to `globset::Glob` + `ignore::WalkBuilder` on unsupported
+/// platforms) and respects gitignore rules consistently.
 fn glob_files(root: &Path, pattern: &str, limit: usize) -> Vec<String> {
-    let flags = zlob::ZlobFlags::RECOMMENDED | zlob::ZlobFlags::GITIGNORE;
-    let base = root.to_string_lossy();
-    match zlob::zlob_at(&base, pattern, flags) {
-        Ok(Some(result)) => result
-            .iter()
-            .filter(|s| {
-                !Path::new(s).components().any(|c| {
-                    c.as_os_str()
-                        .to_str()
-                        .map(|s| ALWAYS_HIDE.contains(&s))
-                        .unwrap_or(false)
-                })
-            })
-            .take(limit)
-            .map(|s| s.to_string())
-            .collect(),
-        Ok(None) => Vec::new(),
-        Err(_) => Vec::new(),
-    }
-}
-
-#[cfg(not(feature = "zlob"))]
-fn glob_files(root: &Path, pattern: &str, limit: usize) -> Vec<String> {
-    let mut builder = ignore::overrides::OverrideBuilder::new(root);
-    builder.add(pattern).ok();
-    let Ok(overrides) = builder.build() else {
-        return Vec::new();
-    };
-
-    ignore::WalkBuilder::new(root)
-        .overrides(overrides)
-        .standard_filters(true)
-        .hidden(true)
-        .git_ignore(true)
-        .git_exclude(true)
-        .git_global(true)
-        .require_git(false)
-        .build()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().map(|t| t.is_file()).unwrap_or(false))
-        .filter(|e| {
-            let p = e.path();
-            !p.components().any(|c| {
-                c.as_os_str()
-                    .to_str()
-                    .map(|s| ALWAYS_HIDE.contains(&s))
-                    .unwrap_or(false)
-            })
-        })
-        .filter_map(|e| e.path().to_str().map(|s| s.to_string()))
-        .take(limit)
+    ffs_search::glob_matcher::glob_files(root, pattern, limit)
+        .into_iter()
+        .map(|rel| root.join(&rel).to_string_lossy().to_string())
         .collect()
 }
 

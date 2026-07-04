@@ -193,7 +193,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         if let FileType::Code(lang) = detect_file_type(&path) {
             use ffs_symbol::types::Lang;
             if matches!(lang, Lang::JavaScript | Lang::TypeScript | Lang::Tsx) {
-                let content = std::fs::read_to_string(&path)
+                let content = ffs_search::bom::read_file(&path)
                     .map_err(|e| anyhow!("failed to read {}: {e}", path.display()))?;
                 let (anchors, total_lines) =
                     ffs_symbol::artifact::extract_artifact_anchors(&content);
@@ -218,7 +218,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     // --signatures: signatures-only outline via the cascade renderer.
     if args.signatures {
         if let FileType::Code(lang) = detect_file_type(&path) {
-            let content = std::fs::read_to_string(&path)
+            let content = ffs_search::bom::read_file(&path)
                 .map_err(|e| anyhow!("failed to read {}: {e}", path.display()))?;
             let entries = get_outline_entries(&content, lang);
             let refs = as_outline_refs(&entries);
@@ -267,7 +267,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
                 (body, kept, 0usize, None)
             } else if let FileType::Code(lang) = detect_file_type(&path) {
                 // Outline overflowed — try signatures-only.
-                let content = std::fs::read_to_string(&path)
+                let content = ffs_search::bom::read_file(&path)
                     .map_err(|e| anyhow!("failed to read {}: {e}", path.display()))?;
                 let entries = get_outline_entries(&content, lang);
                 let refs = as_outline_refs(&entries);
@@ -350,7 +350,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     );
     if !res.is_binary && res.outcome.dropped_lines > 0 {
         if let FileType::Code(lang) = detect_file_type(&path) {
-            if let Ok(content) = std::fs::read_to_string(&path) {
+            if let Ok(content) = ffs_search::bom::read_file(&path) {
                 let entries = get_outline_entries(&content, lang);
                 let refs = as_outline_refs(&entries);
                 let refs_slice: Vec<&dyn OutlineLike> = refs.iter().map(|b| b.as_ref()).collect();
@@ -447,7 +447,7 @@ fn read_section(path: &Path, line: u32, level: FilterLevel, budget: u64) -> Resu
     let engine = Engine::new(cfg);
 
     let content =
-        std::fs::read_to_string(path).map_err(|e| anyhow!("read {}: {e}", path.display()))?;
+        ffs_search::bom::read_file(path).map_err(|e| anyhow!("read {}: {e}", path.display()))?;
     let mtime = std::fs::metadata(path)
         .and_then(|m| m.modified())
         .unwrap_or(SystemTime::UNIX_EPOCH);

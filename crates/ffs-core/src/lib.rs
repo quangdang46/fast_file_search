@@ -92,6 +92,9 @@
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 
+/// UTF-8 BOM (byte order mark) detection and stripping.
+pub mod bom;
+
 mod background_watcher;
 mod scan;
 // public only for benchmarks — the inverted index is still re-exported via

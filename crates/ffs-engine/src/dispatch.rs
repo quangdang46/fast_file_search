@@ -148,7 +148,7 @@ impl Engine {
 
     /// Read a file with token-budget-aware filtering and truncation.
     pub fn read(&self, path: &Path) -> ReadResult {
-        let bytes = match std::fs::read(path) {
+        let mut bytes = match std::fs::read(path) {
             Ok(b) => b,
             Err(e) => {
                 return ReadResult {
@@ -186,6 +186,11 @@ impl Engine {
                 is_error: false,
                 is_binary: true,
             };
+        }
+
+        // Strip UTF-8 BOM from the raw bytes before decoding.
+        if bytes.starts_with(b"\xEF\xBB\xBF") {
+            bytes.drain(..3);
         }
 
         let text = String::from_utf8_lossy(&bytes).into_owned();
