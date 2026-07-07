@@ -2,7 +2,7 @@ use crate::{
     constraints::apply_constraints,
     git::is_modified_status,
     path_utils::calculate_distance_penalty,
-    simd_path::ArenaPtr,
+    simd_path::{ArenaPtr, MAX_PATH_CHUNKS},
     sort_buffer::{sort_by_key_with_buffer, sort_with_buffer},
     types::{DirItem, FileItem, Score, ScoringContext},
 };
@@ -32,7 +32,7 @@ impl<'a> FileItems<'a> {
 fn resolve_file_chunks(
     file: &FileItem,
     arena: ArenaPtr,
-    buf: &mut [*const u8; 32],
+    buf: &mut [*const u8; MAX_PATH_CHUNKS],
 ) -> Option<(usize, u16)> {
     if file.is_deleted() {
         return None;
@@ -60,15 +60,15 @@ fn match_fuzzy_parts(
         return vec![];
     }
 
-    let resolve = |file: &FileItem, buf: &mut [*const u8; 32]| -> Option<(usize, u16)> {
-        resolve_file_chunks(file, arena, buf)
-    };
+    let resolve = |file: &FileItem,
+                   buf: &mut [*const u8; MAX_PATH_CHUNKS]|
+     -> Option<(usize, u16)> { resolve_file_chunks(file, arena, buf) };
 
     // because we reassemble the vec of reference we have to use a different type
     // to narrow down the [&FileItem] which would be resolved by frizbee as &&
-    let resolve_ref = |file: &&FileItem, buf: &mut [*const u8; 32]| -> Option<(usize, u16)> {
-        resolve_file_chunks(file, arena, buf)
-    };
+    let resolve_ref = |file: &&FileItem,
+                       buf: &mut [*const u8; MAX_PATH_CHUNKS]|
+     -> Option<(usize, u16)> { resolve_file_chunks(file, arena, buf) };
 
     let first_part_matches = match working_files {
         FileItems::All(files) => neo_frizbee::match_list_parallel_resolved(
@@ -173,7 +173,7 @@ pub(crate) fn fuzzy_match_and_score_files<'a>(
 fn resolve_dir_chunks(
     dir: &DirItem,
     arena: ArenaPtr,
-    buf: &mut [*const u8; 32],
+    buf: &mut [*const u8; MAX_PATH_CHUNKS],
 ) -> Option<(usize, u16)> {
     let ptrs = dir.path.resolve_ptrs(arena, buf);
     Some((ptrs.len(), dir.path.byte_len))
@@ -199,7 +199,7 @@ fn match_fuzzy_parts_dirs(
     }
 
     let resolve_chunks_for_frizbee =
-        |dir: &&DirItem, buf: &mut [*const u8; 32]| -> Option<(usize, u16)> {
+        |dir: &&DirItem, buf: &mut [*const u8; MAX_PATH_CHUNKS]| -> Option<(usize, u16)> {
             resolve_dir_chunks(dir, arena, buf)
         };
 
@@ -1338,6 +1338,31 @@ mod filename_bonus_tests {
             "near-exact full-path match should rank first, but got: {} \
              (total={}, base={}, frecency={})",
             results[0].0, results[0].1.total, results[0].1.base_score, results[0].1.frecency_boost,
+        );
+    }
+
+    /// Regression: PR #652 / field panic in pi-fff v0.9.6.
+    /// A path >512 bytes (but within PATH_MAX) overflows the fixed
+    /// `[*const u8; 32]` chunk-pointer buffer during scoring and panics with
+    /// "index out of bounds: the len is 32 but the index is 32".
+    #[test]
+    fn test_path_longer_than_512_bytes_does_not_panic_and_matches() {
+        let mut long_path = String::new();
+        while long_path.len() < 600 {
+            long_path.push_str("deeply_nested_directory_segment/");
+        }
+        long_path.push_str("needle_file.rs");
+        assert!(long_path.len() > 512 && long_path.len() < crate::simd_path::PATH_BUF_SIZE);
+
+        let (files, arena) = make_files(&[long_path.as_str(), "src/other.rs"]);
+
+        // Panics here on unfixed code: frizbee resolves chunk ptrs per file.
+        let results = search(&files, "needle", arena);
+
+        assert!(
+            results.iter().any(|(p, _)| p == &long_path),
+            "filename at the tail of a >512-byte path must still match, got: {:?}",
+            results.iter().map(|(p, _)| p).collect::<Vec<_>>()
         );
     }
 

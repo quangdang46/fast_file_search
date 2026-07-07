@@ -62,6 +62,9 @@ impl std::fmt::Debug for SimdChunk {
 
 pub const PATH_BUF_SIZE: usize = 4096;
 
+/// Chunk pointer capacity needed for the longest path the platform allows.
+pub(crate) const MAX_PATH_CHUNKS: usize = PATH_BUF_SIZE.div_ceil(SIMD_CHUNK_BYTES);
+
 /// Indices into a shared `SimdChunk` arena representing a file path.
 ///
 /// All read methods require an explicit `arena_base` pointer from the owning
@@ -98,14 +101,10 @@ impl ChunkedString {
     }
 
     #[inline]
-    pub fn resolve_ptrs<'a>(
-        &self,
-        arena: ArenaPtr,
-        buf: &'a mut [*const u8; 32],
-    ) -> &'a [*const u8] {
-        let count = self.indices.len();
+    pub fn resolve_ptrs<'a>(&self, arena: ArenaPtr, buf: &'a mut [*const u8]) -> &'a [*const u8] {
+        let count = self.indices.len().min(buf.len());
         let base = arena.as_ptr();
-        for (i, &idx) in self.indices.iter().enumerate() {
+        for (i, &idx) in self.indices[..count].iter().enumerate() {
             buf[i] = unsafe { base.add(idx as usize * SIMD_CHUNK_BYTES) };
         }
         &buf[..count]
@@ -459,7 +458,7 @@ mod tests {
         let arena = store.as_arena_ptr();
         let cs = &strings[0];
 
-        let mut ptrs = [std::ptr::null::<u8>(); 32];
+        let mut ptrs = [std::ptr::null::<u8>(); MAX_PATH_CHUNKS];
         let resolved = cs.resolve_ptrs(arena, &mut ptrs);
         assert_eq!(resolved.len(), 2); // 25 bytes = 2 chunks
 
@@ -475,6 +474,43 @@ mod tests {
             std::str::from_utf8(&reconstructed).unwrap(),
             "src/components/Button.tsx"
         );
+    }
+
+    #[test]
+    fn test_resolve_ptrs_path_exceeding_512_bytes() {
+        // Regression: a fixed 32-ptr buffer covered only 512 bytes while
+        // PATH_BUF_SIZE (libc::PATH_MAX) allows longer paths, panicking with
+        // "index out of bounds: the len is 32 but the index is 32"
+        let mut path = String::new();
+        while path.len() < 600 {
+            path.push_str("deeply_nested_directory_segment/");
+        }
+        path.push_str("needle_file.rs");
+        assert!(path.len() > 512 && path.len() < PATH_BUF_SIZE);
+
+        let (store, strings, _files) = build_test_store(&[path.as_str()]);
+        let arena = store.as_arena_ptr();
+        let cs = &strings[0];
+        assert!(cs.chunk_count() > 32, "path must span more than 32 chunks");
+
+        let mut ptrs = [std::ptr::null::<u8>(); MAX_PATH_CHUNKS];
+        let resolved = cs.resolve_ptrs(arena, &mut ptrs);
+
+        // Truncation is not acceptable either: it silently drops the tail of
+        // the path (including the filename here) from fuzzy matching.
+        assert_eq!(
+            resolved.len(),
+            cs.chunk_count(),
+            "resolve_ptrs must resolve every chunk of a PATH_MAX-legal path"
+        );
+
+        let total = cs.byte_len as usize;
+        let mut reconstructed = Vec::with_capacity(total);
+        for (i, &ptr) in resolved.iter().enumerate() {
+            let take = SIMD_CHUNK_BYTES.min(total - i * SIMD_CHUNK_BYTES);
+            reconstructed.extend_from_slice(unsafe { std::slice::from_raw_parts(ptr, take) });
+        }
+        assert_eq!(std::str::from_utf8(&reconstructed).unwrap(), path);
     }
 
     #[test]
