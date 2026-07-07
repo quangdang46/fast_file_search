@@ -327,6 +327,7 @@ pub(crate) fn fuzzy_match_and_score_dirs<'a>(
             matching_case_bonus: if has_uppercase { 4 } else { 0 },
             ..Default::default()
         },
+        ..Default::default()
     };
 
     let path_matches = match_fuzzy_parts_dirs(
@@ -539,6 +540,7 @@ fn match_and_score_in_arena<'a>(
             matching_case_bonus: if has_uppercase { 4 } else { 0 },
             ..Default::default()
         },
+        ..Default::default()
     };
 
     let path_matches = match_fuzzy_parts(

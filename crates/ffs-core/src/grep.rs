@@ -1581,6 +1581,7 @@ fn fuzzy_grep_search<'a>(
             max_typos: Some(max_typos as u16),
             sort: false,
             scoring,
+            ..Default::default()
         },
     );
 
@@ -2331,6 +2332,7 @@ mod tests {
                 exact_match_bonus: 100,
                 ..neo_frizbee::Scoring::default()
             },
+            ..Default::default()
         };
         let min_matched = needle.len().saturating_sub(1).max(1); // 5
         let max_match_span = needle.len() + 4; // 10
