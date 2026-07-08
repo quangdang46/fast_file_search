@@ -39,7 +39,8 @@ heed = "0.22.0"
 ignore = "0.4.22"
 memmap2 = "0.9"
 mimalloc = "0.1.47"
-zlob = "1.3.3"
+signal-hook-registry = "1.4"
+zlob = { version = "=1.6.1" }
 
 neo_frizbee = { version = "0.10.4", features = ["match_end_col"] }
 notify = { version = "9.0.0-rc.3" }
