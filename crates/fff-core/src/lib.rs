@@ -94,6 +94,12 @@
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 
+#[cfg(not(any(feature = "ripgrep", feature = "zlob")))]
+compile_error!(
+    "fff-search requires either the `ripgrep` (default) or `zlob` feature. \
+     Enable one, e.g. `--features ripgrep` or `--features zlob`."
+);
+
 mod background_watcher;
 mod git_status_worker;
 pub(crate) mod parallelism;

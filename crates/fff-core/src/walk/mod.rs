@@ -13,9 +13,9 @@ mod zlob;
 #[cfg(feature = "zlob")]
 pub(crate) use zlob::walk_collect_files;
 
-#[cfg(not(feature = "zlob"))]
+#[cfg(all(not(feature = "zlob"), feature = "ripgrep"))]
 mod ripgrep;
-#[cfg(not(feature = "zlob"))]
+#[cfg(all(not(feature = "zlob"), feature = "ripgrep"))]
 pub(crate) use ripgrep::walk_collect_files;
 
 pub(crate) struct WalkOutput {

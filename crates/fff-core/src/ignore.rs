@@ -39,7 +39,7 @@ pub(crate) const IGNORED_DIRS: &[&str] = &[
     "AppData/Roaming",
 ];
 
-#[cfg(not(feature = "zlob"))]
+#[cfg(all(not(feature = "zlob"), feature = "ripgrep"))]
 pub(crate) fn non_git_repo_overrides(base_path: &Path) -> Option<ignore::overrides::Override> {
     use ignore::overrides::OverrideBuilder;
 

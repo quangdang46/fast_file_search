@@ -169,7 +169,7 @@ pub(crate) fn apply_constraints<'a, T: Constrainable + Sync>(
 
 #[cfg(feature = "zlob")]
 type GlobPattern = zlob::ZlobPattern;
-#[cfg(not(feature = "zlob"))]
+#[cfg(all(not(feature = "zlob"), feature = "ripgrep"))]
 type GlobPattern = globset::GlobMatcher;
 
 /// How `Constraint::Glob` is evaluated for each item.
@@ -440,7 +440,7 @@ fn compiled_matches(p: &GlobPattern, path: &str) -> bool {
 }
 
 #[inline]
-#[cfg(not(feature = "zlob"))]
+#[cfg(all(not(feature = "zlob"), feature = "ripgrep"))]
 fn compiled_matches(p: &GlobPattern, path: &str) -> bool {
     p.is_match(path)
 }
@@ -553,7 +553,7 @@ fn compile_one(pattern: &str) -> Option<GlobPattern> {
     zlob::ZlobPattern::compile(pattern, zlob::ZlobFlags::RECOMMENDED).ok()
 }
 
-#[cfg(not(feature = "zlob"))]
+#[cfg(all(not(feature = "zlob"), feature = "ripgrep"))]
 fn compile_one(pattern: &str) -> Option<GlobPattern> {
     globset::Glob::new(pattern)
         .ok()
@@ -577,7 +577,7 @@ fn match_glob_pattern(pattern: &str, paths: &[&str]) -> Vec<bool> {
     mask
 }
 
-#[cfg(not(feature = "zlob"))]
+#[cfg(all(not(feature = "zlob"), feature = "ripgrep"))]
 fn match_glob_pattern(pattern: &str, paths: &[&str]) -> Vec<bool> {
     let mut mask = vec![false; paths.len()];
     let Ok(glob) = globset::Glob::new(pattern) else {
