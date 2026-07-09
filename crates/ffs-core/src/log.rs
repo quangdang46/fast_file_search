@@ -3,9 +3,15 @@
 //! Provides file-based tracing initialization and crash handlers (panic hook
 //! + SIGSEGV signal handler) that write diagnostics to both stderr and the
 //! configured log file.
+//!
+//! The SIGSEGV handler uses a pre-opened file descriptor instead of opening
+//! the log file inside the signal handler, because open(2) is not mandated
+//! async-signal-safe (it may allocate for path resolution).
 
 use std::io;
+use std::os::fd::IntoRawFd;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicI32, Ordering};
 use tracing_appender::non_blocking;
 use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
@@ -18,6 +24,9 @@ static CRASH_HANDLERS_INSTALLED: std::sync::OnceLock<()> = std::sync::OnceLock::
 /// The log file path set by `init_tracing`. Crash handlers append to this file.
 static LOG_FILE_PATH: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
 
+/// Pre-opened log file descriptor for async-signal-safe crash writes.
+static LOG_FD: AtomicI32 = AtomicI32::new(-1);
+
 fn write_crash_report(header: &str, body: &str) {
     let msg = format!(
         "\n=== CRASH {} ===\n{}\n=== CRASH END {} ===\n",
@@ -26,12 +35,26 @@ fn write_crash_report(header: &str, body: &str) {
 
     let _ = std::io::Write::write_all(&mut std::io::stderr(), msg.as_bytes());
 
-    if let Some(path) = LOG_FILE_PATH.get() {
-        let _ = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(path)
-            .and_then(|mut f| std::io::Write::write_all(&mut f, msg.as_bytes()));
+    let fd = LOG_FD.load(Ordering::Relaxed);
+    if fd >= 0 {
+        unsafe {
+            libc::write(fd, msg.as_ptr() as *const libc::c_void, msg.len());
+        }
+    }
+}
+
+/// Pre-open the log file for signal-safe crash writes. Must be called
+/// *before* install_panic_hook so the fd is available in the signal handler.
+fn init_log_fd(path: &Path) {
+    if let Ok(file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+    {
+        let prev = LOG_FD.swap(file.into_raw_fd(), Ordering::Relaxed);
+        if prev >= 0 {
+            unsafe { libc::close(prev) };
+        }
     }
 }
 
@@ -105,6 +128,7 @@ pub fn init_tracing(log_file_path: &str, log_level: Option<&str>) -> Result<Stri
     }
 
     let _ = LOG_FILE_PATH.set(log_path.to_path_buf());
+    init_log_fd(log_path);
     install_panic_hook();
 
     let file_appender = std::fs::OpenOptions::new()
