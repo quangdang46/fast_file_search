@@ -611,17 +611,13 @@ fn merge_byte_sets<'a>(
 ) -> Option<SmallVec<[u8; MAX_CLASS_EXPAND]>> {
     let mut result: SmallVec<[u8; MAX_CLASS_EXPAND]> = SmallVec::new();
     for opt in iter {
-        match opt {
-            None => return None,
-            Some(bytes) => {
-                for &b in bytes {
-                    if !result.contains(&b) {
-                        if result.len() >= MAX_CLASS_EXPAND {
-                            return None;
-                        }
-                        result.push(b);
-                    }
+        let Some(bytes) = opt else { return None };
+        for &b in bytes {
+            if !result.contains(&b) {
+                if result.len() >= MAX_CLASS_EXPAND {
+                    return None;
                 }
+                result.push(b);
             }
         }
     }
