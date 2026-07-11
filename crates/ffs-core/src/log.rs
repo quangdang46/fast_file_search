@@ -9,8 +9,8 @@
 //! async-signal-safe (it may allocate for path resolution).
 
 use std::io;
-use std::os::fd::IntoRawFd;
 use std::path::{Path, PathBuf};
+#[cfg(unix)]
 use std::sync::atomic::{AtomicI32, Ordering};
 use tracing_appender::non_blocking;
 use tracing_subscriber::fmt::format::FmtSpan;
@@ -24,7 +24,7 @@ static CRASH_HANDLERS_INSTALLED: std::sync::OnceLock<()> = std::sync::OnceLock::
 /// The log file path set by `init_tracing`. Crash handlers append to this file.
 static LOG_FILE_PATH: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
 
-/// Pre-opened log file descriptor for async-signal-safe crash writes.
+#[cfg(unix)]
 static LOG_FD: AtomicI32 = AtomicI32::new(-1);
 
 fn write_crash_report(header: &str, body: &str) {
@@ -35,22 +35,25 @@ fn write_crash_report(header: &str, body: &str) {
 
     let _ = std::io::Write::write_all(&mut std::io::stderr(), msg.as_bytes());
 
-    let fd = LOG_FD.load(Ordering::Relaxed);
-    if fd >= 0 {
-        unsafe {
-            libc::write(fd, msg.as_ptr() as *const libc::c_void, msg.len());
+    #[cfg(unix)]
+    {
+        let fd = LOG_FD.load(Ordering::Relaxed);
+        if fd >= 0 {
+            unsafe {
+                libc::write(fd, msg.as_ptr() as *const libc::c_void, msg.len());
+            }
         }
     }
 }
 
-/// Pre-open the log file for signal-safe crash writes. Must be called
-/// *before* install_panic_hook so the fd is available in the signal handler.
+#[cfg(unix)]
 fn init_log_fd(path: &Path) {
     if let Ok(file) = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
         .open(path)
     {
+        use std::os::fd::IntoRawFd;
         let prev = LOG_FD.swap(file.into_raw_fd(), Ordering::Relaxed);
         if prev >= 0 {
             unsafe { libc::close(prev) };
@@ -128,6 +131,7 @@ pub fn init_tracing(log_file_path: &str, log_level: Option<&str>) -> Result<Stri
     }
 
     let _ = LOG_FILE_PATH.set(log_path.to_path_buf());
+    #[cfg(unix)]
     init_log_fd(log_path);
     install_panic_hook();
 
