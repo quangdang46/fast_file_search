@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="fast_file_search_illustration.png" alt="ffs" width="720">
+  <img src="fast_file_search_illustration.webp" alt="ffs" width="720">
 </p>
 
 <p align="center">
