@@ -156,9 +156,8 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         // pattern_id from Aho-Corasick is the index into `patterns`.
         let mut by_line: std::collections::BTreeMap<u32, (String, Vec<String>)> =
             std::collections::BTreeMap::new();
-        let mut per_file = 0usize;
 
-        for mat in ac.find_iter(&content) {
+        for (per_file, mat) in ac.find_iter(&content).enumerate() {
             if per_file >= max_count {
                 break;
             }
@@ -170,7 +169,6 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
             if !entry.1.contains(&pat) {
                 entry.1.push(pat);
             }
-            per_file += 1;
             if args.files_with_matches && !by_line.is_empty() {
                 break;
             }
