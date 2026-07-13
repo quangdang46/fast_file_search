@@ -6,6 +6,10 @@ on:
     branches: [main]
     tags:
       - "v*"
+  # Catch out-of-band `gh release create` / UI publishes that create the tag
+  # without a push event (root cause of empty v0.1.15 assets — #75).
+  release:
+    types: [published]
   pull_request:
 
 env:
@@ -446,8 +450,10 @@ jobs:
 
           Install with:
           \`\`\`sh
-          # MCP server
-          curl -fsSL https://raw.githubusercontent.com/${{ github.repository_owner }}/ffs.nvim/main/install-mcp.sh | bash
+          curl -fsSL https://raw.githubusercontent.com/${{ github.repository_owner }}/fast_file_search/main/install.sh | bash
+          \`\`\`
+          \`\`\`powershell
+          irm https://raw.githubusercontent.com/${{ github.repository_owner }}/fast_file_search/main/install.ps1 | iex
           \`\`\`
           EOF
 

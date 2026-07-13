@@ -17,24 +17,33 @@ pub fn run_healthcheck(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
 
     let mut all_ok = true;
 
-    // 1. Base path
-    let base_path = args.base_path.clone().unwrap_or_else(|| {
-        std::env::current_dir()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_string()
-    });
-
+    // 1. Base path — report which source won so #77-class issues are diagnosable.
+    let source = if args.base_path.is_some() {
+        "cli-arg"
+    } else if std::env::var("WORKSPACE_FOLDER_PATHS")
+        .ok()
+        .is_some_and(|s| !s.trim().is_empty())
+    {
+        "WORKSPACE_FOLDER_PATHS"
+    } else if std::env::var("VSCODE_CWD")
+        .ok()
+        .is_some_and(|s| !s.trim().is_empty())
+    {
+        "VSCODE_CWD"
+    } else {
+        "cwd"
+    };
+    let base_path = args
+        .base_path
+        .clone()
+        .unwrap_or_else(crate::resolve_default_base_path);
+    let base_detail = if std::path::Path::new(&base_path).is_dir() {
+        format!("{base_path} (source={source})")
+    } else {
+        "directory does not exist".to_string()
+    };
     let path_exists = std::path::Path::new(&base_path).is_dir();
-    all_ok &= check(
-        "Base path",
-        path_exists,
-        if path_exists {
-            &base_path
-        } else {
-            "directory does not exist"
-        },
-    );
+    all_ok &= check("Base path", path_exists, &base_detail);
 
     // 2. Git repository
     match Repository::discover(&base_path) {

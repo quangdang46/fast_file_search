@@ -318,6 +318,10 @@ function Register-McpCodex {
     }
 }
 
+# args: @('mcp') is correct: ffs mcp auto-detects WORKSPACE_FOLDER_PATHS
+# (injected by Cursor) so it indexes the open workspace, not HOME (#77).
+# Prefer project-level mcp.json with an explicit path when available:
+#   { "command": "ffs", "args": ["mcp", "${workspaceFolder}"] }
 function Register-McpCursor {
     $cursorDir = Join-Path $env:USERPROFILE '.cursor'
     if (-not (Test-Path $cursorDir) -and -not (Get-Command cursor -ErrorAction SilentlyContinue)) {

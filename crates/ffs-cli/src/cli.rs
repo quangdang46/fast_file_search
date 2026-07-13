@@ -102,31 +102,46 @@ pub enum Command {
 
 impl Cli {
     pub fn run(self) -> Result<()> {
-        let root = self
-            .root
-            .clone()
-            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
-
-        // Bug 14: a non-existent / non-directory `--root` used to silently
-        // produce no output and exit 0. Reject it up-front so scripts can
-        // distinguish "no matches" from "wrong path".
-        if self.root.is_some() {
-            let meta = std::fs::metadata(&root)
-                .map_err(|e| anyhow::anyhow!("--root {}: {e}", root.display()))?;
-            if !meta.is_dir() {
-                return Err(anyhow::anyhow!(
-                    "--root {}: not a directory",
-                    root.display()
-                ));
-            }
-        }
-
         let Some(command) = self.command else {
             // No subcommand: print short help.
             Self::command().print_help()?;
             println!();
             return Ok(());
         };
+
+        // MCP gets special root resolution: explicit subcommand PATH, then
+        // global --root, then WORKSPACE_FOLDER_PATHS / VSCODE_CWD / cwd.
+        // Other commands keep the historical cwd default so scripts that rely
+        // on cwd are not surprised by IDE env vars.
+        let root = match &command {
+            Command::Mcp(a) => {
+                if let Some(p) = a.path.clone() {
+                    p
+                } else if let Some(r) = self.root.clone() {
+                    r
+                } else {
+                    commands::mcp::resolve_default_root()
+                }
+            }
+            _ => self
+                .root
+                .clone()
+                .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))),
+        };
+
+        // Bug 14: a non-existent / non-directory root used to silently
+        // produce no output and exit 0. Reject it up-front so scripts can
+        // distinguish "no matches" from "wrong path".
+        let explicit_root =
+            self.root.is_some() || matches!(&command, Command::Mcp(a) if a.path.is_some());
+        if explicit_root {
+            let meta = std::fs::metadata(&root)
+                .map_err(|e| anyhow::anyhow!("root {}: {e}", root.display()))?;
+            if !meta.is_dir() {
+                return Err(anyhow::anyhow!("root {}: not a directory", root.display()));
+            }
+        }
+
         match command {
             Command::Find(a) => commands::find::run(a, &root, self.format),
             Command::Glob(a) => commands::glob::run(a, &root, self.format),

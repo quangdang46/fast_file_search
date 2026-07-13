@@ -105,7 +105,10 @@ ffs callers UnifiedScanner                    # who calls a symbol
 ffs read crates/ffs-engine/src/lib.rs --budget 5000  # token-budget reader
 ffs map --depth 3                             # workspace tree
 ffs mcp                                       # run as MCP server over stdio
+ffs mcp /path/to/workspace                    # pin MCP index root explicitly
 ```
+
+> **MCP workspace root.** When launched without a path (as installers do for Cursor/VS Code), `ffs mcp` resolves the root from, in order: `WORKSPACE_FOLDER_PATHS` (injected by Cursor/VS Code), `VSCODE_CWD`, then `cwd`. User-level `~/.cursor/mcp.json` with `args: ["mcp"]` therefore indexes the open workspace, not the home directory. Prefer an explicit path (`args: ["mcp", "${workspaceFolder}"]`) in project-level configs when available.
 
 ---
 

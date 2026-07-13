@@ -452,6 +452,10 @@ mcp_unregister_codex() {
 }
 
 # --- Cursor (~/.cursor/mcp.json) ---
+# args:["mcp"] is correct: ffs mcp auto-detects WORKSPACE_FOLDER_PATHS
+# (injected by Cursor) so it indexes the open workspace, not HOME (#77).
+# Prefer project-level mcp.json with an explicit path when available:
+#   { "command": "ffs", "args": ["mcp", "${workspaceFolder}"] }
 mcp_register_cursor() {
     if [ ! -d "$HOME/.cursor" ] && ! command -v cursor >/dev/null 2>&1; then
         log_info "Cursor not detected — skipping"

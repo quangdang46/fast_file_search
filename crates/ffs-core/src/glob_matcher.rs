@@ -113,4 +113,23 @@ mod tests {
         let results = glob_files(dir.path(), "*.rs", 3);
         assert_eq!(results.len(), 3);
     }
+
+    // Regression for #76/#69: nested recursive patterns must match and always
+    // emit forward-slash relative paths (Windows previously returned `[]` or
+    // backslash paths that broke agents).
+    #[test]
+    fn test_glob_files_nested_forward_slash_pattern() {
+        let dir = tempfile::tempdir().unwrap();
+        let nested = dir.path().join("src").join("foo");
+        fs::create_dir_all(&nested).unwrap();
+        fs::write(nested.join("bar.ts"), "").unwrap();
+        fs::write(dir.path().join("src").join("top.ts"), "").unwrap();
+        fs::write(dir.path().join("src").join("skip.js"), "").unwrap();
+
+        let results = glob_files(dir.path(), "src/**/*.ts", 100);
+        assert_eq!(results.len(), 2, "should match nested + top-level .ts");
+        assert!(results.iter().any(|p| p == "src/foo/bar.ts"));
+        assert!(results.iter().any(|p| p == "src/top.ts"));
+        assert!(results.iter().all(|p| !p.contains('\\')));
+    }
 }

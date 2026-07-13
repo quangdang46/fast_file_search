@@ -200,6 +200,81 @@ fn dirs_home() -> String {
         .unwrap_or_else(|_| "/tmp".to_string())
 }
 
+/// Resolve the MCP workspace root when no PATH arg was given.
+///
+/// Priority (Cursor launches user-level mcp.json with cwd = HOME):
+/// 1. `WORKSPACE_FOLDER_PATHS` — first existing entry (Cursor / VS Code MCP)
+/// 2. `VSCODE_CWD`
+/// 3. `std::env::current_dir()`
+///
+/// Multi-root workspaces only use the first existing path.
+pub(crate) fn resolve_default_base_path() -> String {
+    if let Some(p) = first_existing_workspace_folder() {
+        return p;
+    }
+    if let Ok(cwd) = std::env::var("VSCODE_CWD") {
+        let trimmed = cwd.trim().trim_matches('"').trim_matches('\'');
+        if !trimmed.is_empty() && std::path::Path::new(trimmed).is_dir() {
+            return trimmed.to_string();
+        }
+    }
+    std::env::current_dir()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string()
+}
+
+fn first_existing_workspace_folder() -> Option<String> {
+    let raw = std::env::var("WORKSPACE_FOLDER_PATHS").ok()?;
+    let paths = parse_workspace_folder_paths(&raw);
+    if paths.len() > 1 {
+        tracing::warn!(
+            count = paths.len(),
+            "WORKSPACE_FOLDER_PATHS has multiple entries; indexing the first existing one only"
+        );
+    }
+    paths.into_iter().find(|p| std::path::Path::new(p).is_dir())
+}
+
+/// Split on `;` / newlines only — never on `:`, which is the Windows drive letter.
+fn parse_workspace_folder_paths(raw: &str) -> Vec<String> {
+    raw.split([';', '\n', '\r'])
+        .map(|s| s.trim().trim_matches('"').trim_matches('\''))
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+        .collect()
+}
+
+#[cfg(test)]
+mod workspace_path_tests {
+    use super::parse_workspace_folder_paths;
+
+    #[test]
+    fn single_path() {
+        let paths = parse_workspace_folder_paths("/Users/me/project");
+        assert_eq!(paths, vec!["/Users/me/project"]);
+    }
+
+    #[test]
+    fn windows_multi_semicolon() {
+        let paths = parse_workspace_folder_paths(r"C:\a;C:\b");
+        assert_eq!(paths, vec![r"C:\a", r"C:\b"]);
+    }
+
+    #[test]
+    fn trims_quotes_and_empties() {
+        let paths = parse_workspace_folder_paths("  \"/a\" ;  ; '/b' \n");
+        assert_eq!(paths, vec!["/a", "/b"]);
+    }
+
+    #[test]
+    fn never_splits_on_colon() {
+        // Windows drive letters must stay intact.
+        let paths = parse_workspace_folder_paths(r"C:\Users\ADMIN\project");
+        assert_eq!(paths, vec![r"C:\Users\ADMIN\project"]);
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut args = Args::parse();
@@ -214,12 +289,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         eprintln!("Warning: Failed to init tracing: {}", e);
     }
 
-    let base_path = args.base_path.unwrap_or_else(|| {
-        std::env::current_dir()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_string()
-    });
+    // Prefer explicit PATH arg; otherwise auto-detect Cursor/VS Code workspace
+    // roots so user-level mcp.json with args:["mcp"] still indexes the project
+    // (not HOME). See #77.
+    let base_path = args.base_path.unwrap_or_else(resolve_default_base_path);
 
     let base_path = match Repository::discover(&base_path) {
         Ok(repo) => {

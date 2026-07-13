@@ -21,6 +21,56 @@ pub struct Args {
     /// Optional total token budget propagated to `Engine`.
     #[arg(long)]
     pub budget: Option<u64>,
+
+    /// Workspace root to index. Wins over the global `--root` flag and over
+    /// auto-detection (`WORKSPACE_FOLDER_PATHS` / `VSCODE_CWD` / cwd).
+    #[arg(value_name = "PATH")]
+    pub path: Option<PathBuf>,
+}
+
+/// Resolve the MCP workspace root when the user did not pass an explicit path.
+///
+/// Priority:
+/// 1. `WORKSPACE_FOLDER_PATHS` — first existing entry (Cursor / VS Code MCP)
+/// 2. `VSCODE_CWD` — VS Code sometimes injects this
+/// 3. `std::env::current_dir()`
+///
+/// Multi-root workspaces only use the first existing path; FilePicker is
+/// single-root today.
+pub fn resolve_default_root() -> PathBuf {
+    if let Some(p) = first_existing_workspace_folder() {
+        return p;
+    }
+    if let Ok(cwd) = std::env::var("VSCODE_CWD") {
+        let p = PathBuf::from(cwd.trim().trim_matches('"').trim_matches('\''));
+        if p.is_dir() {
+            return p;
+        }
+    }
+    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+}
+
+fn first_existing_workspace_folder() -> Option<PathBuf> {
+    let raw = std::env::var("WORKSPACE_FOLDER_PATHS").ok()?;
+    let paths = parse_workspace_folder_paths(&raw);
+    if paths.len() > 1 {
+        // Single-root only for now; surface multi-root so users aren't surprised.
+        eprintln!(
+            "ffs mcp: WORKSPACE_FOLDER_PATHS has {} entries; indexing the first existing one only",
+            paths.len()
+        );
+    }
+    paths.into_iter().find(|p| p.is_dir())
+}
+
+/// Split `WORKSPACE_FOLDER_PATHS` on `;` / newlines only — never on `:`,
+/// which is the Windows drive-letter separator.
+fn parse_workspace_folder_paths(raw: &str) -> Vec<PathBuf> {
+    raw.split([';', '\n', '\r'])
+        .map(|s| s.trim().trim_matches('"').trim_matches('\''))
+        .filter(|s| !s.is_empty())
+        .map(PathBuf::from)
+        .collect()
 }
 
 struct McpState {
@@ -602,40 +652,10 @@ fn grep_files(root: &Path, query: &str, limit: usize) -> Vec<GrepHit> {
     hits
 }
 
+// Delegate to the shared core matcher so Windows skips zlob (POSIX-only) and
+// path separators are normalized to `/` (regression for #76 / #69).
 fn glob_files(root: &Path, pattern: &str, limit: usize) -> Vec<String> {
-    #[cfg(feature = "zlob")]
-    {
-        let flags = zlob::ZlobFlags::RECOMMENDED | zlob::ZlobFlags::GITIGNORE;
-        let base = root.to_string_lossy();
-        match zlob::zlob_at(&base, pattern, flags) {
-            Ok(Some(result)) => result.iter().take(limit).map(|s| s.to_string()).collect(),
-            Ok(None) => Vec::new(),
-            Err(_) => Vec::new(),
-        }
-    }
-
-    #[cfg(not(feature = "zlob"))]
-    {
-        let mut builder = ignore::gitignore::GitignoreBuilder::new(root);
-        // Ignore builder errors — return empty results on invalid patterns
-        if builder.add_line(None, pattern).is_err() {
-            return Vec::new();
-        }
-        let Ok(matcher) = builder.build() else {
-            return Vec::new();
-        };
-        let mut hits = Vec::new();
-        for path in super::walk_files(root) {
-            let rel = path.strip_prefix(root).unwrap_or(&path);
-            if matcher.matched(rel, false).is_ignore() {
-                hits.push(display_path(root, &path));
-                if hits.len() >= limit {
-                    break;
-                }
-            }
-        }
-        hits
-    }
+    ffs_search::glob_matcher::glob_files(root, pattern, limit)
 }
 
 #[derive(Debug, Serialize)]
@@ -930,6 +950,30 @@ fn symbol_glob_to_json(hits: Vec<(String, ffs_symbol::symbol_index::SymbolLocati
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parse_workspace_folder_paths_single() {
+        let paths = parse_workspace_folder_paths("/Users/me/project");
+        assert_eq!(paths, vec![PathBuf::from("/Users/me/project")]);
+    }
+
+    #[test]
+    fn parse_workspace_folder_paths_windows_multi() {
+        let paths = parse_workspace_folder_paths(r"C:\a;C:\b");
+        assert_eq!(paths, vec![PathBuf::from(r"C:\a"), PathBuf::from(r"C:\b")]);
+    }
+
+    #[test]
+    fn parse_workspace_folder_paths_trims_and_skips_empty() {
+        let paths = parse_workspace_folder_paths("  \"/a\" ;  ; '/b' \n");
+        assert_eq!(paths, vec![PathBuf::from("/a"), PathBuf::from("/b")]);
+    }
+
+    #[test]
+    fn parse_workspace_folder_paths_keeps_windows_drive() {
+        let paths = parse_workspace_folder_paths(r"C:\Users\ADMIN\project");
+        assert_eq!(paths, vec![PathBuf::from(r"C:\Users\ADMIN\project")]);
+    }
 
     #[test]
     fn tools_list_includes_object_input_schemas() {
