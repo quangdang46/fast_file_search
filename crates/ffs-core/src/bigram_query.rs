@@ -121,19 +121,15 @@ impl BigramQuery {
                 }
                 let mut result: Option<Vec<u64>> = None;
                 for child in children {
-                    match child.evaluate_cow(index) {
-                        // Any branch can't be filtered → whole OR can't be filtered
-                        None => return None,
-                        Some(child_bits) => {
-                            result = Some(match result {
-                                None => child_bits.into_owned(),
-                                Some(mut r) => {
-                                    bitset_or(&mut r, &child_bits);
-                                    r
-                                }
-                            });
+                    // Any branch can't be filtered → whole OR can't be filtered
+                    let child_bits = child.evaluate_cow(index)?;
+                    result = Some(match result {
+                        None => child_bits.into_owned(),
+                        Some(mut r) => {
+                            bitset_or(&mut r, &child_bits);
+                            r
                         }
-                    }
+                    });
                 }
                 result.map(Cow::Owned)
             }
