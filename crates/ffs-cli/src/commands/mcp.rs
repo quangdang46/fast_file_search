@@ -208,11 +208,13 @@ fn tools_list() -> Value {
         ),
         tool(
             "ffs_multi_grep",
-            "OR-logic multi-pattern content search via SIMD Aho-Corasick.",
-            &["queries"],
+            "OR-logic multi-pattern content search via SIMD Aho-Corasick. Accepts `queries` or `patterns`.",
+            &[],
             json!({
-                "queries": {"type": "array", "items": {"type": "string"}, "description": "Patterns to OR together."},
-                "maxResults": {"type": "integer", "minimum": 1, "description": "Maximum matching lines to return."}
+                "queries": {"type": "array", "items": {"type": "string"}, "description": "Patterns to OR together (legacy name)."},
+                "patterns": {"type": "array", "items": {"type": "string"}, "description": "Alias for `queries` (matches engine/agent docs)."},
+                "maxResults": {"type": "integer", "minimum": 1, "description": "Maximum matching lines to return."},
+                "limit": {"type": "integer", "minimum": 1, "description": "Alias for maxResults."}
             }),
         ),
         tool(
@@ -377,23 +379,22 @@ fn handle_tool(state: &mut McpState, root: &Path, name: &str, args: &Value) -> R
             Ok(text_json(serde_json::to_string(&hits)?))
         }
         "ffs_multi_grep" => {
+            // Accept `queries` (legacy MCP stub) or `patterns` (engine/agent docs).
             let queries = args
                 .get("queries")
+                .or_else(|| args.get("patterns"))
                 .and_then(Value::as_array)
-                .ok_or_else(|| anyhow::anyhow!("missing queries"))?;
+                .ok_or_else(|| anyhow::anyhow!("missing queries or patterns"))?;
             let limit = get_limit(args, 20);
             let mut all_hits = Vec::new();
-            for q in queries {
-                let Some(s) = q.as_str() else {
-                    continue;
-                };
-                let mut hits = grep_files(root, s, limit);
+            // Prefer a single multi-literal pass via the CLI multi-grep path when
+            // all entries are plain strings (same OR semantics as Aho-Corasick).
+            let needles: Vec<&str> = queries.iter().filter_map(Value::as_str).collect();
+            if !needles.is_empty() {
+                let mut hits = multi_grep_files(root, &needles, limit);
                 all_hits.append(&mut hits);
-                if all_hits.len() >= limit {
-                    all_hits.truncate(limit);
-                    break;
-                }
             }
+            all_hits.truncate(limit);
             Ok(text_json(serde_json::to_string(&all_hits)?))
         }
         "ffs_glob" => {
@@ -647,6 +648,67 @@ fn grep_files(root: &Path, query: &str, limit: usize) -> Vec<GrepHit> {
                     break;
                 }
             }
+        }
+    }
+    hits
+}
+
+/// Multi-pattern OR search (Aho-Corasick) — same semantics as `ffs multi-grep`.
+fn multi_grep_files(root: &Path, needles: &[&str], limit: usize) -> Vec<GrepHit> {
+    if needles.is_empty() || limit == 0 {
+        return Vec::new();
+    }
+    let case_insensitive = !needles.iter().any(|p| p.chars().any(|c| c.is_uppercase()));
+    let Ok(ac) = aho_corasick::AhoCorasickBuilder::new()
+        .ascii_case_insensitive(case_insensitive)
+        .build(needles)
+    else {
+        // Fall back to sequential single greps if AC build fails.
+        let mut all = Vec::new();
+        for n in needles {
+            let mut hits = grep_files(root, n, limit.saturating_sub(all.len()));
+            all.append(&mut hits);
+            if all.len() >= limit {
+                break;
+            }
+        }
+        all.truncate(limit);
+        return all;
+    };
+
+    let mut hits = Vec::new();
+    let mut seen_lines: std::collections::HashSet<(String, usize)> =
+        std::collections::HashSet::new();
+
+    for path in super::walk_files(root) {
+        if hits.len() >= limit {
+            break;
+        }
+        let Ok(text) = ffs_search::bom::read_file(&path) else {
+            continue;
+        };
+        let bytes = text.as_bytes();
+        for mat in ac.find_iter(bytes) {
+            if hits.len() >= limit {
+                break;
+            }
+            // Map byte offset → 1-based line
+            let line = bytes[..mat.start()].iter().filter(|&&b| b == b'\n').count() + 1;
+            let key = (display_path(root, &path), line);
+            if !seen_lines.insert(key.clone()) {
+                continue;
+            }
+            let line_text = text
+                .lines()
+                .nth(line.saturating_sub(1))
+                .unwrap_or("")
+                .trim()
+                .to_string();
+            hits.push(GrepHit {
+                path: key.0,
+                line: key.1,
+                text: line_text,
+            });
         }
     }
     hits

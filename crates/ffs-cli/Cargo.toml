@@ -1,6 +1,6 @@
 [package]
 name = "ffs-cli"
-version = "0.1.16"
+version = "0.1.17"
 edition = "2021"
 license = "MIT"
 description = "Command line interface for ffs — unified code search and read tool."
@@ -32,6 +32,7 @@ serde_json = { workspace = true }
 regex = { workspace = true }
 rayon = { workspace = true }
 memchr = { workspace = true }
+aho-corasick = { workspace = true }
 memmap2 = { workspace = true }
 postcard = { version = "1", features = ["use-std"] }
 zstd = { version = "0.13", features = ["no_asm"] }

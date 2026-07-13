@@ -100,6 +100,7 @@ ffs find UnifiedScanner                       # fuzzy file-name search
 ffs find grep --scored                        # role-aware ranking
 ffs grep '\bTODO\b' --root crates/            # content grep
 ffs grep 'fn main' --group                    # symbol-grouped grep
+ffs multi-grep TODO FIXME HACK                # multi-literal OR (Aho-Corasick)
 ffs symbol FilePicker                         # tree-sitter symbol lookup
 ffs callers UnifiedScanner                    # who calls a symbol
 ffs read crates/ffs-engine/src/lib.rs --budget 5000  # token-budget reader
@@ -154,7 +155,7 @@ Linux x86_64/aarch64, macOS x86_64/aarch64, Windows x86_64/aarch64
 | `find` | Fuzzy file-name search. Frecency-ranked, glob constraints, git-aware |
 | `glob` | Match files by glob pattern (replaces shell `**`) |
 | `grep` | Content search — plain / regex / fuzzy auto-detect |
-| `multi-grep` | OR-logic multi-pattern search (SIMD Aho-Corasick) |
+| `multi-grep` | OR-logic multi-pattern literal search (Aho-Corasick; alias `multigrep`) |
 | `read` | Token-budget aware file read (replaces `cat`) |
 | `outline` | Structural outline of a file (functions, classes, top-level decls) |
 | `symbol` | Exact + prefix lookup over the tree-sitter symbol index |

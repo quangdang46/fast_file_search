@@ -49,6 +49,10 @@ pub enum Command {
     /// Search file contents (replaces `grep` and `rg`).
     Grep(commands::grep::Args),
 
+    /// Multi-pattern OR content search (Aho-Corasick; literal needles).
+    #[command(name = "multi-grep", visible_alias = "multigrep")]
+    MultiGrep(commands::multi_grep::Args),
+
     /// Read a file with token-budget aware truncation (replaces `cat`).
     Read(commands::read::Args),
 
@@ -146,6 +150,7 @@ impl Cli {
             Command::Find(a) => commands::find::run(a, &root, self.format),
             Command::Glob(a) => commands::glob::run(a, &root, self.format),
             Command::Grep(a) => commands::grep::run(a, &root, self.format),
+            Command::MultiGrep(a) => commands::multi_grep::run(a, &root, self.format),
             Command::Read(a) => commands::read::run(a, &root, self.format),
             Command::Outline(a) => commands::outline::run(a, &root, self.format),
             Command::Symbol(a) => commands::symbol::run(a, &root, self.format),

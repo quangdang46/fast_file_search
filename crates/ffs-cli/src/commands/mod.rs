@@ -21,6 +21,7 @@ pub mod index;
 pub mod map;
 pub mod mcp;
 pub mod mention;
+pub mod multi_grep;
 pub mod outline;
 pub(crate) mod outline_format;
 pub mod overview;
