@@ -6,7 +6,8 @@
 //! `ffs-core` APIs (no C FFI overhead).
 
 use std::borrow::Cow;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
 use std::sync::{Arc, Mutex};
 
 use crate::cursor::CursorStore;
@@ -217,6 +218,15 @@ pub struct FfsServer {
     cursor_store: Arc<Mutex<CursorStore>>,
     update_notice_sent: Arc<AtomicBool>,
     engine: Arc<EngineHolder>,
+    last_activity: Arc<AtomicU64>,
+    scan_ready: Arc<AtomicBool>,
+}
+
+fn now_secs() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
 }
 
 impl FfsServer {
@@ -228,6 +238,8 @@ impl FfsServer {
             cursor_store: Arc::new(Mutex::new(CursorStore::new())),
             update_notice_sent: Arc::new(AtomicBool::new(false)),
             engine: Arc::new(EngineHolder::new()),
+            last_activity: Arc::new(AtomicU64::new(now_secs())),
+            scan_ready: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -243,12 +255,22 @@ impl FfsServer {
             cursor_store: Arc::new(Mutex::new(CursorStore::new())),
             update_notice_sent: Arc::new(AtomicBool::new(false)),
             engine,
+            last_activity: Arc::new(AtomicU64::new(now_secs())),
+            scan_ready: Arc::new(AtomicBool::new(false)),
         }
     }
     #[allow(dead_code)]
     /// Access the engine holder for warmup or shared use.
     pub fn engine_holder(&self) -> Arc<EngineHolder> {
         self.engine.clone()
+    }
+
+    pub fn last_activity(&self) -> Arc<AtomicU64> {
+        self.last_activity.clone()
+    }
+
+    fn bump_activity(&self) {
+        self.last_activity.store(now_secs(), Ordering::Relaxed);
     }
 
     /// Resolve the repository root from the picker's base path.
@@ -264,16 +286,33 @@ impl FfsServer {
 
     #[allow(dead_code)]
     pub fn wait_for_scan(&self) {
+        let _ = self.wait_for_scan_timeout(std::time::Duration::from_secs(30));
+    }
+
+    fn wait_for_scan_timeout(&self, timeout: std::time::Duration) -> Result<(), ErrorData> {
+        if self.scan_ready.load(Ordering::Relaxed) {
+            return Ok(());
+        }
+        let deadline = std::time::Instant::now() + timeout;
         loop {
-            let guard = self.picker.read().ok();
-            let is_scanning = guard
+            let is_scanning = self
+                .picker
+                .read()
+                .ok()
                 .as_ref()
                 .and_then(|g| g.as_ref())
                 .map(|p| p.is_scan_active())
                 .unwrap_or(true);
 
             if !is_scanning {
-                break;
+                self.scan_ready.store(true, Ordering::Relaxed);
+                return Ok(());
+            }
+            if std::time::Instant::now() >= deadline {
+                return Err(ErrorData::internal_error(
+                    "Index is still building; retry shortly",
+                    None,
+                ));
             }
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
@@ -472,6 +511,7 @@ impl FfsServer {
         &self,
         Parameters(params): Parameters<FindFilesParams>,
     ) -> Result<CallToolResult, ErrorData> {
+        self.bump_activity();
         let max_results = normalize_max_results(params.max_results, 20);
         let query = &params.query;
 
@@ -583,6 +623,7 @@ impl FfsServer {
         &self,
         Parameters(params): Parameters<FindDirsParams>,
     ) -> Result<CallToolResult, ErrorData> {
+        self.bump_activity();
         let max_results = normalize_max_results(params.max_results, 20);
 
         let page_offset = params
@@ -661,6 +702,7 @@ impl FfsServer {
         &self,
         Parameters(params): Parameters<FindMixedParams>,
     ) -> Result<CallToolResult, ErrorData> {
+        self.bump_activity();
         let max_results = normalize_max_results(params.max_results, 20);
 
         let page_offset = params
@@ -750,6 +792,7 @@ impl FfsServer {
         &self,
         Parameters(params): Parameters<GrepParams>,
     ) -> Result<CallToolResult, ErrorData> {
+        self.bump_activity();
         let max_results = normalize_max_results(params.max_results, 20);
         let output_mode = OutputMode::new(params.output_mode.as_deref());
 
@@ -784,6 +827,7 @@ impl FfsServer {
         &self,
         Parameters(params): Parameters<MultiGrepParams>,
     ) -> Result<CallToolResult, ErrorData> {
+        self.bump_activity();
         let mut result = self.multi_grep_inner(params)?;
         self.maybe_append_update_notice(&mut result);
         Ok(result)
@@ -797,6 +841,7 @@ impl FfsServer {
         &self,
         Parameters(params): Parameters<EngineSymbolParams>,
     ) -> Result<CallToolResult, ErrorData> {
+        self.bump_activity();
         let root = self.picker_base_path()?;
         let max_results = normalize_max_results(params.max_results, 50);
         let engine = self.engine.get_or_build(&root, 25_000);
@@ -834,6 +879,7 @@ impl FfsServer {
         &self,
         Parameters(params): Parameters<EngineCallParams>,
     ) -> Result<CallToolResult, ErrorData> {
+        self.bump_activity();
         let root = self.picker_base_path()?;
         let max_results = normalize_max_results(params.max_results, 100);
         let engine = self.engine.get_or_build(&root, 25_000);
@@ -850,6 +896,7 @@ impl FfsServer {
         &self,
         Parameters(params): Parameters<EngineCallParams>,
     ) -> Result<CallToolResult, ErrorData> {
+        self.bump_activity();
         let root = self.picker_base_path()?;
         let max_results = normalize_max_results(params.max_results, 100);
         let engine = self.engine.get_or_build(&root, 25_000);
@@ -867,6 +914,7 @@ impl FfsServer {
         &self,
         Parameters(params): Parameters<EngineReadParams>,
     ) -> Result<CallToolResult, ErrorData> {
+        self.bump_activity();
         let root = self.picker_base_path()?;
         let max_tokens = normalize_max_results(params.max_tokens, 25_000) as u64;
         let level = crate::engine_tools::parse_filter_level(params.filter.as_deref());
@@ -908,6 +956,7 @@ impl FfsServer {
         &self,
         Parameters(params): Parameters<EngineRefsParams>,
     ) -> Result<CallToolResult, ErrorData> {
+        self.bump_activity();
         let root = self.picker_base_path()?;
         let limit = normalize_max_results(params.max_results, 100);
         let offset = params.offset.map(|v| v.round() as usize).unwrap_or(0);
@@ -925,6 +974,7 @@ impl FfsServer {
         &self,
         Parameters(params): Parameters<EngineFlowParams>,
     ) -> Result<CallToolResult, ErrorData> {
+        self.bump_activity();
         let root = self.picker_base_path()?;
         let limit = normalize_max_results(params.max_results, 10);
         let offset = params.offset.map(|v| v.round() as usize).unwrap_or(0);
@@ -951,6 +1001,7 @@ impl FfsServer {
         &self,
         Parameters(params): Parameters<EngineImpactParams>,
     ) -> Result<CallToolResult, ErrorData> {
+        self.bump_activity();
         let root = self.picker_base_path()?;
         let limit = normalize_max_results(params.max_results, 20);
         let offset = params.offset.map(|v| v.round() as usize).unwrap_or(0);
@@ -967,6 +1018,7 @@ impl FfsServer {
         &self,
         Parameters(params): Parameters<EngineOutlineParams>,
     ) -> Result<CallToolResult, ErrorData> {
+        self.bump_activity();
         let root = self.picker_base_path()?;
         let path = if std::path::Path::new(&params.path).is_absolute() {
             std::path::PathBuf::from(&params.path)
@@ -986,6 +1038,7 @@ impl FfsServer {
         &self,
         Parameters(params): Parameters<EngineSiblingsParams>,
     ) -> Result<CallToolResult, ErrorData> {
+        self.bump_activity();
         let limit = normalize_max_results(params.max_results, 100);
         let root = self.picker_base_path()?;
         let offset = params.offset.map(|v| v.round() as usize).unwrap_or(0);
@@ -1009,6 +1062,7 @@ impl FfsServer {
         &self,
         Parameters(params): Parameters<EngineDepsParams>,
     ) -> Result<CallToolResult, ErrorData> {
+        self.bump_activity();
         let root = self.picker_base_path()?;
         let limit = normalize_max_results(params.max_results, 100);
         let offset = params.offset.map(|v| v.round() as usize).unwrap_or(0);
@@ -1024,6 +1078,7 @@ impl FfsServer {
         &self,
         Parameters(params): Parameters<EngineMapParams>,
     ) -> Result<CallToolResult, ErrorData> {
+        self.bump_activity();
         let root = self.picker_base_path()?;
         let depth = params.depth.map(|v| v.round() as u32).unwrap_or(3);
         let symbols = params.symbols.map(|v| v.round() as u32).unwrap_or(0);
@@ -1034,6 +1089,7 @@ impl FfsServer {
         &self,
         Parameters(params): Parameters<EngineOverviewParams>,
     ) -> Result<CallToolResult, ErrorData> {
+        self.bump_activity();
         let root = self.picker_base_path()?;
         let top_languages = normalize_max_results(params.top_languages, 10);
         let top_symbols = normalize_max_results(params.top_symbols, 15);
@@ -1062,6 +1118,7 @@ impl FfsServer {
         &self,
         Parameters(params): Parameters<crate::mention_tools::MentionSearchParams>,
     ) -> Result<CallToolResult, ErrorData> {
+        self.bump_activity();
         let root = self.picker_base_path()?;
         let opts = crate::mention_tools::build_resolve_options(
             params.max_tokens,

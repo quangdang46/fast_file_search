@@ -165,6 +165,15 @@ pub(crate) struct Args {
     #[arg(long = "follow-symlinks")]
     follow_symlinks: bool,
 
+    /// Exit after this many seconds of inactivity. 0 = never exit.
+    /// Defaults to 900s (15 minutes). Also settable via FFS_MCP_IDLE_TIMEOUT_SECS.
+    #[arg(
+        long = "idle-timeout-secs",
+        env = "FFS_MCP_IDLE_TIMEOUT_SECS",
+        default_value_t = 900
+    )]
+    idle_timeout_secs: u64,
+
     /// Run a health check and print diagnostic information, then exit.
     #[arg(long = "healthcheck")]
     pub(crate) healthcheck: bool,
@@ -371,6 +380,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         shared_frecency.clone(),
         engine_holder.clone(),
     );
+    let last_activity = server.last_activity();
+    let idle_timeout_secs = args.idle_timeout_secs;
 
     // Wait for initial scan in background — don't block server startup.
     // After scan completes, pre-warm the engine for zero cold-start cost.
@@ -402,10 +413,44 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
     });
 
-    let service = server
-        .serve(stdio())
-        .await
-        .map_err(|e| format!("Failed to start MCP server: {}", e))?;
+    const STARTUP_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
+    let service = match tokio::time::timeout(STARTUP_TIMEOUT, server.serve(stdio())).await {
+        Ok(res) => res.map_err(|e| format!("Failed to start MCP server: {}", e))?,
+        Err(_) => {
+            return Err("MCP initialize handshake did not complete within 60s".into());
+        }
+    };
+
+    if idle_timeout_secs > 0 {
+        last_activity.store(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0),
+            std::sync::atomic::Ordering::Relaxed,
+        );
+
+        let last_activity_for_watchdog = last_activity.clone();
+        tokio::spawn(async move {
+            let tick = std::time::Duration::from_secs(60);
+            loop {
+                tokio::time::sleep(tick).await;
+                let now = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0);
+                let last = last_activity_for_watchdog.load(std::sync::atomic::Ordering::Relaxed);
+                if now.saturating_sub(last) >= idle_timeout_secs {
+                    tracing::info!(
+                        "Exiting after {}s of inactivity (idle_timeout_secs={})",
+                        now.saturating_sub(last),
+                        idle_timeout_secs
+                    );
+                    std::process::exit(0);
+                }
+            }
+        });
+    }
 
     let picker_for_shutdown = shared_picker.clone();
     tokio::spawn(async move {
