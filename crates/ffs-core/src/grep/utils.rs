@@ -21,7 +21,7 @@ pub fn has_regex_metacharacters(text: &str) -> bool {
 /// `\n` → true (user wants multiline search)
 /// `\\n` → false (escaped backslash followed by literal `n`, e.g. `\\nvim-data`)
 #[inline]
-pub(super) fn has_unescaped_newline_escape(text: &str) -> bool {
+pub fn has_unescaped_newline_escape(text: &str) -> bool {
     let bytes = text.as_bytes();
     let mut i = 0;
     while i < bytes.len().saturating_sub(1) {
@@ -50,7 +50,7 @@ pub(super) fn has_unescaped_newline_escape(text: &str) -> bool {
 ///
 /// `\n` → newline character
 /// `\\n` → preserved as-is (literal backslash + `n`)
-pub(super) fn replace_unescaped_newline_escapes(text: &str) -> String {
+pub fn replace_unescaped_newline_escapes(text: &str) -> String {
     let bytes = text.as_bytes();
     let mut result = Vec::with_capacity(bytes.len());
     let mut i = 0;
@@ -82,7 +82,7 @@ pub fn parse_grep_query(query: &str) -> FfsQuery<'_> {
     parser.parse(query)
 }
 
-pub(super) fn strip_file_path_constraints<'a>(
+pub(crate) fn strip_file_path_constraints<'a>(
     constraints: &[Constraint<'a>],
 ) -> Option<ffs_query_parser::ConstraintVec<'a>> {
     if !constraints
