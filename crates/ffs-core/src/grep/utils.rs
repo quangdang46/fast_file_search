@@ -77,7 +77,6 @@ pub(super) fn replace_unescaped_newline_escapes(text: &str) -> String {
     String::from_utf8(result).unwrap_or_else(|_| text.to_string())
 }
 
-
 pub fn parse_grep_query(query: &str) -> FfsQuery<'_> {
     let parser = QueryParser::new(GrepConfig);
     parser.parse(query)
@@ -101,5 +100,3 @@ pub(super) fn strip_file_path_constraints<'a>(
 
     Some(filtered)
 }
-
-

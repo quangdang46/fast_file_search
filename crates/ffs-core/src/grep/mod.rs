@@ -14,7 +14,7 @@ mod utils;
 mod grep;
 pub use classify::*;
 pub use grep::*;
-pub use utils::*;
+pub use utils::{has_regex_metacharacters, parse_grep_query};
 
 #[cfg(test)]
 mod grep_tests;

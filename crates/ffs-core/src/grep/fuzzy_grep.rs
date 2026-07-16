@@ -2,7 +2,7 @@
 
 use super::classify::is_definition_line;
 use super::grep::{
-    GrepMatch, GrepSearchOptions, GrepResult, char_indices_to_byte_offsets, collect_grep_results,
+    GrepMatch, GrepResult, GrepSearchOptions, char_indices_to_byte_offsets, collect_grep_results,
     truncate_display_bytes,
 };
 use crate::types::{ContentCacheBudget, FileItem, MmapSlot};
@@ -357,4 +357,3 @@ pub(super) fn fuzzy_grep_search<'a>(
         budget_exceeded.load(Ordering::Relaxed),
     )
 }
-

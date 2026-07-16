@@ -19,7 +19,7 @@ pub use ffs_grep::{
     lines::{self, LineStep},
     matcher::{Match, Matcher, NoError},
 };
-use ffs_query_parser::{Constraint, FfsQuery, GrepConfig, QueryParser};
+use ffs_query_parser::{FfsQuery, GrepConfig, QueryParser};
 use rayon::prelude::*;
 use smallvec::SmallVec;
 use std::path::Path;
@@ -28,7 +28,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use tracing::Level;
 
 use super::classify::is_definition_line;
-pub use super::utils::{has_regex_metacharacters, parse_grep_query};
 use super::fuzzy_grep::fuzzy_grep_search;
 use super::utils::{
     has_unescaped_newline_escape, replace_unescaped_newline_escapes, strip_file_path_constraints,
@@ -818,7 +817,8 @@ pub fn multi_grep_search<'a>(
     if files_to_search.is_empty()
         && let Some(stripped) = strip_file_path_constraints(constraints)
     {
-        let (retry_files, retry_count) = prepare_files_to_search(files, &stripped, options, arena, overflow_arena);
+        let (retry_files, retry_count) =
+            prepare_files_to_search(files, &stripped, options, arena, overflow_arena);
         files_to_search = retry_files;
         filtered_file_count = retry_count;
     }
@@ -959,7 +959,10 @@ pub(super) fn build_regex(pattern: &str, smart_case: bool) -> Result<regex::byte
 ///
 /// Each matched character becomes its own (byte_start, byte_end) pair.
 /// Adjacent characters are merged into a single contiguous range.
-pub(super) fn char_indices_to_byte_offsets(line: &str, char_indices: &[usize]) -> SmallVec<[(u32, u32); 4]> {
+pub(super) fn char_indices_to_byte_offsets(
+    line: &str,
+    char_indices: &[usize],
+) -> SmallVec<[(u32, u32); 4]> {
     if char_indices.is_empty() {
         return SmallVec::new();
     }
@@ -1305,7 +1308,6 @@ pub(super) fn prepare_files_to_search<'a>(
     }
 }
 
-
 /// Perform a grep search across all indexed files.
 ///
 /// When `query` is empty, returns git-modified/untracked files sorted by
@@ -1372,8 +1374,13 @@ pub(crate) fn grep_search<'a>(
     let regex = match options.mode {
         GrepMode::PlainText => None,
         GrepMode::Fuzzy => {
-            let (mut files_to_search, mut filtered_file_count) =
-                prepare_files_to_search(files, constraints_from_query, options, arena, overflow_arena);
+            let (mut files_to_search, mut filtered_file_count) = prepare_files_to_search(
+                files,
+                constraints_from_query,
+                options,
+                arena,
+                overflow_arena,
+            );
 
             if files_to_search.is_empty()
                 && let Some(stripped) = strip_file_path_constraints(constraints_from_query)
@@ -1601,8 +1608,13 @@ pub(crate) fn grep_search<'a>(
             }
         }
         _ => {
-            let (mut fts, mut fc) =
-                prepare_files_to_search(files, constraints_from_query, options, arena, overflow_arena);
+            let (mut fts, mut fc) = prepare_files_to_search(
+                files,
+                constraints_from_query,
+                options,
+                arena,
+                overflow_arena,
+            );
 
             if fts.is_empty()
                 && let Some(stripped) = strip_file_path_constraints(constraints_from_query)
@@ -1715,4 +1727,3 @@ pub(crate) fn grep_search<'a>(
     result.regex_fallback_error = regex_fallback_error;
     result
 }
-

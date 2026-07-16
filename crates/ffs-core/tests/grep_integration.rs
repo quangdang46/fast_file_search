@@ -390,7 +390,6 @@ fn binary_payload_after_long_ascii_header_is_detected() {
     );
 }
 
-
 #[test]
 fn plain_text_max_matches_per_file() {
     let tmp = TempDir::new().unwrap();

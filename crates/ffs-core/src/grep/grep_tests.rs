@@ -373,4 +373,3 @@ fn test_grep_no_duplicates_with_overflow_trailing_bits() {
         result.matches.len()
     );
 }
-

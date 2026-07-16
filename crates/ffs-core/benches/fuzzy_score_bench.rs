@@ -71,7 +71,13 @@ fn bench_fuzzy_score(c: &mut Criterion) {
                         },
                         ..Config::default()
                     };
-                    b.iter(|| black_box(match_list(black_box(needle), black_box(hs), black_box(&config))));
+                    b.iter(|| {
+                        black_box(match_list(
+                            black_box(needle),
+                            black_box(hs),
+                            black_box(&config),
+                        ))
+                    });
                 },
             );
 

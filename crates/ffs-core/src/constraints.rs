@@ -484,7 +484,7 @@ mod tests {
         fn git_status(&self) -> Option<git2::Status> {
             None
         }
-            fn is_overflow(&self) -> bool {
+        fn is_overflow(&self) -> bool {
             false
         }
     }
@@ -710,13 +710,13 @@ mod tests {
         let mismatch = [Constraint::FilePath("트.c")];
 
         let exact_items = [item.clone()];
-        let exact_matches =
-            apply_constraints(&exact_items, &exact, arena_ptr, arena_ptr).expect("constraints applied");
+        let exact_matches = apply_constraints(&exact_items, &exact, arena_ptr, arena_ptr)
+            .expect("constraints applied");
         assert_eq!(exact_matches.len(), 1);
 
         let mismatch_items = [item];
-        let mismatch_matches =
-            apply_constraints(&mismatch_items, &mismatch, arena_ptr, arena_ptr).expect("constraints applied");
+        let mismatch_matches = apply_constraints(&mismatch_items, &mismatch, arena_ptr, arena_ptr)
+            .expect("constraints applied");
         assert!(mismatch_matches.is_empty());
     }
 
