@@ -2110,12 +2110,15 @@ pub fn is_known_binary_extension(path: &Path) -> bool {
     )
 }
 
-/// Detect binary content by checking for NUL bytes in the first 512 bytes.
-/// Called lazily when file content is first loaded, not during initial scan.
+/// Detect binary content by scanning for a NUL byte anywhere in `content`.
+///
+/// The old 512-byte window missed formats whose first kilobyte is plain
+/// ASCII (Radiance .hdr, Apple bplist, Adobe .ai). Callers that already
+/// cap the buffer (bigram build caps at ~2MB) keep this bounded.
+/// Port of upstream c23ccb3 / #529.
 #[inline]
 pub(crate) fn detect_binary_content(content: &[u8]) -> bool {
-    let check_len = content.len().min(512);
-    content[..check_len].contains(&0)
+    memchr::memchr(0, content).is_some()
 }
 
 /// Length of the longest shared directory prefix of two relative dir

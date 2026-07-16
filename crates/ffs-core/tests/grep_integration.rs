@@ -303,6 +303,95 @@ fn plain_text_binary_files_are_skipped() {
 }
 
 #[test]
+fn binary_payload_after_long_ascii_header_is_detected() {
+    // Mimics formats like Radiance .hdr / Apple bplist / Adobe .ai where the
+    // first ~1KB is plain ASCII and the binary payload (NULs) starts later.
+    // The legacy 512-byte sniff missed these; the bigram-build memchr scan
+    // over the whole indexed buffer must catch them.
+    // Port of upstream c23ccb3.
+    use ffs_search::file_picker::FfsMode;
+    use ffs_search::{SharedFilePicker, SharedFrecency};
+    use std::time::Duration;
+
+    let tmp = TempDir::new().unwrap();
+    let base = tmp.path();
+
+    let mut content = Vec::new();
+    // 1 KiB of plain ASCII header — escapes any small fixed-window NUL sniff.
+    content.extend(std::iter::repeat_n(b'A', 1024));
+    content.extend_from_slice(b"\nmatch this text\n");
+    // Binary payload: NUL bytes that prove the file is not text.
+    content.extend(std::iter::repeat_n(0u8, 256));
+    content.extend_from_slice(b"\nmatch this text\n");
+
+    // Use a *text* extension so the scan-time heuristic does NOT pre-flag it.
+    fs::write(base.join("header.txt"), &content).unwrap();
+    fs::write(base.join("plain.txt"), b"match this text\n").unwrap();
+
+    let shared_picker = SharedFilePicker::default();
+    let shared_frecency = SharedFrecency::default();
+
+    FilePicker::new_with_shared_state(
+        shared_picker.clone(),
+        shared_frecency.clone(),
+        FilePickerOptions {
+            base_path: base.to_string_lossy().to_string(),
+            enable_mmap_cache: false,
+            enable_content_indexing: true,
+            mode: FfsMode::default(),
+            watch: false,
+            ..Default::default()
+        },
+    )
+    .expect("Failed to create FilePicker");
+
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    loop {
+        std::thread::sleep(Duration::from_millis(25));
+        let ready = shared_picker
+            .read()
+            .ok()
+            .and_then(|g| {
+                g.as_ref()
+                    .map(|p| !p.is_scan_active() && p.bigram_index().is_some())
+            })
+            .unwrap_or(false);
+        if ready {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "Timed out waiting for bigram build"
+        );
+    }
+
+    let guard = shared_picker.read().unwrap();
+    let picker = guard.as_ref().unwrap();
+
+    let was_flagged = picker
+        .get_files()
+        .iter()
+        .any(|f| f.relative_path(picker).contains("header.txt") && f.is_binary());
+    assert!(
+        was_flagged,
+        "header.txt with NULs past 512 bytes must be flagged binary by the whole-buffer memchr scan"
+    );
+
+    let parsed = parse_grep_query("match this text");
+    let result = picker.grep(&parsed, &plain_opts());
+    assert_eq!(
+        result.files.len(),
+        1,
+        "only plain.txt should be searched; header.txt must be skipped as binary"
+    );
+    assert!(
+        result.files[0].relative_path(picker).contains("plain.txt"),
+        "the only match should come from plain.txt"
+    );
+}
+
+
+#[test]
 fn plain_text_max_matches_per_file() {
     let tmp = TempDir::new().unwrap();
     let mut content = String::new();
