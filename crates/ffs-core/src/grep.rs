@@ -1011,14 +1011,14 @@ pub fn multi_grep_search<'a>(
     };
 
     let (mut files_to_search, mut filtered_file_count) =
-        prepare_files_to_search(files, constraints, options, arena);
+        prepare_files_to_search(files, constraints, options, arena, overflow_arena);
 
     // If constraints yielded 0 files and we had FilePath constraints,
     // retry without them (the path token was likely part of the search text).
     if files_to_search.is_empty()
         && let Some(stripped) = strip_file_path_constraints(constraints)
     {
-        let (retry_files, retry_count) = prepare_files_to_search(files, &stripped, options, arena);
+        let (retry_files, retry_count) = prepare_files_to_search(files, &stripped, options, arena, overflow_arena);
         files_to_search = retry_files;
         filtered_file_count = retry_count;
     }
@@ -1444,6 +1444,7 @@ fn prepare_files_to_search<'a>(
     constraints: &[ffs_query_parser::Constraint<'_>],
     options: &GrepSearchOptions,
     arena: crate::simd_path::ArenaPtr,
+    overflow_arena: crate::simd_path::ArenaPtr,
 ) -> (Vec<&'a FileItem>, usize) {
     let prefiltered: Vec<&FileItem> = if constraints.is_empty() {
         files
@@ -1453,7 +1454,7 @@ fn prepare_files_to_search<'a>(
             })
             .collect()
     } else {
-        match apply_constraints(files, constraints, arena) {
+        match apply_constraints(files, constraints, arena, overflow_arena) {
             Some(constrained) => constrained
                 .into_iter()
                 .filter(|f| {
@@ -1918,13 +1919,13 @@ pub(crate) fn grep_search<'a>(
         GrepMode::PlainText => None,
         GrepMode::Fuzzy => {
             let (mut files_to_search, mut filtered_file_count) =
-                prepare_files_to_search(files, constraints_from_query, options, arena);
+                prepare_files_to_search(files, constraints_from_query, options, arena, overflow_arena);
 
             if files_to_search.is_empty()
                 && let Some(stripped) = strip_file_path_constraints(constraints_from_query)
             {
                 let (retry_files, retry_count) =
-                    prepare_files_to_search(files, &stripped, options, arena);
+                    prepare_files_to_search(files, &stripped, options, arena, overflow_arena);
                 files_to_search = retry_files;
                 filtered_file_count = retry_count;
             }
@@ -2147,13 +2148,13 @@ pub(crate) fn grep_search<'a>(
         }
         _ => {
             let (mut fts, mut fc) =
-                prepare_files_to_search(files, constraints_from_query, options, arena);
+                prepare_files_to_search(files, constraints_from_query, options, arena, overflow_arena);
 
             if fts.is_empty()
                 && let Some(stripped) = strip_file_path_constraints(constraints_from_query)
             {
                 let (retry_files, retry_count) =
-                    prepare_files_to_search(files, &stripped, options, arena);
+                    prepare_files_to_search(files, &stripped, options, arena, overflow_arena);
                 fts = retry_files;
                 fc = retry_count;
             }

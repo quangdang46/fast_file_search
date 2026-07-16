@@ -230,6 +230,11 @@ impl Constrainable for DirItem {
     fn git_status(&self) -> Option<git2::Status> {
         None
     }
+
+    #[inline]
+    fn is_overflow(&self) -> bool {
+        DirItem::is_overflow(self)
+    }
 }
 
 #[derive(Debug)]
@@ -646,6 +651,11 @@ impl Constrainable for FileItem {
     #[inline]
     fn git_status(&self) -> Option<git2::Status> {
         self.git_status
+    }
+
+    #[inline]
+    fn is_overflow(&self) -> bool {
+        FileItem::is_overflow(self)
     }
 }
 

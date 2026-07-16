@@ -38,6 +38,7 @@ pub(crate) trait Constrainable {
     fn write_file_name(&self, arena: ArenaPtr, out: &mut String);
     fn git_status(&self) -> Option<git2::Status>;
     fn write_relative_path(&self, arena: ArenaPtr, out: &mut String);
+    fn is_overflow(&self) -> bool;
 }
 
 /// Windows stores paths with `\\`; `/` comes from user queries.
@@ -236,7 +237,8 @@ fn item_matches_constraint_at_index<T: Constrainable>(
 pub(crate) fn apply_constraints<'a, T: Constrainable + Sync>(
     items: &'a [T],
     constraints: &[Constraint<'_>],
-    arena: ArenaPtr,
+    base_arena: ArenaPtr,
+    overflow_arena: ArenaPtr,
 ) -> Option<Vec<&'a T>> {
     if constraints.is_empty() {
         return None;
@@ -260,13 +262,17 @@ pub(crate) fn apply_constraints<'a, T: Constrainable + Sync>(
 
     let glob_results = if has_globs {
         // Build a single contiguous buffer of all relative paths + offset table.
-        // One allocation for the buffer, one for offsets — NOT one String per file.
-        // On Windows we fold `\\` into `/` while copying so globset/zlob see a
-        // canonical separator. The rewrite is in place on bytes we just wrote.
+        // Overflow items must read chunks from the overflow arena — using the
+        // base arena here is what caused the path-constraint segfault (#618/#620).
         let mut path_buf = Vec::<u8>::new();
         let mut offsets = Vec::<(usize, usize)>::with_capacity(items.len());
         let mut tmp = String::with_capacity(64);
         for item in items.iter() {
+            let arena = if item.is_overflow() {
+                overflow_arena
+            } else {
+                base_arena
+            };
             let start = path_buf.len();
             item.write_relative_path(arena, &mut tmp);
             path_buf.extend_from_slice(tmp.as_bytes());
@@ -295,6 +301,11 @@ pub(crate) fn apply_constraints<'a, T: Constrainable + Sync>(
             .map_init(
                 || (String::with_capacity(64), String::with_capacity(64)),
                 |(fname_buf, path_buf), (i, item)| {
+                    let arena = if item.is_overflow() {
+                        overflow_arena
+                    } else {
+                        base_arena
+                    };
                     if !extensions.is_empty() {
                         item.write_file_name(arena, fname_buf);
                         if !extensions
@@ -335,6 +346,11 @@ pub(crate) fn apply_constraints<'a, T: Constrainable + Sync>(
             .iter()
             .enumerate()
             .filter(|&(i, item)| {
+                let arena = if item.is_overflow() {
+                    overflow_arena
+                } else {
+                    base_arena
+                };
                 if !extensions.is_empty() {
                     item.write_file_name(arena, &mut fname_buf);
                     if !extensions
@@ -483,6 +499,9 @@ mod tests {
 
         fn git_status(&self) -> Option<git2::Status> {
             None
+        }
+            fn is_overflow(&self) -> bool {
+            false
         }
     }
 
@@ -708,12 +727,12 @@ mod tests {
 
         let exact_items = [item.clone()];
         let exact_matches =
-            apply_constraints(&exact_items, &exact, arena_ptr).expect("constraints applied");
+            apply_constraints(&exact_items, &exact, arena_ptr, arena_ptr).expect("constraints applied");
         assert_eq!(exact_matches.len(), 1);
 
         let mismatch_items = [item];
         let mismatch_matches =
-            apply_constraints(&mismatch_items, &mismatch, arena_ptr).expect("constraints applied");
+            apply_constraints(&mismatch_items, &mismatch, arena_ptr, arena_ptr).expect("constraints applied");
         assert!(mismatch_matches.is_empty());
     }
 
@@ -765,7 +784,7 @@ mod tests {
 
         // Not(Glob("**/*.rs")) should exclude .rs files
         let constraints = vec![Constraint::Not(Box::new(Constraint::Glob("**/*.rs")))];
-        let result = apply_constraints(&items, &constraints, arena_ptr).unwrap();
+        let result = apply_constraints(&items, &constraints, arena_ptr, arena_ptr).unwrap();
         let paths: Vec<&str> = result.iter().map(|i| i.relative_path).collect();
         assert!(
             !paths.contains(&"src/main.rs"),
