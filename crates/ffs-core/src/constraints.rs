@@ -4,32 +4,16 @@ use ahash::AHashSet;
 use ffs_query_parser::{Constraint, GitStatusFilter};
 use smallvec::SmallVec;
 
+use crate::case_insensitive_memmem;
 use crate::git::is_modified_status;
 use crate::simd_path::ArenaPtr;
 
 /// `needle` must already be lowercase.
+/// Uses the shared SIMD memmem path (port of upstream 9c30eda intent:
+/// drop ad-hoc scanners in favor of case_insensitive_memmem).
 #[inline]
 fn contains_ascii_ci(haystack: &str, needle: &str) -> bool {
-    let h = haystack.as_bytes();
-    let n = needle.as_bytes();
-    if n.len() > h.len() {
-        return false;
-    }
-    if n.is_empty() {
-        return true;
-    }
-    let first = n[0];
-    for i in 0..=(h.len() - n.len()) {
-        if h[i].to_ascii_lowercase() == first
-            && h[i..i + n.len()]
-                .iter()
-                .zip(n)
-                .all(|(a, b)| a.to_ascii_lowercase() == *b)
-        {
-            return true;
-        }
-    }
-    false
+    case_insensitive_memmem::search(haystack.as_bytes(), needle.as_bytes())
 }
 
 const PAR_THRESHOLD: usize = 10_000;
