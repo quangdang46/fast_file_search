@@ -149,10 +149,14 @@ impl FileSync {
     /// Arena for overflow files (added after the last full scan).
     #[inline]
     fn overflow_arena_ptr(&self) -> ArenaPtr {
+        // Never fall back to the base arena. When base_count == 0 the base
+        // arena can be a dangling aligned pointer (0x10); using it for an
+        // overflow FileItem is the path-constraint / frecency segfault
+        // (upstream #569 / 0ee4ada).
         self.overflow_builder
             .as_ref()
             .map(|b| b.as_arena_ptr())
-            .unwrap_or(self.arena_base_ptr())
+            .unwrap_or(ArenaPtr::null())
     }
 
     /// Resolve the correct arena for a given file (base vs overflow).
@@ -1311,7 +1315,8 @@ impl FilePicker {
 
         let mode = self.mode;
         let bp = self.base_path.clone();
-        let arena = self.arena_base_ptr();
+        let base_arena = self.arena_base_ptr();
+        let overflow_arena = self.sync_data.overflow_arena_ptr();
         let frecency = shared_frecency.read()?;
         status_cache
             .into_iter()
@@ -1319,6 +1324,11 @@ impl FilePicker {
                 if let Some(file) = self.get_mut_file_by_path(&path) {
                     file.git_status = Some(status);
                     if let Some(ref f) = *frecency {
+                        let arena = if file.is_overflow() {
+                            overflow_arena
+                        } else {
+                            base_arena
+                        };
                         file.update_frecency_scores(f, arena, &bp, mode)?;
                     }
                     // Update parent dir frecency inline.
@@ -1345,7 +1355,6 @@ impl FilePicker {
         frecency_tracker: &FrecencyTracker,
     ) -> Result<(), Error> {
         let path = file_path.as_ref();
-        let arena = self.arena_base_ptr();
         let rel = self.to_relative_path(path);
         let rel_ref: &str = rel.as_deref().unwrap_or("");
         let index = self
@@ -1353,9 +1362,20 @@ impl FilePicker {
             .find_file_index(path, &self.base_path)
             .ok()
             .or_else(|| self.sync_data.find_overflow_index(rel_ref));
-        if let Some(index) = index
-            && let Some(file) = self.sync_data.get_file_mut(index)
-        {
+
+        let Some(index) = index else {
+            return Ok(());
+        };
+
+        // Arena is determined by index vs base_count — compute before the
+        // mutable borrow so we don't fight the borrow checker.
+        let arena = if index < self.sync_data.base_count {
+            self.sync_data.arena_base_ptr()
+        } else {
+            self.sync_data.overflow_arena_ptr()
+        };
+
+        if let Some(file) = self.sync_data.get_file_mut(index) {
             file.update_frecency_scores(frecency_tracker, arena, &self.base_path, self.mode)?;
 
             // Update parent dir frecency inline (only if larger).
