@@ -575,7 +575,16 @@ fn handle_debounced_events(
 
         for path in &paths_to_remove {
             let removed = picker.remove_file_by_path(path);
-            debug!("remove_file_by_path({:?}) -> {}", path, removed);
+            if !removed {
+                // Windows sends Remove(Any) for directory deletions instead
+                // of Remove(Folder). When remove_file_by_path fails on a
+                // path that was a directory (now deleted), retry as dir
+                // removal to clear orphaned child files.
+                let count = picker.remove_all_files_in_dir(path);
+                debug!("remove_file_by_path({:?}) -> false, remove_all_files_in_dir -> {} files", path, count);
+            } else {
+                debug!("remove_file_by_path({:?}) -> {}", path, removed);
+            }
         }
 
         files_to_update_git_status.reserve(paths_to_add_or_modify.len());
