@@ -33,3 +33,4 @@ scripts/benchmark-results/
 
 # Instruments traces
 *.trace/
+# auto-generated CI trigger
