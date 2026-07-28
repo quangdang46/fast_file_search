@@ -581,7 +581,10 @@ fn handle_debounced_events(
                 // path that was a directory (now deleted), retry as dir
                 // removal to clear orphaned child files.
                 let count = picker.remove_all_files_in_dir(path);
-                debug!("remove_file_by_path({:?}) -> false, remove_all_files_in_dir -> {} files", path, count);
+                debug!(
+                    "remove_file_by_path({:?}) -> false, remove_all_files_in_dir -> {} files",
+                    path, count
+                );
             } else {
                 debug!("remove_file_by_path({:?}) -> {}", path, removed);
             }
