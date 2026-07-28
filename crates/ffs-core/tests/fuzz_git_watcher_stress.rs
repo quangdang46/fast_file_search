@@ -1021,9 +1021,15 @@ fn diff_statuses(
             // Only a bug if the picker also thinks it has a non-clean
             // status for it — otherwise it's a transient during which the
             // picker has indexed a file before the next truth snapshot.
+            //
+            // WT_NEW is also tolerated here: when a RenameFile op creates
+            // a file, the picker sees the FS create event and marks it
+            // WT_NEW, but libgit2 may not report it at all — it detects
+            // the rename pair and skips the new-file entry (git treats
+            // the rename as a single operation, not create + delete).
             let non_clean = match p {
                 None => false,
-                Some(s) => !(s.is_empty() || s == Status::CURRENT),
+                Some(s) => !(s == Status::CURRENT || s.is_empty() || s == Status::WT_NEW),
             };
             if non_clean {
                 out.push(Mismatch::ExtraInPicker {
