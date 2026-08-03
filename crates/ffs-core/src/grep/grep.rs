@@ -130,6 +130,9 @@ pub struct GrepResult<'a> {
     /// literal matching and this field contains the compilation error message.
     /// The UI can display this to inform the user their regex was invalid.
     pub regex_fallback_error: Option<String>,
+    /// Set to `true` if the constrained query found nothing and the results come from
+    /// retrying the whole raw query as literal text (ignored all the inferred constraints)
+    pub literal_fallback: bool,
 }
 
 /// Options for grep search.
@@ -1157,6 +1160,7 @@ where
         filtered_file_count: ctx.filtered_file_count,
         next_file_offset,
         regex_fallback_error: None,
+        literal_fallback: false,
     }
 }
 
@@ -1234,6 +1238,7 @@ pub(super) fn collect_grep_results<'a>(
         filtered_file_count,
         next_file_offset,
         regex_fallback_error: None,
+        literal_fallback: false,
     }
 }
 
@@ -1315,6 +1320,75 @@ pub(super) fn prepare_files_to_search<'a>(
 #[tracing::instrument(skip_all, fields(file_count = files.len()))]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn grep_search<'a>(
+    files: &'a [FileItem],
+    query: &FfsQuery<'_>,
+    options: &GrepSearchOptions,
+    budget: &ContentCacheBudget,
+    bigram_index: Option<&BigramFilter>,
+    bigram_overlay: Option<&BigramOverlay>,
+    abort_signal: &AtomicBool,
+    base_path: &Path,
+    arena: crate::simd_path::ArenaPtr,
+    overflow_arena: crate::simd_path::ArenaPtr,
+) -> GrepResult<'a> {
+    let result = grep_search_parsed(
+        files,
+        query,
+        options,
+        budget,
+        bigram_index,
+        bigram_overlay,
+        abort_signal,
+        base_path,
+        arena,
+        overflow_arena,
+    );
+
+    // Constraint parsing can swallow tokens the user meant literally (e.g. `!=`
+    // becoming an exclusion). If the constrained search scanned everything and
+    // found nothing, retry the whole raw query as literal text. This also holds
+    // for later pages: an empty full scan at offset 0 stays empty at any offset,
+    // so paging offsets consistently index the literal search's file list.
+    let full_scan_empty = result.matches.is_empty() && result.next_file_offset == 0;
+    if !full_scan_empty || query.constraints.is_empty() || abort_signal.load(Ordering::Relaxed) {
+        return result;
+    }
+
+    let raw = query.raw_query.trim();
+    if raw.is_empty() {
+        return result;
+    }
+
+    let literal_query = FfsQuery {
+        raw_query: query.raw_query,
+        constraints: Vec::new(),
+        fuzzy_query: ffs_query_parser::FuzzyQuery::Text(raw),
+        location: None,
+    };
+
+    let mut fallback = grep_search_parsed(
+        files,
+        &literal_query,
+        options,
+        budget,
+        bigram_index,
+        bigram_overlay,
+        abort_signal,
+        base_path,
+        arena,
+        overflow_arena,
+    );
+
+    if fallback.matches.is_empty() {
+        result
+    } else {
+        fallback.literal_fallback = true;
+        fallback
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn grep_search_parsed<'a>(
     files: &'a [FileItem],
     query: &FfsQuery<'_>,
     options: &GrepSearchOptions,

@@ -420,6 +420,10 @@ pub struct FilePickerOptions {
     pub watch: bool,
     /// Follow symbolic links during file indexing.
     pub follow_symlinks: bool,
+    /// Allow indexing the filesystem root (`/`). Refused at init unless set.
+    pub enable_fs_root_scanning: bool,
+    /// Allow indexing the user's home directory. Refused at init unless set.
+    pub enable_home_dir_scanning: bool,
 }
 
 impl Default for FilePickerOptions {
@@ -432,6 +436,8 @@ impl Default for FilePickerOptions {
             cache_budget: None,
             watch: true,
             follow_symlinks: false,
+            enable_fs_root_scanning: false,
+            enable_home_dir_scanning: false,
         }
     }
 }
@@ -667,8 +673,14 @@ impl FilePicker {
             error!("Base path does not exist: {}", options.base_path);
             return Err(Error::InvalidPath(path));
         }
-        if path.parent().is_none() {
+        if path.parent().is_none() && !options.enable_fs_root_scanning {
             error!("Refusing to index filesystem root: {}", path.display());
+            return Err(Error::FilesystemRoot(path));
+        }
+        if !options.enable_home_dir_scanning
+            && Some(path.as_os_str()) == dirs::home_dir().as_ref().map(|p| p.as_os_str())
+        {
+            error!("Refusing to index home directory: {}", path.display());
             return Err(Error::FilesystemRoot(path));
         }
 

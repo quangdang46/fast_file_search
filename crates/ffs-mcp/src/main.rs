@@ -142,6 +142,7 @@ pub(crate) struct Args {
 
     /// Disable the content index built after the initial scan.
     /// This makes ffs_grep calls slower but consumes less RAM (recommended to not turn off)
+    #[arg(long = "no-content-indexing")]
     no_content_indexing: bool,
 
     /// Explicitly enable content indexing even when `--no-warmup` is set.
@@ -164,6 +165,30 @@ pub(crate) struct Args {
     /// enabling on cyclic symlink layouts can wedge the watcher.
     #[arg(long = "follow-symlinks")]
     follow_symlinks: bool,
+
+    /// Allow indexing the user's home directory. FFS refuses to init in `~`
+    /// unless this is set. Also settable via FFS_ENABLE_HOME_SCAN=1.
+    #[arg(
+        long = "enable-home-scan",
+        env = "FFS_ENABLE_HOME_SCAN",
+        num_args = 0..=1,
+        default_missing_value = "true",
+        default_value_t = false,
+        value_parser = clap::builder::BoolishValueParser::new()
+    )]
+    enable_home_scan: bool,
+
+    /// Allow indexing the filesystem root, off by default for the same reason.
+    /// Also settable via FFS_ENABLE_ROOT_SCAN=1.
+    #[arg(
+        long = "enable-root-scan",
+        env = "FFS_ENABLE_ROOT_SCAN",
+        num_args = 0..=1,
+        default_missing_value = "true",
+        default_value_t = false,
+        value_parser = clap::builder::BoolishValueParser::new()
+    )]
+    enable_root_scan: bool,
 
     /// Exit after this many seconds of inactivity. 0 = never exit.
     /// Defaults to 900s (15 minutes). Also settable via FFS_MCP_IDLE_TIMEOUT_SECS.
@@ -365,6 +390,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .max_cached_files
                 .map(ffs::ContentCacheBudget::new_for_repo),
             follow_symlinks: args.follow_symlinks,
+            enable_home_dir_scanning: args.enable_home_scan,
+            enable_fs_root_scanning: args.enable_root_scan,
         },
     )
     .map_err(|e| format!("Failed to init file picker: {}", e))?;

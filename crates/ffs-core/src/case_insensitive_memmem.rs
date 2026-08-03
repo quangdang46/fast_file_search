@@ -496,6 +496,10 @@ pub fn search_packed_pair(haystack: &[u8], needle_lower: &[u8]) -> bool {
         return false;
     }
 
+    #[cfg_attr(
+        not(any(target_arch = "x86_64", target_arch = "aarch64")),
+        allow(unused_variables)
+    )]
     let (i1, i2) = select_rare_pair(needle_lower);
 
     #[cfg(target_arch = "x86_64")]
