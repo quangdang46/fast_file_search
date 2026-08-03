@@ -22,7 +22,9 @@ use ffs_symbol::lang::detect_file_type;
 use ffs_symbol::types::FileType;
 use std::time::SystemTime;
 
-#[repr(C)]
+// Opaque engine handle — never dereferenced from C. Keeping the fields out of
+// the generated header avoids leaking `Arc<Engine>`/`PathBuf` (no stable C
+// layout) into the C ABI surface.
 pub struct FfsEngine {
     inner: Arc<Engine>,
     root: std::path::PathBuf,

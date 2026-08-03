@@ -3,13 +3,13 @@
 #ifndef FFS_C_H
 #define FFS_C_H
 
-/* Generated with cbindgen:0.29.2 */
+/* Generated with cbindgen:0.29.4 */
 
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
 
-typedef struct Arc_Engine Arc_Engine;
+typedef struct FfsEngine FfsEngine;
 
 /**
  * Result envelope returned by all `ffs_*` functions.
@@ -347,13 +347,7 @@ typedef struct FfsMixedSearchResult {
   struct FfsLocation location;
 } FfsMixedSearchResult;
 
-typedef struct FfsEngine {
-  struct Arc_Engine inner;
-  PathBuf root;
-} FfsEngine;
-#endif
-
-typedef struct FfsEngineResponse {
+typedef struct FfsResponse {
   /**
    * 0 on success; non-zero error code.
    */
@@ -366,8 +360,7 @@ typedef struct FfsEngineResponse {
    * Length of `payload` in bytes (excluding NUL).
    */
   uintptr_t payload_len;
-} FfsEngineResponse;
-#endif
+} FfsResponse;
 
 /**
  * Create a new file finder instance (legacy signature).
@@ -854,14 +847,16 @@ const struct FfsScore *ffs_mixed_search_result_get_score(const struct FfsMixedSe
  *
  * The input is split on whitespace; each non-empty token becomes a
  * substring candidate query against the file picker's `base_path`. Every
- * match is then handed to the Phase B resolver which reads, classifies,
- * filters, and truncates each path to fit the caller's token budget.
+ * match is then handed to the Phase B resolver (`ffs_engine::mention`)
+ * which reads, classifies, filters, and truncates each path to fit the
+ * caller's token budget.
  *
  * `options_json` is a JSON object with optional fields. Forward-compatible:
  * unknown keys are ignored. Currently recognized fields:
- *   * `"max_tokens"`: `uint32` — body budget per mention (default 50000).
- *   * `"line_range"`: `[uint32, uint32]` 1-based inclusive slice, applied
- *     before smart_truncate (default: none).
+ *   * `"max_tokens"`: `u32` — body budget per mention (default 50_000).
+ *   * `"line_range"`: `[u32, u32]` 1-based inclusive slice, applied before
+ *     `smart_truncate` so the line range is honored even when the file is
+ *     large (default: none).
  *   * `"filter_level"`: `"none" | "minimal" | "aggressive"` (default
  *     `"minimal"`).
  *
@@ -878,7 +873,7 @@ const struct FfsScore *ffs_mixed_search_result_get_score(const struct FfsMixedSe
  */
 struct FfsResult *ffs_mention_search_json(void *ffs_handle,
                                           const char *input,
-                                          uint32_t cursor,
+                                          uint32_t _cursor,
                                           const char *options_json);
 
 /**
@@ -1278,7 +1273,6 @@ const char *ffs_grep_result_get_regex_fallback_error(const struct FfsGrepResult 
  * `root` must be a NUL-terminated UTF-8 string.
  */
 struct FfsEngine *ffs_engine_new(const char *root, uint64_t total_token_budget);
-#endif
 
 /**
  * Re-run the unified scan over the engine's root, refreshing all caches.
@@ -1287,7 +1281,6 @@ struct FfsEngine *ffs_engine_new(const char *root, uint64_t total_token_budget);
  * `engine` must be a valid pointer from `ffs_engine_new`.
  */
 int32_t ffs_engine_rebuild(struct FfsEngine *engine);
-#endif
 
 /**
  * Free a `FfsEngine`.
@@ -1296,17 +1289,15 @@ int32_t ffs_engine_rebuild(struct FfsEngine *engine);
  * `engine` must be a valid pointer from `ffs_engine_new`.
  */
 void ffs_engine_free(struct FfsEngine *engine);
-#endif
 
 /**
- * Free a `FfsEngineResponse`.
+ * Free a `FfsResponse`.
  *
  * ## Safety
  * `response` must be a valid pointer returned by any `ffs_engine_*` call that
- * returns `*mut FfsEngineResponse`.
+ * returns `*mut FfsResponse`.
  */
-void ffs_engine_free_response(struct FfsEngineResponse *response);
-#endif
+void ffs_engine_free_response(struct FfsResponse *response);
 
 /**
  * Dispatch a free-form query through the engine. Result is JSON.
@@ -1314,8 +1305,7 @@ void ffs_engine_free_response(struct FfsEngineResponse *response);
  * ## Safety
  * `engine` must be a valid pointer; `query` must be a NUL-terminated UTF-8 string.
  */
-struct FfsEngineResponse *ffs_engine_dispatch(struct FfsEngine *engine, const char *query);
-#endif
+struct FfsResponse *ffs_engine_dispatch(struct FfsEngine *engine, const char *query);
 
 /**
  * Look up a symbol by exact name or by prefix (suffix `*`). Result is JSON.
@@ -1324,8 +1314,7 @@ struct FfsEngineResponse *ffs_engine_dispatch(struct FfsEngine *engine, const ch
  * `engine` and `name` must satisfy the same constraints as
  * `ffs_engine_dispatch`.
  */
-struct FfsEngineResponse *ffs_engine_symbol(struct FfsEngine *engine, const char *name);
-#endif
+struct FfsResponse *ffs_engine_symbol(struct FfsEngine *engine, const char *name);
 
 /**
  * Read a file with token-budget aware truncation. Result is JSON
@@ -1335,57 +1324,21 @@ struct FfsEngineResponse *ffs_engine_symbol(struct FfsEngine *engine, const char
  * `engine`, `path`, and `filter` (when non-null) must satisfy the same
  * constraints as `ffs_engine_dispatch`.
  */
-struct FfsEngineResponse *ffs_engine_read(struct FfsEngine *engine,
-                                      const char *path,
-                                      uint64_t budget,
-                                      const char *filter);
-#endif
+struct FfsResponse *ffs_engine_read(struct FfsEngine *engine,
+                                    const char *path,
+                                    uint64_t budget,
+                                    const char *filter);
 
 /**
- * Run `ffs refs <name>` against the engine's root and return the CLI's JSON
- * payload (`definitions[]`, `usages[]`, pagination). `limit`/`offset` of 0
- * mean "use the CLI default".
+ * Run `ffs refs <name>` against the engine's root. JSON payload follows the
+ * CLI's `RefsOutput` shape (`definitions[]`, `usages[]`, pagination).
  *
  * ## Safety
  * `engine` must be a valid pointer; `name` must be a NUL-terminated UTF-8 string.
  */
-struct FfsEngineResponse *ffs_engine_refs(struct FfsEngine *engine,
-                                      const char *name,
-                                      uint64_t limit,
-                                      uint64_t offset);
-#endif
-
-/**
- * Run `ffs flow <name>` against the engine's root and return the CLI's
- * `FlowOutput` JSON. Each numeric arg of 0 means "use the CLI default".
- *
- * ## Safety
- * `engine` must be a valid pointer; `name` must be a NUL-terminated UTF-8 string.
- */
-struct FfsEngineResponse *ffs_engine_flow(struct FfsEngine *engine,
-                                      const char *name,
-                                      uint64_t limit,
-                                      uint64_t offset,
-                                      uint64_t callees_top,
-                                      uint64_t callers_top,
-                                      uint64_t budget);
-#endif
-
-/**
- * Run `ffs impact <name>` against the engine's root and return the CLI's
- * `ImpactOutput` JSON (ranked `results[]`). `hops` is clamped to [1,3]; 0
- * means default (3). `limit`/`offset`/`hub_guard` of 0 mean "use the CLI
- * default".
- *
- * ## Safety
- * `engine` must be a valid pointer; `name` must be a NUL-terminated UTF-8 string.
- */
-struct FfsEngineResponse *ffs_engine_impact(struct FfsEngine *engine,
-                                        const char *name,
-                                        uint64_t limit,
-                                        uint64_t offset,
-                                        uint32_t hops,
-                                        uint64_t hub_guard);
-#endif
+struct FfsResponse *ffs_engine_refs(struct FfsEngine *engine,
+                                    const char *name,
+                                    uint64_t limit,
+                                    uint64_t offset);
 
 #endif  /* FFS_C_H */
