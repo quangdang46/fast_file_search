@@ -457,17 +457,26 @@ jobs:
           \`\`\`
           EOF
 
-          # Create or update the release
-          if gh release view "$TAG" --json tagName > /dev/null 2>&1; then
-            echo "Release $TAG already exists, uploading assets..."
-            gh release upload "$TAG" $(ls -1 | grep -v '\.md$') --clobber
-          else
-            echo "Creating release $TAG..."
-            gh release create "$TAG" $(ls -1 | grep -v '\.md$') \
-              --title "$TITLE" \
-              --notes-file release-notes.md \
-              --generate-notes
-          fi
+          # Create or update the release, retrying transient GitHub errors (HTTP 503 etc.)
+          RETRY=0
+          while [ "$RETRY" -lt 3 ]; do
+            if gh release view "$TAG" --json tagName > /dev/null 2>&1; then
+              echo "Release $TAG already exists, uploading assets... (attempt $((RETRY + 1)))"
+              gh release upload "$TAG" $(ls -1 | grep -v '\.md$') --clobber && break
+            else
+              echo "Creating release $TAG... (attempt $((RETRY + 1)))"
+              gh release create "$TAG" $(ls -1 | grep -v '\.md$') \
+                --title "$TITLE" \
+                --notes-file release-notes.md \
+                --generate-notes && break
+            fi
+            RETRY=$((RETRY + 1))
+            if [ "$RETRY" -lt 3 ]; then
+              echo "Upload failed, retrying in 20s..."
+              sleep 20
+            fi
+          done
+          [ "$RETRY" -lt 3 ] || { echo "Release upload failed after 3 attempts" >&2; exit 1; }
 
   crates-publish:
     name: Publish Rust crates
