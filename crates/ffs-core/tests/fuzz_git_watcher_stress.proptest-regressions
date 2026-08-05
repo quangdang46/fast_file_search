@@ -1,0 +1,5 @@
+# Regression seeds for the git-watcher stress test, written by proptest on
+# failure. Each `cc <digest>` line reproduces a scenario that diverged in CI.
+# Any failure on these seeds is a real bug in the watcher / git-status sync.
+cc d1a115e8ebfda48c64277ddf8c4d96a011f9464d0406fa3eb8ef0abd688997f0
+cc 411549877755e32ca391ac904100f03746742e9fddb1ba837ae1765469c5ce08

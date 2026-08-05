@@ -1349,6 +1349,32 @@ impl FilePicker {
                     if let Some(dir) = self.sync_data.dirs.get_mut(dir_idx) {
                         dir.update_frecency_if_larger(score);
                     }
+                } else if path.is_file() {
+                    // Git reports this path but the picker doesn't have it.
+                    // This is a transient re-add race: a `git reset --hard` /
+                    // `git stash` / `RenameFile` can tombstone or drop a file,
+                    // and a concurrent full git-status refresh runs while it's
+                    // mid-re-add. Index it now (this is exactly what a watcher
+                    // Create/Modify event would do) so its status isn't lost.
+                    // Only do this for paths that actually exist on disk —
+                    // sparse checkouts legitimately have paths git knows about
+                    // but that aren't materialized (#404), and those should
+                    // keep being skipped.
+                    if self.handle_create_or_modify(&path).is_some()
+                        && let Some(file) = self.get_mut_file_by_path(&path)
+                    {
+                        file.git_status = Some(status);
+                        if let Some(ref f) = *frecency {
+                            let arena = if file.is_overflow() {
+                                overflow_arena
+                            } else {
+                                base_arena
+                            };
+                            file.update_frecency_scores(f, arena, &bp, mode)?;
+                        }
+                    } else {
+                        debug!(?path, "Git status for path not indexable, skipping");
+                    }
                 } else {
                     // Expected on sparse checkouts: git reports a status for
                     // a path that isn't materialized on disk and therefore

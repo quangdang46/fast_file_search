@@ -9,20 +9,35 @@ use crate::git::GitStatusCache;
 use crate::query_tracker::QueryTracker;
 use crate::scan::ScanJob;
 
+/// Maximum time to retry reading git status while `.git/index.lock` is
+/// held. This covers the worst case: a slow `git add -A` + `git commit`
+/// in a repo with many files. 5 s is generous — the lock typically clears
+/// in milliseconds — but keeps the watcher thread responsive if something
+/// unusual holds the lock for a while.
+const GIT_STATUS_RETRY_WINDOW: Duration = Duration::from_secs(5);
+
+/// Poll interval between retries while the index lock is held.
+const GIT_STATUS_RETRY_POLL: Duration = Duration::from_millis(50);
+
 /// Poll `.git/index.lock` until it disappears (git write completed), giving up
-/// after [`GIT_LOCK_MAX_WAIT`]. Used by [`SharedPicker::refresh_git_status`]
-/// to avoid reading a half-updated index when the watcher fires mid-`git add`.
+/// after [`GIT_LOCK_MAX_WAIT`]. Returns `true` if the lock cleared (or was
+/// never present) and `false` if it was still held when the wait gave up.
+///
+/// Used by [`SharedPicker::refresh_git_status`] to avoid reading a
+/// half-updated index when the watcher fires mid-`git add` / `git commit`.
 ///
 /// The wait is bounded and cheap: the lock file is typically cleared within
-/// a few milliseconds of the git command exiting.
-fn wait_for_git_index_lock_release(git_root: &Path) {
+/// a few milliseconds of the git command exiting. Callers that see `false`
+/// should re-read git status on a later pass (the `.git/index` Modify event
+/// is one-shot) rather than proceed against a half-written index.
+pub(crate) fn wait_for_git_index_lock_release(git_root: &Path) -> bool {
     const GIT_LOCK_POLL: Duration = Duration::from_millis(10);
     const GIT_LOCK_MAX_WAIT: Duration = Duration::from_millis(500);
 
     let lock = git_root.join(".git").join("index.lock");
     // Fast path: no lock present.
     if !lock.exists() {
-        return;
+        return true;
     }
     let deadline = Instant::now() + GIT_LOCK_MAX_WAIT;
     while lock.exists() && Instant::now() < deadline {
@@ -30,10 +45,13 @@ fn wait_for_git_index_lock_release(git_root: &Path) {
     }
     if lock.exists() {
         tracing::warn!(
-            "Proceeding with git status refresh despite lingering \
-             .git/index.lock at {} — will retry once it clears",
+            "Git status refresh gave up waiting on lingering \
+             .git/index.lock at {} — the index may be half-written",
             lock.display()
         );
+        false
+    } else {
+        true
     }
 }
 
@@ -198,14 +216,32 @@ impl SharedFilePicker {
 
             debug!(?git_root, "Refreshing git status for picker");
 
-            if let Some(ref root) = git_root {
-                wait_for_git_index_lock_release(root);
+            // Re-read while `.git/index.lock` is being written. The FS event
+            // for `.git/index` is one-shot: if we read a half-written index
+            // during a `git add` / `git commit`, there is no second event to
+            // nudge us, and the picker would keep a stale status (e.g.
+            // `INDEX_NEW` for files a commit just cleaned). Bound the retry
+            // to a generous deadline; the poll is cheap and converges quickly.
+            let deadline = Instant::now() + GIT_STATUS_RETRY_WINDOW;
+            loop {
+                let lock_clear = git_root
+                    .as_deref()
+                    .map(wait_for_git_index_lock_release)
+                    .unwrap_or(true);
+                let status = GitStatusCache::read_git_status(
+                    git_root.as_deref(),
+                    &mut crate::git::default_status_options(),
+                );
+                // Done when the index is stable (lock cleared) or the read
+                // failed outright — retrying a permanently-missing repo is
+                // pointless. Also give up past the deadline so a stuck lock
+                // can't wedge the watcher thread for ever.
+                if lock_clear || status.is_none() || Instant::now() >= deadline {
+                    break status;
+                }
+                debug!("Index lock still held, retrying git status read");
+                std::thread::sleep(GIT_STATUS_RETRY_POLL);
             }
-
-            GitStatusCache::read_git_status(
-                git_root.as_deref(),
-                &mut crate::git::default_status_options(),
-            )
         };
 
         let mut guard = self.write()?;

@@ -678,6 +678,17 @@ fn handle_debounced_events(
             files_to_update_git_status.len()
         );
 
+        // Wait out any in-flight `git add` / `git commit` / `git reset`
+        // before querying per-file status. These fire a one-shot `.git/index`
+        // Modify event; reading the index mid-write returns stale statuses
+        // (e.g. `None` for a file the reset just dirtied) that no second
+        // event will correct. Same race as `refresh_git_status` — guard both
+        // entry points.
+        let workdir = repo.workdir();
+        if let Some(wd) = workdir {
+            crate::shared::wait_for_git_index_lock_release(wd);
+        }
+
         let status = match GitStatusCache::git_status_for_paths(repo, &files_to_update_git_status) {
             Ok(status) => status,
             Err(e) => {
