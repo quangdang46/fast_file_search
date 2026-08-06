@@ -280,6 +280,10 @@ impl FileSync {
         let base_count = self.base_count;
         let initial_len = self.files.len();
 
+        if initial_len == 0 {
+            return 0;
+        }
+
         let indexable_retained = self.files[..indexable_count]
             .iter()
             .filter(|f| predicate(f, base_arena))
@@ -301,9 +305,78 @@ impl FileSync {
             )
         });
 
+        if initial_len != self.files.len() {
+            self.prune_empty_dirs();
+        }
+
         self.indexable_count = indexable_retained;
         self.base_count = base_retained;
         initial_len - self.files.len()
+    }
+
+    /// Tombstones every dir matching `predicate` (dir-level FS events
+    /// invalidate whole subtrees).
+    fn tombstone_dirs<F>(&mut self, mut predicate: F)
+    where
+        F: FnMut(&DirItem, ArenaPtr) -> bool,
+    {
+        let base_arena = self.arena_base_ptr();
+        let overflow_arena = self.overflow_arena_ptr();
+        for dir in self.dirs.iter_mut() {
+            let arena = if dir.is_overflow() {
+                overflow_arena
+            } else {
+                base_arena
+            };
+            if predicate(dir, arena) {
+                dir.set_deleted(true);
+            }
+        }
+    }
+
+    /// Removes dirs that are deleted or no longer contain any live file.
+    /// Called after retain passes; keeps the dir table dense and correct.
+    fn prune_empty_dirs(&mut self) {
+        let base_arena = self.arena_base_ptr();
+        let overflow_arena = self.overflow_arena_ptr();
+        let mut live = Vec::with_capacity(self.dirs.len());
+        let mut remap = vec![u32::MAX; self.dirs.len()];
+        for (idx, dir) in self.dirs.iter().enumerate() {
+            let arena = if dir.is_overflow() {
+                overflow_arena
+            } else {
+                base_arena
+            };
+            let mut scratch = [0u8; crate::simd_path::PATH_BUF_SIZE];
+            let rel = dir.read_relative_path(arena, &mut scratch);
+            let prefix = if rel.is_empty() {
+                String::new()
+            } else {
+                rel.to_string()
+            };
+            let has_files = self.files.iter().any(|f| {
+                !f.is_deleted() && {
+                    let arena = if f.is_overflow() {
+                        overflow_arena
+                    } else {
+                        base_arena
+                    };
+                    let fp = f.relative_path(arena);
+                    prefix.is_empty() || fp.starts_with(&prefix)
+                }
+            });
+            if !dir.is_deleted() && has_files {
+                remap[idx] = live.len() as u32;
+                live.push(dir.clone());
+            }
+        }
+        self.dirs = live;
+        for file in self.files.iter_mut() {
+            let old = file.parent_dir_index() as usize;
+            if old < remap.len() {
+                file.set_parent_dir(remap[old]);
+            }
+        }
     }
 }
 
@@ -1592,21 +1665,77 @@ impl FilePicker {
 
     // TODO make this O(n)
     pub fn remove_all_files_in_dir(&mut self, dir: impl AsRef<Path>) -> usize {
-        let dir_path = dir.as_ref();
-        let relative_dir = self
-            .to_relative_path(dir_path)
-            .map(|c| c.into_owned())
-            .unwrap_or_default();
+        self.remove_all_files_in_dirs_inner(std::iter::once(dir.as_ref()), None)
+    }
 
-        let dir_prefix = if relative_dir.is_empty() {
-            String::new()
-        } else {
-            format!("{}{}", relative_dir, std::path::MAIN_SEPARATOR)
-        };
+    /// Tombstones files under any of `dirs` in a single index scan.
+    #[cfg_attr(not(stress), allow(dead_code))]
+    pub(crate) fn remove_all_files_in_dirs_with_callback<'a>(
+        &mut self,
+        dirs: impl IntoIterator<Item = &'a Path>,
+        mut callback: impl FnMut(&Path),
+    ) -> usize {
+        self.remove_all_files_in_dirs_inner(dirs, Some(&mut callback))
+    }
 
-        self.sync_data.retain_files_with_arena(|file, arena| {
-            !file.relative_path_starts_with(arena, &dir_prefix)
-        })
+    #[cfg_attr(not(stress), allow(dead_code))]
+    pub(crate) fn remove_all_files_in_dirs<'a>(
+        &mut self,
+        dirs: impl IntoIterator<Item = &'a Path>,
+    ) -> usize {
+        self.remove_all_files_in_dirs_inner(dirs, None)
+    }
+
+    fn remove_all_files_in_dirs_inner<'a>(
+        &mut self,
+        dirs: impl IntoIterator<Item = &'a Path>,
+        mut callback: Option<&mut dyn FnMut(&Path)>,
+    ) -> usize {
+        let mut dir_prefixes = Vec::new();
+        for dir_path in dirs {
+            let Some(relative_dir) = self
+                .to_relative_path(dir_path)
+                .map(|path| path.into_owned())
+            else {
+                continue;
+            };
+
+            if relative_dir.is_empty() {
+                dir_prefixes.push(String::new());
+            } else {
+                // Stored relative paths are '/'-canonical on every platform.
+                dir_prefixes.push(format!("{relative_dir}/"));
+            }
+        }
+
+        if dir_prefixes.is_empty() {
+            return 0;
+        }
+
+        let base_path = self.base_path.clone();
+        let tombstoned = self.sync_data.retain_files_with_arena(|file, arena| {
+            let keep = !dir_prefixes
+                .iter()
+                .any(|prefix| file.relative_path_starts_with(arena, prefix));
+            if !keep && let Some(callback) = callback.as_mut() {
+                callback(file.absolute_path(arena, &base_path).as_path());
+            }
+            keep
+        });
+
+        // The whole subtree is gone: tombstone the dirs too so directory
+        // search stops surfacing them.
+        let mut dir_buf = [0u8; crate::simd_path::PATH_BUF_SIZE];
+        self.sync_data.tombstone_dirs(|dir, arena| {
+            let rel = dir.read_relative_path(arena, &mut dir_buf);
+            dir_prefixes.iter().any(|prefix| rel.starts_with(prefix))
+        });
+
+        // We removed files, so clear dirs that no longer have any files.
+        // Tombstoned dirs get purged on the next retain pass.
+        self.sync_data.prune_empty_dirs();
+
+        tombstoned
     }
 
     /// Use this to prevent any substantial background threads from acquiring the locks
@@ -1893,12 +2022,15 @@ impl FileSync {
         let walker_start = std::time::Instant::now();
         debug!("SCAN: Starting file walker");
 
-        // Walk: collect (FileItem, rel_path) pairs. Keep the walk fast —
-        // no chunking, no HashMap, just Vec::push under the Mutex.
-        let pairs = parking_lot::Mutex::new(Vec::<(FileItem, String)>::new());
+        // Walk: collect (FileItem, rel_path) pairs plus every visited dir so
+        // dirs that are empty at scan time are still indexed and watched.
+        // Keep the walk fast — no chunking, no HashMap, just Vec::push under
+        // the Mutex.
+        let collected =
+            parking_lot::Mutex::new((Vec::<(FileItem, String)>::new(), Vec::<String>::new()));
 
         walker.run(|| {
-            let pairs = &pairs;
+            let collected = &collected;
             let counter = Arc::clone(synced_files_count);
             let base_path = base_path.to_path_buf();
 
@@ -1924,34 +2056,54 @@ impl FileSync {
                     let (file_item, rel_path) =
                         FileItem::new_from_walk(path, &base_path, None, metadata.as_ref());
 
-                    pairs.lock().push((file_item, rel_path));
+                    collected.lock().0.push((file_item, rel_path));
                     counter.fetch_add(1, Ordering::Relaxed);
+                } else if entry.depth() > 0 && entry.file_type().is_some_and(|ft| ft.is_dir()) {
+                    // Remember every non-ignored dir the walk visited so
+                    // empty directories are searchable and get watched (#725).
+                    let path = entry.path();
+                    if !is_git_file(path)
+                        && let Ok(rel) = path.strip_prefix(&base_path)
+                    {
+                        let mut rel = rel.to_string_lossy().into_owned();
+                        rel.push('/');
+                        collected.lock().1.push(rel);
+                    }
                 }
                 ignore::WalkState::Continue
             })
         });
 
-        let mut pairs = pairs.into_inner();
+        let (mut pairs, mut walked_dirs) = collected.into_inner();
         info!(
-            "SCAN: File walking completed in {:?} for {} files",
+            "SCAN: File walking completed in {:?} for {} files, {} dirs",
             walker_start.elapsed(),
             pairs.len(),
+            walked_dirs.len(),
         );
 
         // Sort by (dir_part, filename). This groups files by their directory
         // into contiguous runs so the linear dir-extraction pass below can
-        // dedupe by comparing only against the previous dir.
-        BACKGROUND_THREAD_POOL.install(|| {
-            pairs.par_sort_unstable_by(|(a, path_a), (b, path_b)| {
-                // SAFETY: `filename_offset` is always at a character boundary
-                let (a_dir, a_file) = path_a.split_at(a.path.filename_offset as usize);
-                let (b_dir, b_file) = path_b.split_at(b.path.filename_offset as usize);
-                a_dir.cmp(b_dir).then_with(|| a_file.cmp(b_file))
-            });
-        });
+        // dedupe by comparing only against the previous dir. Walked dirs are
+        // sorted in parallel and deduped (each dir visited exactly once).
+        rayon::join(
+            || {
+                BACKGROUND_THREAD_POOL.install(|| {
+                    pairs.par_sort_unstable_by(|(a, path_a), (b, path_b)| {
+                        // SAFETY: `filename_offset` is always at a character boundary
+                        let (a_dir, a_file) = path_a.split_at(a.path.filename_offset as usize);
+                        let (b_dir, b_file) = path_b.split_at(b.path.filename_offset as usize);
+                        a_dir.cmp(b_dir).then_with(|| a_file.cmp(b_file))
+                    });
+                });
+            },
+            || walked_dirs.par_sort_unstable(),
+        );
+        walked_dirs.dedup();
 
         let mut builder = crate::simd_path::ChunkedPathStoreBuilder::new(pairs.len());
-        let dirs = populates_dirs_files_chunked_storage(&mut pairs, &mut builder);
+        let dirs = populates_dirs_files_chunked_storage(&mut pairs, &walked_dirs, &mut builder);
+        drop(walked_dirs);
 
         let mut files: Vec<FileItem> = pairs.into_iter().map(|(file, _)| file).collect();
         let chunked_paths = builder.finish();
@@ -2048,37 +2200,48 @@ impl FileSync {
 /// in one go: populates files chunked storage and creates new directories
 fn populates_dirs_files_chunked_storage<'a>(
     pairs: &'a mut [(FileItem, String)],
+    walked_dirs: &[String],
     builder: &mut crate::simd_path::ChunkedPathStoreBuilder,
 ) -> Vec<DirItem> {
-    let mut dirs: Vec<DirItem> = Vec::new();
+    let mut dirs: Vec<DirItem> = Vec::with_capacity(walked_dirs.len() + 1);
+    let mut dir_iter = walked_dirs.iter().peekable();
+    // Root-level files sort first and their "" parent is never a walker dir.
+    if pairs
+        .first()
+        .is_some_and(|(f, _)| f.path.filename_offset == 0)
+    {
+        push_dir_item(&mut dirs, builder, "");
+    }
 
     let mut prev_dir: &'a str = "";
-    let mut prev_dir_valid = false;
     let mut current_dir_idx: u32 = 0;
 
     for (file, rel) in pairs.iter_mut() {
         let rel: &'a str = rel;
         let dir_part: &'a str = &rel[..file.path.filename_offset as usize];
 
-        if !prev_dir_valid || prev_dir != dir_part {
-            let dir_string = builder.add_dir_immediate(dir_part);
+        if prev_dir != dir_part {
+            // Flush walked dirs up to and including this file's parent,
+            // keeping the table sorted for the find_dir_index binary search.
+            while let Some(dir) = dir_iter.peek()
+                && dir.as_str() < dir_part
+            {
+                push_dir_item(&mut dirs, builder, dir);
+                dir_iter.next();
+            }
 
-            // Compute last-segment offset: for "src/components/" -> 4 (points to "components/")
-            let last_seg = if dir_part.is_empty() {
-                0
-            } else {
-                let trimmed = dir_part.trim_end_matches(std::path::is_separator);
-                trimmed
-                    .rfind(std::path::is_separator)
-                    .map(|i| i + 1)
-                    .unwrap_or(0) as u16
-            };
+            match dir_iter.peek() {
+                Some(dir) if dir.as_str() == dir_part => {
+                    push_dir_item(&mut dirs, builder, dir);
+                    dir_iter.next();
+                }
+                // Parents the walker reported with a non-dir kind
+                // (e.g. followed symlinks) aren't in the list.
+                _ => push_dir_item(&mut dirs, builder, dir_part),
+            }
 
-            dirs.push(DirItem::new(dir_string, last_seg));
             current_dir_idx = (dirs.len() - 1) as u32;
-
             prev_dir = dir_part;
-            prev_dir_valid = true;
         }
 
         let cs = builder.add_file_immediate(rel, file.path.filename_offset);
@@ -2087,7 +2250,32 @@ fn populates_dirs_files_chunked_storage<'a>(
         file.set_parent_dir(current_dir_idx);
     }
 
+    for dir in dir_iter {
+        push_dir_item(&mut dirs, builder, dir);
+    }
+
     dirs
+}
+
+fn push_dir_item(
+    dirs: &mut Vec<DirItem>,
+    builder: &mut crate::simd_path::ChunkedPathStoreBuilder,
+    dir_part: &str,
+) {
+    let dir_string = builder.add_dir_immediate(dir_part);
+
+    // Compute last-segment offset: for "src/components/" -> 4 (points to "components/")
+    let last_seg = if dir_part.is_empty() {
+        0
+    } else {
+        let trimmed = dir_part.trim_end_matches(std::path::is_separator);
+        trimmed
+            .rfind(std::path::is_separator)
+            .map(|i| i + 1)
+            .unwrap_or(0) as u16
+    };
+
+    dirs.push(DirItem::new(dir_string, last_seg));
 }
 
 /// Fast extension-based binary detection. Avoids opening files during scan.
@@ -2302,6 +2490,100 @@ mod tests {
             !watch_set.contains(base),
             "base path must not be in watch dirs (covered by the top-level watch call)",
         );
+    }
+
+    /// Regression for #725: a dir that is EMPTY at scan time must be indexed
+    /// (searchable in dir search) and watched so later file creations are seen.
+    #[test]
+    fn for_each_dir_includes_empty_directories() {
+        let dir = tempfile::tempdir().unwrap();
+        let base_buf = crate::path_utils::canonicalize(dir.path()).unwrap();
+        let base = base_buf.as_path();
+
+        // Tree:
+        //   base/init.lua                  (file directly under base)
+        //   base/commands/                 (empty at scan — the #725 repro)
+        //   base/src/main.rs               (src is indexed)
+        //   base/src/plugins/extra/        (empty chain under an indexed dir)
+        std::fs::create_dir_all(base.join("commands")).unwrap();
+        std::fs::create_dir_all(base.join("src/plugins/extra")).unwrap();
+        std::fs::write(base.join("init.lua"), b"x").unwrap();
+        std::fs::write(base.join("src/main.rs"), b"x").unwrap();
+
+        let mut picker = FilePicker::new(FilePickerOptions {
+            base_path: base.to_str().unwrap().into(),
+            watch: false,
+            ..Default::default()
+        })
+        .unwrap();
+        picker.collect_files().unwrap();
+
+        let mut watch_dirs: Vec<PathBuf> = Vec::new();
+        picker.for_each_dir(|p| {
+            watch_dirs.push(p.to_path_buf());
+            std::ops::ControlFlow::Continue(())
+        });
+        let watch_set: std::collections::HashSet<PathBuf> = watch_dirs.iter().cloned().collect();
+
+        // Empty dirs (and their ancestors) must be watched.
+        for rel in ["commands", "src/plugins", "src/plugins/extra", "src"] {
+            assert!(
+                watch_set.contains(&base.join(rel)),
+                "expected {rel} in watch dirs, got {watch_set:?}",
+            );
+        }
+
+        // Dirs covered by indexed files must not be duplicated.
+        assert_eq!(
+            watch_dirs.len(),
+            watch_set.len(),
+            "duplicate watch dir emitted: {watch_dirs:?}",
+        );
+    }
+
+    /// The dir table must merge the walker's visited dirs with file parents
+    /// in a single sorted pass — every walked dir present exactly once, and
+    /// every file pointing at its own parent.
+    #[test]
+    fn dir_table_merges_walked_dirs_with_file_parents() {
+        let mut pairs: Vec<(FileItem, String)> = ["src/main.rs", "src/deep/lib.rs", "root.txt"]
+            .iter()
+            .map(|p| {
+                let (item, rel) = FileItem::new(PathBuf::from(p), Path::new(""), None);
+                (item, rel)
+            })
+            .collect();
+        pairs.sort_by(|(a, pa), (b, pb)| {
+            pa[..a.path.filename_offset as usize]
+                .cmp(&pb[..b.path.filename_offset as usize])
+                .then_with(|| pa.cmp(pb))
+        });
+
+        // Sorted '/'-terminated walker output: file parents + an empty dir +
+        // a sibling sharing a prefix with a file parent.
+        let walked: Vec<String> = ["empty/", "src/", "src/deep/", "src/deeper/"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+
+        let mut builder = crate::simd_path::ChunkedPathStoreBuilder::new(pairs.len());
+        let dirs = populates_dirs_files_chunked_storage(&mut pairs, &walked, &mut builder);
+        let store = builder.finish();
+        let arena = store.as_arena_ptr();
+
+        let table: Vec<String> = dirs.iter().map(|d| d.relative_path(arena)).collect();
+        // Sorted: "" (root files) first, all walked dirs present exactly once.
+        assert_eq!(table, ["", "empty/", "src/", "src/deep/", "src/deeper/"]);
+
+        // Every file's parent_dir_index points at its own dir entry.
+        for (file, _) in &pairs {
+            let dir = &dirs[file.parent_dir_index() as usize];
+            let rel = file.relative_path(arena);
+            assert!(
+                rel.starts_with(&dir.relative_path(arena)),
+                "file {rel} must live under its parent dir",
+            );
+        }
     }
 
     #[test]
