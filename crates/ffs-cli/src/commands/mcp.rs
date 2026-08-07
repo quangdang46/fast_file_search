@@ -10,6 +10,10 @@ use clap::Parser;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
+use ffs_budget::{
+    apply_preserving_footer, smart_truncate, AggressiveFilter, BudgetSplit, FilterLevel,
+    FilterStrategy, MinimalFilter, NoFilter, TruncationOutcome,
+};
 use ffs_engine::dispatch::DispatchResult;
 use ffs_engine::{Engine, EngineConfig};
 use ffs_symbol::lang::detect_file_type;
@@ -437,13 +441,19 @@ fn handle_tool(state: &mut McpState, root: &Path, name: &str, args: &Value) -> R
         }
         "ffs_read" => {
             let target = get_string(args, "path")?;
-            let p = if Path::new(target).is_absolute() {
-                PathBuf::from(target)
+            // `path:line` focuses the structural section containing the line,
+            // matching the CLI's `ffs read` behavior (Bug: MCP rejected spans).
+            let (path_part, line) = parse_target(target);
+            let p = if Path::new(path_part).is_absolute() {
+                PathBuf::from(path_part)
             } else {
-                root.join(target)
+                root.join(path_part)
             };
-            let res = state.engine.read(&p);
-            Ok(text_json(res.body))
+            let body = match line {
+                Some(l) => read_section_mcp(&state.engine, &p, l)?,
+                None => state.engine.read(&p).body,
+            };
+            Ok(text_json(body))
         }
         "ffs_outline" => {
             let target = get_string(args, "path")?;
@@ -577,6 +587,121 @@ fn handle_tool(state: &mut McpState, root: &Path, name: &str, args: &Value) -> R
         }
         other => Err(anyhow::anyhow!("unknown tool: {other}")),
     }
+}
+
+// Split `path:line` like the CLI's `ffs read` parser: a trailing positive
+// integer suffix selects a line; anything else is a plain path (Windows
+// drive letters included).
+fn parse_target(target: &str) -> (&str, Option<u32>) {
+    if let Some((p, rest)) = target.rsplit_once(':') {
+        if let Ok(n) = rest.parse::<u32>() {
+            if n > 0 {
+                return (p, Some(n));
+            }
+        }
+    }
+    (target, None)
+}
+
+fn deepest_containing(entries: &[OutlineEntry], line: u32) -> Option<OutlineEntry> {
+    let mut best: Option<OutlineEntry> = None;
+    for e in entries {
+        if e.start_line <= line && line <= e.end_line {
+            // Prefer a deeper child if one also contains the line.
+            if let Some(child) = deepest_containing(&e.children, line) {
+                best = Some(child);
+            } else {
+                best = Some(e.clone());
+            }
+        }
+    }
+    best
+}
+
+fn slice_lines(content: &str, start_line: u32, end_line: u32) -> String {
+    let start = start_line.saturating_sub(1) as usize;
+    let end = end_line as usize;
+    let mut out = String::new();
+    for (i, line) in content.lines().enumerate() {
+        if i >= start && i < end {
+            out.push_str(line);
+            out.push('\n');
+        }
+        if i >= end {
+            break;
+        }
+    }
+    out
+}
+
+fn budgeted(filtered: &str, max_bytes: usize) -> (String, TruncationOutcome) {
+    let mut buf = String::new();
+    let footer = "[truncated to budget]\n";
+    let outcome = if filtered.len() <= max_bytes {
+        let (out, oc) = smart_truncate(filtered, max_bytes);
+        buf.push_str(&out);
+        oc
+    } else {
+        apply_preserving_footer(&mut buf, max_bytes, footer, |target, budget| {
+            let take = filtered.len().min(budget);
+            target.push_str(&filtered[..take]);
+            take
+        })
+    };
+    (buf, outcome)
+}
+
+fn section_body(
+    engine: &Engine,
+    path: &Path,
+    line: u32,
+    level: FilterLevel,
+    budget: u64,
+) -> Result<String> {
+    let lang = match detect_file_type(path) {
+        FileType::Code(l) => l,
+        _ => return Err(anyhow::anyhow!("not a code file: {}", path.display())),
+    };
+    let content = ffs_search::bom::read_file(path)
+        .map_err(|e| anyhow::anyhow!("read {}: {e}", path.display()))?;
+    let mtime = std::fs::metadata(path)
+        .and_then(|m| m.modified())
+        .unwrap_or(SystemTime::UNIX_EPOCH);
+    let outline = engine
+        .handles
+        .outlines
+        .get_or_compute(path, mtime, &content, lang);
+
+    let entry = deepest_containing(&outline, line)
+        .ok_or_else(|| anyhow::anyhow!("no structural section contains line {line}"))?;
+
+    let slice = slice_lines(&content, entry.start_line, entry.end_line);
+    let filter: Box<dyn FilterStrategy> = match level {
+        FilterLevel::None => Box::new(NoFilter),
+        FilterLevel::Minimal => Box::new(MinimalFilter),
+        FilterLevel::Aggressive => Box::new(AggressiveFilter),
+    };
+    let filtered = filter.apply(&slice);
+
+    let split = BudgetSplit::default_for(budget);
+    let body_budget_bytes = (split.body * 4) as usize;
+    let max_bytes = body_budget_bytes.min(engine.config.max_bytes_per_result);
+    let (body, _outcome) = budgeted(&filtered, max_bytes);
+
+    Ok(format!(
+        "// {} {} (lines {}-{})\n{}",
+        format!("{:?}", entry.kind).to_lowercase(),
+        entry.name,
+        entry.start_line,
+        entry.end_line,
+        body
+    ))
+}
+
+fn read_section_mcp(engine: &Engine, path: &Path, line: u32) -> Result<String> {
+    let budget = engine.config.total_token_budget;
+    let level = engine.config.filter_level;
+    section_body(engine, path, line, level, budget)
 }
 
 fn text_json(text: impl Into<String>) -> Value {
@@ -1134,5 +1259,54 @@ mod tests {
             .as_str()
             .unwrap()
             .contains("mcp.rs"));
+    }
+
+    #[test]
+    fn read_accepts_path_line_span() {
+        let td = tempfile::tempdir().unwrap();
+        let root = td.path();
+        std::fs::write(
+            root.join("main.rs"),
+            "fn main() {\n    let msg = \"hi\";\n    println!(\"{msg}\");\n}\nfn other() {}\n",
+        )
+        .unwrap();
+        let mut state = McpState::new(Engine::default());
+
+        // `path:line` returns the structural section containing that line.
+        let result =
+            handle_tool(&mut state, root, "ffs_read", &json!({"path": "main.rs:2"})).unwrap();
+        let text = result["content"][0]["text"].as_str().unwrap();
+        assert!(text.contains("fn main"), "got: {text}");
+        assert!(text.contains("println!"), "got: {text}");
+        assert!(!text.contains("fn other"), "got: {text}");
+
+        // No line suffix keeps the whole-file read.
+        let whole = handle_tool(&mut state, root, "ffs_read", &json!({"path": "main.rs"})).unwrap();
+        let text = whole["content"][0]["text"].as_str().unwrap();
+        assert!(text.contains("fn other"), "got: {text}");
+
+        // Absolute path with a line suffix also works.
+        let abs = handle_tool(
+            &mut state,
+            root,
+            "ffs_read",
+            &json!({"path": format!("{}:1", root.join("main.rs").display())}),
+        )
+        .unwrap();
+        assert!(abs["content"][0]["text"]
+            .as_str()
+            .unwrap()
+            .contains("fn main"));
+    }
+
+    #[test]
+    fn parse_target_splits_line_suffix() {
+        assert_eq!(parse_target("main.rs:7"), ("main.rs", Some(7)));
+        assert_eq!(parse_target("src/main.rs:1"), ("src/main.rs", Some(1)));
+        assert_eq!(parse_target("main.rs"), ("main.rs", None));
+        assert_eq!(parse_target("main.rs:0"), ("main.rs:0", None));
+        assert_eq!(parse_target("main.rs:abc"), ("main.rs:abc", None));
+        assert_eq!(parse_target("a/b.rs:3:x"), ("a/b.rs:3:x", None));
+        assert_eq!(parse_target(r"C:\dir\file.rs"), (r"C:\dir\file.rs", None));
     }
 }
