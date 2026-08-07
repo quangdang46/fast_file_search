@@ -62,7 +62,16 @@ struct SiblingsOutput {
 pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     let engine = crate::cache::load_or_build_engine(root);
 
-    let definitions = engine.handles.symbols.lookup_exact(&args.name);
+    let mut definitions = engine.handles.symbols.lookup_exact(&args.name);
+    // The symbol index is built with par_iter(), so per-name definition order
+    // is arbitrary. Sort by (path, line) so scope resolution is deterministic
+    // regardless of parallel insertion order.
+    definitions.sort_by(|a, b| {
+        a.path
+            .cmp(&b.path)
+            .then_with(|| a.line.cmp(&b.line))
+            .then_with(|| a.end_line.cmp(&b.end_line))
+    });
     let mut hits: Vec<SiblingHit> = Vec::new();
 
     for def in &definitions {
@@ -143,7 +152,9 @@ fn load_outline(engine: &Engine, path: &PathBuf) -> Option<Vec<OutlineEntry>> {
 
 // Walk the outline looking for an entry whose name == target and whose
 // start_line == target_line. Return its parent's siblings (i.e. peers of the
-// target). For top-level targets, the "parent" is the file itself.
+// target). For top-level targets, the "parent" is the file itself. For a Rust
+// method, the "parent" is its `impl Type` block, so peers are the other
+// methods of the same impl.
 fn find_siblings(
     outline: &[OutlineEntry],
     target: &str,
@@ -161,6 +172,24 @@ fn find_siblings(
             .collect();
         return Some(("<file>".to_string(), peers));
     }
+    // Rust: the target may be a method inside an `impl` block. The impl
+    // container's name is the impl'd type, so match either the container name
+    // or a `Type` / `Trait for Type` form (e.g. `impl Foo`, `impl Debug for
+    // Foo`).
+    for parent in outline {
+        if parent.kind == OutlineKind::Impl
+            && impl_contains_target(parent, target, target_line)
+            && impl_named(parent, target)
+        {
+            let peers: Vec<OutlineEntry> = parent
+                .children
+                .iter()
+                .filter(|c| !(c.name == target && c.start_line == target_line))
+                .cloned()
+                .collect();
+            return Some((parent.name.clone(), peers));
+        }
+    }
     // Otherwise, descend looking for a parent containing the target.
     for parent in outline {
         if let Some(found) = find_in_children(parent, target, target_line) {
@@ -168,6 +197,25 @@ fn find_siblings(
         }
     }
     None
+}
+
+fn impl_contains_target(impl_: &OutlineEntry, target: &str, target_line: u32) -> bool {
+    impl_
+        .children
+        .iter()
+        .any(|c| c.name == target && c.start_line == target_line)
+}
+
+// True when the impl block's name (its impl'd type) matches the target. This
+// resolves the ambiguity where the target name is a top-level definition too:
+// the impl must be a scope for that exact name, not just a container that
+// happens to hold the line.
+fn impl_named(impl_: &OutlineEntry, target: &str) -> bool {
+    impl_.name == target
+        || impl_
+            .name
+            .strip_prefix(target)
+            .is_some_and(|rest| rest.starts_with(" for "))
 }
 
 fn find_in_children(
@@ -262,6 +310,59 @@ mod tests {
         let (parent, peers) = find_siblings(&outline, "deeper", 32).expect("deeper found");
         assert_eq!(parent, "deep");
         assert!(peers.is_empty());
+    }
+
+    #[test]
+    fn rust_method_resolves_to_impl_peers_not_top_level() {
+        // `add` exists both as a top-level function and as an impl method;
+        // the impl method's peers are the impl's other methods.
+        let mut impl_ = entry(OutlineKind::Impl, "UnifiedScanner", 3, 30);
+        impl_
+            .children
+            .push(entry(OutlineKind::Function, "new", 4, 10));
+        impl_
+            .children
+            .push(entry(OutlineKind::Function, "add", 12, 20));
+        let top = entry(OutlineKind::Function, "add", 1, 2);
+        let outline = vec![top, impl_];
+
+        let (parent, peers) = find_siblings(&outline, "add", 12).expect("add@12 found");
+        assert_eq!(parent, "UnifiedScanner");
+        let names: Vec<&str> = peers.iter().map(|e| e.name.as_str()).collect();
+        assert_eq!(names, vec!["new"]);
+    }
+
+    #[test]
+    fn rust_method_resolves_to_trait_impl_peers() {
+        let mut impl_ = entry(OutlineKind::Impl, "Display for Foo", 3, 30);
+        impl_
+            .children
+            .push(entry(OutlineKind::Function, "fmt", 4, 20));
+        let outline = vec![impl_];
+
+        let (parent, peers) = find_siblings(&outline, "fmt", 4).expect("fmt@4 found");
+        assert_eq!(parent, "Display for Foo");
+        assert!(peers.is_empty());
+    }
+
+    #[test]
+    fn top_level_target_does_not_leak_into_impl_scope() {
+        // The same name exists at top level (line 1) and as an impl method
+        // (line 12); resolving the top-level def must stay at file scope.
+        let mut impl_ = entry(OutlineKind::Impl, "UnifiedScanner", 3, 30);
+        impl_
+            .children
+            .push(entry(OutlineKind::Function, "new", 4, 10));
+        impl_
+            .children
+            .push(entry(OutlineKind::Function, "add", 12, 20));
+        let top = entry(OutlineKind::Function, "add", 1, 2);
+        let outline = vec![top, impl_];
+
+        let (parent, peers) = find_siblings(&outline, "add", 1).expect("add@1 found");
+        assert_eq!(parent, "<file>");
+        let names: Vec<&str> = peers.iter().map(|e| e.name.as_str()).collect();
+        assert!(!names.contains(&"new"));
     }
 
     #[test]

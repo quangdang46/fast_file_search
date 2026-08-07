@@ -158,6 +158,7 @@ pub enum OutlineKind {
     Export,
     Property,
     Module,
+    Impl,
 }
 
 /// Detect test files by path patterns.

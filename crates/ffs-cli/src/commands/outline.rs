@@ -75,6 +75,7 @@ fn kind_str(k: OutlineKind) -> &'static str {
         OutlineKind::Export => "export",
         OutlineKind::Property => "property",
         OutlineKind::Module => "module",
+        OutlineKind::Impl => "impl",
     }
 }
 

@@ -66,6 +66,23 @@ pub fn extract_definition_name(node: tree_sitter::Node, lines: &[&str]) -> Optio
         return extract_first_variable_declarator_name(node, lines);
     }
 
+    if node.kind() == "impl_item" {
+        // `impl<T> Trait for Type` → "Type" (or "Trait for Type" for
+        // orphan impls, which have no `type` field).
+        if let Some(ty) = node.child_by_field_name("type") {
+            let text = node_text_simple(ty, lines);
+            if !text.is_empty() {
+                return Some(text);
+            }
+        }
+        if let Some(trait_node) = node.child_by_field_name("trait") {
+            let text = node_text_simple(trait_node, lines);
+            if !text.is_empty() {
+                return Some(text);
+            }
+        }
+    }
+
     None
 }
 

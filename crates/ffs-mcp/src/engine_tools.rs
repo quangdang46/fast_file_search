@@ -674,6 +674,7 @@ fn format_outline_kind(kind: ffs_symbol::types::OutlineKind) -> &'static str {
         OutlineKind::TypeAlias => "type",
         OutlineKind::Export => "export",
         OutlineKind::Property => "property",
+        OutlineKind::Impl => "impl",
     }
 }
 pub fn find_siblings(

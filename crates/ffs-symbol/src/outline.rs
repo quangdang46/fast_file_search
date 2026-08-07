@@ -99,7 +99,11 @@ fn node_to_entry(node: Node, lines: &[&str], content: &str, lang: Lang) -> Optio
     let mut children = Vec::new();
     if matches!(
         kind,
-        OutlineKind::Class | OutlineKind::Struct | OutlineKind::Interface | OutlineKind::Module
+        OutlineKind::Class
+            | OutlineKind::Struct
+            | OutlineKind::Interface
+            | OutlineKind::Module
+            | OutlineKind::Impl
     ) {
         collect_children(node, lines, content, lang, &mut children);
     }
@@ -237,6 +241,7 @@ fn outline_kind_for(node: Node, lang: Lang) -> Option<OutlineKind> {
 
         // Modules / namespaces
         "mod_item" | "namespace_definition" | "module_declaration" => OutlineKind::Module,
+        "impl_item" => OutlineKind::Impl,
 
         // Constants / variables
         "const_item" | "const_declaration" | "static_item" => OutlineKind::Constant,
