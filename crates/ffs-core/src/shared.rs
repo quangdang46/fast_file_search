@@ -222,26 +222,43 @@ impl SharedFilePicker {
             // nudge us, and the picker would keep a stale status (e.g.
             // `INDEX_NEW` for files a commit just cleaned). Bound the retry
             // to a generous deadline; the poll is cheap and converges quickly.
+            //
+            // A `None` read while the lock is still held is the transient
+            // mid-write race — libgit2 partial-read of `.git/index` (e.g.
+            // "could not read (expected 172 bytes, read 167)"). That must not
+            // stop the loop, or the picker keeps its stale status for ever.
+            // Only stop when the index is stable (lock cleared) and a read
+            // succeeded, or once the deadline passes.
+            let git_root_ref = git_root.as_deref();
             let deadline = Instant::now() + GIT_STATUS_RETRY_WINDOW;
-            loop {
-                let lock_clear = git_root
-                    .as_deref()
+            let mut last_good: Option<GitStatusCache> = None;
+            let git_status = loop {
+                let lock_clear = git_root_ref
                     .map(wait_for_git_index_lock_release)
                     .unwrap_or(true);
                 let status = GitStatusCache::read_git_status(
-                    git_root.as_deref(),
+                    git_root_ref,
                     &mut crate::git::default_status_options(),
                 );
-                // Done when the index is stable (lock cleared) or the read
-                // failed outright — retrying a permanently-missing repo is
-                // pointless. Also give up past the deadline so a stuck lock
-                // can't wedge the watcher thread for ever.
-                if lock_clear || status.is_none() || Instant::now() >= deadline {
-                    break status;
+                match (status, lock_clear, git_root_ref.is_none()) {
+                    // Authoritative read: lock cleared and we got a value.
+                    (Some(s), true, false) => break Some(s),
+                    // No repo at all — reading is futile, don't spin.
+                    (_, _, true) => break None,
+                    // Lock still held (or raced just after release): keep the
+                    // last good read, keep polling.
+                    (Some(s), _, false) => last_good = Some(s),
+                    (None, _, false) => {}
                 }
-                debug!("Index lock still held, retrying git status read");
+                if Instant::now() >= deadline {
+                    break None;
+                }
+                debug!("Index lock still held or status read raced, retrying");
                 std::thread::sleep(GIT_STATUS_RETRY_POLL);
-            }
+            };
+            // Past deadline with a good read captured earlier — prefer it over
+            // nothing so a stuck lock can't leave the picker stale.
+            git_status.or(last_good)
         };
 
         let mut guard = self.write()?;

@@ -2065,8 +2065,12 @@ impl FileSync {
                     if !is_git_file(path)
                         && let Ok(rel) = path.strip_prefix(&base_path)
                     {
-                        let mut rel = rel.to_string_lossy().into_owned();
-                        rel.push('/');
+                        // Match the stored relative-path convention used for
+                        // files (`\` on Windows, `/` elsewhere) so the dir
+                        // merge in `populates_dirs_files_chunked_storage`
+                        // deduplicates walker dirs against file parents.
+                        let mut rel = normalize_relative_path(&rel.to_string_lossy()).into_owned();
+                        rel.push(std::path::MAIN_SEPARATOR);
                         collected.lock().1.push(rel);
                     }
                 }
@@ -2559,11 +2563,19 @@ mod tests {
                 .then_with(|| pa.cmp(pb))
         });
 
-        // Sorted '/'-terminated walker output: file parents + an empty dir +
-        // a sibling sharing a prefix with a file parent.
+        // Sorted walker output (trailing MAIN_SEPARATOR): file parents + an
+        // empty dir + a sibling sharing a prefix with a file parent. On
+        // Windows the walker and the file parents share the `\` convention,
+        // so use it here too or the merge emits duplicate dirs.
+        let sep = std::path::MAIN_SEPARATOR;
         let walked: Vec<String> = ["empty/", "src/", "src/deep/", "src/deeper/"]
             .iter()
-            .map(|s| s.to_string())
+            .map(|s| {
+                let bare = s.trim_end_matches(std::path::is_separator);
+                let mut s = normalize_relative_path(bare).into_owned();
+                s.push(sep);
+                s
+            })
             .collect();
 
         let mut builder = crate::simd_path::ChunkedPathStoreBuilder::new(pairs.len());
@@ -2573,7 +2585,20 @@ mod tests {
 
         let table: Vec<String> = dirs.iter().map(|d| d.relative_path(arena)).collect();
         // Sorted: "" (root files) first, all walked dirs present exactly once.
-        assert_eq!(table, ["", "empty/", "src/", "src/deep/", "src/deeper/"]);
+        let expected: Vec<String> = ["", "empty/", "src/", "src/deep/", "src/deeper/"]
+            .iter()
+            .map(|s| {
+                if s.is_empty() {
+                    String::new()
+                } else {
+                    let bare = s.trim_end_matches(std::path::is_separator);
+                    let mut s = normalize_relative_path(bare).into_owned();
+                    s.push(sep);
+                    s
+                }
+            })
+            .collect();
+        assert_eq!(table, expected);
 
         // Every file's parent_dir_index points at its own dir entry.
         for (file, _) in &pairs {
