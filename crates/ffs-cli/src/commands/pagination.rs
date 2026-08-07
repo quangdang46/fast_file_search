@@ -48,15 +48,23 @@ impl<T> Page<T> {
 // One-line "[start-end of total]" footer for human text output. `returned`
 // is the number of items shown on this page (separated from `Page<T>` so the
 // caller can borrow individual fields without keeping the page itself around).
+// Empty pages never render an inverted range: offset past the end prints
+// nothing, a limit-0 probe prints an honest hint instead.
 pub(crate) fn footer(total: usize, offset: usize, returned: usize, has_more: bool) -> String {
     if total == 0 {
         return String::new();
     }
+    if returned == 0 {
+        return if has_more {
+            format!("[showing 0 of {total} — use --limit to page]\n")
+        } else {
+            String::new()
+        };
+    }
     let end = offset.saturating_add(returned);
     let mut out = format!("[{}-{} of {}]", offset + 1, end, total);
     if has_more {
-        let next = offset.saturating_add(returned);
-        out.push_str(&format!(" — next: --offset {next}"));
+        out.push_str(&format!(" — next: --offset {end}"));
     }
     out.push('\n');
     out
@@ -146,8 +154,16 @@ mod tests {
     }
 
     #[test]
-    fn footer_offset_at_end_shows_empty_range() {
-        let s = footer(5, 5, 0, false);
-        assert!(s.starts_with("[6-5 of 5]") || s.contains("of 5"));
+    fn footer_offset_at_end_prints_nothing() {
+        // offset >= total → empty page at the end → no footer line.
+        assert!(footer(5, 5, 0, false).is_empty());
+        assert!(footer(21, 999, 0, false).is_empty());
+    }
+
+    #[test]
+    fn footer_limit_zero_prints_honest_hint() {
+        let s = footer(21, 0, 0, true);
+        assert_eq!(s, "[showing 0 of 21 — use --limit to page]\n");
+        assert!(!s.starts_with("[1-0"));
     }
 }
