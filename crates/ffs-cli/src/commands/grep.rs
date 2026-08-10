@@ -349,13 +349,11 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
             }
         });
     }
-    let total_files = bigram.as_ref().map_or_else(
-        || {
-            // No cache: count files with a full walk (bug 18 denominator).
-            super::walk_files(root).len()
-        },
-        |idx| idx.file_count(),
-    );
+    // `total_files` (the bug-18 denominator) is the whole workspace. From the
+    // bigram cache when present (no walk needed). When there's no cache we
+    // count files during the fused search walk via `file_counter`, so we never
+    // walk the tree twice.
+    let total_files: usize = bigram.as_ref().map_or(usize::MAX, |idx| idx.file_count());
     let limit = args.limit;
     let max_count = if args.max_count == 0 {
         usize::MAX
@@ -365,6 +363,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
 
     let hits_mutex: Mutex<Vec<GrepHit>> = Mutex::new(Vec::new());
     let hit_counter = AtomicUsize::new(0);
+    let file_counter = AtomicUsize::new(0);
     let stop = std::sync::atomic::AtomicBool::new(false);
 
     let threads = std::thread::available_parallelism()
@@ -381,6 +380,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         let matcher = &matcher;
         let hits_mutex = &hits_mutex;
         let hit_counter = &hit_counter;
+        let file_counter = &file_counter;
         let stop = &stop;
         let candidate_paths = &candidate_paths;
         let files_with_matches = args.files_with_matches;
@@ -395,6 +395,9 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
             if !e.file_type().is_some_and(|t| t.is_file()) {
                 return ignore::WalkState::Continue;
             }
+            // Count every file we visit (only used when there's no cache, to
+            // derive the bug-18 denominator without a second walk).
+            file_counter.fetch_add(1, Ordering::Relaxed);
             let path = e.into_path();
             // Bigram prefilter: skip files that cannot contain the needle.
             if let Some(cands) = candidate_paths {
@@ -558,6 +561,14 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
             out
         });
     }
+
+    // When there's no bigram cache, `total_files` was set to usize::MAX and we
+    // derived the real count from `file_counter` during the fused walk.
+    let total_files = if total_files == usize::MAX {
+        file_counter.load(Ordering::Relaxed)
+    } else {
+        total_files
+    };
 
     let payload = GrepResult {
         needle: args.needle,
