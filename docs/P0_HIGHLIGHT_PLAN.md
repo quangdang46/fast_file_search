@@ -296,9 +296,35 @@ Integration (`crates/ffs-cli/tests/`):
 13. **`trim_whitespace: false`** for CLI (raw line + ranges) vs MCP `true` — surfaces differ; document.
 14. **`has_regex_metacharacters` needs `grep_text()`** (constraint-stripped), not raw needle — per MCP `server.rs:802-806`.
 
+## ✅ Track B KẾT QUẢ — BENCHMARK QUYẾT ĐỊNH (2026-08-10, release build)
+
+> **KẾT LUẬN: GIỮ CLI SELF-SCAN. KHÔNG chuyển sang engine.**
+
+Đo trên repo ffs (618 files, `.ffs` warm bigram: 3735 bigrams / 599 files), release build, `bench_grep` example. Medians của 10 runs:
+
+| Needle | CLI self-scan | engine | engine+index | engine/cli |
+|---|---|---|---|---|
+| `FilePicker` | **10.3 ms** | 43.6 ms | 43.2 ms | **4.0x** |
+| `grep_search` | ~8 ms | 38.8 ms | 38.8 ms | **5.0x** |
+| `match_byte_offsets` | ~6 ms | 39.2 ms | 39.2 ms | **7.0x** |
+| `TODO` | ~13 ms | 40.7 ms | 40.7 ms | **3.2x** |
+| `fn main` | ~14 ms | 40.1 ms | 40.1 ms | **2.9x** |
+| Cold (no `.ffs`) | ~31 ms | 43.1 ms | 43.1 ms | 1.4x (engine thắng) |
+
+**Diễn giải:**
+- **Warm bigram (trạng thái bình thường sau `ffs index`)**: CLI self-scan nhanh hơn engine **3–7x**. Bigram prefilter là lợi thế quyết định — đúng như owner dự đoán khi override §9.1.
+- **Cold cache**: engine nhanh hơn 1.4x — nhưng đó là trạng thái tạm (chỉ khi `.ffs` thiếu/stale), không phải steady-state.
+- Engine `enable_content_indexing` (engine+index) **không giúp** — bigram build cost nằm trong mỗi lần `collect_files` một-shot, không phải lợi thế prefilter dùng lại như CLI cache.
+
+**Merge gate owner: `new ≤ old` KHÔNG đạt (engine chậm hơn 3-7x). → Track B dừng ở đây. Không engine switch. Không xoá bigram.**
+
+Đây chính là regression mà owner cảnh báo khi override §9.1 ("Accept" sai). Plan gốc đã được sửa thành benchmark-first; benchmark chứng minh quyết định đúng là **giữ CLI self-scan**.
+
+---
+
 ## 10. Rollout order — benchmark-first, hai track độc lập
 
-> **Quy tắc cứng (owner override):** implementer KHÔNG được merge engine switch nếu benchmark không chứng minh `new ≤ old`, lý tưởng `new < old` rõ rệt. Bigram prefilter KHÔNG được xoá khỏi CLI.
+> **Quy tắc cứng (owner override):** implementer KHÔNG được merge engine switch nếu benchmark không chứng minh `new ≤ old`, lý tưởng `new < old` rõ rệt. Bigram prefilter KHÔNG được xoá khỏi CLI. **KẾT QUẢ: gate không đạt → Track B đóng, giữ CLI self-scan (xem bảng trên).**
 
 ### Track A — Highlight (ship regardless, không phụ thuộc benchmark)
 
