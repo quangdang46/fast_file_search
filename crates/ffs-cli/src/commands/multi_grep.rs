@@ -66,6 +66,10 @@ struct GrepHit {
     /// Which pattern(s) matched this line (1-based pattern indices as given).
     #[serde(skip_serializing_if = "Vec::is_empty")]
     matched_patterns: Vec<String>,
+    /// Byte ranges `[start, end)` of each match within `text`, for terminal
+    /// highlighting. Omitted from JSON when empty.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    match_ranges: Vec<(u32, u32)>,
 }
 
 #[derive(Debug, Serialize)]
@@ -93,7 +97,7 @@ fn collect_patterns(args: &Args) -> Result<Vec<String>> {
     Ok(out)
 }
 
-fn byte_to_line(haystack: &[u8], offset: usize) -> (u32, &[u8]) {
+fn byte_to_line(haystack: &[u8], offset: usize) -> (u32, usize, &[u8]) {
     let mut line = 1u32;
     let mut line_start = 0usize;
     let mut i = 0;
@@ -109,7 +113,7 @@ fn byte_to_line(haystack: &[u8], offset: usize) -> (u32, &[u8]) {
         .position(|&b| b == b'\n')
         .map(|p| line_start + p)
         .unwrap_or(haystack.len());
-    (line, &haystack[line_start..line_end])
+    (line, line_start, &haystack[line_start..line_end])
 }
 
 pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
@@ -154,20 +158,35 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
 
         // Collect matches keyed by line so we de-dupe and attach which patterns hit.
         // pattern_id from Aho-Corasick is the index into `patterns`.
-        let mut by_line: std::collections::BTreeMap<u32, (String, Vec<String>)> =
-            std::collections::BTreeMap::new();
+        let mut by_line: std::collections::BTreeMap<
+            u32,
+            (String, Vec<String>, Vec<(u32, u32)>),
+        > = std::collections::BTreeMap::new();
 
         for (per_file, mat) in ac.find_iter(&content).enumerate() {
             if per_file >= max_count {
                 break;
             }
-            let (line, slice) = byte_to_line(&content, mat.start());
+            let (line, line_start, slice) = byte_to_line(&content, mat.start());
             let pat = patterns[mat.pattern().as_usize()].clone();
-            let entry = by_line
-                .entry(line)
-                .or_insert_with(|| (String::from_utf8_lossy(slice).into_owned(), Vec::new()));
+            let entry = by_line.entry(line).or_insert_with(|| {
+                (
+                    String::from_utf8_lossy(slice).into_owned(),
+                    Vec::new(),
+                    Vec::new(),
+                )
+            });
             if !entry.1.contains(&pat) {
                 entry.1.push(pat);
+            }
+            // Byte range of this match relative to the displayed line.
+            let s = mat.start().saturating_sub(line_start);
+            let e = mat.end().saturating_sub(line_start);
+            let len = entry.0.len();
+            if e > s {
+                entry
+                    .2
+                    .push((s.min(len) as u32, e.min(len) as u32));
             }
             if args.files_with_matches && !by_line.is_empty() {
                 break;
@@ -180,11 +199,12 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
 
         let local_hits: Vec<GrepHit> = by_line
             .into_iter()
-            .map(|(line, (text, matched_patterns))| GrepHit {
+            .map(|(line, (text, matched_patterns, match_ranges))| GrepHit {
                 path: path.to_string_lossy().into_owned(),
                 line,
                 text,
                 matched_patterns,
+                match_ranges,
             })
             .collect();
 
@@ -220,6 +240,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
                 line: 0,
                 text: String::new(),
                 matched_patterns: Vec::new(),
+                match_ranges: Vec::new(),
             })
             .collect();
     }
@@ -234,20 +255,30 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
 
     super::emit(format, &payload, |p| {
         let mut out = String::new();
+        let path_spec = super::render::path_spec();
+        let line_spec = super::render::line_spec();
         for h in &p.hits {
             if h.line == 0 {
-                out.push_str(&h.path);
+                out.push_str(&super::render::colorize(&h.path, &path_spec));
                 out.push('\n');
-            } else if h.matched_patterns.is_empty() {
-                out.push_str(&format!("{}:{}: {}\n", h.path, h.line, h.text));
             } else {
-                out.push_str(&format!(
-                    "{}:{}: [{}] {}\n",
-                    h.path,
-                    h.line,
-                    h.matched_patterns.join("|"),
-                    h.text
-                ));
+                out.push_str(&super::render::colorize(&h.path, &path_spec));
+                out.push(':');
+                out.push_str(&super::render::colorize(&h.line.to_string(), &line_spec));
+                if h.matched_patterns.is_empty() {
+                    out.push_str(": ");
+                    out.push_str(&super::render::colorize_matches(
+                        &h.text,
+                        &h.match_ranges,
+                    ));
+                } else {
+                    out.push_str(&format!(": [{}] ", h.matched_patterns.join("|")));
+                    out.push_str(&super::render::colorize_matches(
+                        &h.text,
+                        &h.match_ranges,
+                    ));
+                }
+                out.push('\n');
             }
         }
         if p.hits.is_empty() {

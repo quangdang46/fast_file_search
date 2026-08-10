@@ -36,6 +36,7 @@ aho-corasick = { workspace = true }
 memmap2 = { workspace = true }
 postcard = { version = "1", features = ["use-std"] }
 zstd = { version = "0.13", features = ["no_asm"] }
+termcolor = { workspace = true }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

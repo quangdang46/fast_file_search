@@ -28,6 +28,7 @@ pub mod overview;
 pub(crate) mod pagination;
 pub mod read;
 pub mod refs;
+pub(crate) mod render;
 pub mod session;
 pub mod siblings;
 pub mod symbol;
@@ -40,6 +41,10 @@ use serde::Serialize;
 use crate::cli::OutputFormat;
 
 /// Helper: emit either a human text rendering or JSON.
+///
+/// This is the single color gate for the CLI. Render closures may build ANSI
+/// colored strings; we strip them unless stdout is a tty and `NO_COLOR` is
+/// unset, so piped output and `--format json` stay byte-clean.
 pub(crate) fn emit<T, R>(format: OutputFormat, payload: &T, render_text: R) -> Result<()>
 where
     T: Serialize,
@@ -50,7 +55,12 @@ where
             println!("{}", serde_json::to_string_pretty(payload)?);
         }
         OutputFormat::Text => {
-            print!("{}", render_text(payload));
+            let text = render_text(payload);
+            if render::color_enabled() {
+                print!("{text}");
+            } else {
+                print!("{}", render::strip_ansi(&text));
+            }
         }
     }
     Ok(())

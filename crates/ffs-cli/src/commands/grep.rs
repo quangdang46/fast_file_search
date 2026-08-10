@@ -64,6 +64,10 @@ struct GrepHit {
     path: String,
     line: u32,
     text: String,
+    /// Byte ranges `[start, end)` of each match within `text`, for terminal
+    /// highlighting. Omitted from JSON when empty (e.g. `-l` mode).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    match_ranges: Vec<(u32, u32)>,
 }
 
 #[derive(Debug, Serialize)]
@@ -175,8 +179,8 @@ impl Matcher {
     }
 }
 
-/// Map a byte offset to (1-based line number, line slice).
-fn byte_to_line(haystack: &[u8], offset: usize) -> (u32, &[u8]) {
+/// Map a byte offset to `(1-based line number, byte offset of line start, line slice)`.
+fn byte_to_line(haystack: &[u8], offset: usize) -> (u32, usize, &[u8]) {
     // Walk forwards counting newlines is O(N). For large files this is the
     // bottleneck for hit-dense patterns; switching to a sorted newline index
     // would let us binary-search per hit. For typical workloads (few hits
@@ -196,7 +200,7 @@ fn byte_to_line(haystack: &[u8], offset: usize) -> (u32, &[u8]) {
         .position(|&b| b == b'\n')
         .map(|p| line_start + p)
         .unwrap_or(haystack.len());
-    (line, &haystack[line_start..line_end])
+    (line, line_start, &haystack[line_start..line_end])
 }
 
 pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
@@ -259,28 +263,53 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
             return;
         }
 
-        let mut local_hits: Vec<GrepHit> = Vec::new();
+        // Collect matches keyed by line so multiple matches on the same line
+        // become a single hit carrying ALL match ranges (matching how the text
+        // renderer highlights every occurrence).
+        let mut by_line: std::collections::BTreeMap<u32, (String, Vec<(u32, u32)>)> =
+            std::collections::BTreeMap::new();
         for (per_file, (off, end)) in matcher.find_iter(&content).enumerate() {
             if per_file >= max_count {
                 break;
             }
-            let (line, slice) = byte_to_line(&content, off);
+            let (line, line_start, slice) = byte_to_line(&content, off);
             // Bug 16: when a regex with `(?s)` (or any multi-line construct)
             // matches across newlines, render the whole matched span instead
             // of just the first line — otherwise the displayed text is
             // misleading (looks like only `foo` matched when the regex
             // really required both `foo` and `bar`).
-            let text = if end > off && end <= content.len() && content[off..end].contains(&b'\n') {
-                let snippet = &content[off..end];
-                String::from_utf8_lossy(snippet).replace('\n', "\\n")
-            } else {
-                String::from_utf8_lossy(slice).into_owned()
-            };
-            local_hits.push(GrepHit {
-                path: path.to_string_lossy().into_owned(),
-                line,
-                text,
-            });
+            let (text, range) =
+                if end > off && end <= content.len() && content[off..end].contains(&b'\n') {
+                    let snippet = &content[off..end];
+                    let text = String::from_utf8_lossy(snippet).replace('\n', "\\n");
+                    // The displayed text is `snippet` with `\n` replaced by the
+                    // two-byte escape `\\n`, so byte offsets shift. Rather than
+                    // re-derive them, highlight the whole span — a multi-line
+                    // match is one contiguous region in the displayed text.
+                    let range = if text.is_empty() {
+                        None
+                    } else {
+                        Some((0, text.len() as u32))
+                    };
+                    (text, range)
+                } else {
+                    let text = String::from_utf8_lossy(slice).into_owned();
+                    // Match offsets are absolute in `content`; make them
+                    // relative to the displayed line, clamped to the line.
+                    let s = off.saturating_sub(line_start);
+                    let e = end.saturating_sub(line_start);
+                    let len = text.len() as u32;
+                    let range = if e > s {
+                        Some((s.min(len as usize) as u32, e.min(len as usize) as u32))
+                    } else {
+                        None
+                    };
+                    (text, range)
+                };
+            let entry = by_line.entry(line).or_insert_with(|| (text, Vec::new()));
+            if let Some(r) = range {
+                entry.1.push(r);
+            }
             // If this is the only hit we care about (files_with_matches mode),
             // we can short-circuit per file.
             if args.files_with_matches {
@@ -288,19 +317,25 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
             }
         }
 
-        if local_hits.is_empty() {
+        if by_line.is_empty() {
             return;
         }
+
+        let local_hits: Vec<GrepHit> = by_line
+            .into_iter()
+            .map(|(line, (text, match_ranges))| GrepHit {
+                path: path.to_string_lossy().into_owned(),
+                line,
+                text,
+                match_ranges,
+            })
+            .collect();
+
         let prior = hit_counter.fetch_add(local_hits.len(), Ordering::Relaxed);
         if prior >= limit {
             stop.store(true, Ordering::Relaxed);
             return;
         }
-
-        // De-dupe lines per file (regex can match same line multiple times).
-        // Keep first occurrence.
-        let mut seen_lines = std::collections::HashSet::new();
-        local_hits.retain(|h| seen_lines.insert(h.line));
 
         if let Ok(mut guard) = hits_mutex.lock() {
             for h in local_hits {
@@ -327,6 +362,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
                 path: p,
                 line: 0,
                 text: String::new(),
+                match_ranges: Vec::new(),
             })
             .collect();
     }
@@ -369,12 +405,22 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     };
     super::emit(format, &payload, |p| {
         let mut out = String::new();
+        let path_spec = super::render::path_spec();
+        let line_spec = super::render::line_spec();
         for h in &p.hits {
             if h.line == 0 {
-                out.push_str(&h.path);
+                out.push_str(&super::render::colorize(&h.path, &path_spec));
                 out.push('\n');
             } else {
-                out.push_str(&format!("{}:{}: {}\n", h.path, h.line, h.text));
+                out.push_str(&super::render::colorize(&h.path, &path_spec));
+                out.push(':');
+                out.push_str(&super::render::colorize(&h.line.to_string(), &line_spec));
+                out.push_str(": ");
+                out.push_str(&super::render::colorize_matches(
+                    &h.text,
+                    &h.match_ranges,
+                ));
+                out.push('\n');
             }
         }
         if p.hits.is_empty() {
@@ -710,5 +756,8 @@ mod tests {
         assert_eq!(byte_to_line(h, 0).0, 1);
         assert_eq!(byte_to_line(h, 6).0, 2);
         assert_eq!(byte_to_line(h, 13).0, 3);
+        // line_start follows the last newline before the offset
+        assert_eq!(byte_to_line(h, 6).1, 6);
+        assert_eq!(byte_to_line(h, 13).1, 13);
     }
 }

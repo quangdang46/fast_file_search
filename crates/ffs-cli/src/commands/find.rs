@@ -186,6 +186,55 @@ pub(crate) fn fuzzy_search_matches(scopes: &[PathBuf], needle: &str) -> Vec<Stri
         .collect()
 }
 
+/// Compute the fuzzy-matched byte ranges of `needle` within `path`, for
+/// terminal highlighting. Uses `neo_frizbee::match_list_indices`, which
+/// returns per-matched-char byte offsets into the haystack (reverse order).
+/// Returns coalesced `(start, end)` byte spans, or empty if there is no match
+/// or the path is unchanged by the match (exact-path edge cases).
+fn fuzzy_highlight_ranges(path: &str, needle: &str) -> Vec<(u32, u32)> {
+    let config = neo_frizbee::Config {
+        max_typos: Some(2),
+        sort: false,
+        ..Default::default()
+    };
+    let haystacks = [path];
+    let mut matches = neo_frizbee::match_list_indices(needle, &haystacks, &config);
+    // match_list_indices returns results for ALL haystacks; keep the first.
+    let Some(m) = matches.pop() else { return Vec::new() };
+    if m.indices.is_empty() {
+        return Vec::new();
+    }
+    // `indices` are byte offsets into `path`, in reverse order. Sort ascending.
+    let mut idx: Vec<usize> = m.indices;
+    idx.sort_unstable();
+    // Coalesce contiguous runs: a run covers idx[i] ..= idx[j] when each step
+    // is adjacent. The value is a byte position; highlight [pos, pos+1) per
+    // matched byte, merging runs.
+    let mut spans: Vec<(u32, u32)> = Vec::new();
+    let mut run_start: Option<usize> = None;
+    let mut prev: Option<usize> = None;
+    for &p in &idx {
+        if let (Some(ps), Some(pr)) = (run_start, prev) {
+            if p == pr || p == pr + 1 {
+                prev = Some(p);
+                continue;
+            }
+            spans.push((ps as u32, (pr + 1) as u32));
+            run_start = Some(p);
+            prev = Some(p);
+            continue;
+        }
+        if run_start.is_none() {
+            run_start = Some(p);
+        }
+        prev = Some(p);
+    }
+    if let (Some(ps), Some(pr)) = (run_start, prev) {
+        spans.push((ps as u32, (pr + 1) as u32));
+    }
+    spans
+}
+
 fn longest_in_order_run(haystack: &str, needle: &str) -> usize {
     let mut best = 0usize;
     let h: Vec<char> = haystack.chars().collect();
@@ -411,8 +460,21 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         if p.fuzzy_fallback && !p.matches.is_empty() {
             out.push_str("# fuzzy fallback (no exact match)\n");
         }
+        let path_spec = super::render::path_spec();
+        let fuzzy_spec = super::render::match_spec();
         for m in &p.matches {
-            out.push_str(m);
+            if p.fuzzy_fallback {
+                // Fuzzy tier: color the whole path, overlay the matched spans.
+                let ranges = fuzzy_highlight_ranges(m, &p.needle);
+                out.push_str(&super::render::colorize_with_base(
+                    m,
+                    &ranges,
+                    &path_spec,
+                    &fuzzy_spec,
+                ));
+            } else {
+                out.push_str(&super::render::colorize(m, &path_spec));
+            }
             out.push('\n');
         }
         if p.total > 0 {

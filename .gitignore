@@ -33,3 +33,6 @@ scripts/benchmark-results/
 
 # Instruments traces
 *.trace/
+
+# ripgrep reference clone (study scratch)
+.tmp/
