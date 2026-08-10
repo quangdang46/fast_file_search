@@ -48,7 +48,6 @@ fn read_for_search(path: &Path) -> std::io::Result<SearchBuffer> {
     Ok(SearchBuffer::Mapped(map))
 }
 
-
 #[derive(Debug, Parser)]
 #[command(after_help = "\
 EXAMPLES:
@@ -194,19 +193,15 @@ impl Matcher {
                     // bytes via memchr2, then verify the interior with a fast
                     // case-folded compare. No lowercased copy, fully lazy.
                     let needle = needle.clone();
-                    Box::new(
-                        CaseInsensitiveLiteralIter {
-                            haystack,
-                            needle,
-                            pos: 0,
-                        },
-                    )
+                    Box::new(CaseInsensitiveLiteralIter {
+                        haystack,
+                        needle,
+                        pos: 0,
+                    })
                 } else {
                     // Case-sensitive literal: stream via memmem lazily (no
                     // intermediate position Vec).
-                    Box::new(
-                        memmem::find_iter(haystack, needle).map(move |p| (p, p + nlen)),
-                    )
+                    Box::new(memmem::find_iter(haystack, needle).map(move |p| (p, p + nlen)))
                 }
             }
             Matcher::Regex(re) => Box::new(re.find_iter(haystack).map(|m| (m.start(), m.end()))),
@@ -417,9 +412,8 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         let hit_counter = &hit_counter;
         let stop = &stop;
         let candidate_paths = &candidate_paths;
-        let limit = limit;
-        let max_count = max_count;
         let files_with_matches = args.files_with_matches;
+        let (limit, max_count) = (limit, max_count);
         Box::new(move |entry| {
             if stop.load(Ordering::Relaxed) {
                 return ignore::WalkState::Quit;
@@ -471,81 +465,80 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
                 return ignore::WalkState::Continue;
             }
 
-                // Collect matches keyed by line so multiple matches on the same
-                // line become a single hit carrying ALL match ranges.
-                let mut by_line: std::collections::BTreeMap<u32, (String, Vec<(u32, u32)>)> =
-                    std::collections::BTreeMap::new();
-                for (per_file, (off, end)) in matcher.find_iter(&content).enumerate() {
-                    if per_file >= max_count {
-                        break;
-                    }
-                    let (line, line_start, slice) = byte_to_line(&content, off);
-                    // Bug 16: multiline match → render the whole span.
-                    let (text, range) =
-                        if end > off && end <= content.len() && content[off..end].contains(&b'\n')
-                        {
-                            let snippet = &content[off..end];
-                            let text = String::from_utf8_lossy(snippet).replace('\n', "\\n");
-                            let range = if text.is_empty() {
-                                None
-                            } else {
-                                Some((0, text.len() as u32))
-                            };
-                            (text, range)
+            // Collect matches keyed by line so multiple matches on the same
+            // line become a single hit carrying ALL match ranges.
+            let mut by_line: std::collections::BTreeMap<u32, (String, Vec<(u32, u32)>)> =
+                std::collections::BTreeMap::new();
+            for (per_file, (off, end)) in matcher.find_iter(&content).enumerate() {
+                if per_file >= max_count {
+                    break;
+                }
+                let (line, line_start, slice) = byte_to_line(&content, off);
+                // Bug 16: multiline match → render the whole span.
+                let (text, range) =
+                    if end > off && end <= content.len() && content[off..end].contains(&b'\n') {
+                        let snippet = &content[off..end];
+                        let text = String::from_utf8_lossy(snippet).replace('\n', "\\n");
+                        let range = if text.is_empty() {
+                            None
                         } else {
-                            let text = String::from_utf8_lossy(slice).into_owned();
-                            let s = off.saturating_sub(line_start);
-                            let e = end.saturating_sub(line_start);
-                            let len = text.len() as u32;
-                            let range = if e > s {
-                                Some((s.min(len as usize) as u32, e.min(len as usize) as u32))
-                            } else {
-                                None
-                            };
-                            (text, range)
+                            Some((0, text.len() as u32))
                         };
-                    let entry = by_line.entry(line).or_insert_with(|| (text, Vec::new()));
-                    if let Some(r) = range {
-                        entry.1.push(r);
+                        (text, range)
+                    } else {
+                        let text = String::from_utf8_lossy(slice).into_owned();
+                        let s = off.saturating_sub(line_start);
+                        let e = end.saturating_sub(line_start);
+                        let len = text.len() as u32;
+                        let range = if e > s {
+                            Some((s.min(len as usize) as u32, e.min(len as usize) as u32))
+                        } else {
+                            None
+                        };
+                        (text, range)
+                    };
+                let entry = by_line.entry(line).or_insert_with(|| (text, Vec::new()));
+                if let Some(r) = range {
+                    entry.1.push(r);
+                }
+                // files-with-matches: first match per file is enough.
+                if files_with_matches {
+                    break;
+                }
+            }
+
+            if by_line.is_empty() {
+                return ignore::WalkState::Continue;
+            }
+
+            let local_hits: Vec<GrepHit> = by_line
+                .into_iter()
+                .map(|(line, (text, match_ranges))| GrepHit {
+                    path: path.to_string_lossy().into_owned(),
+                    line,
+                    text,
+                    match_ranges,
+                })
+                .collect();
+
+            let prior = hit_counter.fetch_add(local_hits.len(), Ordering::Relaxed);
+            if prior >= limit {
+                stop.store(true, Ordering::Relaxed);
+                return ignore::WalkState::Quit;
+            }
+
+            if let Ok(mut guard) = hits_mutex.lock() {
+                for h in local_hits {
+                    if guard.len() >= limit {
+                        stop.store(true, Ordering::Relaxed);
+                        return ignore::WalkState::Quit;
                     }
-                    // files-with-matches: first match per file is enough.
-                    if files_with_matches {
-                        break;
-                    }
+                    guard.push(h);
                 }
-
-                if by_line.is_empty() {
-                    return ignore::WalkState::Continue;
-                }
-
-                let local_hits: Vec<GrepHit> = by_line
-                    .into_iter()
-                    .map(|(line, (text, match_ranges))| GrepHit {
-                        path: path.to_string_lossy().into_owned(),
-                        line,
-                        text,
-                        match_ranges,
-                    })
-                    .collect();
-
-                let prior = hit_counter.fetch_add(local_hits.len(), Ordering::Relaxed);
-                if prior >= limit {
-                    stop.store(true, Ordering::Relaxed);
-                    return ignore::WalkState::Quit;
-                }
-
-                if let Ok(mut guard) = hits_mutex.lock() {
-                    for h in local_hits {
-                        if guard.len() >= limit {
-                            stop.store(true, Ordering::Relaxed);
-                            return ignore::WalkState::Quit;
-                        }
-                        guard.push(h);
-                    }
-                }
-                ignore::WalkState::Continue
-            })
-        });
+            }
+            ignore::WalkState::Continue
+        })
+    });
 
     let mut hits = hits_mutex.into_inner().unwrap_or_default();
     hits.sort_by(|a, b| a.path.cmp(&b.path).then(a.line.cmp(&b.line)));
