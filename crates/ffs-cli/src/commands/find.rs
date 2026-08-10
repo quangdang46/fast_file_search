@@ -200,7 +200,9 @@ fn fuzzy_highlight_ranges(path: &str, needle: &str) -> Vec<(u32, u32)> {
     let haystacks = [path];
     let mut matches = neo_frizbee::match_list_indices(needle, &haystacks, &config);
     // match_list_indices returns results for ALL haystacks; keep the first.
-    let Some(m) = matches.pop() else { return Vec::new() };
+    let Some(m) = matches.pop() else {
+        return Vec::new();
+    };
     if m.indices.is_empty() {
         return Vec::new();
     }

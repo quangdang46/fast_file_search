@@ -52,7 +52,14 @@ fn grep_json_keeps_path_line_text_and_adds_match_ranges() {
     let hits = v["hits"].as_array().unwrap();
     assert_eq!(hits.len(), 1);
     let h = &hits[0];
-    assert_eq!(h["path"].as_str().unwrap().replace('\\', "/").ends_with("a.rs"), true);
+    assert_eq!(
+        h["path"]
+            .as_str()
+            .unwrap()
+            .replace('\\', "/")
+            .ends_with("a.rs"),
+        true
+    );
     assert_eq!(h["line"], 1);
     assert_eq!(h["text"], "foo bar foo");
     // Two occurrences: bytes [0,3) and [8,11).

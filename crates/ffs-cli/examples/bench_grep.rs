@@ -19,8 +19,8 @@
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use ffs_search::grep::{GrepMode, GrepSearchOptions, parse_grep_query};
 use ffs_search::file_picker::{FilePicker, FilePickerOptions};
+use ffs_search::grep::{parse_grep_query, GrepMode, GrepSearchOptions};
 
 /// Load the on-disk bigram cache (`<root>/.ffs/bigram.postcard.zst`) and
 /// filter `needle` down to candidate files. Returns None when the cache is
@@ -92,13 +92,16 @@ fn load_bigram_candidates(root: &Path, needle: &[u8]) -> Option<Vec<PathBuf>> {
 fn cli_selfscan(root: &Path, needle: &str, use_regex: bool) -> usize {
     let matcher = build_cli_matcher(needle, use_regex);
     let files: Vec<PathBuf> = match &matcher {
-        CliMatcher::Literal { needle, .. } => load_bigram_candidates(root, needle)
-            .unwrap_or_else(|| crate_walk_files(root)),
+        CliMatcher::Literal { needle, .. } => {
+            load_bigram_candidates(root, needle).unwrap_or_else(|| crate_walk_files(root))
+        }
         _ => crate_walk_files(root),
     };
     let mut hits = 0usize;
     for path in files {
-        let Ok(content) = std::fs::read(&path) else { continue };
+        let Ok(content) = std::fs::read(&path) else {
+            continue;
+        };
         let probe = &content[..content.len().min(8 * 1024)];
         if probe.contains(&0u8) {
             continue;
@@ -116,7 +119,10 @@ fn cli_selfscan(root: &Path, needle: &str, use_regex: bool) -> usize {
 
 /// Build a matcher equivalent to commands/grep.rs's Matcher.
 enum CliMatcher {
-    Literal { needle: Vec<u8>, case_insensitive: bool },
+    Literal {
+        needle: Vec<u8>,
+        case_insensitive: bool,
+    },
     Regex(regex::bytes::Regex),
 }
 
@@ -126,11 +132,13 @@ impl CliMatcher {
         haystack: &'a [u8],
     ) -> Box<dyn Iterator<Item = (usize, usize)> + 'a> {
         match self {
-            CliMatcher::Literal { needle, case_insensitive } => {
+            CliMatcher::Literal {
+                needle,
+                case_insensitive,
+            } => {
                 if *case_insensitive {
                     let needle = needle.clone();
-                    let lower: Vec<u8> =
-                        haystack.iter().map(|b| b.to_ascii_lowercase()).collect();
+                    let lower: Vec<u8> = haystack.iter().map(|b| b.to_ascii_lowercase()).collect();
                     let nlen = needle.len();
                     let finder = memchr::memmem::Finder::new(&needle).into_owned();
                     let positions: Vec<(usize, usize)> =
@@ -210,12 +218,7 @@ fn crate_walk_files(root: &Path) -> Vec<PathBuf> {
     out.into_inner().unwrap_or_default()
 }
 
-fn engine_grep(
-    root: &Path,
-    needle: &str,
-    use_regex: bool,
-    content_indexing: bool,
-) -> usize {
+fn engine_grep(root: &Path, needle: &str, use_regex: bool, content_indexing: bool) -> usize {
     let mut picker = FilePicker::new(FilePickerOptions {
         base_path: root.to_string_lossy().into_owned(),
         watch: false,
@@ -226,7 +229,11 @@ fn engine_grep(
     picker.collect_files().expect("collect");
 
     let q = parse_grep_query(needle);
-    let mode = if use_regex { GrepMode::Regex } else { GrepMode::PlainText };
+    let mode = if use_regex {
+        GrepMode::Regex
+    } else {
+        GrepMode::PlainText
+    };
     let options = GrepSearchOptions {
         max_file_size: 10 * 1024 * 1024,
         max_matches_per_file: 0,
@@ -299,10 +306,24 @@ fn main() {
         let l = median(&mut lit);
         let r = median(&mut re);
         println!("matcher          median     min        max");
-        println!("literal(memmem)  {:>9}  {:>9}  {:>9}", fmt(l), fmt(lit[0]), fmt(*lit.iter().max().unwrap()));
-        println!("regex            {:>9}  {:>9}  {:>9}", fmt(r), fmt(re[0]), fmt(*re.iter().max().unwrap()));
+        println!(
+            "literal(memmem)  {:>9}  {:>9}  {:>9}",
+            fmt(l),
+            fmt(lit[0]),
+            fmt(*lit.iter().max().unwrap())
+        );
+        println!(
+            "regex            {:>9}  {:>9}  {:>9}",
+            fmt(r),
+            fmt(re[0]),
+            fmt(*re.iter().max().unwrap())
+        );
         let ratio = l.as_secs_f64().max(1e-9);
-        println!("\nregex/literal: {:.2}x (regex {}x slower)", r.as_secs_f64() / ratio, (r.as_secs_f64() / ratio));
+        println!(
+            "\nregex/literal: {:.2}x (regex {}x slower)",
+            r.as_secs_f64() / ratio,
+            (r.as_secs_f64() / ratio)
+        );
         return;
     }
 
@@ -321,9 +342,24 @@ fn main() {
     let (eimin, eimax) = (eng_idx[0], *eng_idx.iter().max().unwrap());
 
     println!("config           median     min        max");
-    println!("cli-selfscan     {:>9}  {:>9}  {:>9}", fmt(c), fmt(cmin), fmt(cmax));
-    println!("engine           {:>9}  {:>9}  {:>9}", fmt(e), fmt(emin), fmt(emax));
-    println!("engine+index     {:>9}  {:>9}  {:>9}", fmt(ei), fmt(eimin), fmt(eimax));
+    println!(
+        "cli-selfscan     {:>9}  {:>9}  {:>9}",
+        fmt(c),
+        fmt(cmin),
+        fmt(cmax)
+    );
+    println!(
+        "engine           {:>9}  {:>9}  {:>9}",
+        fmt(e),
+        fmt(emin),
+        fmt(emax)
+    );
+    println!(
+        "engine+index     {:>9}  {:>9}  {:>9}",
+        fmt(ei),
+        fmt(eimin),
+        fmt(eimax)
+    );
 
     let base = c.as_secs_f64().max(1e-9);
     println!("\nengine vs cli:       {:.2}x", e.as_secs_f64() / base);

@@ -24,6 +24,12 @@ isntall = "isntall"
 # Vietnamese: word meaning "change/replace". Appears in design docs and
 # inline commit-message context.
 thay = "thay"
+# Vietnamese: "tham khảo" (reference) / "tham chiếu" (refer). Legit words in
+# the study docs.
+tham = "tham"
+# Intentional typo in `ffs find` fuzzy-fallback tests to demonstrate that
+# "scaner" resolves to "scanner".
+scaner = "scaner"
 
 [default]
 extend-ignore-re = [

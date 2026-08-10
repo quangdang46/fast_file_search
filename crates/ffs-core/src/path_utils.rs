@@ -26,7 +26,7 @@ pub fn normalize(path: PathBuf) -> PathBuf {
 
 #[cfg(windows)]
 pub fn expand_tilde(path: &str) -> PathBuf {
-    return PathBuf::from(path);
+    PathBuf::from(path)
 }
 
 #[cfg(not(windows))]

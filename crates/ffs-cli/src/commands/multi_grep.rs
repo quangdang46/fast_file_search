@@ -158,10 +158,10 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
 
         // Collect matches keyed by line so we de-dupe and attach which patterns hit.
         // pattern_id from Aho-Corasick is the index into `patterns`.
-        let mut by_line: std::collections::BTreeMap<
-            u32,
-            (String, Vec<String>, Vec<(u32, u32)>),
-        > = std::collections::BTreeMap::new();
+        // (text, matched_patterns, match_ranges)
+        type LineHits = (String, Vec<String>, Vec<(u32, u32)>);
+        let mut by_line: std::collections::BTreeMap<u32, LineHits> =
+            std::collections::BTreeMap::new();
 
         for (per_file, mat) in ac.find_iter(&content).enumerate() {
             if per_file >= max_count {
@@ -184,9 +184,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
             let e = mat.end().saturating_sub(line_start);
             let len = entry.0.len();
             if e > s {
-                entry
-                    .2
-                    .push((s.min(len) as u32, e.min(len) as u32));
+                entry.2.push((s.min(len) as u32, e.min(len) as u32));
             }
             if args.files_with_matches && !by_line.is_empty() {
                 break;
@@ -267,16 +265,10 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
                 out.push_str(&super::render::colorize(&h.line.to_string(), &line_spec));
                 if h.matched_patterns.is_empty() {
                     out.push_str(": ");
-                    out.push_str(&super::render::colorize_matches(
-                        &h.text,
-                        &h.match_ranges,
-                    ));
+                    out.push_str(&super::render::colorize_matches(&h.text, &h.match_ranges));
                 } else {
                     out.push_str(&format!(": [{}] ", h.matched_patterns.join("|")));
-                    out.push_str(&super::render::colorize_matches(
-                        &h.text,
-                        &h.match_ranges,
-                    ));
+                    out.push_str(&super::render::colorize_matches(&h.text, &h.match_ranges));
                 }
                 out.push('\n');
             }

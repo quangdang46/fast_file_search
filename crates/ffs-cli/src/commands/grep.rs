@@ -416,10 +416,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
                 out.push(':');
                 out.push_str(&super::render::colorize(&h.line.to_string(), &line_spec));
                 out.push_str(": ");
-                out.push_str(&super::render::colorize_matches(
-                    &h.text,
-                    &h.match_ranges,
-                ));
+                out.push_str(&super::render::colorize_matches(&h.text, &h.match_ranges));
                 out.push('\n');
             }
         }

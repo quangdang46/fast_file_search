@@ -1778,7 +1778,7 @@ impl FilePicker {
         #[cfg(windows)]
         {
             let rel = canonical_relative_path(path, &self.base_path)?;
-            return Some(std::borrow::Cow::Owned(rel));
+            Some(std::borrow::Cow::Owned(rel))
         }
 
         #[cfg(not(windows))]

@@ -21,7 +21,11 @@ pub(crate) fn match_spec() -> ColorSpec {
 /// The default color spec for a file path (magenta; cyan on Windows).
 pub(crate) fn path_spec() -> ColorSpec {
     let mut spec = ColorSpec::new();
-    spec.set_fg(Some(if cfg!(windows) { Color::Cyan } else { Color::Magenta }));
+    spec.set_fg(Some(if cfg!(windows) {
+        Color::Cyan
+    } else {
+        Color::Magenta
+    }));
     spec
 }
 
