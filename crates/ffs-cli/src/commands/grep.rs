@@ -35,7 +35,7 @@ impl std::ops::Deref for SearchBuffer {
 /// (single open, single read — no second `File::open`).
 fn read_for_search(path: &Path) -> std::io::Result<SearchBuffer> {
     use std::io::Read;
-    const MMAP_THRESHOLD: u64 = 32 * 1024;
+    const MMAP_THRESHOLD: u64 = 4 * 1024;
     let file = std::fs::File::open(path)?;
     let meta = file.metadata()?;
     if meta.len() < MMAP_THRESHOLD {
