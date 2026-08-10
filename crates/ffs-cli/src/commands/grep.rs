@@ -5,10 +5,49 @@ use std::sync::Mutex;
 use anyhow::Result;
 use clap::Parser;
 use memchr::memmem;
-use rayon::prelude::*;
 use serde::Serialize;
 
 use crate::cli::OutputFormat;
+
+/// A byte buffer that either owns its data (small files) or holds a live
+/// memory map (larger files). Derefs to `&[u8]` so search code treats both
+/// uniformly. Using mmap avoids the read+copy syscall for larger files —
+/// ripgrep's `MmapChoice::Auto` does the same.
+enum SearchBuffer {
+    Owned(Vec<u8>),
+    Mapped(memmap2::Mmap),
+}
+
+impl std::ops::Deref for SearchBuffer {
+    type Target = [u8];
+    #[inline]
+    fn deref(&self) -> &[u8] {
+        match self {
+            SearchBuffer::Owned(v) => v,
+            SearchBuffer::Mapped(m) => m,
+        }
+    }
+}
+
+/// Read a file's bytes for searching. Uses mmap for files above a small
+/// threshold (avoids the read+copy syscall, like ripgrep's MmapChoice::Auto);
+/// falls back to reading through the already-open handle for tiny files
+/// (single open, single read — no second `File::open`).
+fn read_for_search(path: &Path) -> std::io::Result<SearchBuffer> {
+    use std::io::Read;
+    const MMAP_THRESHOLD: u64 = 32 * 1024;
+    let file = std::fs::File::open(path)?;
+    let meta = file.metadata()?;
+    if meta.len() < MMAP_THRESHOLD {
+        let mut buf = Vec::with_capacity(meta.len() as usize);
+        let mut file = file;
+        file.read_to_end(&mut buf)?;
+        return Ok(SearchBuffer::Owned(buf));
+    }
+    let map = unsafe { memmap2::Mmap::map(&file) }?;
+    Ok(SearchBuffer::Mapped(map))
+}
+
 
 #[derive(Debug, Parser)]
 #[command(after_help = "\
@@ -137,9 +176,9 @@ impl Matcher {
         }
     }
 
-    /// Returns iterator of (start_byte_offset, end_byte_offset) for each
-    /// match. Caller maps the start back to a line number; the end is used
-    /// to render multi-line matches faithfully (bug 16).
+    /// Returns a lazy iterator of `(start, end)` byte offsets for each match.
+    /// No intermediate allocation: matches are produced on demand, so `-l`
+    /// mode can stop after the first match without scanning the whole file.
     fn find_iter<'a>(
         &'a self,
         haystack: &'a [u8],
@@ -149,34 +188,119 @@ impl Matcher {
                 needle,
                 case_insensitive,
             } => {
+                let nlen = needle.len();
                 if *case_insensitive {
+                    // Case-insensitive ASCII: scan for (first, last) needle
+                    // bytes via memchr2, then verify the interior with a fast
+                    // case-folded compare. No lowercased copy, fully lazy.
                     let needle = needle.clone();
-                    let lower: Vec<u8> = haystack.iter().map(|b| b.to_ascii_lowercase()).collect();
-                    let nlen = needle.len();
-                    let finder = memmem::Finder::new(&needle).into_owned();
-                    let positions: Vec<(usize, usize)> =
-                        finder.find_iter(&lower).map(|p| (p, p + nlen)).collect();
-                    Box::new(positions.into_iter())
-                } else {
-                    let nlen = needle.len();
-                    let finder = memmem::Finder::new(needle.as_slice());
                     Box::new(
-                        finder
-                            .find_iter(haystack)
-                            .map(|p| (p, p + nlen))
-                            .collect::<Vec<_>>()
-                            .into_iter(),
+                        CaseInsensitiveLiteralIter {
+                            haystack,
+                            needle,
+                            pos: 0,
+                        },
+                    )
+                } else {
+                    // Case-sensitive literal: stream via memmem lazily (no
+                    // intermediate position Vec).
+                    Box::new(
+                        memmem::find_iter(haystack, needle).map(move |p| (p, p + nlen)),
                     )
                 }
             }
-            Matcher::Regex(re) => Box::new(
-                re.find_iter(haystack)
-                    .map(|m| (m.start(), m.end()))
-                    .collect::<Vec<_>>()
-                    .into_iter(),
-            ),
+            Matcher::Regex(re) => Box::new(re.find_iter(haystack).map(|m| (m.start(), m.end()))),
         }
     }
+
+    /// Returns true if `haystack` contains at least one match. Used by
+    /// files-with-matches mode: short-circuits at the first hit.
+    fn is_match(&self, haystack: &[u8]) -> bool {
+        match self {
+            Matcher::Literal {
+                needle,
+                case_insensitive,
+            } => {
+                if *case_insensitive {
+                    CaseInsensitiveLiteralIter {
+                        haystack,
+                        needle: needle.clone(),
+                        pos: 0,
+                    }
+                    .next()
+                    .is_some()
+                } else {
+                    memmem::find(haystack, needle).is_some()
+                }
+            }
+            Matcher::Regex(re) => re.is_match(haystack),
+        }
+    }
+}
+
+/// Lazy case-insensitive ASCII literal iterator.
+///
+/// Finds candidate positions with `memchr2` on the needle's first byte
+/// (both cases), then verifies the full needle with a case-folded compare
+/// that relies on ASCII differing only in bit 0x20. Zero allocation.
+struct CaseInsensitiveLiteralIter<'a> {
+    haystack: &'a [u8],
+    needle: Vec<u8>,
+    pos: usize,
+}
+
+impl Iterator for CaseInsensitiveLiteralIter<'_> {
+    type Item = (usize, usize);
+
+    fn next(&mut self) -> Option<(usize, usize)> {
+        if self.needle.is_empty() || self.haystack.len() < self.needle.len() {
+            return None;
+        }
+        let first_lo = self.needle[0];
+        let first_hi = first_lo.to_ascii_uppercase();
+        let tail = &self.needle[1..];
+        let max_pos = self.haystack.len() - self.needle.len();
+        for pos in memchr::memchr2_iter(first_lo, first_hi, &self.haystack[self.pos..]) {
+            let abs = self.pos + pos;
+            if abs > max_pos {
+                return None;
+            }
+            let candidate = &self.haystack[abs + 1..abs + self.needle.len()];
+            if ascii_case_eq(candidate, tail) {
+                self.pos = abs + 1;
+                return Some((abs, abs + self.needle.len()));
+            }
+        }
+        self.pos = self.haystack.len();
+        None
+    }
+}
+
+/// Fast ASCII case-insensitive byte-slice comparison (differ only in bit
+/// 0x20). Both slices must be equal length.
+fn ascii_case_eq(a: &[u8], b: &[u8]) -> bool {
+    let len = a.len();
+    let mut i = 0;
+    while i + 8 <= len {
+        let va = u64::from_ne_bytes(a[i..i + 8].try_into().unwrap());
+        let vb = u64::from_ne_bytes(b[i..i + 8].try_into().unwrap());
+        if va != vb {
+            const MASK: u64 = 0x2020_2020_2020_2020;
+            if (va | MASK) != (vb | MASK) {
+                return false;
+            }
+        }
+        i += 8;
+    }
+    while i < len {
+        let ha = a[i];
+        let hb = b[i];
+        if ha != hb && (ha | 0x20) != (hb | 0x20) {
+            return false;
+        }
+        i += 1;
+    }
+    true
 }
 
 /// Map a byte offset to `(1-based line number, byte offset of line start, line slice)`.
@@ -213,30 +337,59 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
 
     // Bigram prefilter: only safe (and helpful) for literal patterns.
     // We try to load the persisted index; on miss we just scan everything.
-    let prefilter_paths: Option<Vec<PathBuf>> = match &matcher {
+    // `needle_bytes` is the case-folded literal we search for.
+    let needle_bytes: &[u8] = match &matcher {
+        Matcher::Literal { needle, .. } => needle.as_slice(),
+        _ => &[],
+    };
+    let bigram = match &matcher {
         Matcher::Literal { needle, .. } if needle.len() >= 2 => {
-            let cache = crate::cache::CacheDir::at(root);
-            cache.load_bigram_index(root).and_then(|idx| {
-                idx.filter(needle)
-                    .map(|paths| paths.into_iter().map(PathBuf::from).collect())
-            })
+            crate::cache::CacheDir::at(root).load_bigram_index(root)
         }
         _ => None,
     };
 
-    let files: Vec<PathBuf> = match prefilter_paths {
-        Some(paths) => paths,
-        None => super::walk_files(root),
+    // Bigram prefilter → a set of candidate paths; the search still walks the
+    // whole tree ONCE (rg-style fused walk+search) and skips non-candidates via
+    // O(1) membership. No prefilter → search every file in the walk. This keeps
+    // a single parallel walk regardless of how scattered the candidates are.
+    // `total_files` (the bug-18 denominator) is the whole workspace: from the
+    // bigram cache when present, else derived from the walked tree.
+    let candidate_paths: Option<std::collections::HashSet<PathBuf>> = match &bigram {
+        Some(idx) => idx.filter(needle_bytes).map(|paths| {
+            paths
+                .into_iter()
+                .map(PathBuf::from)
+                .collect::<std::collections::HashSet<_>>()
+        }),
+        None => None,
     };
-    // Bug 18: report a consistent denominator. Always use the total workspace
-    // file count so the literal and regex paths both display "matches across
-    // N files" with the same N — even when the bigram prefilter narrows the
-    // candidate set down to zero.
-    let total_files = if matches!(matcher, Matcher::Literal { .. }) {
-        super::walk_files(root).len()
-    } else {
-        files.len()
-    };
+    // Bigram says the pattern cannot appear anywhere — short-circuit with no
+    // matches instead of walking the whole tree.
+    if candidate_paths.as_ref().is_some_and(|s| s.is_empty()) {
+        let total_files = bigram.as_ref().map_or(0, |idx| idx.file_count());
+        let payload = GrepResult {
+            needle: args.needle,
+            hits: Vec::new(),
+            total_files_searched: total_files,
+            mode,
+            schema: "v1",
+        };
+        return super::emit(format, &payload, |p| {
+            if p.hits.is_empty() {
+                format!("[no matches across {} files]\n", p.total_files_searched)
+            } else {
+                String::new()
+            }
+        });
+    }
+    let total_files = bigram.as_ref().map_or_else(
+        || {
+            // No cache: count files with a full walk (bug 18 denominator).
+            super::walk_files(root).len()
+        },
+        |idx| idx.file_count(),
+    );
     let limit = args.limit;
     let max_count = if args.max_count == 0 {
         usize::MAX
@@ -248,105 +401,151 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     let hit_counter = AtomicUsize::new(0);
     let stop = std::sync::atomic::AtomicBool::new(false);
 
-    // Parallel scan across files; cooperative early-exit once the global
-    // limit is reached so we don't waste IO on the tail of the workload.
-    files.par_iter().for_each(|path: &PathBuf| {
-        if stop.load(Ordering::Relaxed) {
-            return;
-        }
-        let Ok(content) = std::fs::read(path) else {
-            return;
-        };
-        // Quick binary heuristic: skip files containing NUL in the first 8KB.
-        let probe = &content[..content.len().min(8 * 1024)];
-        if probe.contains(&0u8) {
-            return;
-        }
+    let threads = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(2)
+        .min(8);
 
-        // Collect matches keyed by line so multiple matches on the same line
-        // become a single hit carrying ALL match ranges (matching how the text
-        // renderer highlights every occurrence).
-        let mut by_line: std::collections::BTreeMap<u32, (String, Vec<(u32, u32)>)> =
-            std::collections::BTreeMap::new();
-        for (per_file, (off, end)) in matcher.find_iter(&content).enumerate() {
-            if per_file >= max_count {
-                break;
+    let walker = ignore::WalkBuilder::new(root)
+        .standard_filters(true)
+        .follow_links(false)
+        .threads(threads)
+        .build_parallel();
+    walker.run(|| {
+        let matcher = &matcher;
+        let hits_mutex = &hits_mutex;
+        let hit_counter = &hit_counter;
+        let stop = &stop;
+        let candidate_paths = &candidate_paths;
+        let limit = limit;
+        let max_count = max_count;
+        let files_with_matches = args.files_with_matches;
+        Box::new(move |entry| {
+            if stop.load(Ordering::Relaxed) {
+                return ignore::WalkState::Quit;
             }
-            let (line, line_start, slice) = byte_to_line(&content, off);
-            // Bug 16: when a regex with `(?s)` (or any multi-line construct)
-            // matches across newlines, render the whole matched span instead
-            // of just the first line — otherwise the displayed text is
-            // misleading (looks like only `foo` matched when the regex
-            // really required both `foo` and `bar`).
-            let (text, range) =
-                if end > off && end <= content.len() && content[off..end].contains(&b'\n') {
-                    let snippet = &content[off..end];
-                    let text = String::from_utf8_lossy(snippet).replace('\n', "\\n");
-                    // The displayed text is `snippet` with `\n` replaced by the
-                    // two-byte escape `\\n`, so byte offsets shift. Rather than
-                    // re-derive them, highlight the whole span — a multi-line
-                    // match is one contiguous region in the displayed text.
-                    let range = if text.is_empty() {
-                        None
-                    } else {
-                        Some((0, text.len() as u32))
-                    };
-                    (text, range)
-                } else {
-                    let text = String::from_utf8_lossy(slice).into_owned();
-                    // Match offsets are absolute in `content`; make them
-                    // relative to the displayed line, clamped to the line.
-                    let s = off.saturating_sub(line_start);
-                    let e = end.saturating_sub(line_start);
-                    let len = text.len() as u32;
-                    let range = if e > s {
-                        Some((s.min(len as usize) as u32, e.min(len as usize) as u32))
-                    } else {
-                        None
-                    };
-                    (text, range)
-                };
-            let entry = by_line.entry(line).or_insert_with(|| (text, Vec::new()));
-            if let Some(r) = range {
-                entry.1.push(r);
+            let Ok(e) = entry else {
+                return ignore::WalkState::Continue;
+            };
+            if !e.file_type().is_some_and(|t| t.is_file()) {
+                return ignore::WalkState::Continue;
             }
-            // If this is the only hit we care about (files_with_matches mode),
-            // we can short-circuit per file.
-            if args.files_with_matches {
-                break;
-            }
-        }
-
-        if by_line.is_empty() {
-            return;
-        }
-
-        let local_hits: Vec<GrepHit> = by_line
-            .into_iter()
-            .map(|(line, (text, match_ranges))| GrepHit {
-                path: path.to_string_lossy().into_owned(),
-                line,
-                text,
-                match_ranges,
-            })
-            .collect();
-
-        let prior = hit_counter.fetch_add(local_hits.len(), Ordering::Relaxed);
-        if prior >= limit {
-            stop.store(true, Ordering::Relaxed);
-            return;
-        }
-
-        if let Ok(mut guard) = hits_mutex.lock() {
-            for h in local_hits {
-                if guard.len() >= limit {
-                    stop.store(true, Ordering::Relaxed);
-                    break;
+            let path = e.into_path();
+            // Bigram prefilter: skip files that cannot contain the needle.
+            if let Some(cands) = candidate_paths {
+                if !cands.contains(&path) {
+                    return ignore::WalkState::Continue;
                 }
-                guard.push(h);
             }
-        }
-    });
+
+            let Ok(content) = read_for_search(&path) else {
+                return ignore::WalkState::Continue;
+            };
+
+            // files-with-matches: only need to know IF the file matches.
+            if files_with_matches {
+                if matcher.is_match(&content) {
+                    let prior = hit_counter.fetch_add(1, Ordering::Relaxed);
+                    if prior >= limit {
+                        stop.store(true, Ordering::Relaxed);
+                        return ignore::WalkState::Quit;
+                    }
+                    if let Ok(mut guard) = hits_mutex.lock() {
+                        if guard.len() >= limit {
+                            stop.store(true, Ordering::Relaxed);
+                            return ignore::WalkState::Quit;
+                        }
+                        guard.push(GrepHit {
+                            path: path.to_string_lossy().into_owned(),
+                            line: 0,
+                            text: String::new(),
+                            match_ranges: Vec::new(),
+                        });
+                    }
+                }
+                return ignore::WalkState::Continue;
+            }
+            // Quick binary heuristic: skip files containing NUL in the first 8KB.
+            let probe = &content[..content.len().min(8 * 1024)];
+            if probe.contains(&0u8) {
+                return ignore::WalkState::Continue;
+            }
+
+                // Collect matches keyed by line so multiple matches on the same
+                // line become a single hit carrying ALL match ranges.
+                let mut by_line: std::collections::BTreeMap<u32, (String, Vec<(u32, u32)>)> =
+                    std::collections::BTreeMap::new();
+                for (per_file, (off, end)) in matcher.find_iter(&content).enumerate() {
+                    if per_file >= max_count {
+                        break;
+                    }
+                    let (line, line_start, slice) = byte_to_line(&content, off);
+                    // Bug 16: multiline match → render the whole span.
+                    let (text, range) =
+                        if end > off && end <= content.len() && content[off..end].contains(&b'\n')
+                        {
+                            let snippet = &content[off..end];
+                            let text = String::from_utf8_lossy(snippet).replace('\n', "\\n");
+                            let range = if text.is_empty() {
+                                None
+                            } else {
+                                Some((0, text.len() as u32))
+                            };
+                            (text, range)
+                        } else {
+                            let text = String::from_utf8_lossy(slice).into_owned();
+                            let s = off.saturating_sub(line_start);
+                            let e = end.saturating_sub(line_start);
+                            let len = text.len() as u32;
+                            let range = if e > s {
+                                Some((s.min(len as usize) as u32, e.min(len as usize) as u32))
+                            } else {
+                                None
+                            };
+                            (text, range)
+                        };
+                    let entry = by_line.entry(line).or_insert_with(|| (text, Vec::new()));
+                    if let Some(r) = range {
+                        entry.1.push(r);
+                    }
+                    // files-with-matches: first match per file is enough.
+                    if files_with_matches {
+                        break;
+                    }
+                }
+
+                if by_line.is_empty() {
+                    return ignore::WalkState::Continue;
+                }
+
+                let local_hits: Vec<GrepHit> = by_line
+                    .into_iter()
+                    .map(|(line, (text, match_ranges))| GrepHit {
+                        path: path.to_string_lossy().into_owned(),
+                        line,
+                        text,
+                        match_ranges,
+                    })
+                    .collect();
+
+                let prior = hit_counter.fetch_add(local_hits.len(), Ordering::Relaxed);
+                if prior >= limit {
+                    stop.store(true, Ordering::Relaxed);
+                    return ignore::WalkState::Quit;
+                }
+
+                if let Ok(mut guard) = hits_mutex.lock() {
+                    for h in local_hits {
+                        if guard.len() >= limit {
+                            stop.store(true, Ordering::Relaxed);
+                            return ignore::WalkState::Quit;
+                        }
+                        guard.push(h);
+                    }
+                }
+                ignore::WalkState::Continue
+            })
+        });
 
     let mut hits = hits_mutex.into_inner().unwrap_or_default();
     hits.sort_by(|a, b| a.path.cmp(&b.path).then(a.line.cmp(&b.line)));
