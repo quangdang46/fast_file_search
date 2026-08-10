@@ -268,22 +268,43 @@ where
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.len() < 2 {
-        eprintln!("usage: bench_grep <repo> <needle> [--regex] [--warm]");
+        eprintln!("usage: bench_grep <repo> <needle> [--regex] [--warm] [--compare-regex]");
         std::process::exit(2);
     }
     let root = PathBuf::from(&args[0]);
     let needle = &args[1];
     let use_regex = args.iter().any(|a| a == "--regex");
     let warm = args.iter().any(|a| a == "--warm");
+    let compare_regex = args.iter().any(|a| a == "--compare-regex");
     let runs = if warm { 10 } else { 3 };
 
     eprintln!(
-        "bench_grep: repo={} needle={:?} regex={} runs={}",
+        "bench_grep: repo={} needle={:?} regex={} compare_regex={} runs={}",
         root.display(),
         needle,
         use_regex,
+        compare_regex,
         runs
     );
+
+    // Regex vs plaintext mode comparison (Track B addendum / task #3): the same
+    // needle driven through the CLI's two matchers — literal (memmem SIMD) vs
+    // regex (regex::bytes::Regex over the whole buffer, no candidate-line
+    // prefilter). This measures the gap that a literal prefilter could close.
+    if compare_regex {
+        // Literal: escaped needle so both match the same text.
+        let literal_needle = regex::escape(needle);
+        let mut lit = run_n(runs, || cli_selfscan(&root, &literal_needle, false));
+        let mut re = run_n(runs, || cli_selfscan(&root, needle, true));
+        let l = median(&mut lit);
+        let r = median(&mut re);
+        println!("matcher          median     min        max");
+        println!("literal(memmem)  {:>9}  {:>9}  {:>9}", fmt(l), fmt(lit[0]), fmt(*lit.iter().max().unwrap()));
+        println!("regex            {:>9}  {:>9}  {:>9}", fmt(r), fmt(re[0]), fmt(*re.iter().max().unwrap()));
+        let ratio = l.as_secs_f64().max(1e-9);
+        println!("\nregex/literal: {:.2}x (regex {}x slower)", r.as_secs_f64() / ratio, (r.as_secs_f64() / ratio));
+        return;
+    }
 
     // Config 1: CLI self-scan (current path).
     let mut cli = run_n(runs, || cli_selfscan(&root, needle, use_regex));

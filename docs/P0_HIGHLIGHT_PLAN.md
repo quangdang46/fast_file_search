@@ -296,6 +296,32 @@ Integration (`crates/ffs-cli/tests/`):
 13. **`trim_whitespace: false`** for CLI (raw line + ranges) vs MCP `true` — surfaces differ; document.
 14. **`has_regex_metacharacters` needs `grep_text()`** (constraint-stripped), not raw needle — per MCP `server.rs:802-806`.
 
+## ✅ Task #3 — Regex vs PlainText benchmark (release, ffs repo 618 files, warm bigram)
+
+> Đo gap giữa 2 matcher của CLI: **literal (memmem SIMD)** vs **regex (`regex::bytes::Regex` trên toàn buffer, không candidate-line prefilter)** — `bench_grep --compare-regex`. Same needle, so sánh công bằng.
+
+| Needle | literal(memmem) | regex | regex/literal |
+|---|---|---|---|
+| `FilePicker` | 10.8 ms | 27.3 ms | **2.5x** |
+| `grep_search` | 7.6 ms | 29.9 ms | **3.9x** |
+| `TODO` | 12.2 ms | 26.7 ms | **2.2x** |
+| `match_byte_offsets` | 5.9 ms | 93.2 ms | **15.7x** |
+| `HashMap` | 4.8 ms | 29.9 ms | **6.3x** |
+| `fn\s+\w+\(` (regex-only) | — | 41.0 ms | **26.5x** |
+| `File\w+` (regex-only) | — | 72.3 ms | **45.9x** |
+| `TODO\|FIXME` (regex-only) | — | 33.9 ms | **19.4x** |
+| `\bHashMap\b` (regex-only) | — | 30.2 ms | **20.5x** |
+
+**Kết luận:**
+- Literal-mode needle: regex chậm hơn **2–16x**.
+- Pattern bắt buộc phải regex (metachar): regex chậm hơn **19–46x** — regex engine quét toàn buffer, không prefilter candidate line.
+- **Đây chính là gap mà literal prefilter (rg-style `find_candidate_line`) có thể đóng**: extract required literal → memmem scan trước → chạy regex thật chỉ trên dòng ứng viên. Tiềm năng speedup lớn nhất còn lại.
+- **Phân bổ thời gian**: regex 27–93ms vs literal 5–12ms. Trong đó phần lớn là regex engine chạy trên từng file mà không có prefilter.
+
+> **Ghi chú:** gap này nằm ở **CLI self-scan** (hiện đã giữ nguyên sau Track B). Một prefilter literal cho Regex mode là công việc tương lai độc lập (không phải engine switch) — tham chiếu `docs/RIPGREP_STUDY.md` §2 cho hướng `find_candidate_line`.
+
+---
+
 ## ✅ Track B KẾT QUẢ — BENCHMARK QUYẾT ĐỊNH (2026-08-10, release build)
 
 > **KẾT LUẬN: GIỮ CLI SELF-SCAN. KHÔNG chuyển sang engine.**
