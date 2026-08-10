@@ -9,43 +9,14 @@ use serde::Serialize;
 
 use crate::cli::OutputFormat;
 
-/// A byte buffer that either owns its data (small files) or holds a live
-/// memory map (larger files). Derefs to `&[u8]` so search code treats both
-/// uniformly. Using mmap avoids the read+copy syscall for larger files —
-/// ripgrep's `MmapChoice::Auto` does the same.
-enum SearchBuffer {
-    Owned(Vec<u8>),
-    Mapped(memmap2::Mmap),
-}
-
-impl std::ops::Deref for SearchBuffer {
-    type Target = [u8];
-    #[inline]
-    fn deref(&self) -> &[u8] {
-        match self {
-            SearchBuffer::Owned(v) => v,
-            SearchBuffer::Mapped(m) => m,
-        }
-    }
-}
-
-/// Read a file's bytes for searching. Uses mmap for files above a small
-/// threshold (avoids the read+copy syscall, like ripgrep's MmapChoice::Auto);
-/// falls back to reading through the already-open handle for tiny files
-/// (single open, single read — no second `File::open`).
-fn read_for_search(path: &Path) -> std::io::Result<SearchBuffer> {
+/// Read a file's bytes for searching: single open, single read_to_end (one
+/// syscall, no second `File::open`, no per-file metadata syscall).
+fn read_for_search(path: &Path) -> std::io::Result<Vec<u8>> {
     use std::io::Read;
-    const MMAP_THRESHOLD: u64 = 4 * 1024;
-    let file = std::fs::File::open(path)?;
-    let meta = file.metadata()?;
-    if meta.len() < MMAP_THRESHOLD {
-        let mut buf = Vec::with_capacity(meta.len() as usize);
-        let mut file = file;
-        file.read_to_end(&mut buf)?;
-        return Ok(SearchBuffer::Owned(buf));
-    }
-    let map = unsafe { memmap2::Mmap::map(&file) }?;
-    Ok(SearchBuffer::Mapped(map))
+    let mut file = std::fs::File::open(path)?;
+    let mut buf = Vec::new();
+    file.read_to_end(&mut buf)?;
+    Ok(buf)
 }
 
 #[derive(Debug, Parser)]
