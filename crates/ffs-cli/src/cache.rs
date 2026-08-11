@@ -128,7 +128,15 @@ impl CacheDir {
     }
 
     /// Load the bigram filter, returning `None` if it's missing, corrupt,
-    /// or invalidated by the same metadata checks as the symbol cache.
+    /// or invalidated by a metadata mismatch.
+    ///
+    /// Unlike the symbol cache, the bigram prefilter is *approximate* by
+    /// design (false positives are fine — the literal scan rejects them;
+    /// false negatives are prevented by case-folding and only using
+    /// printable-ASCII bigrams). Its staleness tolerance is therefore
+    /// higher: a matching git HEAD is a strong freshness signal on its own,
+    /// so we skip the full-tree file-count re-walk that `load_symbol_index`
+    /// pays per invocation. Non-git repos still get the walk-based check.
     pub fn load_bigram_index(&self, root: &Path) -> Option<GrepBigram> {
         let meta = self.read_meta().ok()?;
         if meta.schema_version != SCHEMA_VERSION {
@@ -137,7 +145,7 @@ impl CacheDir {
         if !head_matches(root, meta.git_head.as_deref()) {
             return None;
         }
-        if !file_count_within_tolerance(root, meta.file_count) {
+        if meta.git_head.is_none() && !file_count_within_tolerance(root, meta.file_count) {
             return None;
         }
         let bytes = fs::read(self.bigram_path()).ok()?;
