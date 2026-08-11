@@ -283,4 +283,40 @@ mod tests {
         assert!(hits.contains(&txt.as_path()));
         assert!(!hits.contains(&bin.as_path()));
     }
+
+    #[test]
+    fn is_current_false_for_file_added_after_index() {
+        // Regression: the prefilter must never skip a file added since
+        // indexing — that would be a false negative.
+        let dir = tempfile::tempdir().unwrap();
+        let a = write(dir.path(), "a.rs", "fn alpha() {}\n");
+        let idx = GrepBigram::build(&[a]);
+        // New file, not in the index → must NOT be considered current.
+        let added = write(dir.path(), "zeta.rs", "fn zeta() {}\n");
+        assert!(!idx.is_current(&added));
+    }
+
+    #[test]
+    fn is_current_false_after_in_place_modify() {
+        // An in-place edit (same file, content changed) must be detected even
+        // though the file is still in the index — a size/mtime change marks it
+        // stale so the caller force-scans it.
+        let dir = tempfile::tempdir().unwrap();
+        let a = write(dir.path(), "a.rs", "fn alpha() {}\n");
+        let idx = GrepBigram::build(&[a.clone()]);
+        assert!(idx.is_current(&a));
+        // Rewrite with different content (likely different length or mtime).
+        std::fs::write(&a, "fn zeta_also_here() {}\n").unwrap();
+        // Give the filesystem a moment so mtime granularity can't hide the edit.
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        assert!(!idx.is_current(&a));
+    }
+
+    #[test]
+    fn is_current_true_for_unchanged_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let a = write(dir.path(), "a.rs", "fn alpha() {}\n");
+        let idx = GrepBigram::build(&[a.clone()]);
+        assert!(idx.is_current(&a));
+    }
 }
