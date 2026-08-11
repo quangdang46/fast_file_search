@@ -67,13 +67,6 @@ def run_once(cmd):
     return (t1 - t0) / 1e6  # ms
 
 
-def median_ms(cmd, runs, warmup=1):
-    for _ in range(warmup):
-        run_once(cmd)
-    times = [run_once(cmd) for _ in range(runs)]
-    return statistics.median(times)
-
-
 def main():
     ap = argparse.ArgumentParser(description="ffs vs rg spawn benchmark")
     ap.add_argument("repo", nargs="?", default=".")
@@ -114,8 +107,17 @@ def main():
     for n in needles:
         rg_cmd = [rg, "-F", "-l", n, repo]
         ffs_cmd = [ffs, "grep", n, "--root", repo, "-l"]
-        rg_ms = median_ms(rg_cmd, args.runs)
-        ffs_ms = median_ms(ffs_cmd, args.runs)
+        # Interleave A/B/A/B per iteration so machine-load drift affects both
+        # tools equally instead of biasing one side (running all of rg then all
+        # of ffs lets a load spike land on one side and skew the ratio).
+        rg_times, ffs_times = [], []
+        run_once(rg_cmd)  # warmup
+        run_once(ffs_cmd)
+        for _ in range(args.runs):
+            rg_times.append(run_once(rg_cmd))
+            ffs_times.append(run_once(ffs_cmd))
+        rg_ms = statistics.median(rg_times)
+        ffs_ms = statistics.median(ffs_times)
         ratio = ffs_ms / rg_ms if rg_ms > 0 else float("inf")
         winner = "ffs" if ffs_ms <= rg_ms else "rg"
         rows.append((n, rg_ms, ffs_ms, ratio, winner))
