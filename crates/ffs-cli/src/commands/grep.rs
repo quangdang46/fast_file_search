@@ -399,9 +399,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
             // needle, so it is force-scanned — this is what keeps the prefilter
             // free of false negatives.
             if let Some(cands) = candidate_paths {
-                if !cands.contains(&path)
-                    && bigram_idx.is_some_and(|idx| idx.is_current(&path))
-                {
+                if !cands.contains(&path) && bigram_idx.is_some_and(|idx| idx.is_current(&path)) {
                     return ignore::WalkState::Continue;
                 }
             }
