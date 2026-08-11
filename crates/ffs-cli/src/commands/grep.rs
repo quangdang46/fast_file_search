@@ -319,36 +319,29 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     // whole tree ONCE (rg-style fused walk+search) and skips non-candidates via
     // O(1) membership. No prefilter → search every file in the walk. This keeps
     // a single parallel walk regardless of how scattered the candidates are.
-    // `total_files` (the bug-18 denominator) is the whole workspace: from the
-    // bigram cache when present, else derived from the walked tree.
-    let candidate_paths: Option<std::collections::HashSet<PathBuf>> = match &bigram {
-        Some(idx) => idx.filter(needle_bytes).map(|paths| {
-            paths
-                .into_iter()
-                .map(PathBuf::from)
-                .collect::<std::collections::HashSet<_>>()
-        }),
-        None => None,
+    //
+    // Correctness: a file may be skipped ONLY when it is both (a) not in the
+    // candidate set AND (b) provably current (its (mtime, size) still matches
+    // what the index recorded). Files added or edited since indexing are
+    // force-scanned even if not candidates, so the prefilter never false-
+    // negatives. We therefore carry (candidates, index) — the index only to
+    // answer "is this file current?".
+    let (candidate_paths, bigram_idx): (
+        Option<std::collections::HashSet<PathBuf>>,
+        Option<&crate::bigram::GrepBigram>,
+    ) = match &bigram {
+        Some(idx) => (
+            idx.filter(needle_bytes)
+                .map(|paths| paths.into_iter().map(PathBuf::from).collect()),
+            Some(idx),
+        ),
+        None => (None, None),
     };
-    // Bigram says the pattern cannot appear anywhere — short-circuit with no
-    // matches instead of walking the whole tree.
-    if candidate_paths.as_ref().is_some_and(|s| s.is_empty()) {
-        let total_files = bigram.as_ref().map_or(0, |idx| idx.file_count());
-        let payload = GrepResult {
-            needle: args.needle,
-            hits: Vec::new(),
-            total_files_searched: total_files,
-            mode,
-            schema: "v1",
-        };
-        return super::emit(format, &payload, |p| {
-            if p.hits.is_empty() {
-                format!("[no matches across {} files]\n", p.total_files_searched)
-            } else {
-                String::new()
-            }
-        });
-    }
+    // NOTE: we deliberately do NOT short-circuit when the candidate set is
+    // empty. Files added since indexing are force-scanned by the walk (they
+    // aren't in the index, so `is_current` is false), and such a file could
+    // contain the needle even though no indexed file's bigrams matched. A
+    // short-circuit here would be a false negative.
     // `total_files` (the bug-18 denominator) is the whole workspace. From the
     // bigram cache when present (no walk needed). When there's no cache we
     // count files during the fused search walk via `file_counter`, so we never
@@ -383,6 +376,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         let file_counter = &file_counter;
         let stop = &stop;
         let candidate_paths = &candidate_paths;
+        let bigram_idx = &bigram_idx;
         let files_with_matches = args.files_with_matches;
         let (limit, max_count) = (limit, max_count);
         Box::new(move |entry| {
@@ -399,9 +393,15 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
             // derive the bug-18 denominator without a second walk).
             file_counter.fetch_add(1, Ordering::Relaxed);
             let path = e.into_path();
-            // Bigram prefilter: skip files that cannot contain the needle.
+            // Bigram prefilter: skip a file only when it is (a) not a
+            // candidate AND (b) provably unchanged since indexing. A file
+            // added or edited since indexing (even in place) may contain the
+            // needle, so it is force-scanned — this is what keeps the prefilter
+            // free of false negatives.
             if let Some(cands) = candidate_paths {
-                if !cands.contains(&path) {
+                if !cands.contains(&path)
+                    && bigram_idx.is_some_and(|idx| idx.is_current(&path))
+                {
                     return ignore::WalkState::Continue;
                 }
             }

@@ -23,12 +23,27 @@ use serde::{Deserialize, Serialize};
 /// candidates the grep scan would ever read.
 const MAX_FILE_BYTES: u64 = 4 * 1024 * 1024;
 
+/// File-change fingerprint `(mtime_secs, len)` used to detect whether a file
+/// was modified since it was indexed. A change in either field means the file
+/// may contain new bigrams and must be force-scanned at grep time.
+pub(crate) type FileFingerprint = (i64, u64);
+
 /// Inverted bigram index. `paths[i]` ↔ bit `i` in every posting bitset.
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct GrepBigram {
     pub paths: Vec<PathBuf>,
     /// `bigram_id (high<<8 | low) -> bitset of length (paths.len()+63)/64`.
     pub posting: HashMap<u16, Vec<u64>>,
+    /// Per-file fingerprints `(modified_secs, len)` recorded at index time.
+    ///
+    /// At grep time the search walk compares each visited file's current
+    /// `(mtime, size)` against this entry. Any file whose fingerprint changed
+    /// since indexing (uncommitted add/edit — even in-place edits that keep the
+    /// same file count) may contain new bigrams, so it is force-scanned even if
+    /// it is not in the bigram candidate set. This is what makes the prefilter
+    /// *never* produce a false negative without needing a git-level freshness
+    /// check per invocation. `paths[i]` ↔ `fingerprints[i]`.
+    pub fingerprints: Vec<(i64, u64)>,
 }
 
 impl GrepBigram {
@@ -53,16 +68,25 @@ impl GrepBigram {
         let n = files.len();
         let words = n.div_ceil(64).max(1);
 
-        // Stage 1: per-file bigram set in parallel. Result: Vec<Option<HashSet<u16>>>.
-        let per_file: Vec<Option<HashSet<u16>>> = files
+        // Stage 1: per-file bigram set + fingerprint in parallel.
+        let per_file: Vec<Option<(HashSet<u16>, FileFingerprint)>> = files
             .par_iter()
             .map(|path| extract_file_bigrams(path))
             .collect();
 
         // Stage 2: invert into bigram → file-bitset.
         let mut posting: HashMap<u16, Vec<u64>> = HashMap::new();
-        for (idx, maybe_set) in per_file.into_iter().enumerate() {
-            let Some(set) = maybe_set else { continue };
+        let mut fingerprints = Vec::with_capacity(n);
+        for (idx, entry) in per_file.into_iter().enumerate() {
+            let Some((set, fp)) = entry else {
+                // Binary / unreadable / oversized file: no bigrams, unknown
+                // content — fingerprint records its state so a later change
+                // still force-scans it.
+                let fp = file_fingerprint(&files[idx]).unwrap_or((0, 0));
+                fingerprints.push(fp);
+                continue;
+            };
+            fingerprints.push(fp);
             let word = idx / 64;
             let bit = 1u64 << (idx % 64);
             for key in set {
@@ -74,6 +98,7 @@ impl GrepBigram {
         Self {
             paths: files.to_vec(),
             posting,
+            fingerprints,
         }
     }
 
@@ -128,9 +153,44 @@ impl GrepBigram {
         }
         Some(survivors)
     }
+
+    /// True when `path` is one of the indexed files whose fingerprint
+    /// (mtime, size) still matches what was recorded at index time.
+    ///
+    /// A file that is *not* in the index (added since indexing) or whose
+    /// fingerprint changed (edited since indexing — even in place, so the file
+    /// count and candidate bitsets are stale) must be treated as "content
+    /// unknown": the caller force-scans it regardless of the candidate set.
+    /// This guarantees the prefilter never skips a file that could contain the
+    /// pattern.
+    #[must_use]
+    pub fn is_current(&self, path: &Path) -> bool {
+        let Some(idx) = self.paths.iter().position(|p| p.as_path() == path) else {
+            // Not in the index → added since indexing → stale/unknown content.
+            return false;
+        };
+        let Some(recorded) = self.fingerprints.get(idx) else {
+            return false;
+        };
+        file_fingerprint(path).as_ref() == Some(recorded)
+    }
 }
 
-fn extract_file_bigrams(path: &Path) -> Option<HashSet<u16>> {
+/// Read `(mtime_secs, len)` for a file — the fingerprint used to detect
+/// whether a file changed since it was indexed. A change in either field
+/// means the file may contain new bigrams and must be force-scanned.
+fn file_fingerprint(path: &Path) -> Option<FileFingerprint> {
+    let meta = std::fs::metadata(path).ok()?;
+    let mtime = meta
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    Some((mtime, meta.len()))
+}
+
+fn extract_file_bigrams(path: &Path) -> Option<(HashSet<u16>, FileFingerprint)> {
     let meta = std::fs::metadata(path).ok()?;
     if !meta.is_file() {
         return None;
@@ -154,7 +214,7 @@ fn extract_file_bigrams(path: &Path) -> Option<HashSet<u16>> {
             set.insert(key);
         }
     }
-    Some(set)
+    Some((set, file_fingerprint(path)?))
 }
 
 #[cfg(test)]
