@@ -918,7 +918,10 @@ impl FfsServer {
         let root = self.picker_base_path()?;
         let max_tokens = normalize_max_results(params.max_tokens, 25_000) as u64;
         let level = crate::engine_tools::parse_filter_level(params.filter.as_deref());
-        let engine = self.engine.get_or_build(&root, max_tokens);
+        // ffs_read only needs file I/O + budget filtering — don't trigger a
+        // full workspace index (engine.index) which can stack-overflow on
+        // pathological roots like /tmp (see scanner.rs / symbol_index.rs fix).
+        let _ = &self.engine;
 
         let path_part = params
             .path
@@ -940,9 +943,6 @@ impl FfsServer {
             ..ffs_engine::EngineConfig::default()
         };
         let local_engine = ffs_engine::Engine::new(cfg);
-        let _ = engine; // shared engine is the index source; we instantiate a
-        // throwaway engine for the configured filter level since EngineConfig
-        // is not currently mutable on the live shared instance.
         let res = local_engine.read(&abs_path);
         let text = format!("[file: {}]\n{}", res.path.display(), res.body,);
         Ok(CallToolResult::success(vec![Content::text(text)]))

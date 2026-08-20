@@ -283,48 +283,56 @@ impl SymbolIndex {
 }
 
 fn collect_definitions(
-    node: Node,
+    node: Node<'_>,
     lines: &[&str],
     lang: Lang,
     path: &Path,
-    out: &mut impl FnMut(String, SymbolLocation),
+    out: &mut dyn FnMut(String, SymbolLocation),
 ) {
-    if lang == Lang::Elixir && is_elixir_definition(node, lines) {
-        if let Some(name) = extract_elixir_definition_name(node, lines) {
-            let loc = SymbolLocation {
-                path: path.to_path_buf(),
-                line: node.start_position().row as u32 + 1,
-                end_line: node.end_position().row as u32 + 1,
-                kind: "elixir_def".to_string(),
-                weight: 100,
-            };
-            out(name, loc);
+    // Iterative DFS — avoids stack overflow on deeply-nested trees that the
+    // recursive version hit when rayon workers (512 KiB stacks) indexed /tmp
+    // (60k+ files, many with deep YAML/JSON nesting).
+    let mut stack = vec![node];
+    while let Some(n) = stack.pop() {
+        if lang == Lang::Elixir && is_elixir_definition(n, lines) {
+            if let Some(name) = extract_elixir_definition_name(n, lines) {
+                let loc = SymbolLocation {
+                    path: path.to_path_buf(),
+                    line: n.start_position().row as u32 + 1,
+                    end_line: n.end_position().row as u32 + 1,
+                    kind: "elixir_def".to_string(),
+                    weight: 100,
+                };
+                out(name, loc);
+            }
+        } else if DEFINITION_KINDS.contains(&n.kind()) {
+            if lang == Lang::Verse && verse_skip_spurious_definition(n, lines) {
+                // fall through to children
+            } else if let Some(name) = extract_definition_name(n, lines) {
+                let start_line = n.start_position().row as u32 + 1;
+                let ast_end = n.end_position().row as u32 + 1;
+                let end_line = if lang == Lang::Verse {
+                    verse_repair_end_line(n.kind(), start_line, ast_end, lines)
+                } else {
+                    ast_end
+                };
+                let loc = SymbolLocation {
+                    path: path.to_path_buf(),
+                    line: start_line,
+                    end_line,
+                    kind: n.kind().to_string(),
+                    weight: definition_weight(n.kind()),
+                };
+                out(name, loc);
+            }
         }
-    } else if DEFINITION_KINDS.contains(&node.kind()) {
-        if lang == Lang::Verse && verse_skip_spurious_definition(node, lines) {
-            // fall through to children
-        } else if let Some(name) = extract_definition_name(node, lines) {
-            let start_line = node.start_position().row as u32 + 1;
-            let ast_end = node.end_position().row as u32 + 1;
-            let end_line = if lang == Lang::Verse {
-                verse_repair_end_line(node.kind(), start_line, ast_end, lines)
-            } else {
-                ast_end
-            };
-            let loc = SymbolLocation {
-                path: path.to_path_buf(),
-                line: start_line,
-                end_line,
-                kind: node.kind().to_string(),
-                weight: definition_weight(node.kind()),
-            };
-            out(name, loc);
-        }
-    }
 
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        collect_definitions(child, lines, lang, path, out);
+        let mut cursor = n.walk();
+        // Push children in reverse so first child is processed first (pre-order).
+        let children: Vec<_> = n.children(&mut cursor).collect();
+        for child in children.into_iter().rev() {
+            stack.push(child);
+        }
     }
 }
 
@@ -459,5 +467,31 @@ mod tests {
             "should stop before sibling OnBegin, got end_line {}",
             hits[0].end_line
         );
+    }
+
+    #[test]
+    fn deeply_nested_tree_does_not_overflow() {
+        // Regression for stack overflow on rayon workers (512 KiB stacks) when
+        // indexing deeply-nested files under /tmp (60k+ files). The fix makes
+        // collect_definitions iterative. This test builds a synthetic deep tree
+        // via 800 nested blocks — deep enough to overflow the old recursion.
+        let depth = 800;
+        let mut content = String::new();
+        for i in 0..depth {
+            content.push_str(&format!("fn f{i}() {{\n"));
+        }
+        content.push_str("let x = 1;\n");
+        for _ in 0..depth {
+            content.push('}');
+            content.push('\n');
+        }
+        let f = touch_file(&content, "rs");
+        let idx = SymbolIndex::new();
+        let mtime = std::fs::metadata(f.path()).unwrap().modified().unwrap();
+        // Must not stack-overflow
+        let n = idx.index_file(f.path(), mtime, &content);
+        assert!(n >= depth, "expected {depth} fn definitions, got {n}");
+        assert_eq!(idx.lookup_exact("f0").len(), 1);
+        assert_eq!(idx.lookup_exact(&format!("f{}", depth - 1)).len(), 1);
     }
 }

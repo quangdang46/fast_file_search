@@ -18,6 +18,7 @@ pub(crate) static BACKGROUND_THREAD_POOL: LazyLock<rayon::ThreadPool> = LazyLock
     let bg_threads = total.saturating_sub(2).max(1);
     rayon::ThreadPoolBuilder::new()
         .num_threads(bg_threads)
+        .stack_size(8 * 1024 * 1024)
         .thread_name(|i| format!("ffs-bg-{i}"))
         .start_handler(|_| {
             // Pin workers to the USER_INITIATED QoS class on macOS so the
