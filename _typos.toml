@@ -30,6 +30,10 @@ tham = "tham"
 # Intentional typo in `ffs find` fuzzy-fallback tests to demonstrate that
 # "scaner" resolves to "scanner".
 scaner = "scaner"
+# Intentional typo in `ffs symbol` did-you-mean test to trigger suggestion.
+Alpah = "Alpah"
+# Intentional typo in `ffs find --fuzzy` test.
+mian = "mian"
 
 [default]
 extend-ignore-re = [
