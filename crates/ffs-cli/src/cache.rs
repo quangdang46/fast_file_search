@@ -31,7 +31,7 @@ const FFS_VERSION: &str = env!("CARGO_PKG_VERSION");
 const META_FILE: &str = "meta.json";
 const SYMBOL_FILE: &str = "symbol_index.postcard.zst";
 const BIGRAM_FILE: &str = "bigram.postcard.zst";
-const ZSTD_LEVEL: i32 = 19;
+const ZSTD_LEVEL: i32 = 3;
 
 /// Persisted alongside each cache payload — used to decide whether the cache
 /// can be reused on a subsequent run.
