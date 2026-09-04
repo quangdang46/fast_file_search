@@ -248,8 +248,8 @@ fn ascii_case_eq(a: &[u8], b: &[u8]) -> bool {
     let len = a.len();
     let mut i = 0;
     while i + 8 <= len {
-        let va = u64::from_ne_bytes(a[i..i + 8].try_into().unwrap());
-        let vb = u64::from_ne_bytes(b[i..i + 8].try_into().unwrap());
+        let va = u64::from_ne_bytes(a[i..i + 8].try_into().expect("8-byte slice"));
+        let vb = u64::from_ne_bytes(b[i..i + 8].try_into().expect("8-byte slice"));
         if va != vb {
             const MASK: u64 = 0x2020_2020_2020_2020;
             if (va | MASK) != (vb | MASK) {
@@ -269,28 +269,38 @@ fn ascii_case_eq(a: &[u8], b: &[u8]) -> bool {
     true
 }
 
-/// Map a byte offset to `(1-based line number, byte offset of line start, line slice)`.
-fn byte_to_line(haystack: &[u8], offset: usize) -> (u32, usize, &[u8]) {
-    // Walk forwards counting newlines is O(N). For large files this is the
-    // bottleneck for hit-dense patterns; switching to a sorted newline index
-    // would let us binary-search per hit. For typical workloads (few hits
-    // per file) the linear scan is fine.
-    let mut line = 1u32;
-    let mut line_start = 0usize;
-    let mut i = 0;
-    while i < offset {
-        if haystack[i] == b'\n' {
-            line += 1;
-            line_start = i + 1;
-        }
-        i += 1;
+/// Precomputed newline index for O(log n) byte-to-line mapping.
+///
+/// Builds once per file; each `byte_to_line` call becomes binary search
+/// over sorted newline positions — critical for hit-dense patterns.
+struct NewlineIndex {
+    /// Byte offsets of each `\n` in the haystack, sorted ascending.
+    positions: Vec<usize>,
+}
+
+impl NewlineIndex {
+    fn build(haystack: &[u8]) -> Self {
+        let positions: Vec<usize> = memchr::memchr_iter(b'\n', haystack).collect();
+        Self { positions }
     }
-    let line_end = haystack[line_start..]
-        .iter()
-        .position(|&b| b == b'\n')
-        .map(|p| line_start + p)
-        .unwrap_or(haystack.len());
-    (line, line_start, &haystack[line_start..line_end])
+
+    /// Map a byte offset to `(1-based line number, byte offset of line start, line slice)`.
+    fn byte_to_line<'a>(&self, haystack: &'a [u8], offset: usize) -> (u32, usize, &'a [u8]) {
+        // Binary search: find the last newline position <= offset.
+        // The number of newlines before `offset` gives us the 0-based line index.
+        let idx = match self.positions.binary_search(&offset) {
+            Ok(i) => i + 1, // offset lands exactly on a newline -> next line
+            Err(i) => i,    // i is the insertion point = count of newlines before offset
+        };
+        let line = (idx + 1) as u32;
+        let line_start = if idx == 0 { 0 } else { self.positions[idx - 1] + 1 };
+        let line_end = haystack[line_start..]
+            .iter()
+            .position(|&b| b == b'\n')
+            .map(|p| line_start + p)
+            .unwrap_or(haystack.len());
+        (line, line_start, &haystack[line_start..line_end])
+    }
 }
 
 pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
@@ -445,7 +455,8 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
                 if per_file >= max_count {
                     break;
                 }
-                let (line, line_start, slice) = byte_to_line(&content, off);
+                let newline_index = NewlineIndex::build(&content);
+                let (line, line_start, slice) = newline_index.byte_to_line(&content, off);
                 // Bug 16: multiline match → render the whole span.
                 let (text, range) =
                     if end > off && end <= content.len() && content[off..end].contains(&b'\n') {
@@ -922,11 +933,12 @@ mod tests {
     #[test]
     fn byte_to_line_basic() {
         let h = b"first\nsecond\nthird\n";
-        assert_eq!(byte_to_line(h, 0).0, 1);
-        assert_eq!(byte_to_line(h, 6).0, 2);
-        assert_eq!(byte_to_line(h, 13).0, 3);
+        let idx = NewlineIndex::build(h);
+        assert_eq!(idx.byte_to_line(h, 0).0, 1);
+        assert_eq!(idx.byte_to_line(h, 6).0, 2);
+        assert_eq!(idx.byte_to_line(h, 13).0, 3);
         // line_start follows the last newline before the offset
-        assert_eq!(byte_to_line(h, 6).1, 6);
-        assert_eq!(byte_to_line(h, 13).1, 13);
+        assert_eq!(idx.byte_to_line(h, 6).1, 6);
+        assert_eq!(idx.byte_to_line(h, 13).1, 13);
     }
 }

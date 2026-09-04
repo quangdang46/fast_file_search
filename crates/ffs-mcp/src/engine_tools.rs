@@ -236,13 +236,7 @@ pub fn find_call_sites(engine: &Engine, root: &Path, symbol: &str, limit: usize)
         candidates.push((path, mtime, content));
     }
 
-    let survivors = stack.confirm_symbol(
-        &candidates
-            .iter()
-            .map(|(p, m, c)| (p.clone(), *m, c.clone()))
-            .collect::<Vec<_>>(),
-        symbol,
-    );
+    let survivors = stack.confirm_symbol(&candidates, symbol);
 
     let mut survivor_set = std::collections::HashSet::new();
     for s in &survivors {

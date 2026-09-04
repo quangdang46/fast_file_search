@@ -212,8 +212,10 @@ fn resolve_defaults(args: &mut Args) {
         .into_iter()
         .flatten()
     {
-        if let Some(parent) = std::path::Path::new(path).parent() {
-            let _ = std::fs::create_dir_all(parent);
+        if let Some(parent) = std::path::Path::new(path).parent()
+            && let Err(e) = std::fs::create_dir_all(parent)
+        {
+            eprintln!("warning: failed to create directory {}: {}", parent.display(), e);
         }
     }
 

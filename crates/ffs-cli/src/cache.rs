@@ -194,12 +194,16 @@ pub fn load_or_build_engine(root: &Path) -> Engine {
     if let Some(idx) = cache.load_symbol_index_stale(root) {
         // Stale but readable — re-parse only the files that changed.
         refresh_symbol_index(&idx, root);
-        let _ = cache.write_symbol_index(&idx, root);
+        if let Err(e) = cache.write_symbol_index(&idx, root) {
+            eprintln!("warning: failed to write symbol cache: {}", e);
+        }
         return Engine::with_symbols(EngineConfig::default(), Arc::new(idx));
     }
     let engine = Engine::default();
     engine.index(root);
-    let _ = cache.write_symbol_index(&engine.handles.symbols, root);
+    if let Err(e) = cache.write_symbol_index(&engine.handles.symbols, root) {
+        eprintln!("warning: failed to write symbol cache: {}", e);
+    }
     engine
 }
 
