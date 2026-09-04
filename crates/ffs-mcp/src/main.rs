@@ -402,11 +402,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create the engine holder (can be pre-warmed after scan)
     let engine_holder = Arc::new(EngineHolder::new());
-    let server = FfsServer::with_engine(
-        shared_picker.clone(),
-        shared_frecency.clone(),
-        engine_holder.clone(),
-    );
+    let server = FfsServer::with_engine(shared_picker.clone(), engine_holder.clone());
     let last_activity = server.last_activity();
     let idle_timeout_secs = args.idle_timeout_secs;
 

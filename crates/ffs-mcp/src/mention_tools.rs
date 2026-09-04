@@ -5,7 +5,6 @@
 //! can share the resolved-payload shape.
 
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 use ffs_budget::FilterLevel;
 use ffs_engine::mention::{ResolveOptions, ResolvedMention, resolve_mentions};
@@ -131,11 +130,6 @@ fn walk_files_simple(root: &Path) -> Vec<PathBuf> {
 pub fn output_to_json(out: &MentionSearchOutput) -> Result<String, String> {
     serde_json::to_string(out).map_err(|e| format!("serialize MentionSearchOutput: {e}"))
 }
-
-// Suppress dead-code warnings for items kept for the forthcoming Phase D
-// provider hookup (mentioned in the v2 plan).
-#[allow(dead_code)]
-fn _phase_d_anchor(_: Arc<()>) {}
 
 #[cfg(test)]
 mod tests {

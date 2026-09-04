@@ -1662,8 +1662,6 @@ impl FilePicker {
             }
         }
     }
-
-    // TODO make this O(n)
     pub fn remove_all_files_in_dir(&mut self, dir: impl AsRef<Path>) -> usize {
         self.remove_all_files_in_dirs_inner(std::iter::once(dir.as_ref()), None)
     }

@@ -94,15 +94,6 @@ pub struct EngineReadParams {
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
-pub struct EngineOutlineParams {
-    /// Path to the file whose structural outline should be rendered.
-    pub path: String,
-    /// Rendering style: "agent" (default), "markdown", "structured", or "tabular".
-    #[allow(dead_code)]
-    pub style: Option<String>,
-}
-
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct EngineSiblingsParams {
     /// Symbol whose siblings (peers in the same parent scope) should be listed.
     pub name: String,
@@ -139,19 +130,6 @@ pub struct EngineMapParams {
     /// Annotate each file leaf with its top-N symbols by weight (default 0
     /// = no annotation).
     pub symbols: Option<f64>,
-}
-
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
-pub struct EngineOverviewParams {
-    /// How many language buckets to include (default 10).
-    #[serde(rename = "topLanguages")]
-    pub top_languages: Option<f64>,
-    /// How many of the most-defined symbol names to include (default 15).
-    #[serde(rename = "topSymbols")]
-    pub top_symbols: Option<f64>,
-    /// How many entry-point candidates to surface (default 10).
-    #[serde(rename = "topEntrypoints")]
-    pub top_entrypoints: Option<f64>,
 }
 
 /// Lazy holder for the shared `Engine`. The first engine call spends the cold
@@ -614,51 +592,6 @@ pub fn format_call_hits(hits: &[CallHit], header: &str) -> String {
     out
 }
 
-/// Format the outline for a file. Returns agent-friendly text (header + tree).
-/// Used in-process instead of subprocess for `ffs outline`.
-pub fn format_outline(path: &std::path::Path) -> Result<String, String> {
-    let ft = ffs_symbol::lang::detect_file_type(path);
-    let lang = match ft {
-        ffs_symbol::types::FileType::Code(l) => l,
-        _ => return Err(format!("not a code file: {}", path.display())),
-    };
-    let content =
-        ffs::bom::read_file(path).map_err(|e| format!("failed to read {}: {e}", path.display()))?;
-    let entries = ffs_symbol::outline::get_outline_entries(&content, lang);
-    let total_lines = content.lines().count();
-    let total_tokens = ffs_symbol::types::estimate_tokens(content.len() as u64);
-
-    let mut out = String::new();
-    out.push_str(&format!(
-        "# {} ({} lines, ~{} tokens) [outline]\n\n",
-        path.display(),
-        total_lines,
-        total_tokens,
-    ));
-    if entries.is_empty() {
-        out.push_str("(no symbols)\n");
-    } else {
-        for e in &entries {
-            render_outline_entry(&mut out, e, 0);
-        }
-    }
-    Ok(out)
-}
-
-fn render_outline_entry(out: &mut String, entry: &ffs_symbol::types::OutlineEntry, depth: usize) {
-    let indent = "  ".repeat(depth);
-    out.push_str(&format!(
-        "{indent}[{}-{}] {} {}\n",
-        entry.start_line,
-        entry.end_line,
-        format_outline_kind(entry.kind),
-        entry.name,
-    ));
-    for child in &entry.children {
-        render_outline_entry(out, child, depth + 1);
-    }
-}
-
 fn format_outline_kind(kind: ffs_symbol::types::OutlineKind) -> &'static str {
     use ffs_symbol::types::OutlineKind;
     match kind {
@@ -821,80 +754,6 @@ pub fn format_map(root: &Path, depth: u32, _symbols: u32) -> String {
             name, count, tokens,
         ));
     }
-    out
-}
-
-/// High-signal workspace summary. Mirrors `ffs overview`.
-pub fn format_overview(
-    engine: &Engine,
-    root: &Path,
-    top_languages: usize,
-    top_symbols: usize,
-    _top_entrypoints: usize,
-) -> String {
-    use ignore::WalkBuilder;
-    use std::collections::BTreeMap;
-
-    let mut lang_counts: BTreeMap<String, u32> = BTreeMap::new();
-    let mut total_files = 0u32;
-    let mut total_bytes = 0u64;
-
-    for entry in WalkBuilder::new(root)
-        .standard_filters(true)
-        .follow_links(false)
-        .build()
-        .flatten()
-    {
-        if !entry.file_type().is_some_and(|t| t.is_file()) {
-            continue;
-        }
-        total_files += 1;
-        let path = entry.into_path();
-        let ft = ffs_symbol::lang::detect_file_type(&path);
-        let kind = match ft {
-            ffs_symbol::types::FileType::Code(l) => format!("{l:?}"),
-            _ => format!("{ft:?}"),
-        };
-        *lang_counts.entry(kind).or_insert(0) += 1;
-        if let Ok(meta) = std::fs::metadata(&path) {
-            total_bytes += meta.len();
-        }
-    }
-
-    let mut out = String::new();
-    let total_tokens = ffs_symbol::types::estimate_tokens(total_bytes);
-    out.push_str(&format!(
-        "# {} · {} files · ~{} tokens\n\n",
-        root.display(),
-        total_files,
-        total_tokens,
-    ));
-
-    // Languages
-    out.push_str(&format!("## Languages (top {top_languages})\n"));
-    let mut lang_sorted: Vec<_> = lang_counts.into_iter().collect();
-    lang_sorted.sort_by_key(|k| std::cmp::Reverse(k.1));
-    for (lang, count) in lang_sorted.iter().take(top_languages) {
-        out.push_str(&format!("  {lang}: {count} files\n"));
-    }
-
-    // Top symbols from engine
-    if top_symbols > 0 {
-        out.push_str(&format!("\n## Top-defined symbols (top {top_symbols})\n"));
-        let all = engine.handles.symbols.lookup_prefix("");
-        // Group by name, sum weights
-        use std::collections::HashMap;
-        let mut by_name: HashMap<&str, u16> = HashMap::new();
-        for (name, loc) in &all {
-            *by_name.entry(name).or_insert(0) += loc.weight;
-        }
-        let mut sorted: Vec<_> = by_name.into_iter().collect();
-        sorted.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(b.0)));
-        for (name, weight) in sorted.iter().take(top_symbols) {
-            out.push_str(&format!("  {} (w={})\n", name, weight));
-        }
-    }
-
     out
 }
 

@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! ffs MCP server — tool definitions and handlers.
 //!
 //! Uses the `rmcp` crate's `#[tool_router]` / `#[tool_handler]` macros
@@ -13,14 +12,13 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::cursor::CursorStore;
 use crate::engine_tools::{
     EngineCallParams, EngineDepsParams, EngineFlowParams, EngineHolder, EngineImpactParams,
-    EngineMapParams, EngineOutlineParams, EngineOverviewParams, EngineReadParams, EngineRefsParams,
-    EngineSiblingsParams, EngineSymbolParams,
+    EngineMapParams, EngineReadParams, EngineRefsParams, EngineSiblingsParams, EngineSymbolParams,
 };
 use crate::output::{GrepFormatter, OutputMode, file_suffix};
 use ffs::PaginationArgs;
 use ffs::grep::{GrepMode, GrepSearchOptions, has_regex_metacharacters};
 use ffs::types::{FileItem, MixedItemRef};
-use ffs::{FuzzySearchOptions, QueryParser, SharedFilePicker, SharedFrecency};
+use ffs::{FuzzySearchOptions, QueryParser, SharedFilePicker};
 use ffs_query_parser::AiGrepConfig;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::*;
@@ -213,13 +211,10 @@ pub struct MultiGrepParams {
 #[derive(Clone)]
 pub struct FfsServer {
     picker: SharedFilePicker,
-    #[allow(dead_code)]
-    frecency: SharedFrecency,
     cursor_store: Arc<Mutex<CursorStore>>,
     update_notice_sent: Arc<AtomicBool>,
     engine: Arc<EngineHolder>,
     last_activity: Arc<AtomicU64>,
-    scan_ready: Arc<AtomicBool>,
 }
 
 fn now_secs() -> u64 {
@@ -230,39 +225,15 @@ fn now_secs() -> u64 {
 }
 
 impl FfsServer {
-    #[allow(dead_code)]
-    pub fn new(picker: SharedFilePicker, frecency: SharedFrecency) -> Self {
-        Self {
-            picker,
-            frecency,
-            cursor_store: Arc::new(Mutex::new(CursorStore::new())),
-            update_notice_sent: Arc::new(AtomicBool::new(false)),
-            engine: Arc::new(EngineHolder::new()),
-            last_activity: Arc::new(AtomicU64::new(now_secs())),
-            scan_ready: Arc::new(AtomicBool::new(false)),
-        }
-    }
-
     /// Create a server with a pre-built engine holder (for warmup support).
-    pub fn with_engine(
-        picker: SharedFilePicker,
-        frecency: SharedFrecency,
-        engine: Arc<EngineHolder>,
-    ) -> Self {
+    pub fn with_engine(picker: SharedFilePicker, engine: Arc<EngineHolder>) -> Self {
         Self {
             picker,
-            frecency,
             cursor_store: Arc::new(Mutex::new(CursorStore::new())),
             update_notice_sent: Arc::new(AtomicBool::new(false)),
             engine,
             last_activity: Arc::new(AtomicU64::new(now_secs())),
-            scan_ready: Arc::new(AtomicBool::new(false)),
         }
-    }
-    #[allow(dead_code)]
-    /// Access the engine holder for warmup or shared use.
-    pub fn engine_holder(&self) -> Arc<EngineHolder> {
-        self.engine.clone()
     }
 
     pub fn last_activity(&self) -> Arc<AtomicU64> {
@@ -282,40 +253,6 @@ impl FfsServer {
             .as_ref()
             .ok_or_else(|| ErrorData::internal_error("File picker not initialized", None))?;
         Ok(picker.base_path().to_path_buf())
-    }
-
-    #[allow(dead_code)]
-    pub fn wait_for_scan(&self) {
-        let _ = self.wait_for_scan_timeout(std::time::Duration::from_secs(30));
-    }
-
-    fn wait_for_scan_timeout(&self, timeout: std::time::Duration) -> Result<(), ErrorData> {
-        if self.scan_ready.load(Ordering::Relaxed) {
-            return Ok(());
-        }
-        let deadline = std::time::Instant::now() + timeout;
-        loop {
-            let is_scanning = self
-                .picker
-                .read()
-                .ok()
-                .as_ref()
-                .and_then(|g| g.as_ref())
-                .map(|p| p.is_scan_active())
-                .unwrap_or(true);
-
-            if !is_scanning {
-                self.scan_ready.store(true, Ordering::Relaxed);
-                return Ok(());
-            }
-            if std::time::Instant::now() >= deadline {
-                return Err(ErrorData::internal_error(
-                    "Index is still building; retry shortly",
-                    None,
-                ));
-            }
-            std::thread::sleep(std::time::Duration::from_millis(50));
-        }
     }
 
     fn lock_cursors(&self) -> Result<std::sync::MutexGuard<'_, CursorStore>, ErrorData> {
@@ -1014,22 +951,6 @@ impl FfsServer {
             crate::engine_tools::find_impact(&engine, &root, &params.name, limit, offset, hops);
         Ok(CallToolResult::success(vec![Content::text(text)]))
     }
-    fn engine_outline(
-        &self,
-        Parameters(params): Parameters<EngineOutlineParams>,
-    ) -> Result<CallToolResult, ErrorData> {
-        self.bump_activity();
-        let root = self.picker_base_path()?;
-        let path = if std::path::Path::new(&params.path).is_absolute() {
-            std::path::PathBuf::from(&params.path)
-        } else {
-            root.join(&params.path)
-        };
-        let text = crate::engine_tools::format_outline(&path)
-            .map_err(|e| ErrorData::internal_error(format!("outline failed: {e}"), None))?;
-        Ok(CallToolResult::success(vec![Content::text(text)]))
-    }
-
     #[tool(
         name = "ffs_siblings",
         description = "List sibling symbols (peers in the same parent scope as `name`). Useful for navigating around a definition: when you find a method, this surfaces the rest of the impl block / class. Mirrors `ffs siblings` from the CLI."
@@ -1085,26 +1006,6 @@ impl FfsServer {
         let text = crate::engine_tools::format_map(&root, depth, symbols);
         Ok(CallToolResult::success(vec![Content::text(text)]))
     }
-    fn engine_overview(
-        &self,
-        Parameters(params): Parameters<EngineOverviewParams>,
-    ) -> Result<CallToolResult, ErrorData> {
-        self.bump_activity();
-        let root = self.picker_base_path()?;
-        let top_languages = normalize_max_results(params.top_languages, 10);
-        let top_symbols = normalize_max_results(params.top_symbols, 15);
-        let top_entrypoints = normalize_max_results(params.top_entrypoints, 10);
-        let engine = self.engine.get_or_build(&root, 25_000);
-        let text = crate::engine_tools::format_overview(
-            &engine,
-            &root,
-            top_languages,
-            top_symbols,
-            top_entrypoints,
-        );
-        Ok(CallToolResult::success(vec![Content::text(text)]))
-    }
-
     /// Phase C @-mention surface. Resolves a free-form input string into a
     /// JSON array of `ResolvedMention` payloads, one per substring-matched
     /// file. Mirrors `ffs mention-search` on the CLI and

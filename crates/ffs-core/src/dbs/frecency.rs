@@ -207,7 +207,6 @@ impl FrecencyTracker {
     }
 
     /// Static version for use from LmdbStore::purge_stale_data.
-    #[allow(dead_code)]
     fn purge_stale_entries_static(env: &Env) -> Result<(usize, usize)> {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
