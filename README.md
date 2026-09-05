@@ -206,31 +206,31 @@ All numbers are single-threaded medians on Linux x86-64 (Criterion.rs).
 ## Architecture
 
 ```
-┌──────────────────────────────────────┐
-│  Frontends                            │
-│  ffs-cli (binary) · ffs-mcp (MCP)    │
-│  ffs-c (C ABI .so/.dylib/.dll)        │
-└──────────────┬───────────────────────┘
-               │ all surfaces share one core
-               ▼
-┌──────────────────────────────────────┐
-│  Engine layer                         │
-│  ffs-engine — dispatch · ranking      │
-│  ffs-query-parser — DSL + constraints  │
-└──────────────┬───────────────────────┘
-               ▼
-┌──────────────────────────────────────┐
-│  Capability layer                     │
-│  ffs-symbol — tree-sitter · bloom     │
-│  ffs-grep — SIMD literal / regex      │
-│  ffs-budget — token-aware reader      │
-└──────────────┬───────────────────────┘
-               ▼
-┌──────────────────────────────────────┐
-│  Core layer (ffs-core)                │
-│  scan · file_picker · score · git      │
-│  frecency · watcher · ignore           │
-└──────────────────────────────────────┘
+┌─────────────────────────────────────────┐
+│ Frontends                               │
+│ ffs-cli / ffs-mcp (MCP) / ffs-c (C ABI) │
+└────────────────────┬────────────────────┘
+                     │ all surfaces share one core
+                     ▼
+┌─────────────────────────────────────────┐
+│ Engine                                  │
+│ ffs-engine - dispatch / ranking /       │
+│              budget enforcement         │
+└────────────────────┬────────────────────┘
+                     ▼
+┌─────────────────────────────────────────┐
+│ Capability layer                        │
+│ ffs-symbol - tree-sitter / bloom        │
+│ ffs-grep - SIMD literal / regex         │
+│ ffs-budget - token-aware reader         │
+│ ffs-query-parser - query DSL            │
+└────────────────────┬────────────────────┘
+                     ▼
+┌─────────────────────────────────────────┐
+│ Core SDK - ffs-search (crates/ffs-core) │
+│ fuzzy search / scan / file_picker       │
+│ score / git / frecency / watcher        │
+└─────────────────────────────────────────┘
 ```
 
 ---
