@@ -331,4 +331,42 @@ mod tests {
         let idx = GrepBigram::build(&[a.clone()]);
         assert!(idx.is_current(&a));
     }
+
+    #[test]
+    fn selectivity_skips_filter_when_most_files_match() {
+        // When >80% of files survive the filter on repos with 100+ files,
+        // filter() returns None to tell the caller to scan everything.
+        let dir = tempfile::tempdir().unwrap();
+        let mut files = Vec::new();
+        // Create 120 files, all containing "ab" — a very common bigram.
+        for i in 0..120 {
+            let f = write(dir.path(), &format!("f{i}.rs"), "fn alpha_ab() {}\n");
+            files.push(f);
+        }
+        let idx = GrepBigram::build(&files);
+        // "ab" appears in every file → all 120 survive → >80% → returns None.
+        let result = idx.filter(b"ab");
+        assert!(result.is_none(), "should skip filter when >80% match");
+    }
+
+    #[test]
+    fn selectivity_keeps_filter_when_few_files_match() {
+        // When <80% of files survive, filter() returns Some(candidates).
+        let dir = tempfile::tempdir().unwrap();
+        let mut files = Vec::new();
+        // 100 files: only 10 contain "zz" (a rare bigram).
+        for i in 0..100 {
+            let content = if i < 10 {
+                "fn has_zz_zz() {}\n"
+            } else {
+                "fn normal() {}\n"
+            };
+            let f = write(dir.path(), &format!("f{i}.rs"), content);
+            files.push(f);
+        }
+        let idx = GrepBigram::build(&files);
+        let result = idx.filter(b"zz");
+        let candidates = result.expect("should return candidates");
+        assert!(candidates.len() <= 10, "should filter to ~10 candidates, got {}", candidates.len());
+    }
 }

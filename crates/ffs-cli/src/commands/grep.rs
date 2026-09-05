@@ -30,50 +30,40 @@ fn stream_match_literal(path: &Path, needle: &[u8], case_insensitive: bool) -> b
         Err(_) => return false,
     };
     const CHUNK: usize = 64 * 1024;
-    let mut reader = BufReader::with_capacity(CHUNK, file);
-    let mut buf = vec![0u8; CHUNK];
     let overlap = needle.len().saturating_sub(1);
-    let mut carried = 0usize; // bytes in `tail` carried over from previous chunk
-    let mut tail = vec![0u8; overlap]; // ring buffer for overlap
+    let buf_size = CHUNK + overlap;
+    let mut reader = BufReader::with_capacity(CHUNK, file);
+    let mut buf = vec![0u8; buf_size];
+    let mut filled = 0usize; // bytes currently in buf
 
     loop {
-        let n = match reader.read(&mut buf) {
-            Ok(0) => break,
+        // Shift any carried-over tail to the start.
+        if filled > 0 && overlap > 0 {
+            let tail_start = filled.saturating_sub(overlap);
+            buf.copy_within(tail_start..filled, 0);
+            filled = filled - tail_start;
+        } else {
+            filled = 0;
+        }
+
+        // Fill the rest of the buffer from the reader.
+        let read_start = filled;
+        let read_end = buf_size;
+        let n = match reader.read(&mut buf[read_start..read_end]) {
+            Ok(0) => {
+                // Last chunk — search what we have without overlap padding.
+                if filled > 0 {
+                    return find_in_chunk(&buf[..filled], needle, case_insensitive);
+                }
+                break;
+            }
             Ok(n) => n,
             Err(_) => break,
         };
-        let chunk = &buf[..n];
+        filled = read_start + n;
 
-        // Build a combined slice: carried tail + current chunk.
-        // If there is carried data, search tail[..carried] ++ chunk as one
-        // contiguous slice to catch cross-boundary matches.
-        if carried > 0 {
-            // Temporarily append chunk after the carried tail.
-            tail.extend_from_slice(chunk);
-            let search_slice = &tail[..carried + n];
-            if find_in_chunk(search_slice, needle, case_insensitive) {
-                return true;
-            }
-            tail.truncate(overlap);
-            // Save new tail from the end of the chunk.
-            let take = n.min(overlap);
-            let src_start = n.saturating_sub(overlap);
-            // Shift tail contents, then overwrite with chunk tail.
-            tail.rotate_left(carried);
-            tail[overlap - take..].copy_from_slice(&chunk[src_start..]);
-            carried = overlap;
-        } else {
-            if find_in_chunk(chunk, needle, case_insensitive) {
-                return true;
-            }
-            // Save tail for next iteration.
-            let take = n.min(overlap);
-            if take > 0 {
-                tail[..take].copy_from_slice(&chunk[n - take..]);
-                carried = take;
-            } else {
-                carried = 0;
-            }
+        if find_in_chunk(&buf[..filled], needle, case_insensitive) {
+            return true;
         }
     }
     false
@@ -1042,5 +1032,94 @@ mod tests {
         // line_start follows the last newline before the offset
         assert_eq!(idx.byte_to_line(h, 6).1, 6);
         assert_eq!(idx.byte_to_line(h, 13).1, 13);
+    }
+
+    // ── find_in_chunk ───────────────────────────────────────────────────
+
+    #[test]
+    fn find_in_chunk_literal_match() {
+        assert!(find_in_chunk(b"hello world", b"world", false));
+        assert!(find_in_chunk(b"hello world", b"hello", false));
+        assert!(!find_in_chunk(b"hello world", b"xyz", false));
+    }
+
+    #[test]
+    fn find_in_chunk_empty_needle() {
+        assert!(find_in_chunk(b"anything", b"", false));
+    }
+
+    #[test]
+    fn find_in_chunk_case_insensitive() {
+        assert!(find_in_chunk(b"Hello World", b"hello", true));
+        assert!(find_in_chunk(b"Hello World", b"WORLD", true));
+        assert!(!find_in_chunk(b"Hello World", b"xyz", true));
+    }
+
+    #[test]
+    fn find_in_chunk_single_byte() {
+        assert!(find_in_chunk(b"abcdef", b"d", false));
+        assert!(!find_in_chunk(b"abcdef", b"z", false));
+    }
+
+    // ── stream_match_literal ────────────────────────────────────────────
+
+    #[test]
+    fn stream_match_basic() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("test.txt");
+        std::fs::write(&path, b"line one\nline two\nline three\n").unwrap();
+        assert!(stream_match_literal(&path, b"two", false));
+        assert!(!stream_match_literal(&path, b"four", false));
+    }
+
+    #[test]
+    fn stream_match_empty_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("empty.txt");
+        std::fs::write(&path, b"").unwrap();
+        assert!(!stream_match_literal(&path, b"anything", false));
+    }
+
+    #[test]
+    fn stream_match_cross_boundary() {
+        // Needle spans two 64KB chunks — verify the overlap logic works.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("boundary.txt");
+        // Place "NEED" at end of first chunk, "LE" at start of second.
+        let mut data = vec![b'a'; 64 * 1024];
+        let pos = 64 * 1024 - 4;
+        data[pos..pos + 4].copy_from_slice(b"NEED");
+        data.extend_from_slice(b"LEmore content here");
+        std::fs::write(&path, &data).unwrap();
+        assert!(stream_match_literal(&path, b"NEEDLE", false));
+        assert!(!stream_match_literal(&path, b"NEEDLENOPE", false));
+    }
+
+    #[test]
+    fn stream_match_case_insensitive() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("case.txt");
+        std::fs::write(&path, b"Hello World").unwrap();
+        assert!(stream_match_literal(&path, b"hello", true));
+        assert!(stream_match_literal(&path, b"WORLD", true));
+        assert!(!stream_match_literal(&path, b"xyz", true));
+    }
+
+    #[test]
+    fn stream_match_missing_file() {
+        let path = std::path::PathBuf::from("/nonexistent/file.txt");
+        assert!(!stream_match_literal(&path, b"test", false));
+    }
+
+    #[test]
+    fn stream_match_large_file_first_match() {
+        // Verify streaming stops early (doesn't read entire 1MB file).
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("large.txt");
+        let mut data = vec![b'x'; 1024 * 1024]; // 1 MB
+        data[100] = b'Y';
+        data[101] = b'Z';
+        std::fs::write(&path, &data).unwrap();
+        assert!(stream_match_literal(&path, b"YZ", false));
     }
 }
