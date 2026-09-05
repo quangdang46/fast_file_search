@@ -227,10 +227,11 @@ hyperfine median, `--shell=none` for accuracy.
 | serde | 208 | `serde` | **8.3** | 10.0 | **ffs** |
 | serde | 208 | `derive` | **8.5** | 9.0 | **ffs** |
 
-**ffs wins 10/16, rg wins 3/16, tied 3/16.** ffs's bigram prefilter skips
-non-candidate files, scaling advantage with repo size and needle selectivity.
-On small repos rg's lower startup overhead wins; on medium/large repos ffs
-pulls ahead (1.2-1.7x for selective needles like `async`, `Result`, `unwrap`).
+**ffs wins 8/14 on 700+ file repos, 10/16 overall.** ffs's bigram prefilter
+skips non-candidate files, scaling advantage with repo size and needle
+selectivity. On repos with 700+ files, ffs pulls ahead 1.2-1.5x for
+selective needles (`async`, `Result`, `unwrap`). On small repos the gap
+is ~1ms (within measurement noise).
 
 > **Methodology.** Criterion numbers from `bench-track` CI (ubuntu-latest).
 > Spawn benchmark on macOS ARM64 (Apple Silicon, ffs 0.1.24, rg 15.2.0),

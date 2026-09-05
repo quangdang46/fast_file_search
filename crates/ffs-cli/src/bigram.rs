@@ -144,7 +144,19 @@ impl GrepBigram {
             return None;
         }
 
-        let mut survivors: Vec<&Path> = Vec::new();
+        // Quick selectivity check: if >80% of files survive on repos with
+        // 100+ files, the filter provides little benefit and its overhead
+        // (HashSet construction, per-file membership check) outweighs the
+        // savings. Return None to tell the caller to scan everything.
+        let mut count = 0u64;
+        for &w in &candidates {
+            count += w.count_ones() as u64;
+        }
+        if n >= 100 && count as usize > (n * 80) / 100 {
+            return None;
+        }
+
+        let mut survivors: Vec<&Path> = Vec::with_capacity(count as usize);
         for (idx, path) in self.paths.iter().enumerate() {
             let word = idx / 64;
             if candidates[word] & (1u64 << (idx % 64)) != 0 {
