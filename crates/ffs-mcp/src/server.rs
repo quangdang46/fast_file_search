@@ -433,6 +433,24 @@ impl FfsServer {
     }
 }
 
+/// Run `f` inside `catch_unwind` so a panic in any engine tool handler
+/// returns a structured MCP error instead of crashing the server process.
+fn catch_unwind_result<F>(f: F) -> Result<CallToolResult, ErrorData>
+where
+    F: FnOnce() -> Result<CallToolResult, ErrorData>,
+{
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).unwrap_or_else(|e| {
+        let msg = if let Some(s) = e.downcast_ref::<&str>() {
+            s.to_string()
+        } else if let Some(s) = e.downcast_ref::<String>() {
+            s.clone()
+        } else {
+            "tool panicked (unknown reason)".to_string()
+        };
+        Err(ErrorData::internal_error(msg, None))
+    })
+}
+
 #[tool_router]
 impl FfsServer {
     /// Fuzzy file search by name. Searches FILE NAMES, not file contents.
@@ -782,30 +800,32 @@ impl FfsServer {
         let root = self.picker_base_path()?;
         let max_results = normalize_max_results(params.max_results, 50);
         let engine = self.engine.get_or_build(&root, 25_000);
-        let name = params.name.trim();
-        let text = if let Some(prefix) = name.strip_suffix('*') {
-            let mut hits = engine.handles.symbols.lookup_prefix(prefix);
-            hits.truncate(max_results);
-            if hits.is_empty() {
-                format!("[no symbols starting with '{prefix}']\n")
-            } else {
-                let mut out = String::new();
-                for (sym, loc) in hits {
-                    out.push_str(&format!(
-                        "{sym}\t{}:{} [{}]\n",
-                        loc.path.display(),
-                        loc.line,
-                        loc.kind
-                    ));
+        catch_unwind_result(|| {
+            let name = params.name.trim();
+            let text = if let Some(prefix) = name.strip_suffix('*') {
+                let mut hits = engine.handles.symbols.lookup_prefix(prefix);
+                hits.truncate(max_results);
+                if hits.is_empty() {
+                    format!("[no symbols starting with '{prefix}']\n")
+                } else {
+                    let mut out = String::new();
+                    for (sym, loc) in hits {
+                        out.push_str(&format!(
+                            "{sym}\t{}:{} [{}]\n",
+                            loc.path.display(),
+                            loc.line,
+                            loc.kind
+                        ));
+                    }
+                    out
                 }
-                out
-            }
-        } else {
-            let mut hits = engine.handles.symbols.lookup_exact(name);
-            hits.truncate(max_results);
-            crate::engine_tools::format_symbol_hits(&hits, name)
-        };
-        Ok(CallToolResult::success(vec![Content::text(text)]))
+            } else {
+                let mut hits = engine.handles.symbols.lookup_exact(name);
+                hits.truncate(max_results);
+                crate::engine_tools::format_symbol_hits(&hits, name)
+            };
+            Ok(CallToolResult::success(vec![Content::text(text)]))
+        })
     }
 
     #[tool(
@@ -820,9 +840,12 @@ impl FfsServer {
         let root = self.picker_base_path()?;
         let max_results = normalize_max_results(params.max_results, 100);
         let engine = self.engine.get_or_build(&root, 25_000);
-        let hits = crate::engine_tools::find_call_sites(&engine, &root, &params.name, max_results);
-        let text = crate::engine_tools::format_call_hits(&hits, "callers");
-        Ok(CallToolResult::success(vec![Content::text(text)]))
+        catch_unwind_result(|| {
+            let hits =
+                crate::engine_tools::find_call_sites(&engine, &root, &params.name, max_results);
+            let text = crate::engine_tools::format_call_hits(&hits, "callers");
+            Ok(CallToolResult::success(vec![Content::text(text)]))
+        })
     }
 
     #[tool(
@@ -837,10 +860,12 @@ impl FfsServer {
         let root = self.picker_base_path()?;
         let max_results = normalize_max_results(params.max_results, 100);
         let engine = self.engine.get_or_build(&root, 25_000);
-        let hits =
-            crate::engine_tools::find_callee_sites(&engine, &root, &params.name, max_results);
-        let text = crate::engine_tools::format_call_hits(&hits, "callees");
-        Ok(CallToolResult::success(vec![Content::text(text)]))
+        catch_unwind_result(|| {
+            let hits =
+                crate::engine_tools::find_callee_sites(&engine, &root, &params.name, max_results);
+            let text = crate::engine_tools::format_call_hits(&hits, "callees");
+            Ok(CallToolResult::success(vec![Content::text(text)]))
+        })
     }
 
     #[tool(
@@ -859,30 +884,31 @@ impl FfsServer {
         // full workspace index (engine.index) which can stack-overflow on
         // pathological roots like /tmp (see scanner.rs / symbol_index.rs fix).
         let _ = &self.engine;
+        catch_unwind_result(|| {
+            let path_part = params
+                .path
+                .rsplit_once(':')
+                .filter(|(_, line)| line.chars().all(|c| c.is_ascii_digit()) && !line.is_empty())
+                .map(|(p, _)| p)
+                .unwrap_or(&params.path);
 
-        let path_part = params
-            .path
-            .rsplit_once(':')
-            .filter(|(_, line)| line.chars().all(|c| c.is_ascii_digit()) && !line.is_empty())
-            .map(|(p, _)| p)
-            .unwrap_or(&params.path);
+            let path = std::path::Path::new(path_part);
+            let abs_path = if path.is_absolute() {
+                path.to_path_buf()
+            } else {
+                root.join(path)
+            };
 
-        let path = std::path::Path::new(path_part);
-        let abs_path = if path.is_absolute() {
-            path.to_path_buf()
-        } else {
-            root.join(path)
-        };
-
-        let cfg = ffs_engine::EngineConfig {
-            filter_level: level,
-            total_token_budget: max_tokens,
-            ..ffs_engine::EngineConfig::default()
-        };
-        let local_engine = ffs_engine::Engine::new(cfg);
-        let res = local_engine.read(&abs_path);
-        let text = format!("[file: {}]\n{}", res.path.display(), res.body,);
-        Ok(CallToolResult::success(vec![Content::text(text)]))
+            let cfg = ffs_engine::EngineConfig {
+                filter_level: level,
+                total_token_budget: max_tokens,
+                ..ffs_engine::EngineConfig::default()
+            };
+            let local_engine = ffs_engine::Engine::new(cfg);
+            let res = local_engine.read(&abs_path);
+            let text = format!("[file: {}]\n{}", res.path.display(), res.body,);
+            Ok(CallToolResult::success(vec![Content::text(text)]))
+        })
     }
 
     #[tool(
@@ -898,9 +924,12 @@ impl FfsServer {
         let limit = normalize_max_results(params.max_results, 100);
         let offset = params.offset.map(|v| v.round() as usize).unwrap_or(0);
         let engine = self.engine.get_or_build(&root, 25_000);
-        let result = crate::engine_tools::find_refs(&engine, &root, &params.name, limit, offset);
-        let text = crate::engine_tools::format_refs_result(&result);
-        Ok(CallToolResult::success(vec![Content::text(text)]))
+        catch_unwind_result(|| {
+            let result =
+                crate::engine_tools::find_refs(&engine, &root, &params.name, limit, offset);
+            let text = crate::engine_tools::format_refs_result(&result);
+            Ok(CallToolResult::success(vec![Content::text(text)]))
+        })
     }
 
     #[tool(
@@ -918,16 +947,18 @@ impl FfsServer {
         let callees_top = normalize_max_results(params.callees_top, 5);
         let callers_top = normalize_max_results(params.callers_top, 5);
         let engine = self.engine.get_or_build(&root, 25_000);
-        let text = crate::engine_tools::find_flow(
-            &engine,
-            &root,
-            &params.name,
-            limit,
-            offset,
-            callees_top,
-            callers_top,
-        );
-        Ok(CallToolResult::success(vec![Content::text(text)]))
+        catch_unwind_result(|| {
+            let text = crate::engine_tools::find_flow(
+                &engine,
+                &root,
+                &params.name,
+                limit,
+                offset,
+                callees_top,
+                callers_top,
+            );
+            Ok(CallToolResult::success(vec![Content::text(text)]))
+        })
     }
 
     #[tool(
@@ -947,9 +978,11 @@ impl FfsServer {
             .map(|v| v.round().clamp(1.0, 3.0) as u32)
             .unwrap_or(3);
         let engine = self.engine.get_or_build(&root, 25_000);
-        let text =
-            crate::engine_tools::find_impact(&engine, &root, &params.name, limit, offset, hops);
-        Ok(CallToolResult::success(vec![Content::text(text)]))
+        catch_unwind_result(|| {
+            let text =
+                crate::engine_tools::find_impact(&engine, &root, &params.name, limit, offset, hops);
+            Ok(CallToolResult::success(vec![Content::text(text)]))
+        })
     }
     #[tool(
         name = "ffs_siblings",
@@ -964,15 +997,17 @@ impl FfsServer {
         let root = self.picker_base_path()?;
         let offset = params.offset.map(|v| v.round() as usize).unwrap_or(0);
         let engine = self.engine.get_or_build(&root, 25_000);
-        let text = crate::engine_tools::find_siblings(
-            &engine,
-            &root,
-            &params.name,
-            params.include_imports.unwrap_or(false),
-            limit,
-            offset,
-        );
-        Ok(CallToolResult::success(vec![Content::text(text)]))
+        catch_unwind_result(|| {
+            let text = crate::engine_tools::find_siblings(
+                &engine,
+                &root,
+                &params.name,
+                params.include_imports.unwrap_or(false),
+                limit,
+                offset,
+            );
+            Ok(CallToolResult::success(vec![Content::text(text)]))
+        })
     }
 
     #[tool(
@@ -987,8 +1022,10 @@ impl FfsServer {
         let root = self.picker_base_path()?;
         let limit = normalize_max_results(params.max_results, 100);
         let offset = params.offset.map(|v| v.round() as usize).unwrap_or(0);
-        let text = crate::engine_tools::find_deps(&root, &params.target, limit, offset);
-        Ok(CallToolResult::success(vec![Content::text(text)]))
+        catch_unwind_result(|| {
+            let text = crate::engine_tools::find_deps(&root, &params.target, limit, offset);
+            Ok(CallToolResult::success(vec![Content::text(text)]))
+        })
     }
 
     #[tool(

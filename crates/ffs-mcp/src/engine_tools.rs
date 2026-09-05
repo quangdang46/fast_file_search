@@ -14,7 +14,7 @@ use parking_lot::Mutex;
 use ffs_budget::FilterLevel;
 use ffs_engine::{Engine, EngineConfig, PreFilterStack};
 use ffs_symbol::lang::detect_file_type;
-use ffs_symbol::symbol_index::SymbolLocation;
+use ffs_symbol::symbol_index::{SymbolIndex, SymbolLocation};
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct EngineSymbolParams {
     /// Symbol name to look up. Trailing `*` switches to prefix search.
@@ -192,10 +192,26 @@ pub struct CallHit {
     pub text: String,
 }
 
+/// Resolve a symbol name, supporting qualified `"Type::method"` syntax.
+/// Falls back to the bare method name when the qualified form isn't indexed.
+fn resolve_symbol_name(name: &str, symbols: &SymbolIndex) -> Vec<SymbolLocation> {
+    let defs = symbols.lookup_exact(name);
+    if !defs.is_empty() {
+        return defs;
+    }
+    if let Some((_type_name, method)) = name.rsplit_once("::") {
+        let defs = symbols.lookup_exact(method);
+        if !defs.is_empty() {
+            return defs;
+        }
+    }
+    Vec::new()
+}
+
 /// Find call sites for `symbol`, narrowed by `BloomFilterCache` before the
 /// final `String::contains` confirmation.
 pub fn find_call_sites(engine: &Engine, root: &Path, symbol: &str, limit: usize) -> Vec<CallHit> {
-    let definitions = engine.handles.symbols.lookup_exact(symbol);
+    let definitions = resolve_symbol_name(symbol, &engine.handles.symbols);
     let definition_lines: Vec<(PathBuf, u32)> = definitions
         .iter()
         .map(|d| (d.path.clone(), d.line))
@@ -280,7 +296,7 @@ pub fn find_callee_sites(
     symbol: &str,
     limit: usize,
 ) -> Vec<CallHit> {
-    let definitions = engine.handles.symbols.lookup_exact(symbol);
+    let definitions = resolve_symbol_name(symbol, &engine.handles.symbols);
     if definitions.is_empty() {
         return Vec::new();
     }
@@ -299,7 +315,7 @@ pub fn find_callee_sites(
                 if tok.is_empty() || tok == symbol {
                     continue;
                 }
-                let candidates = engine.handles.symbols.lookup_exact(tok);
+                let candidates = resolve_symbol_name(tok, &engine.handles.symbols);
                 if candidates.is_empty() {
                     continue;
                 }
@@ -395,7 +411,8 @@ pub fn find_refs(
     limit: usize,
     offset: usize,
 ) -> RefsResult {
-    let definitions: Vec<SymbolLocation> = engine.handles.symbols.lookup_exact(name);
+    let mut definitions: Vec<SymbolLocation> = resolve_symbol_name(name, &engine.handles.symbols);
+    definitions.sort_by_key(|b| std::cmp::Reverse(b.weight));
     let definition_line_set: std::collections::HashSet<(String, u32)> = definitions
         .iter()
         .map(|d| (d.path.to_string_lossy().to_string(), d.line))
@@ -612,7 +629,8 @@ pub fn find_siblings(
     limit: usize,
     offset: usize,
 ) -> String {
-    let definitions = engine.handles.symbols.lookup_exact(name);
+    let mut definitions = resolve_symbol_name(name, &engine.handles.symbols);
+    definitions.sort_by_key(|b| std::cmp::Reverse(b.weight));
     let mut out = String::new();
     if definitions.is_empty() {
         out.push_str(&format!("[no definitions found for `{name}`]\n"));
@@ -915,7 +933,8 @@ pub fn find_flow(
     callees_top: usize,
     callers_top: usize,
 ) -> String {
-    let definitions = engine.handles.symbols.lookup_exact(name);
+    let mut definitions = resolve_symbol_name(name, &engine.handles.symbols);
+    definitions.sort_by_key(|b| std::cmp::Reverse(b.weight));
     let mut out = String::new();
     if definitions.is_empty() {
         out.push_str(&format!("[no definitions for `{name}`]\n"));
@@ -998,7 +1017,8 @@ pub fn find_impact(
     offset: usize,
     _hops: u32,
 ) -> String {
-    let definitions = engine.handles.symbols.lookup_exact(name);
+    let mut definitions = resolve_symbol_name(name, &engine.handles.symbols);
+    definitions.sort_by_key(|b| std::cmp::Reverse(b.weight));
     if definitions.is_empty() {
         return format!("[no impact found for {name}]\n");
     }
