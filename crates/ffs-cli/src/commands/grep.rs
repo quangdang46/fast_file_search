@@ -293,7 +293,11 @@ impl NewlineIndex {
             Err(i) => i,    // i is the insertion point = count of newlines before offset
         };
         let line = (idx + 1) as u32;
-        let line_start = if idx == 0 { 0 } else { self.positions[idx - 1] + 1 };
+        let line_start = if idx == 0 {
+            0
+        } else {
+            self.positions[idx - 1] + 1
+        };
         let line_end = haystack[line_start..]
             .iter()
             .position(|&b| b == b'\n')
