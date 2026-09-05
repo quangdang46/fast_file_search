@@ -53,6 +53,7 @@ fn make_grep_options(
     mode: GrepMode,
     file_offset: usize,
     context: Option<usize>,
+    max_results: usize,
 ) -> (GrepSearchOptions, bool) {
     let is_usage = output_mode == OutputMode::Usage;
     let matches_per_file = match output_mode {
@@ -74,7 +75,7 @@ fn make_grep_options(
             max_matches_per_file: matches_per_file,
             smart_case: true,
             file_offset,
-            page_limit: 50,
+            page_limit: max_results.max(50),
             mode,
             time_budget_ms: 0,
             before_context: ctx_lines,
@@ -287,7 +288,8 @@ impl FfsServer {
             .and_then(|id| self.cursor_store.lock().ok()?.get(id))
             .unwrap_or(0);
 
-        let (options, auto_expand) = make_grep_options(output_mode, mode, file_offset, context);
+        let (options, auto_expand) =
+            make_grep_options(output_mode, mode, file_offset, context, max_results);
         let ctx_lines = options.before_context;
 
         // Acquire picker lock once for the entire operation.
@@ -322,7 +324,8 @@ impl FfsServer {
                         mode
                     };
 
-                    let (retry_options, _) = make_grep_options(output_mode, retry_mode, 0, context);
+                    let (retry_options, _) =
+                        make_grep_options(output_mode, retry_mode, 0, context, max_results);
                     let retry_result = picker.grep(&rest_parsed, &retry_options);
 
                     if !retry_result.matches.is_empty() && retry_result.matches.len() <= 10 {
@@ -349,7 +352,8 @@ impl FfsServer {
 
             // Fuzzy fallback for typo tolerance
             let fuzzy_query = cleanup_fuzzy_query(query);
-            let (fuzzy_options, _) = make_grep_options(output_mode, GrepMode::Fuzzy, 0, Some(0));
+            let (fuzzy_options, _) =
+                make_grep_options(output_mode, GrepMode::Fuzzy, 0, Some(0), max_results);
             let fuzzy_parsed = parser.parse(&fuzzy_query);
             let fuzzy_result = picker.grep(&fuzzy_parsed, &fuzzy_options);
 
@@ -1082,8 +1086,13 @@ impl FfsServer {
             .and_then(|id| self.cursor_store.lock().ok()?.get(id))
             .unwrap_or(0);
 
-        let (options, auto_expand) =
-            make_grep_options(output_mode, GrepMode::PlainText, file_offset, context);
+        let (options, auto_expand) = make_grep_options(
+            output_mode,
+            GrepMode::PlainText,
+            file_offset,
+            context,
+            max_results,
+        );
 
         let ctx_lines = options.before_context;
         let constraint_query = params.constraints.as_deref().unwrap_or("");
@@ -1105,7 +1114,7 @@ impl FfsServer {
         if result.matches.is_empty() && file_offset == 0 {
             // Fallback: try individual patterns with plain grep
             let (fallback_options, _) =
-                make_grep_options(output_mode, GrepMode::PlainText, 0, context);
+                make_grep_options(output_mode, GrepMode::PlainText, 0, context, max_results);
 
             let fallback_options = GrepSearchOptions {
                 time_budget_ms: 3000,
