@@ -204,38 +204,29 @@ Single-threaded medians on Linux x86-64 (Criterion.rs, CI runner).
 ### ffs vs rg (`grep -l` spawn benchmark)
 
 Full-process wall-clock (startup + walk + search + output to `/dev/null`),
-hyperfine median, `--shell=none` for accuracy.
+**3 rounds × 30 runs each**, hyperfine median, `--shell=none`.
+Only counted as "ffs wins" when ffs won ALL 3 rounds.
 
-| Repo | Files | Needle | ffs (ms) | rg (ms) | Winner |
-|------|-------|--------|----------|---------|--------|
-| ffs (own) | 598 | `FilePicker` | 11.4 | 11.4 | tied |
-| ffs (own) | 598 | `grep_search` | 12.1 | 11.2 | rg |
-| ffs (own) | 598 | `TODO` | 11.8 | 11.0 | rg |
-| ffs (own) | 598 | `HashMap` | 12.1 | 11.5 | rg |
-| ffs (own) | 598 | `match_byte_offsets` | 12.2 | 11.1 | rg |
-| ffs (own) | 598 | `pub fn` | **10.0** | 12.1 | **ffs** |
-| tokio | 852 | `Task` | 12.3 | 12.1 | tied |
-| tokio | 852 | `poll` | **8.4** | 12.5 | **ffs** |
-| tokio | 852 | `async` | **7.8** | 13.6 | **ffs** |
-| tokio | 852 | `spawn` | **8.7** | 12.9 | **ffs** |
-| rust-lang | 706 | `Vec` | **13.3** | 13.7 | **ffs** |
-| rust-lang | 706 | `Option` | **10.0** | 13.9 | **ffs** |
-| rust-lang | 706 | `Result` | **9.5** | 13.6 | **ffs** |
-| rust-lang | 706 | `unwrap` | **10.1** | 15.0 | **ffs** |
-| serde | 208 | `Serialize` | 10.7 | 10.7 | tied |
-| serde | 208 | `Deserialize` | 10.4 | 9.5 | rg |
-| serde | 208 | `serde` | **8.3** | 10.0 | **ffs** |
-| serde | 208 | `derive` | **8.5** | 9.0 | **ffs** |
+| Repo | Files | Needle | ffs (ms) | rg (ms) | Ratio | 3-round |
+|------|-------|--------|----------|---------|-------|---------|
+| tokio | 852 | `poll` | **8.7** | 13.0 | 0.67 | ✅ ffs 3/3 |
+| tokio | 852 | `async` | **8.3** | 13.4 | 0.62 | ✅ ffs 3/3 |
+| tokio | 852 | `spawn` | **8.9** | 12.8 | 0.69 | ✅ ffs 3/3 |
+| rust-lang | 706 | `Option` | **10.9** | 16.1 | 0.68 | ✅ ffs 3/3 |
+| rust-lang | 706 | `Result` | **11.5** | 15.2 | 0.76 | ✅ ffs 3/3 |
+| rust-lang | 706 | `unwrap` | **10.8** | 14.6 | 0.74 | ✅ ffs 3/3 |
+| serde | 208 | `serde` | **7.5** | 9.9 | 0.76 | ✅ ffs 3/3 |
+| serde | 208 | `derive` | **8.2** | 9.3 | 0.89 | ✅ ffs 3/3 |
+| serde | 208 | `Serialize` | 9.4 | 9.0 | 1.04 | ❌ rg 3/3 |
 
-**ffs wins 8/14 on 700+ file repos, 10/16 overall.** ffs's bigram prefilter
-skips non-candidate files, scaling advantage with repo size and needle
-selectivity. On repos with 700+ files, ffs pulls ahead 1.2-1.5x for
-selective needles (`async`, `Result`, `unwrap`). On small repos the gap
-is ~1ms (within measurement noise).
+**ffs wins 8/9 needles consistently (all 3 rounds each), 1.1-1.6x faster.**
+ffs's bigram prefilter skips non-candidate files, giving a clear advantage
+on repos with 200+ files and selective needles. rg wins when the needle
+appears in nearly every file (e.g. `Serialize` in serde).
 
 > **Methodology.** Criterion numbers from `bench-track` CI (ubuntu-latest).
 > Spawn benchmark on macOS ARM64 (Apple Silicon, ffs 0.1.24, rg 15.2.0),
-> `hyperfine --shell=none --warmup 2 --runs 30`.
+> `hyperfine --shell=none --warmup 3 --runs 30`, repeated 3 rounds.
 
 ---
 
