@@ -321,6 +321,28 @@ suite_grep() {
   # invalid regex should not crash
   assert_exit_code "grep invalid regex exits non-zero" 1 -- grep --regex "[unclosed"
   run_ok "grep fixed strings with regex chars" -- grep -F "[unclosed"
+
+  # Regression #82: CJK character search
+  cat > "$TMP/src/cjk_test.rs" <<'RS'
+// 会社名はおんしゃ名です
+pub fn greet() -> String {
+    "こんにちは世界".to_string()
+}
+RS
+  run_ok "grep CJK characters (#82)" -- grep "おんしゃ名"
+  "$FFS_BIN" --root "$TMP" grep "おんしゃ名" >"$out" 2>/dev/null
+  assert_contains "grep CJK finds Japanese text" "おんしゃ名" "$out"
+
+  run_ok "grep CJK greeting (#82)" -- grep "こんにちは"
+  "$FFS_BIN" --root "$TMP" grep "こんにちは" >"$out" 2>/dev/null
+  assert_contains "grep CJK finds greeting" "こんにちは" "$out"
+
+  # Regression #83: regex with special chars
+  run_ok "grep regex dot-star (#83)" -- grep --regex "Alpha.*new"
+  "$FFS_BIN" --root "$TMP" grep --regex "Alpha.*new" >"$out" 2>/dev/null
+  assert_contains "grep regex dot-star finds match" "Alpha" "$out"
+
+  run_ok "grep regex escaped dot (#83)" -- grep --regex "src/main\\.rs"
 }
 
 suite_multi_grep() {
@@ -589,7 +611,7 @@ suite_global_flags() {
 
 suite_regression() {
   echo ""
-  echo "== regression (stack overflow / binary / utf8) =="
+  echo "== regression (stack overflow / binary / utf8 / mcp fixes) =="
   local out="$TMP/out.$$"
 
   # Stack-overflow regression: deeply nested + large file already in fixture
@@ -621,6 +643,12 @@ suite_regression() {
   ln -sf "$TMP/src" "$TMP/link_to_src" 2>/dev/null || true
   run_ok "regression symlink find" -- find "Alpha"
   rm -f "$TMP/link_to_src"
+
+  # MCP-specific regression tests (verified via unit tests in ffs-mcp):
+  # #85: catch_unwind on engine tool handlers — unit tested in engine_tools::tests
+  # #86: weight-sorted definitions in flow/refs/impact/siblings — unit tested
+  # #87: qualified name "Type::method" resolution — unit tested
+  echo "${DIM}  (MCP fixes #85/#86/#87 verified via cargo test -p ffs-mcp)${RESET}"
 }
 
 # ---------------------------------------------------------------------------
