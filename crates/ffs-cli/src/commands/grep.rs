@@ -19,6 +19,89 @@ fn read_for_search(path: &Path) -> std::io::Result<Vec<u8>> {
     Ok(buf)
 }
 
+/// Streaming literal match: searches a file in chunks via BufReader, returning
+/// true at the first match without allocating the full file content. Carries
+/// a small tail overlap between chunks so a match that spans a chunk boundary
+/// is never missed.
+fn stream_match_literal(path: &Path, needle: &[u8], case_insensitive: bool) -> bool {
+    use std::io::{BufReader, Read};
+    let file = match std::fs::File::open(path) {
+        Ok(f) => f,
+        Err(_) => return false,
+    };
+    const CHUNK: usize = 64 * 1024;
+    let mut reader = BufReader::with_capacity(CHUNK, file);
+    let mut buf = vec![0u8; CHUNK];
+    let overlap = needle.len().saturating_sub(1);
+    let mut carried = 0usize; // bytes in `tail` carried over from previous chunk
+    let mut tail = vec![0u8; overlap]; // ring buffer for overlap
+
+    loop {
+        let n = match reader.read(&mut buf) {
+            Ok(0) => break,
+            Ok(n) => n,
+            Err(_) => break,
+        };
+        let chunk = &buf[..n];
+
+        // Build a combined slice: carried tail + current chunk.
+        // If there is carried data, search tail[..carried] ++ chunk as one
+        // contiguous slice to catch cross-boundary matches.
+        if carried > 0 {
+            // Temporarily append chunk after the carried tail.
+            tail.extend_from_slice(chunk);
+            let search_slice = &tail[..carried + n];
+            if find_in_chunk(search_slice, needle, case_insensitive) {
+                return true;
+            }
+            tail.truncate(overlap);
+            // Save new tail from the end of the chunk.
+            let take = n.min(overlap);
+            let src_start = n.saturating_sub(overlap);
+            // Shift tail contents, then overwrite with chunk tail.
+            tail.rotate_left(carried);
+            tail[overlap - take..].copy_from_slice(&chunk[src_start..]);
+            carried = overlap;
+        } else {
+            if find_in_chunk(chunk, needle, case_insensitive) {
+                return true;
+            }
+            // Save tail for next iteration.
+            let take = n.min(overlap);
+            if take > 0 {
+                tail[..take].copy_from_slice(&chunk[n - take..]);
+                carried = take;
+            } else {
+                carried = 0;
+            }
+        }
+    }
+    false
+}
+
+#[inline(always)]
+fn find_in_chunk(haystack: &[u8], needle: &[u8], case_insensitive: bool) -> bool {
+    if case_insensitive {
+        // Case-insensitive: scan for first byte candidates, verify full needle.
+        if needle.is_empty() {
+            return true;
+        }
+        let first_lo = needle[0].to_ascii_lowercase();
+        let first_hi = needle[0].to_ascii_uppercase();
+        let rest = &needle[1..];
+        for pos in memchr::memchr2_iter(first_lo, first_hi, haystack) {
+            if pos + 1 + rest.len() <= haystack.len()
+                && haystack[pos + 1..pos + 1 + rest.len()].eq_ignore_ascii_case(rest)
+            {
+                return true;
+            }
+        }
+        false
+    } else {
+        memmem::find(haystack, needle).is_some()
+    }
+}
+
 #[derive(Debug, Parser)]
 #[command(after_help = "\
 EXAMPLES:
@@ -418,13 +501,23 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
                 }
             }
 
-            let Ok(content) = read_for_search(&path) else {
-                return ignore::WalkState::Continue;
-            };
-
             // files-with-matches: only need to know IF the file matches.
+            // For literal patterns, use streaming BufReader — avoids allocating
+            // the full file content and stops at the first match.
             if files_with_matches {
-                if matcher.is_match(&content) {
+                let matched = match &matcher {
+                    Matcher::Literal {
+                        needle,
+                        case_insensitive,
+                    } => stream_match_literal(&path, needle, *case_insensitive),
+                    _ => {
+                        let Ok(content) = read_for_search(&path) else {
+                            return ignore::WalkState::Continue;
+                        };
+                        matcher.is_match(&content)
+                    }
+                };
+                if matched {
                     let prior = hit_counter.fetch_add(1, Ordering::Relaxed);
                     if prior >= limit {
                         stop.store(true, Ordering::Relaxed);
@@ -445,6 +538,11 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
                 }
                 return ignore::WalkState::Continue;
             }
+
+            let Ok(content) = read_for_search(&path) else {
+                return ignore::WalkState::Continue;
+            };
+
             // Quick binary heuristic: skip files containing NUL in the first 8KB.
             let probe = &content[..content.len().min(8 * 1024)];
             if probe.contains(&0u8) {

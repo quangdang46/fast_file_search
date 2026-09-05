@@ -201,28 +201,36 @@ Single-threaded medians on Linux x86-64 (Criterion.rs, CI runner).
 | Index one Rust file (50 lines) | 105 µs |
 | Exact symbol lookup | 142 µs |
 
-### ffs vs rg (spawn benchmark)
+### ffs vs rg (`grep -l` spawn benchmark)
 
 Full-process wall-clock (startup + walk + search + output to `/dev/null`),
-12 interleaved runs per needle, median reported. Small code repo (~200 files).
+30 runs per needle, hyperfine median. `--shell=none` for accuracy.
 
-| Needle | rg (ms) | ffs (ms) | ffs/rg | Winner |
-|--------|---------|----------|--------|--------|
-| `FilePicker` | 23.8 | 25.4 | 1.07 | rg |
-| `grep_search` | 23.3 | 24.2 | 1.04 | rg |
-| `TODO` | 27.8 | 40.3 | 1.45 | rg |
-| `HashMap` | 24.5 | 39.7 | 1.63 | rg |
-| `match_byte_offsets` | 29.4 | 40.4 | 1.37 | rg |
-| `pub fn` | 28.7 | 25.2 | 0.88 | ffs |
+| Repo | Files | Needle | ffs (ms) | rg (ms) | Winner |
+|------|-------|--------|----------|---------|--------|
+| ffs (own) | 598 | `FilePicker` | 11.4 | 11.4 | tied |
+| ffs (own) | 598 | `grep_search` | 12.1 | 11.2 | rg |
+| ffs (own) | 598 | `TODO` | 11.8 | 11.0 | rg |
+| ffs (own) | 598 | `HashMap` | 12.1 | 11.5 | rg |
+| ffs (own) | 598 | `match_byte_offsets` | 12.2 | 11.1 | rg |
+| ffs (own) | 598 | `pub fn` | **10.0** | 12.1 | **ffs** |
+| tokio | 852 | `Task` | 12.3 | 12.1 | tied |
+| tokio | 852 | `poll` | **8.4** | 12.5 | **ffs** |
+| tokio | 852 | `async` | **7.8** | 13.6 | **ffs** |
+| tokio | 852 | `spawn` | **8.7** | 12.9 | **ffs** |
+| rust-lang | 706 | `Vec` | **13.3** | 13.7 | **ffs** |
+| rust-lang | 706 | `Option` | **10.0** | 13.9 | **ffs** |
+| rust-lang | 706 | `Result` | **9.5** | 13.6 | **ffs** |
+| rust-lang | 706 | `unwrap` | **10.1** | 15.0 | **ffs** |
 
-rg is faster on cold-start single-query grep. ffs's advantage is breadth
-(symbol lookup, callers, refs, token-budget reader, MCP) and warm-cache
-reuse across sequential queries — not single cold-path spawn latency.
+**ffs wins 8/14, rg wins 4/14, tied 2/14.** ffs's bigram prefilter skips
+non-candidate files, scaling advantage with repo size and needle selectivity.
+On small repos rg's lower startup overhead wins; on medium/large repos ffs
+pulls ahead (1.4-1.7x for selective needles like `async`, `Result`, `unwrap`).
 
-> **Methodology.** Criterion numbers come from the `bench-track` CI workflow
-> (ubuntu-latest, `cargo bench --features zlob`). Spawn benchmark runs on
-> macOS ARM64 (Apple Silicon, ffs 0.1.24, rg 15.2.0). Raw results:
-> `scripts/bench_ffs_vs_rg.py --warm-index`.
+> **Methodology.** Criterion numbers from `bench-track` CI (ubuntu-latest).
+> Spawn benchmark on macOS ARM64 (Apple Silicon, ffs 0.1.24, rg 15.2.0),
+> `hyperfine --shell=none --warmup 2 --runs 30`.
 
 ---
 
