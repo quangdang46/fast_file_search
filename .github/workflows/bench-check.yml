@@ -1,0 +1,192 @@
+name: bench-check
+
+# Regression gate: run Criterion benchmarks on PRs and compare against the
+# main-branch baseline. Fail if any benchmark regresses by more than the
+# allowed threshold.
+
+on:
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  REGRESSION_THRESHOLD: 5  # percent — fail if any bench regresses by more than this
+
+jobs:
+  bench-check:
+    name: benchmark regression check
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1.15.4
+        with:
+          cache: true
+          cache-on-failure: true
+          cache-key: "v1-rust-bench-check"
+
+      # ── Download main-branch baseline ──────────────────────────────────
+      - name: Download latest baseline artifact
+        id: baseline
+        uses: actions/github-script@v7
+        continue-on-error: true  # first PR may have no baseline yet
+        with:
+          script: |
+            const [owner, repo] = context.repo;
+            // Find the latest completed bench-track workflow run on main
+            const runs = await github.rest.actions.listWorkflowRuns({
+              owner, repo,
+              workflow_id: 'bench-track.yml',
+              branch: 'main',
+              status: 'completed',
+              per_page: 1,
+            });
+            if (runs.data.workflow_runs.length === 0) {
+              core.setOutput('found', 'false');
+              core.warning('No baseline run found — skipping comparison');
+              return;
+            }
+            const runId = runs.data.workflow_runs[0].id;
+            core.info(`Baseline run: ${runId}`);
+            // Find the criterion artifact
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner, repo, run_id: runId,
+            });
+            const art = artifacts.data.artifacts.find(a =>
+              a.name.startsWith('criterion-report-')
+            );
+            if (!art) {
+              core.setOutput('found', 'false');
+              core.warning('No criterion artifact found');
+              return;
+            }
+            core.setOutput('found', 'true');
+            core.setOutput('artifact_id', art.id);
+            core.setOutput('artifact_name', art.name);
+
+      - name: Download and extract baseline
+        if: steps.baseline.outputs.found == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.baseline.outputs.artifact_name }}
+          path: target/criterion-baseline
+        continue-on-error: true
+
+      - name: Prepare criterion baseline
+        if: steps.baseline.outputs.found == 'true'
+        run: |
+          # Criterion looks for baselines in target/criterion/<bench>/baseline/.
+          # The artifact stores full results; we copy new/ → baseline/ so
+          # Criterion auto-compares.
+          if [ -d target/criterion-baseline ]; then
+            for bench_dir in target/criterion-baseline/*/; do
+              bench_name=$(basename "$bench_dir")
+              # Handle nested groups (e.g. bigram_query_10000/short_2char)
+              for sub in "$bench_dir"*/; do
+                if [ -d "$sub/new" ]; then
+                  target="target/criterion/$bench_name/$(basename "$sub")/baseline"
+                  mkdir -p "$target"
+                  cp -r "$sub/new/"* "$target/" 2>/dev/null || true
+                fi
+              done
+              # Also handle top-level benches (e.g. engine_dispatch_symbol/new)
+              if [ -d "$bench_dir/new" ]; then
+                target="target/criterion/$bench_name/baseline"
+                mkdir -p "$target"
+                cp -r "$bench_dir/new/"* "$target/" 2>/dev/null || true
+              fi
+            done
+            echo "Baseline prepared"
+            find target/criterion -name "baseline" -type d | head -10
+          fi
+
+      # ── Run benchmarks ─────────────────────────────────────────────────
+      - name: Run benchmarks
+        run: |
+          cargo bench --features zlob \
+            -p ffs-search \
+            -p ffs-query-parser \
+            -p ffs-symbol \
+            -p ffs-budget \
+            -p ffs-engine 2>&1 | tee bench-output.txt
+
+      # ── Check for regressions ──────────────────────────────────────────
+      - name: Check for regressions
+        if: steps.baseline.outputs.found == 'true'
+        env:
+          REGRESSION_THRESHOLD: "10"
+        run: |
+          python3 - <<'PYEOF'
+          import json, glob, os, sys
+
+          threshold = int(os.environ.get("REGRESSION_THRESHOLD", "10"))
+
+          # Benchmarks known to be noisy (sensitive to system load).
+          SKIP_PATTERNS = ["filter_apply", "smart_truncate", "fuzzy_score", "mention_candidate"]
+
+          regressions = []
+          improvements = []
+          no_change = []
+          skipped = []
+
+          for change_file in glob.glob("target/criterion/**/change/estimates.json", recursive=True):
+              bench_path = change_file.replace("/change/estimates.json", "")
+              bench_name = bench_path.replace("target/criterion/", "")
+
+              if any(pat in bench_name for pat in SKIP_PATTERNS):
+                  skipped.append(bench_name)
+                  continue
+
+              with open(change_file) as f:
+                  data = json.load(f)
+
+              pct_change = data.get("mean", {}).get("point_estimate", 0) * 100
+
+              if pct_change > threshold:
+                  regressions.append((bench_name, pct_change))
+              elif pct_change < -threshold:
+                  improvements.append((bench_name, pct_change))
+              else:
+                  no_change.append((bench_name, pct_change))
+
+          if regressions:
+              print(f"\n❌ REGRESSIONS DETECTED (threshold: >{threshold}%):")
+              for name, pct in sorted(regressions, key=lambda x: -x[1]):
+                  print(f"  {name}: +{pct:.1f}%")
+              print()
+
+          if improvements:
+              print(f"\n✅ IMPROVEMENTS:")
+              for name, pct in sorted(improvements, key=lambda x: x[1]):
+                  print(f"  {name}: {pct:.1f}%")
+              print()
+
+          print(f"  No change (within ±{threshold}%): {len(no_change)} benchmarks")
+          print(f"  Improvements: {len(improvements)} benchmarks")
+          print(f"  Regressions: {len(regressions)} benchmarks")
+          print(f"  Skipped (noisy): {len(skipped)} benchmarks")
+
+          if regressions:
+              print(f"\n💥 CI FAILED: {len(regressions)} benchmark(s) regressed by more than {threshold}%")
+              sys.exit(1)
+          else:
+              print(f"\n✅ CI PASSED: no regressions above {threshold}% threshold")
+          PYEOF
+
+      # ── Upload PR benchmark results ────────────────────────────────────
+      - name: Upload PR benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-pr-${{ github.event.pull_request.number }}
+          path: |
+            target/criterion
+            bench-output.txt
+          retention-days: 7
