@@ -74,7 +74,7 @@ File search and code navigation require a menagerie of tools: `find`, `fd`, `gre
 | **One warm process** | After first call, every subsequent query hits warm memory — no per-call subprocess spawn |
 | **MCP server** | 15-tool stdio JSON-RPC server for AI coding agents |
 | **C ABI (.so/.dylib/.dll)** | Stable foreign bindings for Python, Node.js, and more |
-| **zlib compression** | Optional `--features zlib` for compressed indexes |
+| **zlob (fast glob)** | Zig-compiled C glob matching, enabled by default |
 
 ### How ffs Compares
 
@@ -135,8 +135,8 @@ curl -fsSL "https://raw.githubusercontent.com/quangdang46/fast_file_search/main/
 # Windows PowerShell
 irm https://raw.githubusercontent.com/quangdang46/fast_file_search/main/install.ps1 | iex
 
-# From source (with zlib compression support)
-cargo build --release -p ffs-cli --features zlib
+# From source
+cargo build --release -p ffs-cli
 ./target/release/ffs --version
 ```
 
@@ -176,30 +176,53 @@ Linux x86_64/aarch64, macOS x86_64/aarch64, Windows x86_64/aarch64
 
 ## Performance
 
-All numbers are single-threaded medians on Linux x86-64 (Criterion.rs).
-
 ### Engine dispatch (256-file fixture)
+
+Single-threaded medians on Linux x86-64 (Criterion.rs, CI runner).
 
 | Query type | Median |
 |------------|--------|
-| Symbol lookup (`worker_05_3`) | **202 ns** |
-| Concept / NL query | **205 ns** |
-| File path (`mod_03/file_2.rs`) | **2.2 µs** |
-| Glob (`**/*.rs`) | **2.8 µs** |
+| Symbol lookup (`worker_05_3`) | **143 ns** |
+| Concept / NL query | **185 ns** |
+| File path (`mod_03/file_2.rs`) | **1.7 µs** |
+| Glob (`**/*.rs`) | **1.1 µs** |
 
 ### Bigram index
 
 | Index size | 2-char query | 6-char query | 14-char query |
 |-----------|--------------|--------------|---------------|
-| 10 K files | 46 ns | 120 ns | 314 ns |
-| 500 K files | 761 ns | 1.6 µs | 1.6 µs |
+| 10 K files | 37 ns | 104 ns | 120 ns |
+| 500 K files | 587 ns | 1.2 µs | 1.2 µs |
 
 ### Symbol index (1 K files)
 
 | Operation | Median |
 |-----------|--------|
-| Index one Rust file (50 lines) | 219 µs |
-| Exact symbol lookup | 95 µs |
+| Index one Rust file (50 lines) | 105 µs |
+| Exact symbol lookup | 142 µs |
+
+### ffs vs rg (spawn benchmark)
+
+Full-process wall-clock (startup + walk + search + output to `/dev/null`),
+12 interleaved runs per needle, median reported. Small code repo (~200 files).
+
+| Needle | rg (ms) | ffs (ms) | ffs/rg | Winner |
+|--------|---------|----------|--------|--------|
+| `FilePicker` | 23.8 | 25.4 | 1.07 | rg |
+| `grep_search` | 23.3 | 24.2 | 1.04 | rg |
+| `TODO` | 27.8 | 40.3 | 1.45 | rg |
+| `HashMap` | 24.5 | 39.7 | 1.63 | rg |
+| `match_byte_offsets` | 29.4 | 40.4 | 1.37 | rg |
+| `pub fn` | 28.7 | 25.2 | 0.88 | ffs |
+
+rg is faster on cold-start single-query grep. ffs's advantage is breadth
+(symbol lookup, callers, refs, token-budget reader, MCP) and warm-cache
+reuse across sequential queries — not single cold-path spawn latency.
+
+> **Methodology.** Criterion numbers come from the `bench-track` CI workflow
+> (ubuntu-latest, `cargo bench --features zlob`). Spawn benchmark runs on
+> macOS ARM64 (Apple Silicon, ffs 0.1.24, rg 15.2.0). Raw results:
+> `scripts/bench_ffs_vs_rg.py --warm-index`.
 
 ---
 
