@@ -373,3 +373,17 @@ fn test_grep_no_duplicates_with_overflow_trailing_bits() {
         result.matches.len()
     );
 }
+
+#[test]
+fn test_build_regex_cjk_unicode() {
+    let re = super::build_regex("おんしゃ名", true).unwrap();
+    let hay = "会社名はおんしゃ名です".as_bytes();
+    assert!(re.is_match(hay), "CJK regex should match multi-byte UTF-8");
+}
+
+#[test]
+fn test_build_regex_unicode_pattern() {
+    let re = super::build_regex("package\\.json.*name", true).unwrap();
+    let hay = r#"require("package.json").name"#.as_bytes();
+    assert!(re.is_match(hay), "regex with dots should match");
+}

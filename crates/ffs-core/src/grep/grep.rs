@@ -948,7 +948,7 @@ pub(super) fn build_regex(pattern: &str, smart_case: bool) -> Result<regex::byte
     regex::bytes::RegexBuilder::new(&regex_pattern)
         .case_insensitive(case_insensitive)
         .multi_line(true)
-        .unicode(false)
+        .unicode(true)
         .build()
         .map_err(|e| e.to_string())
 }
