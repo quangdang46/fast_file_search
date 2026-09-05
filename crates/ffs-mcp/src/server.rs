@@ -435,7 +435,7 @@ impl FfsServer {
 
 /// Run `f` inside `catch_unwind` so a panic in any engine tool handler
 /// returns a structured MCP error instead of crashing the server process.
-fn catch_unwind_result<F>(f: F) -> Result<CallToolResult, ErrorData>
+pub(crate) fn catch_unwind_result<F>(f: F) -> Result<CallToolResult, ErrorData>
 where
     F: FnOnce() -> Result<CallToolResult, ErrorData>,
 {

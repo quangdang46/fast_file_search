@@ -1158,4 +1158,84 @@ mod tests {
         let r: Result<EngineRefsParams, _> = serde_json::from_value(json!({ "maxResults": 1 }));
         assert!(r.is_err());
     }
+
+    // --- Fix #87: resolve_symbol_name qualified name support ---
+
+    fn make_index(entries: Vec<(&str, SymbolLocation)>) -> ffs_symbol::symbol_index::SymbolIndex {
+        use ffs_symbol::symbol_index::{SymbolIndex, SymbolIndexSnapshot};
+        let mut map = std::collections::HashMap::new();
+        for (name, loc) in entries {
+            map.entry(name.to_string())
+                .or_insert_with(Vec::new)
+                .push(loc);
+        }
+        SymbolIndex::from_snapshot(SymbolIndexSnapshot {
+            map,
+            files: std::collections::HashMap::new(),
+        })
+    }
+
+    #[test]
+    fn resolve_symbol_name_exact_match() {
+        let idx = make_index(vec![(
+            "foo",
+            SymbolLocation {
+                path: "a.rs".into(),
+                line: 1,
+                end_line: 5,
+                kind: "function_item".into(),
+                weight: 100,
+            },
+        )]);
+        let result = resolve_symbol_name("foo", &idx);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].kind, "function_item");
+    }
+
+    #[test]
+    fn resolve_symbol_name_qualified_fallback() {
+        let idx = make_index(vec![(
+            "patch",
+            SymbolLocation {
+                path: "editor.rs".into(),
+                line: 10,
+                end_line: 20,
+                kind: "function_item".into(),
+                weight: 100,
+            },
+        )]);
+        let result = resolve_symbol_name("Editor::patch", &idx);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].path.to_str().unwrap(), "editor.rs");
+    }
+
+    #[test]
+    fn resolve_symbol_name_qualified_not_found() {
+        let idx = make_index(vec![]);
+        let result = resolve_symbol_name("Type::missing", &idx);
+        assert!(result.is_empty());
+    }
+
+    // --- Fix #85: catch_unwind_result ---
+
+    #[test]
+    fn catch_unwind_result_normal_return() {
+        let r = crate::server::catch_unwind_result(|| {
+            Ok(rmcp::model::CallToolResult::success(vec![
+                rmcp::model::Content::text("ok"),
+            ]))
+        });
+        assert!(r.is_ok());
+    }
+
+    #[test]
+    fn catch_unwind_result_catches_panic() {
+        let r: Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> =
+            crate::server::catch_unwind_result(|| {
+                panic!("test panic");
+            });
+        assert!(r.is_err());
+        let err = r.unwrap_err();
+        assert!(err.message.contains("test panic"));
+    }
 }
