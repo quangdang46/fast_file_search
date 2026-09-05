@@ -204,7 +204,7 @@ Single-threaded medians on Linux x86-64 (Criterion.rs, CI runner).
 ### ffs vs rg (`grep -l` spawn benchmark)
 
 Full-process wall-clock (startup + walk + search + output to `/dev/null`),
-30 runs per needle, hyperfine median. `--shell=none` for accuracy.
+hyperfine median, `--shell=none` for accuracy.
 
 | Repo | Files | Needle | ffs (ms) | rg (ms) | Winner |
 |------|-------|--------|----------|---------|--------|
@@ -222,11 +222,15 @@ Full-process wall-clock (startup + walk + search + output to `/dev/null`),
 | rust-lang | 706 | `Option` | **10.0** | 13.9 | **ffs** |
 | rust-lang | 706 | `Result` | **9.5** | 13.6 | **ffs** |
 | rust-lang | 706 | `unwrap` | **10.1** | 15.0 | **ffs** |
+| serde | 208 | `Serialize` | 10.7 | 10.7 | tied |
+| serde | 208 | `Deserialize` | 10.4 | 9.5 | rg |
+| serde | 208 | `serde` | **8.3** | 10.0 | **ffs** |
+| serde | 208 | `derive` | **8.5** | 9.0 | **ffs** |
 
-**ffs wins 8/14, rg wins 4/14, tied 2/14.** ffs's bigram prefilter skips
+**ffs wins 10/16, rg wins 3/16, tied 3/16.** ffs's bigram prefilter skips
 non-candidate files, scaling advantage with repo size and needle selectivity.
 On small repos rg's lower startup overhead wins; on medium/large repos ffs
-pulls ahead (1.4-1.7x for selective needles like `async`, `Result`, `unwrap`).
+pulls ahead (1.2-1.7x for selective needles like `async`, `Result`, `unwrap`).
 
 > **Methodology.** Criterion numbers from `bench-track` CI (ubuntu-latest).
 > Spawn benchmark on macOS ARM64 (Apple Silicon, ffs 0.1.24, rg 15.2.0),
