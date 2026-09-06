@@ -367,6 +367,10 @@ mod tests {
         let idx = GrepBigram::build(&files);
         let result = idx.filter(b"zz");
         let candidates = result.expect("should return candidates");
-        assert!(candidates.len() <= 10, "should filter to ~10 candidates, got {}", candidates.len());
+        assert!(
+            candidates.len() <= 10,
+            "should filter to ~10 candidates, got {}",
+            candidates.len()
+        );
     }
 }

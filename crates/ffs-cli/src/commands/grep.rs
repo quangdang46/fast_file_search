@@ -41,7 +41,7 @@ fn stream_match_literal(path: &Path, needle: &[u8], case_insensitive: bool) -> b
         if filled > 0 && overlap > 0 {
             let tail_start = filled.saturating_sub(overlap);
             buf.copy_within(tail_start..filled, 0);
-            filled = filled - tail_start;
+            filled -= tail_start;
         } else {
             filled = 0;
         }
