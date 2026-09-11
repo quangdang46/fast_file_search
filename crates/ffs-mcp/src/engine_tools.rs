@@ -208,6 +208,18 @@ fn resolve_symbol_name(name: &str, symbols: &SymbolIndex) -> Vec<SymbolLocation>
     Vec::new()
 }
 
+/// Render a path relative to the workspace root, falling back to the
+/// absolute path when it isn't under `root` (e.g. symlinked out). Symbol/
+/// caller/callee output repeats the path once per hit, so absolute paths
+/// waste a lot of tokens on deep Windows checkouts — same fix as the
+/// `--compact` grep mode (#93).
+pub fn rel_path(root: &Path, path: &Path) -> String {
+    path.strip_prefix(root)
+        .unwrap_or(path)
+        .to_string_lossy()
+        .into_owned()
+}
+
 /// Find call sites for `symbol`, narrowed by `BloomFilterCache` before the
 /// final `String::contains` confirmation.
 pub fn find_call_sites(engine: &Engine, root: &Path, symbol: &str, limit: usize) -> Vec<CallHit> {
@@ -264,7 +276,7 @@ pub fn find_call_sites(engine: &Engine, root: &Path, symbol: &str, limit: usize)
         if !survivor_set.contains(path) {
             continue;
         }
-        let path_str = path.display().to_string();
+        let path_str = rel_path(root, path);
         for (lineno, line) in content.lines().enumerate() {
             let lineno = (lineno + 1) as u32;
             if !line.contains(symbol) {
@@ -290,12 +302,7 @@ pub fn find_call_sites(engine: &Engine, root: &Path, symbol: &str, limit: usize)
 }
 
 /// Find callees: symbols that the body of `symbol` references.
-pub fn find_callee_sites(
-    engine: &Engine,
-    _root: &Path,
-    symbol: &str,
-    limit: usize,
-) -> Vec<CallHit> {
+pub fn find_callee_sites(engine: &Engine, root: &Path, symbol: &str, limit: usize) -> Vec<CallHit> {
     let definitions = resolve_symbol_name(symbol, &engine.handles.symbols);
     if definitions.is_empty() {
         return Vec::new();
@@ -305,7 +312,7 @@ pub fn find_callee_sites(
         let Ok(content) = ffs::bom::read_file(&def.path) else {
             continue;
         };
-        let path_str = def.path.display().to_string();
+        let path_str = rel_path(root, &def.path);
         for (idx, line) in content.lines().enumerate() {
             let lineno = (idx + 1) as u32;
             if lineno < def.line || lineno > def.end_line {
@@ -433,7 +440,9 @@ pub fn find_refs(
         if !survivor_set.contains(path.as_path()) {
             continue;
         }
-        let path_str = path.to_string_lossy().to_string();
+        // Definition-line skip set is keyed by absolute path; emit relative.
+        let abs_str = path.to_string_lossy().to_string();
+        let path_str = rel_path(root, path);
         // Detect language for outline computation
         let lang = match detect_file_type(path) {
             ffs_symbol::types::FileType::Code(l) => l,
@@ -450,7 +459,7 @@ pub fn find_refs(
                 continue;
             }
             // Skip definition lines
-            if definition_line_set.contains(&(path_str.clone(), lineno)) {
+            if definition_line_set.contains(&(abs_str.clone(), lineno)) {
                 continue;
             }
             usages.push(RefUsage {
@@ -468,7 +477,7 @@ pub fn find_refs(
         if !survivor_set.contains(path.as_path()) {
             continue;
         }
-        let path_str = path.to_string_lossy().to_string();
+        let path_str = rel_path(root, path);
         for (lineno, line) in content.lines().enumerate() {
             let lineno = (lineno + 1) as u32;
             if !line.contains(name) {
@@ -516,7 +525,7 @@ pub fn find_refs(
 }
 
 /// Format a `RefsResult` as human-readable text (matching CLI `ffs refs` text format).
-pub fn format_refs_result(r: &RefsResult) -> String {
+pub fn format_refs_result(r: &RefsResult, root: &Path) -> String {
     let mut out = String::new();
     out.push_str(&format!("Symbol: {}\n", r.name));
     out.push_str(&format!("Definitions ({}):\n", r.definitions.len()));
@@ -526,7 +535,7 @@ pub fn format_refs_result(r: &RefsResult) -> String {
         for d in &r.definitions {
             out.push_str(&format!(
                 "  {}:{} ({}, w={})\n",
-                d.path.display(),
+                rel_path(root, &d.path),
                 d.line,
                 d.kind,
                 d.weight,
@@ -575,7 +584,7 @@ pub fn parse_filter_level(raw: Option<&str>) -> FilterLevel {
     }
 }
 
-pub fn format_symbol_hits(hits: &[SymbolLocation], name: &str) -> String {
+pub fn format_symbol_hits(hits: &[SymbolLocation], name: &str, root: &Path) -> String {
     if hits.is_empty() {
         return format!("[no definitions found for '{name}']\n");
     }
@@ -583,7 +592,7 @@ pub fn format_symbol_hits(hits: &[SymbolLocation], name: &str) -> String {
     for hit in hits {
         out.push_str(&format!(
             "{}:{}: [{}] (weight {})\n",
-            hit.path.display(),
+            rel_path(root, &hit.path),
             hit.line,
             hit.kind,
             hit.weight,
@@ -623,7 +632,7 @@ fn format_outline_kind(kind: ffs_symbol::types::OutlineKind) -> &'static str {
 }
 pub fn find_siblings(
     engine: &Engine,
-    _root: &Path,
+    root: &Path,
     name: &str,
     _include_imports: bool,
     limit: usize,
@@ -641,7 +650,7 @@ pub fn find_siblings(
             "definition {}/{}: {}:{} ({} , w={})\n",
             idx + 1,
             definitions.len(),
-            def.path.display(),
+            rel_path(root, &def.path),
             def.line,
             def.kind,
             def.weight,
@@ -950,7 +959,7 @@ pub fn find_flow(
         let card_idx = offset + idx + 1;
         out.push_str(&format!(
             "── card {card_idx}/{total}: {name} @ {}:{} ({}, w={}) ──\n",
-            def.path.display(),
+            rel_path(root, &def.path),
             def.line,
             def.kind,
             def.weight,
@@ -1237,5 +1246,26 @@ mod tests {
         assert!(r.is_err());
         let err = r.unwrap_err();
         assert!(err.message.contains("test panic"));
+    }
+}
+
+#[cfg(test)]
+mod rel_path_tests {
+    use super::rel_path;
+    use std::path::Path;
+
+    #[test]
+    fn strips_root_prefix() {
+        let root = Path::new("/repo");
+        let out = rel_path(root, Path::new("/repo/src/main.rs"));
+        assert_eq!(out.replace('\\', "/"), "src/main.rs");
+    }
+
+    #[test]
+    fn falls_back_to_absolute_outside_root() {
+        let root = Path::new("/repo");
+        let outside = Path::new("/elsewhere/lib.rs");
+        let out = rel_path(root, outside);
+        assert!(out.contains("elsewhere"), "got {out:?}");
     }
 }

@@ -854,7 +854,7 @@ impl FfsServer {
                     for (sym, loc) in hits {
                         out.push_str(&format!(
                             "{sym}\t{}:{} [{}]\n",
-                            loc.path.display(),
+                            crate::engine_tools::rel_path(&root, &loc.path),
                             loc.line,
                             loc.kind
                         ));
@@ -864,7 +864,7 @@ impl FfsServer {
             } else {
                 let mut hits = engine.handles.symbols.lookup_exact(name);
                 hits.truncate(max_results);
-                crate::engine_tools::format_symbol_hits(&hits, name)
+                crate::engine_tools::format_symbol_hits(&hits, name, &root)
             };
             Ok(CallToolResult::success(vec![Content::text(text)]))
         })
@@ -969,7 +969,7 @@ impl FfsServer {
         catch_unwind_result(|| {
             let result =
                 crate::engine_tools::find_refs(&engine, &root, &params.name, limit, offset);
-            let text = crate::engine_tools::format_refs_result(&result);
+            let text = crate::engine_tools::format_refs_result(&result, &root);
             Ok(CallToolResult::success(vec![Content::text(text)]))
         })
     }
