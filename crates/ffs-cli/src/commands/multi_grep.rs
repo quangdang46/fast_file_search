@@ -17,6 +17,26 @@ use serde::Serialize;
 
 use crate::cli::OutputFormat;
 
+/// Threshold above which `-l` (`--files-with-matches`) streams the file
+/// through Aho-Corasick's `stream_find_iter` instead of `fs::read`-ing it
+/// whole. Mirrors the same fix in `grep.rs` — a multi-GB file with no NUL
+/// byte in its first 8KB would otherwise be fully materialized per rayon
+/// worker just to answer a yes/no question.
+const STREAM_THRESHOLD: u64 = 8 * 1024 * 1024;
+
+/// Peek the first 8KB for a NUL byte (rg's binary heuristic), without
+/// reading the rest of the file. Used only on the large-file streaming path;
+/// the normal path still probes the already-loaded `content`.
+fn probably_binary_prefix(path: &Path) -> bool {
+    use std::io::Read;
+    let Ok(mut f) = std::fs::File::open(path) else {
+        return false;
+    };
+    let mut buf = [0u8; 8 * 1024];
+    let n = f.read(&mut buf).unwrap_or(0);
+    buf[..n].contains(&0u8)
+}
+
 #[derive(Debug, Parser)]
 #[command(after_help = "\
 EXAMPLES:
@@ -168,6 +188,44 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         if stop.load(Ordering::Relaxed) {
             return;
         }
+
+        // -l on a large file: stream through Aho-Corasick instead of
+        // fs::read-ing the whole thing just to answer a yes/no question.
+        if args.files_with_matches
+            && std::fs::metadata(path).is_ok_and(|m| m.len() >= STREAM_THRESHOLD)
+        {
+            if probably_binary_prefix(path) {
+                return;
+            }
+            let matched = std::fs::File::open(path).is_ok_and(|f| {
+                ac.stream_find_iter(std::io::BufReader::new(f))
+                    .next()
+                    .is_some()
+            });
+            if !matched {
+                return;
+            }
+            let prior = hit_counter.fetch_add(1, Ordering::Relaxed);
+            if prior >= limit {
+                stop.store(true, Ordering::Relaxed);
+                return;
+            }
+            if let Ok(mut guard) = hits_mutex.lock() {
+                if guard.len() < limit {
+                    guard.push(GrepHit {
+                        path: path.to_string_lossy().into_owned(),
+                        line: 0,
+                        text: String::new(),
+                        matched_patterns: Vec::new(),
+                        match_ranges: Vec::new(),
+                    });
+                } else {
+                    stop.store(true, Ordering::Relaxed);
+                }
+            }
+            return;
+        }
+
         let Ok(content) = std::fs::read(path) else {
             return;
         };
