@@ -123,7 +123,7 @@ single run's median is noise.
 
 Real example: an uncontrolled run reported ffs 1.34x slower than rg on
 `HashMap`. Re-measuring with min-of-N and an interleaved schedule showed
-ffs at 57.6ms vs rg 78.4ms — i.e. *faster*, the opposite sign.
+ffs at 17.7ms vs rg 17.1ms — parity, not a regression.
 
 Rules:
 
@@ -137,19 +137,27 @@ Rules:
 ## `--no-ignore` is a different workload — measure it separately
 
 `--no-ignore` drops `.gitignore` handling, so the walk sees build output.
-In this repo `target/` holds 42,709 of 43,616 files (98%); the respecting-
-ignore walk sees 620. Both tools get much slower, ffs more so:
+In this repo `target/` holds 42,709 of 43,616 files (98%), ~28GB total. The
+respecting-ignore walk sees 620 files and both tools finish in ~20ms.
+
+Interleaved, min-of-N, `HashMap -l`:
 
 | Command | With ignore | `--no-ignore` |
 |---------|-------------|---------------|
-| `ffs grep HashMap -l` | ~58ms | ~1873ms (32x) |
-| `rg -F -l HashMap` | ~78ms | ~323ms (4.1x) |
+| `ffs grep HashMap -l` | 19.5ms | 280ms |
+| `rg -F -l HashMap` | 19.3ms | 299ms |
+| ratio | 1.01 | 0.94 |
 
-Cause is understood: ffs attempts `read_for_search` (full `read_to_end`) per
-file where rg streams/mmap-probes, so a tree dominated by large binaries
-costs ffs proportionally more. Treat `--no-ignore` on a repo with build
-output as a known weak spot rather than a general "ffs is slower" signal —
-without `--no-ignore` the two are at parity.
+ffs was previously 3.56x slower here (2137ms) because `read_for_search` did a
+full `read_to_end` on every file and only *then* checked the leading chunk for
+NUL — so it paid the full 28GB before rejecting anything. It now probes the
+first 8KB for binary content first and only reads the rest when the file is
+actually text, which is what rg does. (`rg --no-ignore` 614ms vs
+`rg -a --no-ignore` 13729ms shows how much of the cost is that one skip.)
+
+The lesson generalises: when a repo contains a huge ignored tree, the binary
+rejection path is the whole benchmark, so always state whether the index is
+warm and whether `--no-ignore` is in play.
 
 ---
 
