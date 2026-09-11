@@ -148,8 +148,8 @@ pub struct GrepParams {
     pub max_results: Option<f64>, // this has to be float because llms are stupid
     /// Cursor from previous result. Only use if previous results weren't sufficient.
     pub cursor: Option<String>,
-    /// Output format: 'content' (default), 'compact' (rg-style path:line:text,
-    /// token-efficient), 'files_with_matches', 'count', 'usage'.
+    /// Output format: 'compact' (default, rg-style path:line:text),
+    /// 'content' (verbose def-expand), 'files_with_matches', 'count', 'usage'.
     pub output_mode: Option<String>,
 }
 
@@ -212,7 +212,8 @@ pub struct MultiGrepParams {
     pub max_results: Option<f64>,
     /// Cursor from previous result.
     pub cursor: Option<String>,
-    /// Output format (default 'content').
+    /// Output format: 'compact' (default), 'content' (verbose def-expand),
+    /// 'files_with_matches', 'count', 'usage'.
     pub output_mode: Option<String>,
     /// Context lines before/after each match.
     pub context: Option<f64>,
