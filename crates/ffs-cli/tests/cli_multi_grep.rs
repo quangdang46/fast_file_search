@@ -124,3 +124,35 @@ fn multigrep_alias_works() {
     let v: Value = serde_json::from_slice(&out.stdout).unwrap();
     assert!(!v["hits"].as_array().unwrap().is_empty());
 }
+
+#[test]
+fn files_with_matches_streams_large_files() {
+    // File exceeds the -l streaming threshold (8 MiB) — must still find a
+    // needle placed near the end without loading the whole file up front.
+    let tmp = TempDir::new().unwrap();
+    let mut data = vec![b'x'; 9 * 1024 * 1024];
+    let tail = b"UNIQUE_MULTI_GREP_NEEDLE";
+    let pos = data.len() - tail.len() - 10;
+    data[pos..pos + tail.len()].copy_from_slice(tail);
+    write_file(tmp.path(), "big.log", &String::from_utf8_lossy(&data));
+
+    let (ok, v, err) = run_json(
+        tmp.path(),
+        &["-l", "UNIQUE_MULTI_GREP_NEEDLE", "OTHER_PATTERN"],
+    );
+    assert!(ok, "stderr: {err}");
+    let hits = v["hits"].as_array().unwrap();
+    assert_eq!(hits.len(), 1);
+    assert!(hits[0]["path"].as_str().unwrap().ends_with("big.log"));
+}
+
+#[test]
+fn files_with_matches_streams_large_files_no_match() {
+    let tmp = TempDir::new().unwrap();
+    let data = vec![b'x'; 9 * 1024 * 1024];
+    write_file(tmp.path(), "big.log", &String::from_utf8_lossy(&data));
+
+    let (ok, v, err) = run_json(tmp.path(), &["-l", "NOT_PRESENT_ANYWHERE"]);
+    assert!(ok, "stderr: {err}");
+    assert_eq!(v["hits"].as_array().unwrap().len(), 0);
+}
