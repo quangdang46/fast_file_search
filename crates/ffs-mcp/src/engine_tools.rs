@@ -231,38 +231,7 @@ pub fn find_call_sites(engine: &Engine, root: &Path, symbol: &str, limit: usize)
 
     let stack = PreFilterStack::new(engine.handles.bloom.clone());
 
-    let mut candidates: Vec<(PathBuf, SystemTime, String)> = Vec::new();
-    let walker = ignore::WalkBuilder::new(root)
-        .standard_filters(true)
-        .follow_links(false)
-        .build();
-    for entry in walker.flatten() {
-        if let Some(ft) = entry.file_type() {
-            if !ft.is_file() {
-                continue;
-            }
-        } else {
-            continue;
-        }
-        let path = entry.into_path();
-        // Only scan code files — matches CLI's walk_files which filters by
-        // detect_file_type() == Code(_). Skipping non-code files avoids binary
-        // bloat and makes callers/refs consistent with CLI output.
-        if !matches!(
-            detect_file_type(&path),
-            ffs_symbol::types::FileType::Code(_)
-        ) {
-            continue;
-        }
-        let Ok(meta) = std::fs::metadata(&path) else {
-            continue;
-        };
-        let mtime = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
-        let Ok(content) = ffs::bom::read_file(&path) else {
-            continue;
-        };
-        candidates.push((path, mtime, content));
-    }
+    let candidates = walk_code_files(root);
 
     let survivors = stack.confirm_symbol(&candidates, symbol);
 
@@ -340,7 +309,18 @@ pub fn find_callee_sites(engine: &Engine, root: &Path, symbol: &str, limit: usiz
     hits
 }
 
-/// Walk all code files under `root` with standard .gitignore filters.
+/// Walk all code files under `root` with standard .gitignore filters,
+/// returning `(path, mtime, content)`.
+///
+/// Only code files are read — matches CLI `walk_files`, whose callers also
+/// filter by `detect_file_type() == Code(_)`; skipping non-code avoids binary
+/// bloat and keeps callers/refs output consistent with the CLI.
+///
+/// NOTE: this materializes every code file's contents at once, so peak memory
+/// scales with total source size (a large monorepo is tens of MB held live for
+/// the duration of one callers/refs request). Fine for typical repos; if this
+/// ever shows up in a profile, the fix is to probe the bloom cache per file
+/// during the walk and retain only survivors' content.
 fn walk_code_files(root: &Path) -> Vec<(std::path::PathBuf, SystemTime, String)> {
     use ignore::WalkBuilder;
     let mut out = Vec::new();
