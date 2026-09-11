@@ -51,23 +51,36 @@ fn push_path_hit(
     }
 }
 
-/// Streaming literal match: searches a file in chunks via BufReader, returning
-/// true at the first match without allocating the full file content. Carries
-/// a small tail overlap between chunks so a match that spans a chunk boundary
-/// is never missed.
-#[allow(dead_code)] // exercised by tests; superseded in the hot path by unified read_for_search
-fn stream_match_literal(path: &Path, needle: &[u8], case_insensitive: bool) -> bool {
+/// Threshold above which `-l`/`--files-without-match` streams a literal
+/// needle through the file in chunks instead of `read_to_end`-ing it. Below
+/// this, the one-shot read is cheaper (fewer syscalls, no chunk bookkeeping).
+/// Keeps huge files (logs, dumps) from being fully loaded into RAM just to
+/// answer a yes/no match question.
+const STREAM_THRESHOLD: u64 = 8 * 1024 * 1024;
+
+/// Streaming literal match for `-l`/`--files-without-match`: searches a file
+/// in chunks via `BufReader`, short-circuiting at the first match without
+/// allocating the full file content. Carries a small tail overlap between
+/// chunks so a match spanning a chunk boundary is never missed.
+///
+/// Returns `None` when the file looks binary (NUL byte in the first chunk)
+/// and `search_text` is false — mirrors the whole-file binary skip so
+/// streamed and non-streamed paths agree on which files count at all.
+fn stream_match_literal(
+    path: &Path,
+    needle: &[u8],
+    case_insensitive: bool,
+    search_text: bool,
+) -> Option<bool> {
     use std::io::{BufReader, Read};
-    let file = match std::fs::File::open(path) {
-        Ok(f) => f,
-        Err(_) => return false,
-    };
+    let file = std::fs::File::open(path).ok()?;
     const CHUNK: usize = 64 * 1024;
     let overlap = needle.len().saturating_sub(1);
     let buf_size = CHUNK + overlap;
     let mut reader = BufReader::with_capacity(CHUNK, file);
     let mut buf = vec![0u8; buf_size];
     let mut filled = 0usize; // bytes currently in buf
+    let mut first_chunk = true;
 
     loop {
         // Shift any carried-over tail to the start.
@@ -86,24 +99,29 @@ fn stream_match_literal(path: &Path, needle: &[u8], case_insensitive: bool) -> b
             Ok(0) => {
                 // Last chunk — search what we have without overlap padding.
                 if filled > 0 {
-                    return find_in_chunk(&buf[..filled], needle, case_insensitive);
+                    return Some(find_in_chunk(&buf[..filled], needle, case_insensitive));
                 }
-                break;
+                return Some(false);
             }
             Ok(n) => n,
-            Err(_) => break,
+            Err(_) => return None,
         };
         filled = read_start + n;
 
+        if first_chunk {
+            first_chunk = false;
+            if !search_text && buf[..filled].contains(&0u8) {
+                return None; // binary — same as the whole-file probe skip
+            }
+        }
+
         if find_in_chunk(&buf[..filled], needle, case_insensitive) {
-            return true;
+            return Some(true);
         }
     }
-    false
 }
 
 #[inline(always)]
-#[allow(dead_code)] // used by stream_match_literal, currently test-only
 fn find_in_chunk(haystack: &[u8], needle: &[u8], case_insensitive: bool) -> bool {
     if case_insensitive {
         // Case-insensitive: scan for first byte candidates, verify full needle.
@@ -744,13 +762,14 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
             // Grab metadata from the DirEntry *before* consuming it via
             // into_path() — on Windows this is served from the walker's
             // cached FindNextFile attributes, not a fresh stat, so the
-            // bigram freshness check below costs no extra syscall. Only
-            // fetched when a bigram prefilter is actually active.
-            let entry_metadata = if candidate_paths.is_some() {
-                e.metadata().ok()
-            } else {
-                None
-            };
+            // bigram freshness check and the streaming-size decision below
+            // cost no extra syscall. Only fetched when actually needed.
+            let entry_metadata =
+                if candidate_paths.is_some() || files_with_matches || files_without_match {
+                    e.metadata().ok()
+                } else {
+                    None
+                };
             let path = e.into_path();
             // -g include/exclude filter (rg semantics) before any I/O.
             if let Some(gf) = globs {
@@ -776,19 +795,38 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
                 }
             }
 
-            let Ok(content) = read_for_search(&path) else {
-                return ignore::WalkState::Continue;
-            };
-
-            // Binary heuristic (rg skips NUL-containing files unless -a/--text).
-            let probe = &content[..content.len().min(8 * 1024)];
-            if !search_text && probe.contains(&0u8) {
-                return ignore::WalkState::Continue;
-            }
-
-            // files-with-matches / files-without-match: only need IF it matches.
+            // files-with-matches / files-without-match: only need IF it
+            // matches. For a literal needle on a large file, stream chunks
+            // instead of loading the whole thing into RAM just to answer a
+            // yes/no question (matters for multi-GB logs/dumps).
             if files_with_matches || files_without_match {
-                let matched = matcher.is_match(&content);
+                let is_large = entry_metadata
+                    .as_ref()
+                    .is_some_and(|m| m.len() >= STREAM_THRESHOLD);
+                let matched = match (is_large, matcher) {
+                    (
+                        true,
+                        Matcher::Literal {
+                            needle,
+                            case_insensitive,
+                        },
+                    ) => {
+                        match stream_match_literal(&path, needle, *case_insensitive, search_text) {
+                            Some(m) => m,
+                            None => return ignore::WalkState::Continue, // binary or unreadable
+                        }
+                    }
+                    _ => {
+                        let Ok(content) = read_for_search(&path) else {
+                            return ignore::WalkState::Continue;
+                        };
+                        let probe = &content[..content.len().min(8 * 1024)];
+                        if !search_text && probe.contains(&0u8) {
+                            return ignore::WalkState::Continue;
+                        }
+                        matcher.is_match(&content)
+                    }
+                };
                 let emit = if files_without_match {
                     !matched
                 } else {
@@ -808,15 +846,19 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
                 return ignore::WalkState::Continue;
             }
 
+            // Content mode (not -l/--files-without-match): needs the full
+            // buffer to resolve line numbers and context, so no streaming.
+            let Ok(content) = read_for_search(&path) else {
+                return ignore::WalkState::Continue;
+            };
+            let probe = &content[..content.len().min(8 * 1024)];
+            if !search_text && probe.contains(&0u8) {
+                return ignore::WalkState::Continue;
+            }
+
             // Newline index built once per file (rg builds its line table
             // once per buffer too — rebuilding per match is O(matches × file)).
-            // Skipped outright for files-with-matches mode, which never
-            // resolves match offsets to lines — one less scan over the bytes.
-            let newline_index: Option<NewlineIndex> = if files_with_matches || files_without_match {
-                None
-            } else {
-                Some(NewlineIndex::build(&content))
-            };
+            let newline_index: Option<NewlineIndex> = Some(NewlineIndex::build(&content));
             // `line_hits` holds one entry per emitted display row: normally
             // one row per line (matches merged), but `-o` needs one row per
             // *match* even when several land on the same line, so a flat Vec
@@ -1524,8 +1566,14 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("test.txt");
         std::fs::write(&path, b"line one\nline two\nline three\n").unwrap();
-        assert!(stream_match_literal(&path, b"two", false));
-        assert!(!stream_match_literal(&path, b"four", false));
+        assert_eq!(
+            stream_match_literal(&path, b"two", false, false),
+            Some(true)
+        );
+        assert_eq!(
+            stream_match_literal(&path, b"four", false, false),
+            Some(false)
+        );
     }
 
     #[test]
@@ -1533,7 +1581,10 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("empty.txt");
         std::fs::write(&path, b"").unwrap();
-        assert!(!stream_match_literal(&path, b"anything", false));
+        assert_eq!(
+            stream_match_literal(&path, b"anything", false, false),
+            Some(false)
+        );
     }
 
     #[test]
@@ -1547,8 +1598,14 @@ mod tests {
         data[pos..pos + 4].copy_from_slice(b"NEED");
         data.extend_from_slice(b"LEmore content here");
         std::fs::write(&path, &data).unwrap();
-        assert!(stream_match_literal(&path, b"NEEDLE", false));
-        assert!(!stream_match_literal(&path, b"NEEDLENOPE", false));
+        assert_eq!(
+            stream_match_literal(&path, b"NEEDLE", false, false),
+            Some(true)
+        );
+        assert_eq!(
+            stream_match_literal(&path, b"NEEDLENOPE", false, false),
+            Some(false)
+        );
     }
 
     #[test]
@@ -1556,15 +1613,24 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("case.txt");
         std::fs::write(&path, b"Hello World").unwrap();
-        assert!(stream_match_literal(&path, b"hello", true));
-        assert!(stream_match_literal(&path, b"WORLD", true));
-        assert!(!stream_match_literal(&path, b"xyz", true));
+        assert_eq!(
+            stream_match_literal(&path, b"hello", true, false),
+            Some(true)
+        );
+        assert_eq!(
+            stream_match_literal(&path, b"WORLD", true, false),
+            Some(true)
+        );
+        assert_eq!(
+            stream_match_literal(&path, b"xyz", true, false),
+            Some(false)
+        );
     }
 
     #[test]
     fn stream_match_missing_file() {
         let path = std::path::PathBuf::from("/nonexistent/file.txt");
-        assert!(!stream_match_literal(&path, b"test", false));
+        assert_eq!(stream_match_literal(&path, b"test", false, false), None);
     }
 
     #[test]
@@ -1576,6 +1642,24 @@ mod tests {
         data[100] = b'Y';
         data[101] = b'Z';
         std::fs::write(&path, &data).unwrap();
-        assert!(stream_match_literal(&path, b"YZ", false));
+        assert_eq!(stream_match_literal(&path, b"YZ", false, false), Some(true));
+    }
+
+    #[test]
+    fn stream_match_binary_is_skipped_unless_search_text() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("bin.dat");
+        let mut data = vec![b'a'; 100];
+        data[10] = 0u8; // NUL in the first (only) chunk
+        data.extend_from_slice(b"needle");
+        std::fs::write(&path, &data).unwrap();
+
+        // Binary heuristic active: treated as unreadable-for-matching (None).
+        assert_eq!(stream_match_literal(&path, b"needle", false, false), None);
+        // -a/--text: NUL bytes don't block the match.
+        assert_eq!(
+            stream_match_literal(&path, b"needle", false, true),
+            Some(true)
+        );
     }
 }
