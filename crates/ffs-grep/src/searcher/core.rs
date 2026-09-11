@@ -79,11 +79,14 @@ impl<'s, M: Matcher, S: Sink> Core<'s, M, S> {
 
     #[inline(always)]
     fn find_by_line(&mut self, buf: &[u8]) -> Result<Option<Range>, S::Error> {
+        // Thread absolute `pos` through find_at instead of re-slicing: the
+        // matcher keeps one haystack, so DFA state and needle setup are
+        // reused across iterations (same pattern as MultiLine::find).
         let mut pos = self.pos();
-        while !buf[pos..].is_empty() {
+        while pos < buf.len() {
             let mat = match self
                 .matcher
-                .find(&buf[pos..])
+                .find_at(buf, pos)
                 .map_err(S::Error::error_message)?
             {
                 None => return Ok(None),
@@ -92,7 +95,7 @@ impl<'s, M: Matcher, S: Sink> Core<'s, M, S> {
             let line = lines::locate(
                 buf,
                 self.config.line_term.as_byte(),
-                Range::zero(mat.start()).offset(pos),
+                Range::zero(mat.start()),
             );
             if line.start() == buf.len() {
                 pos = buf.len();

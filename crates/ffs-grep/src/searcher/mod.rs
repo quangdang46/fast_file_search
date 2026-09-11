@@ -156,6 +156,115 @@ impl Default for Searcher {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        matcher::{Match, Matcher, NoError},
+        sink::{Sink, SinkFinish, SinkMatch},
+    };
+
+    /// Literal matcher recording the `at` values it is called with, so tests
+    /// can assert the searcher threads absolute positions (no re-slicing).
+    struct AtRecordingMatcher {
+        needle: Vec<u8>,
+        calls: std::cell::RefCell<Vec<usize>>,
+    }
+
+    impl Matcher for AtRecordingMatcher {
+        type Error = NoError;
+
+        fn find_at(&self, haystack: &[u8], at: usize) -> Result<Option<Match>, NoError> {
+            self.calls.borrow_mut().push(at);
+            let rel = memchr::memmem::find(&haystack[at..], &self.needle);
+            Ok(rel.map(|pos| Match::new(at + pos, at + pos + self.needle.len())))
+        }
+
+        fn line_terminator(&self) -> Option<crate::matcher::LineTerminator> {
+            Some(crate::matcher::LineTerminator::byte(b'\n'))
+        }
+    }
+
+    struct CollectingSink {
+        lines: Vec<(u64, String)>,
+    }
+
+    impl Sink for CollectingSink {
+        type Error = std::io::Error;
+
+        fn matched(
+            &mut self,
+            _searcher: &Searcher,
+            mat: &SinkMatch<'_>,
+        ) -> Result<bool, Self::Error> {
+            let n = mat.line_number().unwrap_or(0);
+            let text = String::from_utf8_lossy(mat.bytes()).into_owned();
+            self.lines.push((n, text));
+            Ok(true)
+        }
+
+        fn finish(&mut self, _: &Searcher, _: &SinkFinish) -> Result<(), Self::Error> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn find_by_line_threads_absolute_positions() {
+        let hay = b"aaa\nneedle one\nbbb\nneedle two\n";
+        let matcher = AtRecordingMatcher {
+            needle: b"needle".to_vec(),
+            calls: std::cell::RefCell::new(Vec::new()),
+        };
+        let searcher = SearcherBuilder::new().line_number(true).build();
+        let mut sink = CollectingSink { lines: Vec::new() };
+        searcher.search_slice(&matcher, hay, &mut sink).unwrap();
+
+        assert_eq!(sink.lines.len(), 2);
+        assert_eq!(sink.lines[0].0, 2);
+        assert_eq!(sink.lines[1].0, 4);
+        // Absolute positions strictly increase: no restart-from-zero re-slice.
+        let calls = matcher.calls.borrow();
+        assert!(calls.len() >= 2);
+        for w in calls.windows(2) {
+            assert!(
+                w[1] > w[0],
+                "matcher called with non-increasing at: {calls:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn multiline_match_finds_across_lines() {
+        struct SubMatcher;
+        impl Matcher for SubMatcher {
+            type Error = NoError;
+            fn find_at(&self, haystack: &[u8], at: usize) -> Result<Option<Match>, NoError> {
+                memchr::memmem::find(&haystack[at..], b"one\nbbb")
+                    .map(|pos| Match::new(at + pos, at + pos + 7))
+                    .pipe(Ok)
+            }
+        }
+        let hay = b"needle one\nbbb\ntail\n";
+        let searcher = SearcherBuilder::new()
+            .line_number(true)
+            .multi_line(true)
+            .build();
+        let mut sink = CollectingSink { lines: Vec::new() };
+        searcher.search_slice(SubMatcher, hay, &mut sink).unwrap();
+        assert_eq!(sink.lines.len(), 1);
+    }
+
+    trait Pipe: Sized {
+        fn pipe<F, T>(self, f: F) -> T
+        where
+            F: FnOnce(Self) -> T,
+        {
+            f(self)
+        }
+    }
+    impl<T> Pipe for T {}
+}
+
 /// Configuration query methods used by the sink and internal search core.
 impl Searcher {
     /// Returns the line terminator used by this searcher.
