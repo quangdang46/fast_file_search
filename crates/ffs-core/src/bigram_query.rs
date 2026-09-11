@@ -13,7 +13,7 @@
 //! filtering even when the `.` prevents any consecutive cross-boundary bigram.
 
 use crate::bigram_filter::BigramFilter;
-use regex_syntax::hir::{Class, Hir, HirKind};
+use regex_syntax::hir::{Class, Hir, HirKind, Look};
 use smallvec::SmallVec;
 use std::borrow::Cow;
 
@@ -351,6 +351,73 @@ fn common_prefix(a: &[u8], b: &[u8]) -> Vec<u8> {
         .take_while(|(x, y)| x == y)
         .map(|(x, _)| *x)
         .collect()
+}
+
+/// Right-anchored literal suffix of a regex pattern: `Some(bytes)` when the
+/// pattern ends with a guaranteed literal immediately followed by a line/text
+/// end assertion (End/EndLF/EndCRLF only — `\b` excluded).
+///
+/// Seeds a reverse memmem scan from the buffer end (ripgrep's suffix trick
+/// for `foo$`-style patterns). None for unanchored patterns or suffixes
+/// shorter than `min_len`.
+pub(crate) fn anchored_literal_suffix(pattern: &str, min_len: usize) -> Option<Vec<u8>> {
+    let mut parser = regex_syntax::ParserBuilder::new()
+        .unicode(false)
+        .utf8(false)
+        .build();
+    let hir = parser.parse(pattern).ok()?;
+    let HirKind::Concat(parts) = hir.kind() else {
+        // Bare `foo$` parses as concat, so non-concat here is unanchored.
+        return None;
+    };
+    let (mut idx, anchored) = match parts.last().map(Hir::kind) {
+        Some(HirKind::Look(look)) if is_end_assertion(look) => (parts.len() - 1, true),
+        _ => (parts.len(), false),
+    };
+    if !anchored {
+        return None;
+    }
+    // Walk backward over the literal tail; zero-width looks don't break it.
+    let mut tail: Vec<u8> = Vec::new();
+    while idx > 0 {
+        idx -= 1;
+        match parts[idx].kind() {
+            HirKind::Literal(lit) => {
+                let bytes = lit.0.as_ref();
+                tail.splice(0..0, bytes.iter().copied());
+            }
+            HirKind::Look(_) => {}
+            HirKind::Capture(cap) => {
+                let Some(lit) = required_literal(&cap.sub) else {
+                    break;
+                };
+                tail.splice(0..0, lit.iter().copied());
+            }
+            HirKind::Repetition(rep) if rep.min >= 1 => {
+                let Some(lit) = required_literal(&rep.sub) else {
+                    break;
+                };
+                tail.splice(0..0, lit.iter().copied());
+            }
+            HirKind::Class(class) => {
+                let Some(b) = single_class_byte(class) else {
+                    break;
+                };
+                tail.insert(0, b);
+            }
+            _ => break,
+        }
+    }
+    if tail.len() >= min_len {
+        Some(tail)
+    } else {
+        None
+    }
+}
+
+#[inline]
+fn is_end_assertion(look: &Look) -> bool {
+    matches!(look, Look::End | Look::EndLF | Look::EndCRLF)
 }
 
 #[inline]
@@ -1049,6 +1116,34 @@ mod tests {
         assert_eq!(
             longest_required_literal("(abcdef){2,}", 3).as_deref(),
             Some(b"abcdef".as_slice())
+        );
+    }
+
+    #[test]
+    fn anchored_suffix_basic() {
+        assert_eq!(
+            anchored_literal_suffix("error$", 3).as_deref(),
+            Some(b"error".as_slice())
+        );
+        assert_eq!(
+            anchored_literal_suffix("foo\\.ts$", 3).as_deref(),
+            Some(b"foo.ts".as_slice())
+        );
+    }
+
+    #[test]
+    fn anchored_suffix_unanchored_is_none() {
+        assert_eq!(anchored_literal_suffix("error", 3), None);
+        assert_eq!(anchored_literal_suffix("foo.*bar", 3), None);
+        assert_eq!(anchored_literal_suffix("foo|bar$", 3), None);
+    }
+
+    #[test]
+    fn anchored_suffix_short_is_none() {
+        assert_eq!(anchored_literal_suffix("ab$", 3), None);
+        assert_eq!(
+            anchored_literal_suffix("ab$", 2).as_deref(),
+            Some(b"ab".as_slice())
         );
     }
 
