@@ -299,8 +299,14 @@ impl Matcher for PlainTextMatcher<'_> {
 /// ASCII case-insensitive substring search.
 ///
 /// Uses a SIMD-accelerated two-byte scan (first + last byte of needle) via
-/// `memchr2_iter`, then verifies candidates with a fast byte comparison that
-/// leverages the fact that ASCII case differs only in bit 0x20.
+/// `memchr2_iter` to find candidates, then verifies each with
+/// `[u8]::eq_ignore_ascii_case` — a real per-byte fold (`to_ascii_lowercase`
+/// under the hood), not the `| 0x20` bit-trick this used to hand-roll.
+///
+/// That trick was a genuine correctness bug: `(a | 0x20) == (b | 0x20)`
+/// treats any two non-letter bytes 0x20 apart as equal (e.g. `'0'` 0x30 and
+/// DLE 0x10), so a needle containing a digit/punctuation byte could
+/// false-positive against unrelated control bytes in the haystack.
 #[inline]
 fn ascii_case_insensitive_find(haystack: &[u8], needle_lower: &[u8]) -> Option<usize> {
     let nlen = needle_lower.len();
@@ -325,62 +331,12 @@ fn ascii_case_insensitive_find(haystack: &[u8], needle_lower: &[u8]) -> Option<u
 
     // Scan for candidates where the first byte matches (either case).
     for pos in memchr::memchr2_iter(first_lo, first_hi, &haystack[..=end]) {
-        // Verify the remaining bytes with bitwise ASCII case-insensitive compare.
-        // For ASCII letters, (a ^ b) & ~0x20 == 0 when they match ignoring case.
-        // For non-letters, exact equality is required; OR-ing with 0x20 maps both
-        // cases to lowercase and is correct for non-alpha bytes that are already equal.
         let candidate = unsafe { haystack.get_unchecked(pos + 1..pos + nlen) };
-        if ascii_case_eq(candidate, tail) {
+        if candidate.eq_ignore_ascii_case(tail) {
             return Some(pos);
         }
     }
     None
-}
-
-/// Fast ASCII case-insensitive byte slice comparison.
-///
-/// Returns true if `a` and `b` are equal when compared case-insensitively
-/// for ASCII bytes. Both slices must have the same length.
-#[inline]
-fn ascii_case_eq(a: &[u8], b: &[u8]) -> bool {
-    debug_assert_eq!(a.len(), b.len());
-    // Process 8 bytes at a time using u64 bitwise operations.
-    // For each byte: (x | 0x20) maps uppercase ASCII to lowercase.
-    // This is correct for letters. For non-letter bytes where the original
-    // values are equal, OR-ing with 0x20 preserves equality. For non-letter
-    // bytes where values differ, this can produce false positives only when
-    // they differ exactly by 0x20 — we do a fast exact-match check first
-    // to catch those rare cases.
-    let len = a.len();
-    let mut i = 0;
-
-    // Fast path: compare 8 bytes at a time
-    while i + 8 <= len {
-        let va = u64::from_ne_bytes(unsafe { *(a.as_ptr().add(i) as *const [u8; 8]) });
-        let vb = u64::from_ne_bytes(unsafe { *(b.as_ptr().add(i) as *const [u8; 8]) });
-
-        // Quick exact-match shortcut (common for non-alpha content)
-        if va != vb {
-            // Case-insensitive: OR each byte with 0x20 to fold case
-            const MASK: u64 = 0x2020_2020_2020_2020;
-            if (va | MASK) != (vb | MASK) {
-                return false;
-            }
-        }
-        i += 8;
-    }
-
-    // Handle remaining bytes
-    while i < len {
-        let ha = unsafe { *a.get_unchecked(i) };
-        let hb = unsafe { *b.get_unchecked(i) };
-        if ha != hb && (ha | 0x20) != (hb | 0x20) {
-            return false;
-        }
-        i += 1;
-    }
-
-    true
 }
 
 /// Maximum bytes of a matched line to keep for display. Prevents minified
@@ -950,7 +906,7 @@ fn suffix_tail_present(content: &[u8], tail: &[u8], case_insensitive: bool) -> b
         if pos + tail.len() <= content.len() {
             let cand = &content[pos..pos + tail.len()];
             let ok = if case_insensitive {
-                cand.len() == tail.len() && ascii_case_eq(cand, tail)
+                cand.len() == tail.len() && cand.eq_ignore_ascii_case(tail)
             } else {
                 cand == tail
             };

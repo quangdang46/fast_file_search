@@ -188,3 +188,21 @@ fn files_with_matches_streams_large_files_no_match() {
     let hits = v["hits"].as_array().unwrap();
     assert_eq!(hits.len(), 0);
 }
+
+#[test]
+fn ignore_case_no_false_positive_on_control_byte() {
+    // Same regression as ffs-core's grep_integration test, for the CLI's
+    // independent CaseInsensitiveLiteralIter implementation.
+    let tmp = TempDir::new().unwrap();
+    let mut line = b"axxxxxxx".to_vec();
+    line.push(0x10); // DLE, 0x20 away from the needle's trailing '0' (0x30)
+    line.push(b'\n');
+    write_file(tmp.path(), "a.txt", &String::from_utf8_lossy(&line));
+
+    let v = grep_json(tmp.path(), &["-i", "axxxxxxx0"]);
+    assert_eq!(
+        v["hits"].as_array().unwrap().len(),
+        0,
+        "DLE must not false-positive-match '0' under -i"
+    );
+}
