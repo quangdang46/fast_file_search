@@ -56,8 +56,12 @@ fn make_grep_options(
     max_results: usize,
 ) -> (GrepSearchOptions, bool) {
     let is_usage = output_mode == OutputMode::Usage;
+    let is_compact = output_mode == OutputMode::Compact;
     let matches_per_file = match output_mode {
         OutputMode::FilesWithMatches => 1,
+        // Compact is a line-oriented skim: cap per-file matches so one noisy
+        // file can't fill the whole page (rg users page with --max-count).
+        OutputMode::Compact => 3,
         _ if is_usage => 8,
         _ => 10,
     };
@@ -66,7 +70,8 @@ fn make_grep_options(
     } else {
         context.unwrap_or(0)
     };
-    let auto_expand = !is_usage && ctx_lines == 0;
+    // Compact never auto-expands definition bodies — that defeats the purpose.
+    let auto_expand = !is_usage && !is_compact && ctx_lines == 0;
     let after_ctx = if auto_expand { 8 } else { ctx_lines };
 
     (
@@ -131,6 +136,8 @@ pub struct FindMixedParams {
 pub struct GrepParams {
     /// Search text or regex query with optional constraint prefixes.
     /// Matches within single lines only — use ONE specific term, not multiple words.
+    /// Regex alternation with `|` is supported (e.g. 'TODO|FIXME'); for 2+
+    /// literal identifiers prefer ffs_multi_grep instead.
     // `pattern` alias: LLMs that have seen ffs_multi_grep (which uses `patterns`)
     // routinely call ffs_grep with `pattern`; accept it instead of erroring out
     // with an unhelpful "missing field `query`" (#311).
@@ -141,7 +148,8 @@ pub struct GrepParams {
     pub max_results: Option<f64>, // this has to be float because llms are stupid
     /// Cursor from previous result. Only use if previous results weren't sufficient.
     pub cursor: Option<String>,
-    /// Output format (default 'content').
+    /// Output format: 'content' (default), 'compact' (rg-style path:line:text,
+    /// token-efficient), 'files_with_matches', 'count', 'usage'.
     pub output_mode: Option<String>,
 }
 
@@ -194,6 +202,7 @@ where
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct MultiGrepParams {
     /// Patterns to match (OR logic). Include all naming conventions: snake_case, PascalCase, camelCase.
+    /// Prefer this over `ffs_grep` regex alternation (`a|b`) for literal identifiers.
     #[serde(deserialize_with = "deserialize_patterns")]
     pub patterns: Vec<String>,
     /// File constraints (e.g. '*.{ts,tsx} !test/'). ALWAYS provide when possible.

@@ -115,3 +115,48 @@ fn hidden_flag_reveals_dotfiles() {
     let with_hidden = grep_json(tmp.path(), &["--hidden", "needle"]);
     assert_eq!(with_hidden["hits"].as_array().unwrap().len(), 1);
 }
+
+fn grep_text(root: &Path, args: &[&str]) -> String {
+    let mut cmd = Command::new(binary());
+    cmd.args(["--root", root.to_str().unwrap(), "grep"]);
+    cmd.args(args);
+    let out = cmd.output().expect("run ffs grep");
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    String::from_utf8(out.stdout).expect("utf8")
+}
+
+#[test]
+fn compact_emits_relative_rg_style_rows() {
+    let tmp = TempDir::new().unwrap();
+    write_file(tmp.path(), "sub/a.rs", "livekit here\n");
+    let text = grep_text(tmp.path(), &["--compact", "--limit", "5", "livekit"]);
+    let first: Vec<String> = text
+        .lines()
+        .filter(|l| !l.starts_with('['))
+        .map(|l| l.replace('\\', "/"))
+        .collect();
+    assert_eq!(first.len(), 1);
+    assert!(
+        first[0].starts_with("sub/a.rs:1: "),
+        "expected relative rg-style row, got {:?}",
+        first[0]
+    );
+    assert!(first[0].contains("livekit here"));
+}
+
+#[test]
+fn compact_files_with_matches_emits_relative_paths() {
+    let tmp = TempDir::new().unwrap();
+    write_file(tmp.path(), "sub/a.rs", "livekit here\n");
+    let text = grep_text(tmp.path(), &["--compact", "-l", "livekit"]);
+    let rows: Vec<String> = text
+        .lines()
+        .filter(|l| !l.starts_with('['))
+        .map(|l| l.replace('\\', "/"))
+        .collect();
+    assert_eq!(rows, vec!["sub/a.rs"]);
+}

@@ -38,6 +38,10 @@ pub enum OutputMode {
     FilesWithMatches,
     Count,
     Usage,
+    /// rg-style `rel/path:line:content` rows: no def-expand, no Read
+    /// suggestions, no per-line match highlighting. Token-efficient default
+    /// for agents piping results into further processing.
+    Compact,
 }
 
 impl OutputMode {
@@ -46,6 +50,7 @@ impl OutputMode {
             Some("files_with_matches") => Self::FilesWithMatches,
             Some("count") => Self::Count,
             Some("usage") => Self::Usage,
+            Some("compact") => Self::Compact,
             _ => Self::Content,
         }
     }
@@ -194,6 +199,18 @@ impl GrepFormatter<'_> {
 
         if output_mode == OutputMode::Count {
             return format_count(items, files, next_file_offset, cursor_store, picker);
+        }
+
+        if output_mode == OutputMode::Compact {
+            return format_compact(
+                items,
+                files,
+                total_matched,
+                max_results,
+                next_file_offset,
+                cursor_store,
+                picker,
+            );
         }
 
         // output_mode == usage
@@ -488,6 +505,41 @@ fn format_files_with_matches(
     lines.join("\n")
 }
 
+/// Compact rg-style output: `rel/path:line:content` rows with no def-expand,
+/// no Read suggestions, no color/highlight markup. Shows a truncation footer
+/// (`N/M matches shown`) when the result was cut to `max_results`, so callers
+/// can distinguish "few matches" from "page 1 of many" (unlike content mode,
+/// which truncates to `max_results` + char budget silently).
+fn format_compact(
+    items: &[GrepMatch],
+    files: &[&FileItem],
+    total_matched: usize,
+    max_results: usize,
+    next_file_offset: usize,
+    cursor_store: &mut CursorStore,
+    picker: &FilePicker,
+) -> String {
+    let mut lines: Vec<String> = Vec::new();
+    for m in items {
+        let file = files[m.file_index];
+        lines.push(format!(
+            "{}: {}: {}",
+            file.relative_path(picker),
+            m.line_number,
+            trauncate_line_for_ai(&m.line_content, None, MAX_LINE_LEN)
+        ));
+    }
+    if total_matched > items.len() {
+        lines.push(format!("{}/{} matches shown", items.len(), total_matched));
+    }
+    let _ = max_results;
+    if next_file_offset > 0 {
+        let cursor_id = cursor_store.store(next_file_offset);
+        lines.push(format!("\ncursor: {}", cursor_id));
+    }
+    lines.join("\n")
+}
+
 fn format_count(
     items: &[GrepMatch],
     files: &[&FileItem],
@@ -572,5 +624,15 @@ mod tests {
         let result = trauncate_line_for_ai(&line, Some(&ranges), 50);
         assert!(result.contains("match_here"));
         assert!(result.len() <= 55); // budget + ellipsis chars
+    }
+
+    #[test]
+    fn output_mode_parses_compact() {
+        assert_eq!(OutputMode::new(Some("compact")), OutputMode::Compact);
+        assert_eq!(
+            OutputMode::new(Some("files_with_matches")),
+            OutputMode::FilesWithMatches
+        );
+        assert_eq!(OutputMode::new(None), OutputMode::Content);
     }
 }

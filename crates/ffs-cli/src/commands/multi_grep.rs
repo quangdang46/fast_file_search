@@ -56,6 +56,11 @@ pub struct Args {
     /// Output only the file paths (one per line) — like `rg -l`.
     #[arg(short = 'l', long = "files-with-matches")]
     pub files_with_matches: bool,
+
+    /// Compact rg-like output: `rel/path:line:text` rows, paths relative to
+    /// the search root, no `[patterns]` tag or match coloring.
+    #[arg(long)]
+    pub compact: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -267,13 +272,38 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         schema: "v1",
     };
 
+    let compact = args.compact;
+    // Canonicalize once so `strip_prefix` works even when the walker yields
+    // absolute paths and `--root` was passed as `.` or relative.
+    let compact_root = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
     super::emit(format, &payload, |p| {
         let mut out = String::new();
         let path_spec = super::render::path_spec();
         let line_spec = super::render::line_spec();
+        let rel = |abs: &str| {
+            let abs_canon = Path::new(abs)
+                .canonicalize()
+                .unwrap_or_else(|_| PathBuf::from(abs));
+            abs_canon
+                .strip_prefix(&compact_root)
+                .map(|r| r.to_string_lossy().into_owned())
+                .unwrap_or_else(|_| abs.to_string())
+        };
         for h in &p.hits {
             if h.line == 0 {
-                out.push_str(&super::render::colorize(&h.path, &path_spec));
+                let disp = if compact {
+                    rel(&h.path)
+                } else {
+                    super::render::colorize(&h.path, &path_spec)
+                };
+                out.push_str(&disp);
+                out.push('\n');
+            } else if compact {
+                out.push_str(&rel(&h.path));
+                out.push(':');
+                out.push_str(&h.line.to_string());
+                out.push_str(": ");
+                out.push_str(&h.text);
                 out.push('\n');
             } else {
                 out.push_str(&super::render::colorize(&h.path, &path_spec));
