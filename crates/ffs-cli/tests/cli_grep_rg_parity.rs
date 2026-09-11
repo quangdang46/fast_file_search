@@ -160,3 +160,31 @@ fn compact_files_with_matches_emits_relative_paths() {
         .collect();
     assert_eq!(rows, vec!["sub/a.rs"]);
 }
+
+#[test]
+fn files_with_matches_streams_large_files_without_full_read() {
+    // File exceeds the CLI's streaming threshold (8 MiB) — `-l` must still
+    // find a needle placed near the end without OOMing on read_to_end.
+    let tmp = TempDir::new().unwrap();
+    let mut data = vec![b'x'; 9 * 1024 * 1024];
+    let tail = b"UNIQUE_STREAM_NEEDLE";
+    let pos = data.len() - tail.len() - 10;
+    data[pos..pos + tail.len()].copy_from_slice(tail);
+    write_file(tmp.path(), "big.log", &String::from_utf8_lossy(&data));
+
+    let v = grep_json(tmp.path(), &["-l", "UNIQUE_STREAM_NEEDLE"]);
+    let hits = v["hits"].as_array().unwrap();
+    assert_eq!(hits.len(), 1);
+    assert!(hits[0]["path"].as_str().unwrap().ends_with("big.log"));
+}
+
+#[test]
+fn files_with_matches_streams_large_files_no_match() {
+    let tmp = TempDir::new().unwrap();
+    let data = vec![b'x'; 9 * 1024 * 1024];
+    write_file(tmp.path(), "big.log", &String::from_utf8_lossy(&data));
+
+    let v = grep_json(tmp.path(), &["-l", "NOT_PRESENT_ANYWHERE"]);
+    let hits = v["hits"].as_array().unwrap();
+    assert_eq!(hits.len(), 0);
+}
