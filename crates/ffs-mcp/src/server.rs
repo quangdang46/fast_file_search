@@ -762,28 +762,36 @@ impl FfsServer {
         Parameters(params): Parameters<GrepParams>,
     ) -> Result<CallToolResult, ErrorData> {
         self.bump_activity();
-        let max_results = normalize_max_results(params.max_results, 20);
-        let output_mode = OutputMode::new(params.output_mode.as_deref());
+        // catch_unwind: a pathological query (e.g. a multi-KB string an
+        // agent pastes as `query`) can panic deep in the fuzzy fallback
+        // (neo_frizbee asserts on needles > ~4089 bytes rather than
+        // erroring). This is a single long-lived stdio process — an
+        // uncaught panic here would take down every other in-flight tool
+        // call, not just this request.
+        catch_unwind_result(|| {
+            let max_results = normalize_max_results(params.max_results, 20);
+            let output_mode = OutputMode::new(params.output_mode.as_deref());
 
-        let parsed = QueryParser::new(AiGrepConfig).parse(&params.query);
-        let grep_text = parsed.grep_text();
+            let parsed = QueryParser::new(AiGrepConfig).parse(&params.query);
+            let grep_text = parsed.grep_text();
 
-        let mode = if has_regex_metacharacters(&grep_text) {
-            GrepMode::Regex
-        } else {
-            GrepMode::PlainText
-        };
+            let mode = if has_regex_metacharacters(&grep_text) {
+                GrepMode::Regex
+            } else {
+                GrepMode::PlainText
+            };
 
-        let mut result = self.perform_grep(
-            &params.query,
-            mode,
-            max_results,
-            params.cursor.as_deref(),
-            output_mode,
-            None,
-        )?;
-        self.maybe_append_update_notice(&mut result);
-        Ok(result)
+            let mut result = self.perform_grep(
+                &params.query,
+                mode,
+                max_results,
+                params.cursor.as_deref(),
+                output_mode,
+                None,
+            )?;
+            self.maybe_append_update_notice(&mut result);
+            Ok(result)
+        })
     }
 
     /// Search file contents for lines matching ANY of multiple patterns (OR logic).
@@ -797,9 +805,11 @@ impl FfsServer {
         Parameters(params): Parameters<MultiGrepParams>,
     ) -> Result<CallToolResult, ErrorData> {
         self.bump_activity();
-        let mut result = self.multi_grep_inner(params)?;
-        self.maybe_append_update_notice(&mut result);
-        Ok(result)
+        catch_unwind_result(|| {
+            let mut result = self.multi_grep_inner(params)?;
+            self.maybe_append_update_notice(&mut result);
+            Ok(result)
+        })
     }
 
     #[tool(

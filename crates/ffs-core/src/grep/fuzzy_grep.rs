@@ -95,8 +95,15 @@ pub(super) fn fuzzy_grep_search<'a>(
     // Minimum score threshold: 50% of a perfect contiguous match.
     // With default scoring (match_score=12, matching_case_bonus=4 = 16/char),
     // a transposition costs ~5 from a gap, keeping the score well above 50%.
-    let perfect_score = (grep_text.len() as u16) * 16;
-    let min_score = (perfect_score * 50) / 100;
+    //
+    // Computed in u32 and saturated to u16::MAX before narrowing: a plain
+    // `(len as u16) * 16` overflows once `grep_text` exceeds ~4095 bytes,
+    // silently wrapping in release (bogus min_score — could let every line
+    // through) or panicking in debug (arithmetic overflow). `MatchIndices`
+    // scores are always `u16`, so saturating here is a safe no-op for any
+    // query that could actually reach a perfect score.
+    let perfect_score = ((grep_text.len() as u32) * 16).min(u16::MAX as u32) as u16;
+    let min_score = ((perfect_score as u32 * 50) / 100) as u16;
 
     // Target identifiers are often longer than the query due to delimiters
     // (e.g. query "flvencodepicture" → "ff_flv_encode_picture_header").

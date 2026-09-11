@@ -1629,3 +1629,22 @@ fn plain_text_case_insensitive_no_false_positive_on_control_byte() {
         "DLE (0x10) must not false-positive-match '0' (0x30) under case-insensitive search"
     );
 }
+
+#[test]
+fn fuzzy_query_near_frizbee_limit_does_not_overflow_score() {
+    // Regression: `(grep_text.len() as u16) * 16` overflows once the query
+    // exceeds ~4095 bytes — panics in debug (arithmetic overflow) or wraps
+    // to a bogus min_score in release. neo_frizbee itself asserts on
+    // needles > 4089 bytes (see fuzzy_grep::fuzzy_grep_search's doc comment
+    // on `perfect_score`), so exercise the largest length neo_frizbee still
+    // accepts to hit our own arithmetic without tripping its guard first.
+    let tmp = TempDir::new().unwrap();
+    let picker = create_picker(tmp.path(), &[("a.txt", "hello world\n")]);
+
+    let long_query = "a".repeat(4089);
+    let parsed = parse_grep_query(&long_query);
+    // Must not panic; an unmatchable 4089-char needle against a short line
+    // should simply find nothing.
+    let result = picker.grep(&parsed, &fuzzy_opts());
+    assert_eq!(result.matches.len(), 0);
+}
