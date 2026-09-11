@@ -481,6 +481,14 @@ impl FfsServer {
         Parameters(params): Parameters<FindFilesParams>,
     ) -> Result<CallToolResult, ErrorData> {
         self.bump_activity();
+        // catch_unwind: fuzzy file-name search shares the same neo_frizbee
+        // scoring backend as ffs_grep's fuzzy fallback (see #106) — isolate
+        // this handler too so a pathological query can't take down the
+        // single long-lived stdio process for other in-flight calls.
+        catch_unwind_result(|| self.ffs_find_body(&params))
+    }
+
+    fn ffs_find_body(&self, params: &FindFilesParams) -> Result<CallToolResult, ErrorData> {
         let max_results = normalize_max_results(params.max_results, 20);
         let query = &params.query;
 
@@ -593,6 +601,11 @@ impl FfsServer {
         Parameters(params): Parameters<FindDirsParams>,
     ) -> Result<CallToolResult, ErrorData> {
         self.bump_activity();
+        // catch_unwind: see ffs_find — same fuzzy scoring backend.
+        catch_unwind_result(|| self.ffs_find_dirs_body(&params))
+    }
+
+    fn ffs_find_dirs_body(&self, params: &FindDirsParams) -> Result<CallToolResult, ErrorData> {
         let max_results = normalize_max_results(params.max_results, 20);
 
         let page_offset = params
@@ -672,6 +685,11 @@ impl FfsServer {
         Parameters(params): Parameters<FindMixedParams>,
     ) -> Result<CallToolResult, ErrorData> {
         self.bump_activity();
+        // catch_unwind: see ffs_find — same fuzzy scoring backend.
+        catch_unwind_result(|| self.ffs_find_mixed_body(&params))
+    }
+
+    fn ffs_find_mixed_body(&self, params: &FindMixedParams) -> Result<CallToolResult, ErrorData> {
         let max_results = normalize_max_results(params.max_results, 20);
 
         let page_offset = params
@@ -1081,16 +1099,20 @@ impl FfsServer {
         Parameters(params): Parameters<crate::mention_tools::MentionSearchParams>,
     ) -> Result<CallToolResult, ErrorData> {
         self.bump_activity();
-        let root = self.picker_base_path()?;
-        let opts = crate::mention_tools::build_resolve_options(
-            params.max_tokens,
-            params.line_range,
-            params.filter_level.as_deref(),
-        );
-        let out = crate::mention_tools::run_mention_pipeline(&params.input, &root, &opts);
-        let json = crate::mention_tools::output_to_json(&out)
-            .map_err(|e| ErrorData::internal_error(e, None))?;
-        Ok(CallToolResult::success(vec![Content::text(json)]))
+        // catch_unwind: resolves candidate files via the same substring/
+        // fuzzy machinery as ffs_find — isolate for consistency.
+        catch_unwind_result(|| {
+            let root = self.picker_base_path()?;
+            let opts = crate::mention_tools::build_resolve_options(
+                params.max_tokens,
+                params.line_range,
+                params.filter_level.as_deref(),
+            );
+            let out = crate::mention_tools::run_mention_pipeline(&params.input, &root, &opts);
+            let json = crate::mention_tools::output_to_json(&out)
+                .map_err(|e| ErrorData::internal_error(e, None))?;
+            Ok(CallToolResult::success(vec![Content::text(json)]))
+        })
     }
 }
 
