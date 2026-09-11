@@ -251,6 +251,150 @@ fn combine(
     }
 }
 
+/// Longest guaranteed literal byte string in a regex pattern, for use as a
+/// memmem prefilter anchor (ripgrep's required-literal trick).
+///
+/// Walks the HIR: concat takes the longest mandatory piece (prefix before any
+/// nullable/unbounded part wins, else the longest inner piece), alternation
+/// takes the longest literal common to ALL branches, repetitions with min>=1
+/// contribute their inner literal, classes contribute a single byte only when
+/// they match exactly one byte value. Returns None when no literal of at
+/// least `min_len` bytes is guaranteed.
+pub(crate) fn longest_required_literal(pattern: &str, min_len: usize) -> Option<Vec<u8>> {
+    let mut parser = regex_syntax::ParserBuilder::new()
+        .unicode(false)
+        .utf8(false)
+        .build();
+    let hir = parser.parse(pattern).ok()?;
+    let lit = required_literal(&hir)?;
+    // Raw bytes; the caller folds for case-insensitive search.
+    if lit.len() >= min_len {
+        Some(lit)
+    } else {
+        None
+    }
+}
+
+/// Required literal of an HIR node, or None if the node can match text
+/// without containing a fixed byte string (e.g. pure classes, `.*`).
+fn required_literal(hir: &Hir) -> Option<Vec<u8>> {
+    match hir.kind() {
+        HirKind::Empty => None,
+        HirKind::Literal(lit) => {
+            let bytes = lit.0.as_ref();
+            if bytes.is_empty() {
+                None
+            } else {
+                Some(bytes.to_vec())
+            }
+        }
+        // Single-byte class: the byte itself is a 1-long literal.
+        HirKind::Class(class) => single_class_byte(class).map(|b| vec![b]),
+        HirKind::Look(_) => None,
+        HirKind::Repetition(rep) => {
+            if rep.min == 0 {
+                None
+            } else {
+                required_literal(&rep.sub)
+            }
+        }
+        HirKind::Capture(cap) => required_literal(&cap.sub),
+        HirKind::Concat(parts) => {
+            // Longest mandatory run: a nullable/unbounded part breaks the run,
+            // so take the longest literal among the leading mandatory pieces;
+            // if none, fall back to the longest literal anywhere mandatory.
+            let mut best: Option<Vec<u8>> = None;
+            let mut run = Vec::new();
+            let mut run_broken = false;
+            for part in parts {
+                if let Some(lit) = required_literal(part) {
+                    if !run_broken {
+                        run.extend_from_slice(&lit);
+                    }
+                    if best.as_ref().is_none_or(|b| lit.len() > b.len()) {
+                        best = Some(lit);
+                    }
+                } else if part.properties().minimum_len() == Some(0) {
+                    run_broken = true;
+                } else {
+                    // Mandatory but literal-free (e.g. bounded class run):
+                    // breaks contiguity of the prefix run.
+                    run_broken = true;
+                }
+            }
+            if run.len() >= best.as_ref().map_or(0, |b| b.len()) {
+                Some(run)
+            } else {
+                best
+            }
+        }
+        HirKind::Alternation(alts) => {
+            // Only literals common to ALL branches are guaranteed.
+            let mut it = alts.iter();
+            let mut common = required_literal(it.next()?)?;
+            for alt in it {
+                let lit = required_literal(alt)?;
+                common = common_prefix(&common, &lit);
+                if common.is_empty() {
+                    return None;
+                }
+            }
+            Some(common)
+        }
+    }
+}
+
+#[inline]
+fn common_prefix(a: &[u8], b: &[u8]) -> Vec<u8> {
+    a.iter()
+        .zip(b.iter())
+        .take_while(|(x, y)| x == y)
+        .map(|(x, _)| *x)
+        .collect()
+}
+
+#[inline]
+fn single_class_byte(class: &Class) -> Option<u8> {
+    // Exactly 1 byte total across all ranges means single-byte class.
+    // Inlined counting (no closure) to keep borrowck happy.
+    let mut first: Option<u8> = None;
+    let mut count = 0usize;
+    match class {
+        Class::Bytes(bc) => {
+            for range in bc.ranges() {
+                for b in range.start()..=range.end() {
+                    if count == 0 {
+                        first = Some(b);
+                    }
+                    count += 1;
+                    if count > 1 {
+                        return None;
+                    }
+                }
+            }
+        }
+        Class::Unicode(uc) => {
+            for range in uc.ranges() {
+                let start = range.start() as u32;
+                let end = range.end() as u32;
+                if end > 255 {
+                    return None;
+                }
+                for b in (start as u8)..=(end as u8) {
+                    if count == 0 {
+                        first = Some(b);
+                    }
+                    count += 1;
+                    if count > 1 {
+                        return None;
+                    }
+                }
+            }
+        }
+    }
+    if count == 1 { first } else { None }
+}
+
 pub(crate) fn regex_to_bigram_query(pattern: &str) -> BigramQuery {
     let mut parser = regex_syntax::ParserBuilder::new()
         .unicode(false)
@@ -851,6 +995,61 @@ mod tests {
         assert!(BigramFilter::is_candidate(&candidates, 2));
         // file 3 doesn't have ad/bd/cd so should be filtered
         assert!(!BigramFilter::is_candidate(&candidates, 3));
+    }
+
+    #[test]
+    fn required_literal_concat_prefix() {
+        // Prefix before any nullable part wins.
+        assert_eq!(
+            longest_required_literal("hello.*world", 3).as_deref(),
+            Some(b"hello".as_slice())
+        );
+        assert_eq!(
+            longest_required_literal("foo.*bar", 3).as_deref(),
+            Some(b"foo".as_slice())
+        );
+    }
+
+    #[test]
+    fn required_literal_short_returns_none() {
+        // Below min_len → None (caller keeps old behavior).
+        assert_eq!(longest_required_literal("ab.*cd", 3), None);
+        assert_eq!(
+            longest_required_literal("ab.*cd", 2).as_deref(),
+            Some(b"ab".as_slice())
+        );
+    }
+
+    #[test]
+    fn required_literal_alternation_needs_common_prefix() {
+        // No literal common to all branches → None.
+        assert_eq!(longest_required_literal("foo|bar", 3), None);
+        // Common prefix "pre" across branches.
+        assert_eq!(
+            longest_required_literal("prefix_a|prefix_b", 3).as_deref(),
+            Some(b"prefix_".as_slice())
+        );
+    }
+
+    #[test]
+    fn required_literal_pure_class_is_none() {
+        assert_eq!(longest_required_literal(".*", 3), None);
+        assert_eq!(longest_required_literal("[abc]+", 3), None);
+        assert_eq!(longest_required_literal(r"\d+", 3), None);
+    }
+
+    #[test]
+    fn required_literal_repetition_contributes() {
+        // min>=1 repetition guarantees its inner literal at least once.
+        // len 2 < min_len 3 here, so lower the threshold for this case.
+        assert_eq!(
+            longest_required_literal("(ab){2,}", 2).as_deref(),
+            Some(b"ab".as_slice())
+        );
+        assert_eq!(
+            longest_required_literal("(abcdef){2,}", 3).as_deref(),
+            Some(b"abcdef".as_slice())
+        );
     }
 
     // ── Helpers for inspecting query trees ──────────────────────────

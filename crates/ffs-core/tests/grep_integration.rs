@@ -1545,3 +1545,34 @@ fn literal_fallback_not_triggered_when_constraints_match() {
     assert_eq!(result.matches.len(), 1, "exclusion should still apply");
     assert!(!result.literal_fallback);
 }
+
+#[test]
+fn regex_prefilter_skips_files_without_required_literal() {
+    // "hello.*world": literal "hello" required — file without it must not match.
+    let tmp = TempDir::new().unwrap();
+    let picker = create_picker(
+        tmp.path(),
+        &[
+            ("hit.txt", "say hello then world\n"),
+            ("miss.txt", "nothing relevant here\n"),
+        ],
+    );
+
+    let parsed = parse_grep_query("hello.*world");
+    let result = picker.grep(&parsed, &regex_opts());
+
+    assert_eq!(result.matches.len(), 1);
+    assert_eq!(result.matches[0].line_content, "say hello then world");
+}
+
+#[test]
+fn regex_prefilter_pure_class_still_matches() {
+    // No required literal — prefilter is None, DFA does all the work.
+    let tmp = TempDir::new().unwrap();
+    let picker = create_picker(tmp.path(), &[("a.txt", "cat\ncut\ndog\n")]);
+
+    let parsed = parse_grep_query("c[aou]t");
+    let result = picker.grep(&parsed, &regex_opts());
+
+    assert_eq!(result.matches.len(), 2);
+}
