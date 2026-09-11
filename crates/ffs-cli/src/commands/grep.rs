@@ -512,8 +512,10 @@ impl Matcher {
 /// Lazy case-insensitive ASCII literal iterator.
 ///
 /// Finds candidate positions with `memchr2` on the needle's first byte
-/// (both cases), then verifies the full needle with a case-folded compare
-/// that relies on ASCII differing only in bit 0x20. Zero allocation.
+/// (both cases), then verifies the full needle with `eq_ignore_ascii_case`
+/// (a real per-byte ASCII fold, not a `| 0x20` bit-trick — that trick
+/// falsely equates any two non-letter bytes 0x20 apart, e.g. `'0'`/DLE).
+/// Zero allocation.
 struct CaseInsensitiveLiteralIter<'a> {
     haystack: &'a [u8],
     needle: Vec<u8>,
@@ -537,7 +539,7 @@ impl Iterator for CaseInsensitiveLiteralIter<'_> {
                 return None;
             }
             let candidate = &self.haystack[abs + 1..abs + self.needle.len()];
-            if ascii_case_eq(candidate, tail) {
+            if candidate.eq_ignore_ascii_case(tail) {
                 self.pos = abs + 1;
                 return Some((abs, abs + self.needle.len()));
             }
@@ -545,33 +547,6 @@ impl Iterator for CaseInsensitiveLiteralIter<'_> {
         self.pos = self.haystack.len();
         None
     }
-}
-
-/// Fast ASCII case-insensitive byte-slice comparison (differ only in bit
-/// 0x20). Both slices must be equal length.
-fn ascii_case_eq(a: &[u8], b: &[u8]) -> bool {
-    let len = a.len();
-    let mut i = 0;
-    while i + 8 <= len {
-        let va = u64::from_ne_bytes(a[i..i + 8].try_into().expect("8-byte slice"));
-        let vb = u64::from_ne_bytes(b[i..i + 8].try_into().expect("8-byte slice"));
-        if va != vb {
-            const MASK: u64 = 0x2020_2020_2020_2020;
-            if (va | MASK) != (vb | MASK) {
-                return false;
-            }
-        }
-        i += 8;
-    }
-    while i < len {
-        let ha = a[i];
-        let hb = b[i];
-        if ha != hb && (ha | 0x20) != (hb | 0x20) {
-            return false;
-        }
-        i += 1;
-    }
-    true
 }
 
 /// Precomputed newline index for O(log n) byte-to-line mapping.

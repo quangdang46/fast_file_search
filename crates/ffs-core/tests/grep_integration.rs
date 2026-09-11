@@ -1606,3 +1606,26 @@ fn regex_anchored_suffix_no_false_negative_without_tail() {
 
     assert!(result.matches.is_empty());
 }
+
+#[test]
+fn plain_text_case_insensitive_no_false_positive_on_control_byte() {
+    // Regression: the old ascii_case_eq bit-trick treated any two non-letter
+    // bytes 0x20 apart as equal (e.g. '0' 0x30 and DLE 0x10), so a needle
+    // containing a digit could false-positive against unrelated control
+    // bytes elsewhere in the line. Needle: "a" + 7 x's + "0" (9 bytes, long
+    // enough to hit the removed 8-byte SIMD compare path).
+    let tmp = TempDir::new().unwrap();
+    let mut line = b"axxxxxxx".to_vec();
+    line.push(0x10); // DLE — differs from the needle's trailing '0' (0x30) by exactly bit 0x20
+    line.push(b'\n');
+    let content = String::from_utf8_lossy(&line).into_owned();
+    let picker = create_picker(tmp.path(), &[("a.txt", &content)]);
+
+    let parsed = parse_grep_query("axxxxxxx0");
+    let result = picker.grep(&parsed, &plain_opts());
+
+    assert!(
+        result.matches.is_empty(),
+        "DLE (0x10) must not false-positive-match '0' (0x30) under case-insensitive search"
+    );
+}
