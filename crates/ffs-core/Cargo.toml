@@ -1,6 +1,6 @@
 [package]
 name = "ffs-search"
-version = "0.1.28"
+version = "0.1.29"
 edition = "2024"
 license = "MIT"
 authors = ["Dmitriy Kovalenko <dmtr.kovalenko@outlook.com>"]
