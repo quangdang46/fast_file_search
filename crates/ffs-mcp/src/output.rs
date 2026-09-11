@@ -45,13 +45,15 @@ pub enum OutputMode {
 }
 
 impl OutputMode {
+    /// Default is `Compact` (rg-style, token-efficient). Pass explicit
+    /// `"content"` for the verbose def-expand output.
     pub fn new(s: Option<&str>) -> Self {
         match s {
+            Some("content") => Self::Content,
             Some("files_with_matches") => Self::FilesWithMatches,
             Some("count") => Self::Count,
             Some("usage") => Self::Usage,
-            Some("compact") => Self::Compact,
-            _ => Self::Content,
+            Some("compact") | None | Some(_) => Self::Compact,
         }
     }
 }
@@ -627,12 +629,14 @@ mod tests {
     }
 
     #[test]
-    fn output_mode_parses_compact() {
+    fn output_mode_defaults_to_compact() {
+        assert_eq!(OutputMode::new(None), OutputMode::Compact);
         assert_eq!(OutputMode::new(Some("compact")), OutputMode::Compact);
         assert_eq!(
             OutputMode::new(Some("files_with_matches")),
             OutputMode::FilesWithMatches
         );
-        assert_eq!(OutputMode::new(None), OutputMode::Content);
+        // Verbose def-expand output is now opt-in.
+        assert_eq!(OutputMode::new(Some("content")), OutputMode::Content);
     }
 }
