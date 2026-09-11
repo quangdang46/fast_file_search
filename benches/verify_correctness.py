@@ -15,20 +15,48 @@ import subprocess
 import sys
 import random
 
+# Run every child with an explicit UTF-8 decode. Without this, `text=True`
+# uses the locale encoding (cp1252 on Windows) and crashes with
+# UnicodeDecodeError the moment a repo contains non-ASCII text — which is
+# exactly what happened on this repo's Vietnamese docs. `errors="replace"`
+# keeps a malformed byte from aborting the whole verification run.
+SUBPROCESS_KW = dict(
+    capture_output=True,
+    text=True,
+    encoding="utf-8",
+    errors="replace",
+)
+
+
+def _force_utf8_stdout() -> None:
+    """Windows consoles default to cp1252, which cannot encode the ✅/❌ marks
+    this script prints — the run dies with UnicodeEncodeError before
+    reporting anything. Reconfiguring to UTF-8 also fixes the mirror problem
+    for non-ASCII needles now that results are decoded as UTF-8."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass  # not a TextIOWrapper (pytest capture, non-tty, …)
+
 
 def get_needles_from_file(path: str) -> list[str]:
     """Read needles from a file (one per line)."""
-    with open(path) as f:
+    with open(path, encoding="utf-8", errors="replace") as f:
         return [line.strip() for line in f if line.strip() and not line.startswith("#")]
 
 
 def sample_needles_from_repo(repo: str, count: int = 30) -> list[str]:
     """Sample needles from repo vocabulary at different frequency tiers."""
-    # Get all words from Rust/Python/JS files
+    # Get all words from Rust/Python/JS files. `--no-ignore` is essential when
+    # the repo has a build tree: sampling walks whatever rg walks, and a
+    # `target/`-sized directory (tens of thousands of binaries here) makes the
+    # sample either time out or consist entirely of build artifacts.
     try:
         result = subprocess.run(
-            ["rg", "-o", "--no-filename", r"\b\w{4,15}\b", repo],
-            capture_output=True, text=True, timeout=30
+            ["rg", "-o", "--no-filename", "--no-ignore", r"\b\w{4,15}\b", repo],
+            timeout=60,
+            **SUBPROCESS_KW,
         )
         words = result.stdout.strip().split("\n")
     except Exception:
@@ -58,8 +86,9 @@ def compare_results(needle: str, repo: str, ffs_bin: str) -> dict:
     # ffs grep
     try:
         ffs_result = subprocess.run(
-            [ffs_bin, "grep", needle, "--root", repo, "-l"],
-            capture_output=True, text=True, timeout=30
+            [ffs_bin, "grep", needle, "--root", repo, "-l", "--limit", "100000"],
+            timeout=60,
+            **SUBPROCESS_KW,
         )
         ffs_files = set(
             l.strip() for l in ffs_result.stdout.strip().split("\n")
@@ -77,19 +106,25 @@ def compare_results(needle: str, repo: str, ffs_bin: str) -> dict:
     try:
         rg_result = subprocess.run(
             ["rg"] + rg_flags + [needle, repo],
-            capture_output=True, text=True, timeout=30
+            timeout=60,
+            **SUBPROCESS_KW,
         )
         rg_files = set(l.strip() for l in rg_result.stdout.strip().split("\n") if l.strip())
     except Exception as e:
         return {"needle": needle, "error": f"rg failed: {e}", "match": False}
 
-    # Compare (normalize paths relative to repo)
+    # Compare. Both tools must be reduced to the same shape: drop the repo
+    # prefix if present, then normalize separators. ffs prints `.\a\b.rs` on
+    # Windows while rg prints `a\b.rs`, and without the separator fold the two
+    # sets never intersected — every needle looked like a mismatch.
     def normalize(path_set):
         normalized = set()
         for p in path_set:
+            p = p.strip()
             if p.startswith(repo):
-                p = p[len(repo):].lstrip(os.sep)
-            normalized.add(p)
+                p = p[len(repo):]
+            p = p.lstrip("./").lstrip(os.sep)
+            normalized.add(p.replace("\\", "/"))
         return normalized
 
     ffs_norm = normalize(ffs_files)
@@ -109,6 +144,7 @@ def compare_results(needle: str, repo: str, ffs_bin: str) -> dict:
 
 
 def main():
+    _force_utf8_stdout()
     parser = argparse.ArgumentParser(description="Verify ffs vs rg correctness")
     parser.add_argument("repo", help="Repository path")
     parser.add_argument("--needles-file", help="File with needles (one per line)")
