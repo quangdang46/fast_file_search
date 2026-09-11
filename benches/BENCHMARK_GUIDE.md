@@ -114,6 +114,45 @@ hyperfine --shell=none --warmup 3 --runs 30 \
 
 ---
 
+## Read the spread, not the median
+
+On Windows, per-invocation variance routinely **swamps the ffs-vs-rg
+difference being measured**. A 30-run sample of one needle can show
+`min=54ms max=506ms` for the same binary. Any conclusion drawn from a
+single run's median is noise.
+
+Real example: an uncontrolled run reported ffs 1.34x slower than rg on
+`HashMap`. Re-measuring with min-of-N and an interleaved schedule showed
+ffs at 57.6ms vs rg 78.4ms — i.e. *faster*, the opposite sign.
+
+Rules:
+
+- **Report min**, or p10, for spawn benchmarks. The minimum is the least
+  contaminated by AV/Defender scans, file-cache churn, and scheduler
+  noise; the median is not.
+- **Interleave** A/B in the same loop (ffs, rg, ffs, rg, …) so a machine
+  hiccup hits both sides equally instead of landing entirely on one.
+- **Never claim a regression from one run.** Re-measure before filing.
+
+## `--no-ignore` is a different workload — measure it separately
+
+`--no-ignore` drops `.gitignore` handling, so the walk sees build output.
+In this repo `target/` holds 42,709 of 43,616 files (98%); the respecting-
+ignore walk sees 620. Both tools get much slower, ffs more so:
+
+| Command | With ignore | `--no-ignore` |
+|---------|-------------|---------------|
+| `ffs grep HashMap -l` | ~58ms | ~1873ms (32x) |
+| `rg -F -l HashMap` | ~78ms | ~323ms (4.1x) |
+
+Cause is understood: ffs attempts `read_for_search` (full `read_to_end`) per
+file where rg streams/mmap-probes, so a tree dominated by large binaries
+costs ffs proportionally more. Treat `--no-ignore` on a repo with build
+output as a known weak spot rather than a general "ffs is slower" signal —
+without `--no-ignore` the two are at parity.
+
+---
+
 ## Notes
 
 - All benchmarks assume **release mode** (`cargo build --release`). Debug
