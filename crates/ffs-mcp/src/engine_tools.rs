@@ -1022,10 +1022,17 @@ pub fn find_impact(
         entry.0 += 3; // direct callers weighted 3x
     }
 
-    // Reverse imports: files that import files containing the symbol
+    // Reverse imports: files that import files containing the symbol.
+    //
+    // Everything here must be keyed the same way `find_call_sites` keys its
+    // hits — by relative path. `scores` is a BTreeMap keyed by that string, so
+    // mixing in absolute paths would split one file across two rows (and one
+    // row would print an absolute path while the other printed the relative
+    // one). `def_paths` likewise has to hold relative paths for the
+    // definition-file skip below to actually match.
     let def_paths: std::collections::HashSet<String> = definitions
         .iter()
-        .map(|d| d.path.to_string_lossy().to_string())
+        .map(|d| rel_path(root, &d.path))
         .collect();
     for entry in ignore::WalkBuilder::new(root)
         .standard_filters(true)
@@ -1037,7 +1044,7 @@ pub fn find_impact(
             continue;
         }
         let path = entry.into_path();
-        let path_str = path.to_string_lossy().to_string();
+        let path_str = rel_path(root, &path);
         if def_paths.contains(&path_str) {
             continue;
         }
@@ -1247,5 +1254,63 @@ mod rel_path_tests {
         let outside = Path::new("/elsewhere/lib.rs");
         let out = rel_path(root, outside);
         assert!(out.contains("elsewhere"), "got {out:?}");
+    }
+}
+
+#[cfg(test)]
+mod impact_path_tests {
+    use super::*;
+    use ffs_engine::{Engine, EngineConfig};
+
+    /// Regression: `find_impact`'s score map is keyed by whatever string it
+    /// puts in — callers come from `find_call_sites` (relative paths) while
+    /// the reverse-import walk used to push absolute ones. One file then got
+    /// two rows, one of them absolute, and the definition-file skip compared
+    /// relative against absolute so it never fired.
+    #[test]
+    fn impact_rows_are_all_relative_and_unique() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        std::fs::write(root.join("target.rs"), "pub fn target_fn() -> i32 { 1 }\n").unwrap();
+        std::fs::write(
+            root.join("caller.rs"),
+            "use target;\npub fn go() { target_fn(); }\n",
+        )
+        .unwrap();
+
+        let engine = Engine::new(EngineConfig::default());
+        engine.index(root);
+
+        let out = find_impact(&engine, root, "target_fn", 20, 0, 1);
+
+        // Every emitted row path must be relative to `root` — an absolute
+        // path here means the two halves of the score map disagreed.
+        let abs_prefix = root.to_string_lossy().to_string();
+        for line in out.lines() {
+            assert!(
+                !line.contains(&abs_prefix),
+                "impact output leaked an absolute path: {line:?}\nfull output:\n{out}"
+            );
+        }
+
+        // No file may appear twice: one file = one row.
+        let mut paths: Vec<&str> = Vec::new();
+        for line in out.lines() {
+            if let Some(idx) = line.find("  ") {
+                let p = line[idx..].trim();
+                if !p.is_empty() && !p.starts_with("...") {
+                    paths.push(p);
+                }
+            }
+        }
+        let mut sorted = paths.clone();
+        sorted.sort_unstable();
+        let before = sorted.len();
+        sorted.dedup();
+        assert_eq!(
+            before,
+            sorted.len(),
+            "impact output has duplicate rows: {paths:?}"
+        );
     }
 }
