@@ -59,8 +59,7 @@ pub struct EngineFlowParams {
     /// Maximum callers listed per card (default 5).
     #[serde(rename = "callersTop")]
     pub callers_top: Option<f64>,
-    /// Token budget for body excerpts (default 10000).
-    #[allow(dead_code)]
+    /// Byte budget for body excerpts across all cards (default 10000, 0 = unlimited).
     pub budget: Option<f64>,
 }
 
@@ -513,12 +512,12 @@ pub fn format_refs_result(r: &RefsResult, root: &Path) -> String {
         out.push_str("  [none]\n");
     } else {
         for d in &r.definitions {
+            // Sorted by weight already; the number itself is internal noise.
             out.push_str(&format!(
-                "  {}:{} ({}, w={})\n",
+                "  {}:{} ({})\n",
                 rel_path(root, &d.path),
                 d.line,
                 d.kind,
-                d.weight,
             ));
         }
     }
@@ -528,11 +527,15 @@ pub fn format_refs_result(r: &RefsResult, root: &Path) -> String {
         out.push_str("  [none]\n");
     } else {
         for u in &r.usages {
-            let encl = u.enclosing.as_deref().unwrap_or("?");
-            out.push_str(&format!(
-                "  {}:{} (in {}): {}\n",
-                u.path, u.line, encl, u.text,
-            ));
+            // Only claim an enclosing symbol when one resolved — `(in ?)`
+            // is a placeholder that costs bytes and says "unknown".
+            match u.enclosing.as_deref() {
+                Some(encl) => out.push_str(&format!(
+                    "  {}:{} (in {}): {}\n",
+                    u.path, u.line, encl, u.text,
+                )),
+                None => out.push_str(&format!("  {}:{}: {}\n", u.path, u.line, u.text)),
+            }
         }
         if r.has_more {
             out.push_str(&format!(
@@ -570,12 +573,14 @@ pub fn format_symbol_hits(hits: &[SymbolLocation], name: &str, root: &Path) -> S
     }
     let mut out = String::new();
     for hit in hits {
+        // `weight` is the internal index ranking integer and the list is
+        // already sorted by it, so printing it costs bytes and tells the
+        // caller nothing it can act on.
         out.push_str(&format!(
-            "{}:{}: [{}] (weight {})\n",
+            "{}:{}: [{}]\n",
             rel_path(root, &hit.path),
             hit.line,
             hit.kind,
-            hit.weight,
         ));
     }
     out
@@ -627,13 +632,12 @@ pub fn find_siblings(
     }
     for (idx, def) in definitions.iter().enumerate() {
         out.push_str(&format!(
-            "definition {}/{}: {}:{} ({} , w={})\n",
+            "definition {}/{}: {}:{} ({})\n",
             idx + 1,
             definitions.len(),
             rel_path(root, &def.path),
             def.line,
             def.kind,
-            def.weight,
         ));
         // Load outline and find siblings
         let ft = ffs_symbol::lang::detect_file_type(&def.path);
@@ -912,7 +916,12 @@ fn find_dependents(root: &Path, target_name: &str, limit: usize) -> Vec<std::pat
     out
 }
 
-/// Simplified flow: definitions + body + callees + callers per definition.
+/// Simplified flow: definitions + body + callees + callers.
+///
+/// `budget` caps the total bytes of body excerpts (0 = unlimited). It is a
+/// real cap, not advisory: without it a symbol with many long definitions
+/// dumps every raw line of each one, and the default `maxResults` of 10 made
+/// that unbounded.
 pub fn find_flow(
     engine: &Engine,
     root: &Path,
@@ -921,6 +930,7 @@ pub fn find_flow(
     offset: usize,
     callees_top: usize,
     callers_top: usize,
+    budget: usize,
 ) -> String {
     let mut definitions = resolve_symbol_name(name, &engine.handles.symbols);
     definitions.sort_by_key(|b| std::cmp::Reverse(b.weight));
@@ -932,60 +942,73 @@ pub fn find_flow(
 
     let total = definitions.len();
     let page: Vec<_> = definitions.into_iter().skip(offset).take(limit).collect();
-    let mut callers_cache: Option<Vec<CallHit>> = None;
-    let mut callees_cache: Option<Vec<CallHit>> = None;
 
+    // Callers and callees are keyed on the symbol name, not the individual
+    // definition, so every card would print byte-identical lists. Emit them
+    // once up front instead of N times.
+    let callees = find_callee_sites(engine, root, name, callees_top.max(1));
+    out.push_str(&format!(
+        "callees ({} shown of {}):\n",
+        callees.len().min(callees_top),
+        callees.len(),
+    ));
+    if callees.is_empty() {
+        out.push_str("  [none]\n");
+    } else {
+        for c in callees.iter().take(callees_top) {
+            out.push_str(&format!("  {} @ {}:{}\n", c.text, c.path, c.line));
+        }
+    }
+
+    let callers = find_call_sites(engine, root, name, callers_top.max(50));
+    out.push_str(&format!(
+        "callers ({} shown of {}):\n",
+        callers.len().min(callers_top),
+        callers.len(),
+    ));
+    if callers.is_empty() {
+        out.push_str("  [none]\n");
+    } else {
+        for c in callers.iter().take(callers_top) {
+            out.push_str(&format!("  {}:{}: {}\n", c.path, c.line, c.text));
+        }
+    }
+    out.push('\n');
+
+    let mut body_bytes_left = if budget == 0 { usize::MAX } else { budget };
     for (idx, def) in page.iter().enumerate() {
         let card_idx = offset + idx + 1;
         out.push_str(&format!(
-            "── card {card_idx}/{total}: {name} @ {}:{} ({}, w={}) ──\n",
+            "── card {card_idx}/{total}: {name} @ {}:{} ({}) ──\n",
             rel_path(root, &def.path),
             def.line,
             def.kind,
-            def.weight,
         ));
 
-        // Body excerpt
+        if body_bytes_left == 0 {
+            out.push_str("body: [budget exhausted]\n\n");
+            continue;
+        }
+
+        // Body excerpt, clipped to whatever is left of the budget.
         if let Ok(content) = ffs::bom::read_file(&def.path) {
             let start = def.line.saturating_sub(1) as usize;
             let end = (def.end_line as usize).min(content.lines().count());
             out.push_str(&format!("body [{}..{}]:\n", def.line, end));
+            let mut wrote = 0usize;
             for (i, line) in content.lines().enumerate().skip(start).take(end - start) {
-                out.push_str(&format!("  {:>4}: {line}\n", i + 1));
+                let row = format!("  {:>4}: {line}\n", i + 1);
+                if row.len() > body_bytes_left {
+                    out.push_str("  [body truncated by budget]\n");
+                    body_bytes_left = 0;
+                    break;
+                }
+                body_bytes_left -= row.len();
+                wrote += 1;
+                out.push_str(&row);
             }
-        }
-
-        // Callees
-        let callees =
-            callees_cache.get_or_insert_with(|| find_callee_sites(engine, root, name, callees_top));
-        out.push_str(&format!(
-            "callees ({} shown of {}):\n",
-            callees.len().min(callees_top),
-            callees.len(),
-        ));
-        if callees.is_empty() {
-            out.push_str("  [none]\n");
-        } else {
-            for c in callees.iter().take(callees_top) {
-                out.push_str(&format!("  {} @ {}:{}\n", c.text, c.path, c.line));
-            }
-        }
-
-        // Callers
-        let callers = callers_cache.get_or_insert_with(|| {
-            // Use all callers (no limit for caching), then truncate
-            find_call_sites(engine, root, name, callers_top.max(50))
-        });
-        out.push_str(&format!(
-            "callers ({} shown of {}):\n",
-            callers.len().min(callers_top),
-            callers.len(),
-        ));
-        if callers.is_empty() {
-            out.push_str("  [none]\n");
-        } else {
-            for c in callers.iter().take(callers_top) {
-                out.push_str(&format!("  {}:{}: {}\n", c.path, c.line, c.text));
+            if wrote < end.saturating_sub(start) && body_bytes_left > 0 {
+                out.push_str("  [body truncated]\n");
             }
         }
         out.push('\n');
@@ -1312,5 +1335,158 @@ mod impact_path_tests {
             sorted.len(),
             "impact output has duplicate rows: {paths:?}"
         );
+    }
+}
+
+#[cfg(test)]
+mod flow_budget_tests {
+    use super::*;
+    use ffs_engine::{Engine, EngineConfig};
+
+    fn engine_for(files: &[(&str, &str)]) -> (tempfile::TempDir, Engine) {
+        let tmp = tempfile::tempdir().unwrap();
+        for (rel, body) in files {
+            let p = tmp.path().join(rel);
+            if let Some(parent) = p.parent() {
+                std::fs::create_dir_all(parent).unwrap();
+            }
+            std::fs::write(p, body).unwrap();
+        }
+        let engine = Engine::new(EngineConfig::default());
+        engine.index(tmp.path());
+        (tmp, engine)
+    }
+
+    #[test]
+    fn flow_lists_callers_and_callees_once_not_per_card() {
+        // Two definitions of the same name: the caller/callee lists are keyed
+        // on the name, so emitting them per card duplicates them verbatim.
+        let (tmp, engine) = engine_for(&[
+            ("a.rs", "pub fn dup() {\n    helper();\n}\n"),
+            ("b.rs", "pub fn dup() {\n    helper();\n}\n"),
+            ("c.rs", "pub fn helper() {}\npub fn caller() { dup(); }\n"),
+        ]);
+        let out = find_flow(&engine, tmp.path(), "dup", 10, 0, 5, 5, 10_000);
+        assert_eq!(
+            out.matches("callers (").count(),
+            1,
+            "callers header must appear once, got:\n{out}"
+        );
+        assert_eq!(
+            out.matches("callees (").count(),
+            1,
+            "callees header must appear once, got:\n{out}"
+        );
+        assert_eq!(
+            out.matches("── card ").count(),
+            2,
+            "both definition cards still present, got:\n{out}"
+        );
+    }
+
+    #[test]
+    fn flow_respects_body_budget() {
+        // A definition far larger than the budget must be clipped, with a
+        // truncation marker, instead of dumping every line.
+        let big_body: String = (0..400)
+            .map(|i| format!("    let v{i} = {i};\n"))
+            .collect();
+        let src = format!("pub fn huge() {{\n{big_body}}}\n");
+        let (tmp, engine) = engine_for(&[("big.rs", &src)]);
+
+        let out = find_flow(&engine, tmp.path(), "huge", 10, 0, 5, 5, 1000);
+        assert!(
+            out.contains("truncated"),
+            "oversized body must be clipped, got {} bytes:\n{out}",
+            out.len()
+        );
+        assert!(
+            out.len() < 4000,
+            "budget of 1000 should keep output small, got {} bytes",
+            out.len()
+        );
+    }
+
+    #[test]
+    fn flow_zero_budget_means_unlimited() {
+        let (tmp, engine) = engine_for(&[("a.rs", "pub fn small() {\n    let x = 1;\n}\n")]);
+        let out = find_flow(&engine, tmp.path(), "small", 10, 0, 5, 5, 10_000);
+        assert!(out.contains("let x = 1;"), "body should be present:\n{out}");
+        assert!(!out.contains("truncated"));
+    }
+}
+
+#[cfg(test)]
+mod token_shape_tests {
+    use super::*;
+    use ffs_engine::{Engine, EngineConfig};
+
+    fn engine_for(files: &[(&str, &str)]) -> (tempfile::TempDir, Engine) {
+        let tmp = tempfile::tempdir().unwrap();
+        for (rel, body) in files {
+            let p = tmp.path().join(rel);
+            if let Some(parent) = p.parent() {
+                std::fs::create_dir_all(parent).unwrap();
+            }
+            std::fs::write(p, body).unwrap();
+        }
+        let engine = Engine::new(EngineConfig::default());
+        engine.index(tmp.path());
+        (tmp, engine)
+    }
+
+    #[test]
+    fn symbol_hits_omit_internal_weight() {
+        let (tmp, engine) = engine_for(&[("a.rs", "pub fn thing() {}\n")]);
+        let hits = engine.handles.symbols.lookup_exact("thing");
+        let out = format_symbol_hits(&hits, "thing", tmp.path());
+        assert!(
+            !out.contains("weight"),
+            "internal weight must not be emitted, got:\n{out}"
+        );
+        assert!(out.contains("thing") || out.contains("a.rs"), "got:\n{out}");
+    }
+
+    #[test]
+    fn refs_omits_weight_and_unresolved_enclosing_placeholder() {
+        let (tmp, engine) = engine_for(&[
+            ("a.rs", "pub fn target() {}\npub fn caller() { target(); }\n"),
+        ]);
+        let r = find_refs(&engine, tmp.path(), "target", 50, 0);
+        let out = format_refs_result(&r, tmp.path());
+        assert!(!out.contains("w="), "weight must not be emitted, got:\n{out}");
+        assert!(
+            !out.contains("(in ?)"),
+            "unresolved enclosing must not print a placeholder, got:\n{out}"
+        );
+    }
+
+    #[test]
+    fn flow_output_is_bounded_for_repeated_definitions() {
+        // The regression this guards: caller/callee lists are keyed on the
+        // symbol name, so N definition cards used to re-print them verbatim.
+        let mut files: Vec<(String, String)> = Vec::new();
+        for i in 0..6 {
+            files.push((
+                format!("d{i}.rs"),
+                format!("pub fn repeated() {{\n    helper();\n}}\n"),
+            ));
+        }
+        files.push((
+            "uses.rs".to_string(),
+            "pub fn helper() {}\npub fn c0() { repeated(); }\npub fn c1() { repeated(); }\n"
+                .to_string(),
+        ));
+        let refs: Vec<(&str, &str)> = files.iter().map(|(a, b)| (a.as_str(), b.as_str())).collect();
+        let (tmp, engine) = engine_for(&refs);
+
+        let out = find_flow(&engine, tmp.path(), "repeated", 10, 0, 5, 5, 10_000);
+        assert_eq!(
+            out.matches("callers (").count(),
+            1,
+            "callers must be listed once, not once per card:\n{out}"
+        );
+        assert_eq!(out.matches("callees (").count(), 1, "callees once:\n{out}");
+        assert_eq!(out.matches("── card ").count(), 6, "6 cards expected:\n{out}");
     }
 }

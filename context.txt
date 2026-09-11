@@ -1,0 +1,1245 @@
+================================================================================
+   FFS (FAST FILE SEARCH) — THE COMPLETE REFERENCE
+   For AI agents working on this project
+================================================================================
+
+Part 1: PRODUCT VISION — FFS + MCP as the Search Superpower
+Part 2: TECHNICAL ARCHITECTURE — Deep Dive into ffs-mcp Internals
+Part 3: EXAMPLE PROMPTS & WORKFLOWS — Real-World Scenarios
+Part 4: PROJECT ROADMAP — Phased Implementation Plan
+Part 5: CURRENT STATUS — What's Built, What's Next
+
+
+================================================================================
+PART 1: PRODUCT VISION
+================================================================================
+
+## The Big Idea
+
+ffs-mcp isn't just a "search wrapper" — it's the foundation for a new class of
+AI developer tools where search IS the interface.
+
+### Core Insight: Replace Navigation with Semantic Search
+
+Traditional developer tools: navigate → find → read → understand
+ffs-mcp approach: ask → find → understand
+
+The fundamental shift: instead of asking developers to know WHERE something is
+and navigate a file tree, they describe WHAT they want and the system finds it.
+
+### What's New (Beyond Traditional Code Search)
+
+1. Fuzzy Natural Language
+   - "find error handling patterns" → finds match!, handle!, unwrap_or, etc.
+   - "authentication middleware" → finds auth guards, JWT validation, session checks
+   - No need to know exact function names or file paths
+
+2. AI-Powered Understanding
+   - Results include semantic context, not just line numbers
+   - The AI agent explains WHY a result matches, not just THAT it matches
+   - Connected concepts: "rate limiting" → limiter.rs + middleware.rs + config.yaml
+
+3. Live System Status
+   - "is ffs-mcp running?" → healthy, uptime, memory, DB size
+   - "show search performance" → search stats, avg latency, cache hit rate
+   - "how many files are indexed?" → 1,847 files, 2.3 MB index
+
+4. Cross-Format Understanding
+   - Same query works across .rs, .ts, .py, .js, .json, .yaml, .toml, .md
+   - "find configuration" matches settings.rs, config.yaml, .env.example, etc.
+   - Auto-detects language and applies appropriate strategies
+
+5. Natural Conversations About Code
+   - "why is this function slow?" → profile + grep + deps analysis
+   - "how does auth work here?" → architectural walkthrough
+   - "what changed in the last week?" → git log + file summary
+
+### The "10x Developer Experience" Moments
+
+1. Instant Code Exploration
+   Before: cd into directory, ls, cd again, ls, find file, open, search...
+   After: "how does the cache layer work?" → instant architectural overview
+
+2. Cross-Project Search
+   Before: Remember which project has that implementation, navigate there
+   After: "find the rate limiter implementation" → search across all projects
+
+3. Live System Debugging
+   Before: SSH into server, check logs, parse metrics...
+   After: "is the service healthy? show recent errors" → instant status
+
+4. Learning New Codebase
+   Before: Read README, explore file tree, grep for entry points...
+   After: "introduce me to this codebase" → guided tour + architecture diagram
+
+5. Context-Aware Assistance
+   Before: "Help me with auth" (which project? which language?)
+   After: "auth in this project" → agent reads code, gives specific suggestions
+
+### Killer Use Cases (Ranked by Impact)
+
+1. "Introduce me to this codebase" — Guided onboarding tour
+2. "Find all error handling patterns" — Pattern discovery
+3. "How does authentication work here?" — Architectural understanding
+4. "What's the test coverage for this module?" — Quality assurance
+5. "Show me the API endpoints" — Documentation generation
+6. "Find similar implementations to this function" — Code reuse discovery
+7. "Is the service healthy? Show metrics" — Operational visibility
+8. "What changed since last release?" — Change tracking
+9. "Find all TODO/FIXME/HACK comments" — Debt discovery
+10. "How does this error propagate?" — Error flow tracing
+
+### Comparison with Existing Tools
+
+vs GitHub Copilot:
+- Copilot: " autocomplete what I'm typing"
+- ffs-mcp: " find what I'm thinking about"
+
+vs Sourcegraph:
+- Sourcegraph: "search for exact patterns in repos"
+- ffs-mcp: "understand concepts and relationships across codebases"
+
+vs grep/ripgrep:
+- grep: "find this string"
+- ffs-mcp: "find this idea, explain it, and show related concepts"
+
+### Three Killer Features to Implement
+
+1. Semantic Pattern Search
+   - "find all error handling patterns"
+   - "show me async/await patterns"
+   - "find all API endpoint definitions"
+   - Goes beyond text matching to understand patterns
+
+2. Architecture Visualization
+   - Auto-generate module dependency graphs
+   - "how does data flow through this system?"
+   - Visual understanding of codebase structure
+
+3. Context-Aware Code Explanation
+   - "explain this function in context"
+   - "why was this code written this way?"
+   - "what are the tradeoffs here?"
+   - Uses surrounding code + git history + documentation
+
+
+================================================================================
+PART 2: TECHNICAL ARCHITECTURE — Deep Dive into ffs-mcp Internals
+================================================================================
+
+## System Architecture Overview
+
+ffs-mcp is an MCP server that provides tools for code intelligence. It runs as
+a background process and communicates with AI agents via the Model Context
+Protocol (MCP). The server indexes codebases and provides fast search, analysis,
+and navigation capabilities.
+
+## High-Level Architecture
+
+┌─────────────────────────────────────────────────────────┐
+│                    AI Agent (Claude, Cursor, etc.)       │
+│                                                         │
+│  User Prompt → Agent → Tool Calls → Results → Response  │
+└────────────────────────┬────────────────────────────────┘
+                         │ MCP Protocol (JSON-RPC 2.0)
+                         │ Stdio or SSE Transport
+┌────────────────────────▼────────────────────────────────┐
+│                      ffs-mcp Server                     │
+│                                                         │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
+│  │  Tool Router  │  │  Index Cache │  │  Response    │  │
+│  │  (dispatch)   │  │  (HashMap)   │  │  Formatter   │  │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  │
+│         │                 │                 │           │
+│  ┌──────▼─────────────────▼─────────────────▼───────┐   │
+│  │              Core Engine (ffs-core)               │   │
+│  │                                                   │   │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌──────────┐  │   │
+│  │  │  File Index  │  │   Content   │  │   Git    │  │   │
+│  │  │  (walk +     │  │   Search    │  │   Module │  │   │
+│  │  │   metadata)  │  │  (grep)     │  │          │  │   │
+│  │  └─────────────┘  └─────────────┘  └──────────┘  │   │
+│  │                                                   │   │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌──────────┐  │   │
+│  │  │   Symbol    │  │  CodeQL     │  │   AST    │  │   │
+│  │  │   Index     │  │  Query      │  │  Parser  │  │   │
+│  │  │  (treesit)  │  │  Engine     │  │          │  │   │
+│  │  └─────────────┘  └─────────────┘  └──────────┘  │   │
+│  └───────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────┘
+                         │
+          ┌──────────────┼──────────────┐
+          ▼              ▼              ▼
+    ┌──────────┐  ┌──────────┐  ┌──────────┐
+    │  SQLite  │  │  File    │  │   Git    │
+    │  DB      │  │  System  │  │   Repo   │
+    │  (索引)   │  │  (代码)   │  │  (历史)   │
+    └──────────┘  └──────────┘  └──────────┘
+
+
+## ffs-mcp crate structure:
+
+ffs-mcp/
+├── Cargo.toml
+└── src/
+    ├── server.rs           # MCP server, tool registration
+    ├── engine_tools.rs     # High-level tools wrapping ffs-core
+    ├── tools/              # Individual tool implementations
+    │   ├── mod.rs
+    │   ├── symbols.rs      # ffs_outline, ffs_symbol, etc.
+    │   ├── deps.rs         # ffs_deps, ffs_callers, ffs_callees
+    │   ├── search.rs       # ffs_grep, ffs_find, ffs_multi_grep
+    │   ├── impact.rs       # ffs_impact
+    │   ├── map.rs          # ffs_map, ffs_overview
+    │   └── dispatch.rs     # ffs_dispatch (query classification)
+    └── state.rs            # Server state, index caching
+
+
+## Tool Implementation Details
+
+### ffs_dispatch: Query Classification
+
+Routes natural language queries to the appropriate tool:
+
+  Query patterns:
+  - "function X", "struct X", "fn X", "class X"  → ffs_symbol
+  - "X calls", "callers of X", "who calls X"      → ffs_callers
+  - "X callees", "what does X call", "X uses"     → ffs_callees
+  - "deps of X", "imports in X", "dependents"     → ffs_deps
+  - "find X", "search X", "where is X"            → ffs_grep
+  - "overview", "summary", "project"              → ffs_overview
+  - "tree", "structure", "map"                    → ffs_map
+  - "outline of X", "structure of X"             → ffs_outline
+  - "impact of X", "what breaks if X changes"    → ffs_impact
+  - "related to X", "refs to X"                  → ffs_refs
+  - "X siblings", "peers of X"                   → ffs_siblings
+
+### ffs_outline: File Structure
+
+Returns the structural outline of a file (functions, classes, modules):
+
+  Input:  { "path": "src/lib.rs" }
+  Output:
+    - Functions: main(), helper(), parse_input()
+    - Structs: Config, AppState
+    - Enums: Error, Command
+    - Modules: mod utils, mod parser
+    - Line numbers for each definition
+
+### ffs_symbol: Symbol Lookup
+
+Finds all definitions of a symbol across the workspace:
+
+  Input:  { "name": "Config", "maxResults": 10 }
+  Output:
+    - Definitions with file path, line number, kind
+    - The actual code snippet
+    - Language (Rust, TypeScript, etc.)
+
+### ffs_callers: Who Calls This?
+
+Finds all call sites of a function/method:
+
+  Input:  { "name": "parse_input", "maxResults": 20 }
+  Output:
+    - Call sites: main.rs:42 calls parse_input()
+    - Call sites: cli.rs:18 calls parse_input()
+    - Context snippet around each call
+
+### ffs_callees: What Does This Call?
+
+Lists symbols referenced inside a function body:
+
+  Input:  { "name": "run_server", "maxResults": 20 }
+  Output:
+    - Callees: Config::load(), Router::new(), listen()
+    - Direct dependencies of this function
+
+### ffs_deps: File Dependencies
+
+Shows imports + workspace files that depend on a file:
+
+  Input:  { "path": "src/config.rs" }
+  Output:
+    - Imports: use crate::utils; use std::fs;
+    - Dependents: main.rs, server.rs, cli.rs
+
+### ffs_impact: Change Impact Analysis
+
+Ranks files by how much they'd be affected if a symbol changed:
+
+  Input:  { "name": "Config", "maxResults": 10 }
+  Output:
+    - High impact: config_loader.rs (directly uses Config)
+    - Medium impact: server.rs (uses Config through ConfigLoader)
+    - Low impact: main.rs (passes Config as parameter)
+
+### ffs_grep: Content Search
+
+Searches file contents with regex or fuzzy matching:
+
+  Input:  { "query": "rate_limit", "maxResults": 50 }
+  Output:
+    - Matches: api/handler.rs:45: rate_limit(100)
+    - Matches: middleware/limiter.rs:12: struct RateLimiter
+    - Context lines around each match
+
+### ffs_multi_grep: Multi-Pattern Search (Aho-Corasick)
+
+OR-logic search for multiple patterns simultaneously:
+
+  Input:  { "patterns": ["TODO", "FIXME", "HACK"], "limit": 100 }
+  Output:
+    - All matches from all patterns in one pass
+    - Pattern label for each match
+
+### ffs_find: Fuzzy File Search
+
+Finds files by fuzzy name matching:
+
+  Input:  { "query": "config", "maxResults": 10 }
+  Output:
+    - src/config.rs
+    - config/default.yaml
+    - .env.example
+
+### ffs_map: Project Tree
+
+Shows directory structure with file counts and token estimates:
+
+  Input:  { "depth": 3 }
+  Output:
+    - Tree visualization with file counts per directory
+    - Estimated token count for each directory
+
+### ffs_overview: Project Summary
+
+High-level overview of the codebase:
+
+  Input:  (none)
+  Output:
+    - Languages used (Rust: 80%, TypeScript: 15%, Python: 5%)
+    - Top-defined symbols
+    - Entry points (main(), index.ts, etc.)
+    - Key modules and their responsibilities
+
+### ffs_refs: Symbol References
+
+Shows definitions plus single-hop usages of a symbol:
+
+  Input:  { "name": "AppState" }
+  Output:
+    - Definition: server.rs:25 struct AppState
+    - Used in: handler.rs:12 (parameter), cli.rs:45 (constructed)
+
+
+## Data Flow: How a Query Gets Processed
+
+User: "how does authentication work?"
+
+1. Query arrives via MCP (JSON-RPC 2.0)
+2. ffs_dispatch classifies query → multiple tools needed
+3. Parallel execution:
+   - ffs_grep(query="auth|authenticate|middleware|guard") → file matches
+   - ffs_symbol(name="auth") → symbol definitions
+   - ffs_callers(name="authenticate") → call sites
+4. Results formatted into structured response
+5. Response returned to AI agent
+6. Agent synthesizes findings into human-readable answer
+7. Agent provides architectural explanation to user
+
+
+## State Management
+
+Server maintains in-memory state:
+
+  - File index: HashMap<PathBuf, FileMetadata>
+  - Symbol index: HashMap<String, Vec<SymbolDef>>
+  - Call graph: HashMap<String, Vec<String>> (callers/callees)
+  - Content cache: HashMap<PathBuf, String> (file contents)
+  - Git metadata: last commit, branch, dirty status
+
+Index is rebuilt on startup and refreshed periodically or on explicit request.
+
+
+## Communication Protocol
+
+Uses MCP (Model Context Protocol) over JSON-RPC 2.0:
+
+  Transport options:
+  - Stdio: for local CLI integration
+  - SSE (Server-Sent Events): for remote/network access
+  - WebSocket: for bidirectional streaming (future)
+
+  Message format:
+  {
+    "jsonrpc": "2.0",
+    "method": "tools/call",
+    "params": {
+      "name": "ffs_grep",
+      "arguments": { "query": "auth", "maxResults": 20 }
+    },
+    "id": 1
+  }
+
+
+## Performance Characteristics
+
+  - File walk: ~50ms for 1,000 files
+  - Symbol indexing: ~200ms per 1,000 functions
+  - Content search (grep): ~10ms per 1,000 files
+  - Symbol lookup: ~5ms (hash map)
+  - Call graph traversal: ~10ms per hop
+  - Total query time: typically < 100ms
+
+  Index size: ~100KB per 1,000 files
+  Memory usage: ~50MB for 10,000 file project
+
+
+## Integration Points
+
+  ffs-mcp integrates with:
+  - ffs-core: core search engine and indexing
+  - ffs-cli: command-line interface (same engine)
+  - tree-sitter: AST parsing for symbol extraction
+  - git2: Git history access
+  - sqlite: Persistent index storage
+  - serde_json: MCP protocol serialization
+
+
+================================================================================
+PART 3: EXAMPLE PROMPTS & WORKFLOWS
+================================================================================
+
+## Workflow 1: New Developer Onboarding
+
+User: "I just joined the project. Introduce me to this codebase."
+
+Agent actions:
+1. ffs_overview() → Get project summary
+2. ffs_map(depth=3) → See directory structure
+3. ffs_grep(query="main|entry|index") → Find entry points
+4. ffs_outline(path="src/main.rs") → Examine main entry
+5. ffs_grep(query="mod |pub use") → Find module exports
+
+Agent response:
+"This is a Rust CLI tool called 'ffs' (Fast File Search). Key components:
+- src/main.rs: CLI entry point, argument parsing
+- src/lib.rs: Core library, public API
+- crates/ffs-core/: Search engine, indexing, content analysis
+- crates/ffs-mcp/: MCP server for AI agent integration
+- crates/ffs-cli/: Command-line interface
+
+Start with src/main.rs to see how arguments are parsed, then explore
+crates/ffs-core/src/lib.rs for the core search logic."
+
+
+## Workflow 2: Pattern Discovery
+
+User: "Find all error handling patterns in this codebase."
+
+Agent actions:
+1. ffs_multi_grep(patterns=["Result<", "unwrap()", "expect(", "anyhow!", "thiserror"])
+2. ffs_symbol(name="Error") → Find error type definitions
+3. ffs_outline(path="src/error.rs") → Examine error module
+
+Agent response:
+"Found 3 error handling patterns:
+
+1. Custom error enum (src/error.rs:15):
+   enum AppError { IoError(io::Error), ParseError(String), ... }
+
+2. Result propagation (124 occurrences):
+   - src/parser.rs:34: let config = load_config().map_err(|e| ...)
+
+3. Unwrap/expect usage (58 occurrences):
+   - Mostly in tests (acceptable)
+   - 3 in production code (potential issues):
+     - src/main.rs:45: unwrap() on file open
+
+Recommendation: Replace unwrap() in src/main.rs:45 with proper error handling."
+
+
+## Workflow 3: Architecture Understanding
+
+User: "How does the caching layer work in this project?"
+
+Agent actions:
+1. ffs_grep(query="cache|Cache|cached|CACHE")
+2. ffs_symbol(name="Cache")
+3. ffs_callers(name="get_cached")
+4. ffs_callees(name="Cache::new")
+5. ffs_deps(path="src/cache.rs")
+
+Agent response:
+"The caching layer consists of:
+
+1. Cache struct (src/cache.rs:20):
+   - In-memory LRU cache using HashMap
+   - Configurable max size and TTL
+   - Thread-safe with Arc<RwLock<>>
+
+2. Usage flow:
+   - src/handler.rs:45 calls cache.get(key) before expensive operations
+   - src/db.rs:23 calls cache.set(key, value) after database queries
+   - Cache invalidation triggered by src/webhook.rs:12
+
+3. Dependencies:
+   - Uses lru crate for eviction policy
+   - Depends on: config (TTL settings), db (invalidation triggers)
+   - Depended on by: handler, api, webhook
+
+Data flow: Request → Handler → Cache.get() → [HIT] return cached
+                                          → [MISS] DB query → Cache.set() → return"
+
+
+## Workflow 4: Debugging Session
+
+User: "There's a bug in the authentication flow. Help me investigate."
+
+Agent actions:
+1. ffs_grep(query="auth|authenticate|login|token|jwt")
+2. ffs_symbol(name="authenticate")
+3. ffs_callers(name="authenticate")
+4. ffs_grep(query="error|panic|unwrap.*auth")
+5. ffs_outline(path="src/auth.rs")
+
+Agent response:
+"Found authentication-related code:
+
+1. Core auth module (src/auth.rs):
+   - authenticate(username, password) -> Result<Token, AuthError>
+   - validate_token(token) -> Result<Claims, AuthError>
+   - 3 TODO comments in auth.rs (lines 45, 78, 92)
+
+2. Call chain:
+   - src/api/login.rs:23 calls authenticate()
+   - src/middleware/auth.rs:45 calls validate_token()
+   - src/handler.rs:67 checks token validity
+
+3. Potential issues found:
+   - TODO at auth.rs:45: 'implement rate limiting'
+   - TODO at auth.rs:78: 'add token refresh logic'
+   - unwrap() at api/login.rs:34 (could panic on bad input)
+
+4. Error handling:
+   - AuthError enum defined at auth.rs:12
+   - Matched in api/login.rs:45 with proper error responses
+
+Suggestion: The unwrap() at api/login.rs:34 might be the bug source.
+Replace with proper error handling."
+
+
+## Workflow 5: Code Review
+
+User: "Review the changes in this PR for security issues."
+
+Agent actions:
+1. git diff main..feature-branch (via bash)
+2. For each changed file:
+   - ffs_outline(path) → understand structure
+   - ffs_grep(query="unsafe|unwrap|panic|TODO|FIXME") → find issues
+3. ffs_callers(name="changed_function") → verify all callers updated
+4. ffs_impact(name="changed_struct") → check downstream effects
+
+Agent response:
+"Security review of PR #123:
+
+1. src/auth.rs (changed):
+   - Added: validate_input() function (good: input validation)
+   - Issue: unwrap() at line 45 (potential panic on malformed input)
+   - Fix: Replace with .unwrap_or_else(|e| return Err(...))
+
+2. src/api/handler.rs (changed):
+   - Added: rate limiting check (good: DoS prevention)
+   - Missing: Still no CSRF protection (TODO at line 67)
+   - Issue: SQL query at line 89 uses string formatting (SQL injection risk)
+   - Fix: Use parameterized query instead
+
+3. Impact analysis:
+   - 12 files affected by auth changes
+   - 3 downstream callers need updating (found via ffs_impact)
+   - All callers currently handle errors properly
+
+Recommendations:
+- Fix unwrap() at auth.rs:45
+- Fix SQL injection at handler.rs:89
+- Add CSRF protection (existing TODO)
+- Update 3 downstream callers for new auth signature"
+
+
+## Workflow 6: Performance Investigation
+
+User: "This function is slow. Help me optimize it."
+
+Agent actions:
+1. ffs_outline(path) → understand function structure
+2. ffs_callees(name="slow_function") → what does it call?
+3. ffs_grep(query="slow_function") → find all usages
+4. ffs_callers(name="slow_function") → who calls it and how often?
+5. ffs_grep(query="cache|cached|memoize") → check if caching exists
+
+Agent response:
+"Analysis of slow_function() in src/processor.rs:
+
+1. Function structure (lines 45-89):
+   - 44 lines, 3 nested loops
+   - Calls 5 external functions
+   - No caching implemented
+
+2. Call graph:
+   - slow_function() calls:
+     - db.query() (line 52) - DATABASE QUERY
+     - parse_json() (line 61) - CPU INTENSIVE
+     - validate() (line 73) - ALREADY CACHED elsewhere
+     - transform() (line 81) - ALLOCATION HEAVY
+     - log_result() (line 85) - I/O
+
+3. Called by:
+   - src/api/handler.rs:34 (100 calls/sec - HIGH FREQUENCY)
+   - src/worker.rs:67 (10 calls/sec)
+
+4. Optimization opportunities:
+   a. Cache db.query() results (saves ~50ms per call)
+   b. validate() already has cache - reuse it (saves ~20ms)
+   c. parse_json() can use simd-json for 3x speedup
+   d. transform() allocates大量 - use pre-allocated buffer
+   e. Move log_result() to async (non-blocking I/O)
+
+5. Estimated improvement:
+   - Current: ~150ms per call
+   - After caching: ~80ms (47% faster)
+   - After all optimizations: ~35ms (77% faster)
+
+Start with caching db.query() — lowest effort, highest impact."
+
+
+## Workflow 7: Documentation Generation
+
+User: "Generate API documentation for the public interface."
+
+Agent actions:
+1. ffs_overview() → get project structure
+2. ffs_grep(query="pub fn|pub struct|pub enum|pub trait")
+3. For each public item:
+   - ffs_outline(path) → get function signature
+   - ffs_callers(name) → find usage examples
+   - ffs_refs(name) → find related code
+
+Agent response:
+"API Documentation for ffs-core:
+
+## Public Functions
+
+### search(query: &str, options: Options) -> Result<Vec<SearchResult>>
+Searches the codebase for content matching the query.
+
+Parameters:
+- query: Search term (supports regex)
+- options: SearchOptions { max_results, case_sensitive, file_types }
+
+Returns: Vector of SearchResult { path, line, content, score }
+
+Example:
+  let results = search("auth", Options::default())?;
+  for r in results { println!("{}", r.path); }
+
+Called by: 15 functions across cli, mcp, and api modules
+
+---
+
+### index(path: &Path) -> Result<Index>
+Builds or updates the search index for a directory.
+
+Parameters:
+- path: Root directory to index
+
+Returns: Index { file_count, symbol_count, last_updated }
+
+Example:
+  let idx = index(Path::new("."))?;
+  println!("Indexed {} files", idx.file_count);
+
+---
+
+## Public Structs
+
+### SearchResult
+Fields:
+- path: PathBuf (file path)
+- line: usize (line number)
+- content: String (matching line)
+- score: f64 (relevance score, 0.0-1.0)
+
+### Options
+Fields:
+- max_results: usize (default: 50)
+- case_sensitive: bool (default: false)
+- file_types: Vec<String> (default: all)
+
+... (continues for all public items)"
+
+
+## Workflow 8: Dependency Analysis
+
+User: "What are the dependencies of the auth module? What breaks if I change it?"
+
+Agent actions:
+1. ffs_deps(path="src/auth.rs") → direct dependencies
+2. ffs_callers(name="authenticate") → all callers
+3. ffs_impact(name="AuthError") → impact analysis
+4. ffs_grep(query="use.*auth|import.*auth") → import statements
+
+Agent response:
+"Auth module dependency analysis:
+
+1. Direct dependencies (what auth.rs uses):
+   - std::collections::HashMap
+   - crate::config::Config
+   - crate::db::Database
+   - crate::error::{Error, Result}
+   - jsonwebtoken (external crate)
+   - bcrypt (external crate)
+
+2. Reverse dependencies (what uses auth.rs):
+   - src/api/login.rs (imports authenticate, validate_token)
+   - src/middleware/mod.rs (imports AuthMiddleware)
+   - src/handler.rs (imports check_auth)
+   - 12 total files depend on auth module
+
+3. Impact analysis for AuthError:
+   - HIGH: api/login.rs (directly matches on AuthError variants)
+   - MEDIUM: handler.rs (returns AuthError to client)
+   - LOW: middleware/mod.rs (only checks is_authenticated())
+
+4. Breaking changes if you modify auth.rs:
+   - Changing authenticate() signature → breaks 3 files
+   - Removing AuthError variants → breaks 5 files
+   - Changing Token struct → breaks 2 files
+
+Safe changes:
+- Adding new public function → no breakage
+- Adding new AuthError variant → minimal (match arms need update)
+- Internal refactoring → no breakage (if public API preserved)
+
+
+================================================================================
+PART 4: PROJECT ROADMAP
+================================================================================
+
+## Overview
+
+The roadmap is organized into 4 phases, each building on the previous. The goal
+is to evolve ffs-mcp from a code search tool into a comprehensive AI-powered
+development environment.
+
+## Phase 1: Foundation (Weeks 1-2)
+
+Goal: Solid core search and basic MCP integration
+
+### Milestone 1.1: Core Search Engine
+- [x] File walk and metadata extraction
+- [x] Content search (grep-like functionality)
+- [x] Regex pattern matching
+- [x] File type filtering
+- [x ] Case-insensitive search
+- [x] Result ranking and scoring
+- [x] Context line extraction (before/after match)
+
+Deliverables:
+- ffs-core library with stable API
+- Unit tests for all search functions
+- Performance benchmarks (target: <100ms for 1,000 files)
+
+### Milestone 1.2: Symbol Indexing
+- [x] Tree-sitter integration for AST parsing
+- [x] Function/method extraction
+- [x] Struct/class extraction
+- [x] Enum/extraction
+- [x] Import/dependency extraction
+- [x] Symbol database (SQLite)
+
+Deliverables:
+- Symbol index builder
+- Symbol lookup API
+- Language support: Rust, TypeScript, Python, JavaScript
+
+### Milestone 1.3: Basic MCP Server
+- [x] MCP protocol implementation (JSON-RPC 2.0)
+- [x] Stdio transport
+- [x] Tool registration and dispatch
+- [x] Basic tools: ffs_grep, ffs_find, ffs_symbol
+- [x] Error handling and validation
+
+Deliverables:
+- Working MCP server binary
+- Integration with Claude Desktop
+- Basic documentation
+
+### Milestone 1.4: CLI Interface
+- [x] Command-line argument parsing
+- [x ] Search command
+- [x] Index command
+- [x] Stats command
+- [x] JSON output mode
+
+Deliverables:
+- ffs-cli binary
+- Man page
+- Shell completions (bash, zsh, fish)
+
+
+## Phase 2: Intelligence (Weeks 3-4)
+
+Goal: Advanced code analysis and relationship mapping
+
+### Milestone 2.1: Call Graph Analysis
+- [x] Caller identification (who calls X?)
+- [x] Callee identification (what does X call?)
+- [x] Transitive closure (full call graph)
+- [x] Cycle detection
+- [x] Call depth analysis
+
+Deliverables:
+- Call graph builder
+- ffs_callers, ffs_callees tools
+- Visual call graph export (DOT format)
+
+### Milestone 2.2: Dependency Analysis
+- [x] Import/dependency extraction
+- [x] Reverse dependency lookup
+- [x] Dependency depth calculation
+- [x] Circular dependency detection
+- [x ] Impact analysis (what breaks if X changes?)
+
+Deliverables:
+- Dependency graph builder
+- ffs_deps, ffs_impact tools
+- Dependency report generator
+
+### Milestone 2.3: Project Mapping
+- [x] Directory tree generation
+- [x] File count and size statistics
+- [x] Token estimation per directory
+- [x] Entry point detection
+- [x] Module responsibility inference
+
+Deliverables:
+- ffs_map tool
+- ffs_overview tool
+- Project summary generator
+
+### Milestone 2.4: Multi-Pattern Search
+- [x] Aho-Corasick algorithm integration
+- [x] OR-logic multi-pattern search
+- [x] Pattern labeling
+- [x ] Batch search optimization
+
+Deliverables:
+- ffs_multi_grep tool
+- Pattern set management
+- Performance optimization (SIMD acceleration)
+
+
+## Phase 3: Understanding (Weeks 5-6)
+
+Goal: Semantic analysis and natural language interface
+
+### Milestone 3.1: Semantic Search
+- [ ] Embedding generation for code chunks
+- [ ] Vector similarity search
+- [ ] Concept extraction (patterns, idioms)
+- [ ] Semantic clustering
+- [ ] Cross-language concept mapping
+
+Deliverables:
+- Semantic search index
+- Embedding model integration
+- Concept graph builder
+
+### Milestone 3.2: Natural Language Interface
+- [ ] Query classification (intent recognition)
+- [ ] Parameter extraction from natural language
+- [ ] Context-aware query expansion
+- [ ] Conversational follow-up support
+- [ ] Clarification questions
+
+Deliverables:
+- ffs_dispatch tool (smart routing)
+- Query parser
+- Conversation state manager
+
+### Milestone 3.3: Code Explanation
+- [ ] Function purpose inference
+- [ ] Algorithm identification
+- [ ] Design pattern recognition
+- [ ] Tradeoff analysis
+- [ ] Complexity estimation
+
+Deliverables:
+- Code explanation engine
+- Pattern library
+- Documentation generator
+
+### Milestone 3.4: Architecture Analysis
+- [ ] Module responsibility inference
+- [ ] Data flow tracing
+- [ ] Control flow visualization
+- [ ] Architectural pattern detection
+- [ ] Anti-pattern identification
+
+Deliverables:
+- Architecture analyzer
+- Pattern detector
+- Architecture report generator
+
+
+## Phase 4: Intelligence (Weeks 7-8)
+
+Goal: Predictive analysis and proactive assistance
+
+### Milestone 4.1: Change Prediction
+- [ ] Bug prediction based on code complexity
+- [ ] Impact prediction for proposed changes
+- [ ] Risk assessment for modifications
+- [ ] Regression likelihood estimation
+- [ ] Testing priority recommendation
+
+Deliverables:
+- Prediction engine
+- Risk analyzer
+- Test priority advisor
+
+### Milestone 4.2: Code Generation Support
+- [ ] Boilerplate generation from patterns
+- [ ] Test case generation
+- [ ] Documentation generation
+- [ ] Refactoring suggestions
+- [ ] Optimization recommendations
+
+Deliverables:
+- Code generator
+- Template library
+- Refactoring advisor
+
+### Milestone 4.3: Learning System
+- [ ] Usage pattern learning
+- [ ] Query refinement suggestions
+- [ ] Personalized results ranking
+- [ ] Codebase evolution tracking
+- [ ] Knowledge graph building
+
+Deliverables:
+- Learning engine
+- User profile manager
+- Knowledge graph database
+
+### Milestone 4.4: Real-Time Collaboration
+- [ ] Live code analysis
+- [ ] Collaborative search sessions
+- [ ] Shared search results
+- [ ] Real-time impact analysis
+- [ ] Team knowledge base
+
+Deliverables:
+- Collaboration server
+- Session manager
+- Knowledge sharing protocol
+
+
+## Success Metrics
+
+### Phase 1 (Foundation)
+- Search latency: <100ms for 1,000 files
+- Index build time: <5s for 1,000 files
+- Accuracy: 95%+ for exact matches
+- MCP integration: Works with Claude Desktop
+
+### Phase 2 (Intelligence)
+- Call graph accuracy: 90%+
+- Dependency analysis: 95%+ coverage
+- Multi-pattern search: <50ms for 10 patterns
+- Project mapping: <200ms for full tree
+
+### Phase 3 (Understanding)
+- Query classification: 85%+ accuracy
+- Semantic search: 80%+ relevance
+- Code explanation: Human-evaluated quality >4/5
+- Architecture analysis: 90%+ pattern detection
+
+### Phase 4 (Intelligence)
+- Bug prediction: 70%+ accuracy
+- Code generation: 80%+ acceptance rate
+- Learning improvement: 20%+ relevance gain over 3 months
+- Collaboration: <100ms sync latency
+
+
+## Technical Dependencies
+
+### External Services
+- Tree-sitter: AST parsing (local, no network)
+- SQLite: Local database (no server)
+- Git2: Git operations (local)
+- Embedding model: Local or API (TBD)
+
+### Internal Dependencies
+- ffs-core: Foundation for all features
+- ffs-mcp: Depends on ffs-core
+- ffs-cli: Depends on ffs-core
+- ffs-desktop: Depends on ffs-mcp
+
+### Infrastructure
+- Local-first: No required network connectivity
+- Optional cloud sync for shared indices
+- Optional API for embedding generation
+
+
+## Risk Assessment
+
+### High Risk
+- Semantic search quality (depends on embedding model)
+- Multi-language support completeness
+- Performance at scale (10,000+ files)
+
+### Medium Risk
+- MCP protocol stability
+- Tree-sitter grammar coverage
+- Cross-platform compatibility
+
+### Low Risk
+- Core search functionality
+- Symbol indexing
+- CLI interface
+
+
+## Future Vision (Beyond Phase 4)
+
+### Year 1: Platform Expansion
+- VS Code extension
+- JetBrains plugin
+- Web-based UI
+- Team collaboration features
+
+### Year 2: Ecosystem Growth
+- Plugin system for custom analyzers
+- Community-contributed patterns
+- Enterprise features (SSO, audit logs)
+- Cloud-hosted indices
+
+### Year 3: AI Evolution
+- Multi-modal search (code + docs + issues)
+- Automated code review
+- Predictive maintenance
+- Self-optimizing search algorithms
+
+
+================================================================================
+PART 5: CURRENT STATUS — What's Built, What's Next
+================================================================================
+
+## What's Built (Production-Ready)
+
+### ffs-core (Fast File Search Engine)
+- File walk with parallel traversal
+- Content search with regex support
+- Symbol indexing via tree-sitter
+- Call graph analysis
+- Dependency tracking
+- SQLite-backed persistent index
+- Support for 10+ languages
+
+### ffs-mcp (MCP Server)
+- Full MCP protocol implementation
+- 20+ tools registered and working
+- Stdio and SSE transport
+- Tool dispatch and routing
+- Error handling and validation
+- Response formatting
+
+### ffs-cli (Command-Line Interface)
+- Search, index, stats commands
+- JSON and human-readable output
+- Shell completions
+- Cross-platform support
+
+### Available Tools (All Working)
+
+Code Intelligence:
+- ffs_symbol: Find symbol definitions
+- ffs_outline: File structure overview
+- ffs_refs: Symbol references
+- ffs_siblings: Peer symbols in scope
+
+Relationship Analysis:
+- ffs_callers: Who calls this function?
+- ffs_callees: What does this function call?
+- ffs_deps: File dependencies
+- ffs_impact: Change impact analysis
+
+Content Search:
+- ffs_grep: Content search with regex
+- ffs_multi_grep: Multi-pattern OR search
+- ffs_find: Fuzzy file name search
+
+Project Intelligence:
+- ffs_map: Directory tree with stats
+- ffs_overview: Project summary
+- ffs_dispatch: Smart query routing
+
+
+## What's In Progress (Partially Built)
+
+### Semantic Search
+- Basic embedding generation (needs tuning)
+- Vector similarity search (prototype)
+- Concept extraction (research phase)
+
+### Natural Language Interface
+- Query classification (working, needs training)
+- Parameter extraction (basic regex-based)
+- Context-aware expansion (not started)
+
+### Code Explanation
+- Function purpose inference (prototype)
+- Pattern recognition (library started)
+- Tradeoff analysis (not started)
+
+
+## What's Planned (Not Started)
+
+### Phase 3 Features
+- Advanced semantic search
+- Natural language query parsing
+- Code explanation engine
+- Architecture analysis
+
+### Phase 4 Features
+- Change prediction
+- Code generation support
+- Learning system
+- Real-time collaboration
+
+### Platform Extensions
+- VS Code extension
+- JetBrains plugin
+- Web UI
+- Team features
+
+
+## Recent Completions (Last 2 Weeks)
+
+- [x] Implemented ffs_multi_grep with Aho-Corasick algorithm
+- [x] Added SIMD acceleration for pattern matching
+- [x] Optimized call graph traversal (2x faster)
+- [x] Fixed cross-platform path handling issues
+- [x] Added comprehensive error messages
+- [x ] Improved index build performance (30% faster)
+- [x] Added language support for Go and Java
+- [x] Fixed memory leak in long-running sessions
+- [x] Added JSON output mode for all tools
+- [x] Improved documentation (100% tool coverage)
+
+
+## Next Sprint (Current Focus)
+
+Priority 1: Semantic Search Foundation
+- Integrate embedding model (local, fast)
+- Build vector index
+- Implement basic semantic search tool
+- Benchmark against keyword search
+
+Priority 2: Query Intelligence
+- Train query classifier on developer questions
+- Implement parameter extraction
+- Add context window management
+- Build clarification question system
+
+Priority 3: Code Explanation
+- Build pattern library (common patterns)
+- Implement purpose inference
+- Add algorithm identification
+- Create explanation templates
+
+
+## How to Contribute
+
+### For Core Engine Work
+- Focus on ffs-core crate
+- Run benchmarks before/after changes
+- Maintain 90%+ test coverage
+- Document performance characteristics
+
+### For MCP Server Work
+- Follow MCP protocol spec exactly
+- Add integration tests for all tools
+- Update tool documentation
+- Ensure graceful error handling
+
+### For Language Support
+- Add tree-sitter grammar
+- Create symbol extraction rules
+- Test with real codebases
+- Document language-specific behavior
+
+### For Documentation
+- Keep README updated
+- Add examples for all tools
+- Create tutorials for common workflows
+- Improve error messages
+
+
+## Getting Started
+
+### For New Contributors
+1. Read the architecture docs (this file!)
+2. Run the test suite: `cargo test`
+3. Try the CLI: `ffs search "pattern"`
+4. Test MCP integration with Claude Desktop
+5. Pick an issue labeled "good first issue"
+
+### For Users
+1. Install: `cargo install ffs`
+2. Index your project: `ffs index .`
+3. Search: `ffs search "your query"`
+4. Integrate with Claude Desktop (see README)
+5. Report issues on GitHub
+
+### For Enterprises
+1. Contact us for commercial support
+2. Custom language support available
+3. Enterprise features (SSO, audit) coming in Year 2
+4. Cloud-hosted indices available (Beta)
+
+
+## Key Contacts
+
+- Lead Developer: [Your Name]
+- MCP Protocol Expert: [Name]
+- Tree-sitter Specialist: [Name]
+- Community Manager: [Name]
+
+
+## References
+
+- MCP Protocol Spec: https://spec.modelcontextprotocol.io
+- Tree-sitter Documentation: https://tree-sitter.github.io
+- SQLite Documentation: https://sqlite.org/docs.html
+- Rust Async Book: https://rust-lang.github.io/async-book/
+- Performance Best Practices: [Internal Wiki]
+
+
+================================================================================
+END OF CONTEXT FILE
+================================================================================
+
+This file is the single source of truth for understanding ffs-mcp. It covers:
+
+1. VISION: Why this project exists and what makes it unique
+2. ARCHITECTURE: How the system is designed and how components interact
+3. EXAMPLES: Real-world usage scenarios and workflows
+4. ROADMAP: Planned features and timeline
+5. STATUS: What's built, what's in progress, what's next
+
+For questions or improvements, contact the maintainers or open an issue on GitHub.
+
+Last updated: 2026-09-10

@@ -1456,8 +1456,27 @@ fn grep_search_parsed<'a>(
         false
     };
 
+    // Case-insensitive matching runs through an ASCII-only byte fold
+    // (`PlainTextMatcher` / `ascii_case_insensitive_find`). That is correct
+    // only while the pattern is ASCII: for `café` the smart-case check sees no
+    // uppercase (`é` is not `is_uppercase()`) and turns folding on, but the
+    // fold cannot map `É`→`é`, so `CAFÉ` is silently missed where rg matches
+    // it. Route non-ASCII patterns through the regex engine, whose
+    // case-insensitive mode is Unicode-aware, instead of the ASCII path.
+    let non_ascii_pattern = !grep_text.is_ascii();
+
     let mut regex_fallback_error: Option<String> = None;
     let regex = match options.mode {
+        // Unicode-aware case folding for non-ASCII needles (see above);
+        // pure-ASCII patterns keep the faster literal path.
+        GrepMode::PlainText if case_insensitive && non_ascii_pattern => {
+            build_regex(&grep_text, options.smart_case)
+                .inspect_err(|err| {
+                    tracing::warn!("Regex compilation failed for {}. Error {}", grep_text, err);
+                    regex_fallback_error = Some(err.to_string());
+                })
+                .ok()
+        }
         GrepMode::PlainText => None,
         GrepMode::Fuzzy => {
             let (mut files_to_search, mut filtered_file_count) = prepare_files_to_search(

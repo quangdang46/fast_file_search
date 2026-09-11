@@ -492,18 +492,51 @@ impl Matcher {
             args.case_sensitive || args.needle.chars().any(|c| c.is_uppercase())
         };
 
-        let use_regex = args.regex || (!args.fixed_strings && looks_like_regex(&args.needle));
+        // The literal matcher folds ASCII only, so a case-insensitive `café`
+        // never matches `CAFÉ`. Any non-ASCII needle in case-insensitive mode
+        // goes through the regex engine, whose folding is Unicode-aware. This
+        // is keyed purely on the bytes being non-ASCII — gating it on the
+        // "looks like a regex" heuristic left `café(x)` on the ASCII-only
+        // path, where it silently matched nothing.
+        let needs_unicode_fold = !smart_case_sensitive && !args.needle.is_ascii();
+
+        // Does the needle carry regex semantics? `-F` says never. Otherwise
+        // `-r` forces it, and an unforced pattern counts as a regex when it
+        // has metacharacters *and those metacharacters actually form a valid
+        // regex*. That second half is what separates `foo.*bar` (regex) from
+        // `café(x)` (looks like one, but the unbalanced paren never compiles —
+        // the user meant literal text, so treat it as literal).
+        let needle_is_regex = if args.fixed_strings {
+            false
+        } else if args.regex {
+            true
+        } else {
+            looks_like_regex(&args.needle) && regex::Regex::new(&args.needle).is_ok()
+        };
+
+        let use_regex = needle_is_regex || needs_unicode_fold;
 
         if use_regex {
-            let mut pattern = args.needle.clone();
-            if args.word_regexp {
-                pattern = format!(r"\b(?:{})\b", pattern);
-            }
-            let re = regex::bytes::RegexBuilder::new(&pattern)
-                .case_insensitive(!smart_case_sensitive)
-                .multi_line(true)
-                .build()
-                .map_err(|e| anyhow::anyhow!("invalid regex {:?}: {e}", args.needle))?;
+            let build = |mut pattern: String| -> Result<regex::bytes::Regex, String> {
+                if args.word_regexp {
+                    pattern = format!(r"\b(?:{})\b", pattern);
+                }
+                regex::bytes::RegexBuilder::new(&pattern)
+                    .case_insensitive(!smart_case_sensitive)
+                    .multi_line(true)
+                    .build()
+                    .map_err(|e| e.to_string())
+            };
+
+            let re = if needle_is_regex {
+                // The user asked for regex, or the pattern has plausible
+                // metacharacters: use it verbatim and surface compile errors.
+                build(args.needle.clone())
+                    .map_err(|e| anyhow::anyhow!("invalid regex {:?}: {e}", args.needle))?
+            } else {
+                build(regex::escape(&args.needle))
+                    .map_err(|e| anyhow::anyhow!("invalid pattern {:?}: {e}", args.needle))?
+            };
             Ok((Matcher::Regex(re), "regex"))
         } else {
             let needle_bytes = if smart_case_sensitive {

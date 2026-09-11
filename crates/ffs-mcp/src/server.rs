@@ -988,6 +988,10 @@ impl FfsServer {
         let offset = params.offset.map(|v| v.round() as usize).unwrap_or(0);
         let callees_top = normalize_max_results(params.callees_top, 5);
         let callers_top = normalize_max_results(params.callers_top, 5);
+        // `budget` was previously accepted and silently ignored (marked
+        // dead_code), so body excerpts were unbounded no matter what the
+        // caller passed. Wire it through for real.
+        let budget = normalize_max_results(params.budget, 10_000);
         let engine = self.engine.get_or_build(&root, 25_000);
         catch_unwind_result(|| {
             let text = crate::engine_tools::find_flow(
@@ -998,6 +1002,7 @@ impl FfsServer {
                 offset,
                 callees_top,
                 callers_top,
+                budget,
             );
             Ok(CallToolResult::success(vec![Content::text(text)]))
         })
