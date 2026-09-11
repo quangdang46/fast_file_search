@@ -223,6 +223,15 @@ pub struct Args {
     #[arg(long)]
     pub group: bool,
 
+    /// Compact rg-like output: one `path:line:text` row per match, paths
+    /// relative to the search root, no context lines or separators.
+    /// Token-efficient for agents and pipes; implies relative paths.
+    /// Explicit `-A`/`-B`/`-C` are ignored when set (use default output
+    /// for context). `-l`/`--group` already emit compact shapes.
+    /// Also applies to `-l`/`--files-without-match` path rows.
+    #[arg(long)]
+    pub compact: bool,
+
     /// Lines of context to show after each match (like `rg -A`).
     #[arg(short = 'A', long = "after-context", default_value_t = 0)]
     pub after_context: usize,
@@ -661,7 +670,12 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     let search_text = args.text;
     let files_without_match = args.files_without_match;
     let files_with_matches = args.files_with_matches;
+    let compact = args.compact;
     let globs = build_glob_filter(&args.globs)?;
+    // --compact renders paths relative to the search root (rg-style, token
+    // efficient). Canonicalize once so `strip_prefix` works even when the
+    // walker yields absolute paths and `--root` was passed as `.` or relative.
+    let compact_root = compact.then(|| root.canonicalize().unwrap_or_else(|_| root.to_path_buf()));
 
     let hits_mutex: Mutex<Vec<GrepHit>> = Mutex::new(Vec::new());
     let hit_counter = AtomicUsize::new(0);
@@ -703,6 +717,17 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         let (before_context, after_context) = (before_context, after_context);
         let (invert_match, only_matching, search_text) = (invert_match, only_matching, search_text);
         let (files_with_matches, files_without_match) = (files_with_matches, files_without_match);
+        let rel_of = |p: &Path| -> PathBuf {
+            match &compact_root {
+                Some(r) => {
+                    let abs = p.canonicalize().unwrap_or_else(|_| p.to_path_buf());
+                    abs.strip_prefix(r)
+                        .map(|rel| rel.to_path_buf())
+                        .unwrap_or_else(|_| p.to_path_buf())
+                }
+                None => p.to_path_buf(),
+            }
+        };
         Box::new(move |entry| {
             if stop.load(Ordering::Relaxed) {
                 return ignore::WalkState::Quit;
@@ -769,14 +794,16 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
                 } else {
                     matched
                 };
+                // --compact renders the -l path rows relative to the root too.
+                let disp_path = rel_of(&path);
                 if invert_match {
                     // -v inverts the -l/--files-without-match sense too.
                     let emit = !emit;
                     if emit {
-                        push_path_hit(&path, hits_mutex, hit_counter, stop, take);
+                        push_path_hit(&disp_path, hits_mutex, hit_counter, stop, take);
                     }
                 } else if emit {
-                    push_path_hit(&path, hits_mutex, hit_counter, stop, take);
+                    push_path_hit(&disp_path, hits_mutex, hit_counter, stop, take);
                 }
                 return ignore::WalkState::Continue;
             }
@@ -910,13 +937,16 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
                     (ctx_before, ctx_after)
                 };
 
+            // --compact stores the display-relative path at hit time so the
+            // renderer needs no root; non-compact keeps absolute paths.
+            let disp_path = rel_of(&path).to_string_lossy().into_owned();
             let local_hits: Vec<GrepHit> = line_hits
                 .into_iter()
                 .map(|(line, text, match_ranges)| {
                     let (context_before, context_after) =
                         context_slice(line, before_context, after_context);
                     GrepHit {
-                        path: path.to_string_lossy().into_owned(),
+                        path: disp_path.clone(),
                         line,
                         text,
                         match_ranges,
@@ -1021,6 +1051,56 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     };
 
     let returned = hits.len();
+    // --compact: rg-style `rel/path:line:text` rows, paths relative to the
+    // search root for token efficiency. Context is dropped (it needs the
+    // verbose renderer); the footer truncation signal is preserved.
+    if compact {
+        // Paths were already relativized at hit time (`rel_of`), so the
+        // renderer just emits `rel:line:text` rows.
+        let payload = GrepResult {
+            needle: args.needle,
+            hits,
+            total_files_searched: total_files,
+            mode,
+            offset,
+            truncated,
+            total_matches_at_least,
+            schema: "v1",
+        };
+        return super::emit(format, &payload, |p| {
+            let mut out = String::new();
+            for h in &p.hits {
+                if h.line == 0 {
+                    // -l path-only row (relativized by `rel_of` when compact).
+                    out.push_str(&h.path);
+                    out.push('\n');
+                } else {
+                    out.push_str(&h.path);
+                    out.push(':');
+                    out.push_str(&h.line.to_string());
+                    out.push_str(": ");
+                    out.push_str(&h.text);
+                    out.push('\n');
+                }
+            }
+            if p.hits.is_empty() {
+                out.push_str(&format!(
+                    "[no matches across {} files]\n",
+                    p.total_files_searched
+                ));
+            } else {
+                let has_more = p.truncated || p.offset + returned < p.total_matches_at_least;
+                out.push_str(&footer(
+                    p.total_matches_at_least,
+                    p.offset,
+                    returned,
+                    has_more,
+                ));
+            }
+            out
+        });
+    }
+
     let payload = GrepResult {
         needle: args.needle,
         hits,
