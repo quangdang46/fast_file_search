@@ -199,6 +199,11 @@ pub(super) struct GrepContext<'a, 'b> {
     overflow_arena: crate::simd_path::ArenaPtr,
     prefilter: Option<&'a memchr::memmem::Finder<'b>>,
     prefilter_case_insensitive: bool,
+    /// Reverse-scan anchor for right-anchored regex (`foo$`): when set, the
+    /// whole-file prefilter uses `memrchr`-style last-occurrence search on
+    /// these bytes instead of the forward prefilter. Pure file-skip signal —
+    /// the DFA still confirms every candidate.
+    suffix_prefilter: Option<&'a [u8]>,
     abort_signal: &'a AtomicBool,
 }
 
@@ -888,6 +893,7 @@ pub fn multi_grep_search<'a>(
             overflow_arena,
             prefilter: None, // no memmem prefilter for multi-pattern search
             prefilter_case_insensitive: false,
+            suffix_prefilter: None,
             abort_signal,
         },
         |file_bytes: &[u8], max_matches: usize| {
@@ -915,6 +921,48 @@ pub fn multi_grep_search<'a>(
 #[inline]
 const fn is_utf8_char_boundary(b: u8) -> bool {
     (b as i8) >= -0x40
+}
+
+/// Whether a right-anchored suffix tail occurs anywhere in `content`.
+/// Reverse scan: `memrchr` the tail's first byte from the end, verify the
+/// full tail at each candidate. Candidates are rare (that's the point), so
+/// a simple backward walk beats a forward SIMD pass that must scan head
+/// bytes the regex could never match.
+#[inline]
+fn suffix_tail_present(content: &[u8], tail: &[u8], case_insensitive: bool) -> bool {
+    if tail.is_empty() || content.len() < tail.len() {
+        return tail.is_empty();
+    }
+    let first_lo = if case_insensitive {
+        tail[0].to_ascii_lowercase()
+    } else {
+        tail[0]
+    };
+    let first_hi = if case_insensitive {
+        tail[0].to_ascii_uppercase()
+    } else {
+        tail[0]
+    };
+    let mut end = content.len();
+    loop {
+        let rel = memchr::memrchr2(first_lo, first_hi, &content[..end]);
+        let Some(pos) = rel else { return false };
+        if pos + tail.len() <= content.len() {
+            let cand = &content[pos..pos + tail.len()];
+            let ok = if case_insensitive {
+                cand.len() == tail.len() && ascii_case_eq(cand, tail)
+            } else {
+                cand == tail
+            };
+            if ok {
+                return true;
+            }
+        }
+        if pos == 0 {
+            return false;
+        }
+        end = pos;
+    }
 }
 
 /// Build a regex from the user's grep text.
@@ -1084,7 +1132,15 @@ where
                     // Fast whole-file memmem check before entering the
                     // grep-searcher machinery. Skips Vec alloc, Searcher
                     // setup, and line-splitting for files that can't match.
-                    if let Some(pf) = ctx.prefilter {
+                    // Right-anchored patterns use the suffix tail: the file
+                    // must contain it (reverse scan finds the last
+                    // occurrence cheapest via memrchr on the tail's first
+                    // byte, then verifies the full tail there).
+                    if let Some(suffix) = ctx.suffix_prefilter {
+                        if !suffix_tail_present(content, suffix, ctx.prefilter_case_insensitive) {
+                            return None;
+                        }
+                    } else if let Some(pf) = ctx.prefilter {
                         let found = if ctx.prefilter_case_insensitive {
                             case_insensitive_memmem::search_packed_pair(content, pf.needle())
                         } else {
@@ -1586,6 +1642,21 @@ fn grep_search_parsed<'a>(
         .as_deref()
         .map(memchr::memmem::Finder::new);
 
+    // Right-anchored suffix prefilter (`foo$`): files lacking the literal
+    // tail near a line end skip the DFA. Suffix wins over the forward inner
+    // literal when both exist (tail check is strictly more selective for
+    // anchored patterns). Bytes live in `suffix_bytes` for the borrow.
+    let suffix_bytes: Option<Vec<u8>> = match regex {
+        Some(_) => crate::bigram_query::anchored_literal_suffix(&effective_pattern, 3).map(|lit| {
+            if case_insensitive {
+                lit.to_ascii_lowercase()
+            } else {
+                lit
+            }
+        }),
+        None => None,
+    };
+
     // Bigram prefiltering: query the inverted index + merge overlay.
     // For PlainText mode: extract bigrams directly from the literal pattern.
     // For Regex mode: decompose the regex HIR into an AND/OR bigram query tree
@@ -1775,6 +1846,13 @@ fn grep_search_parsed<'a>(
             (None, true) => Some(&finder),
             _ => None,
         };
+    // Suffix prefilter is file-skip only (DFA still confirms). Active only
+    // in regex mode when an anchored suffix was extracted; overrides the
+    // forward prefilter for the skip check.
+    let suffix_prefilter: Option<&[u8]> = match regex {
+        Some(_) => suffix_bytes.as_deref(),
+        None => None,
+    };
     let mut result = perform_grep(
         &files_to_search,
         options,
@@ -1787,6 +1865,7 @@ fn grep_search_parsed<'a>(
             overflow_arena,
             prefilter,
             prefilter_case_insensitive: case_insensitive,
+            suffix_prefilter,
             abort_signal,
         },
         |file_bytes: &[u8], max_matches: usize| {

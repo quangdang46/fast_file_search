@@ -1576,3 +1576,33 @@ fn regex_prefilter_pure_class_still_matches() {
 
     assert_eq!(result.matches.len(), 2);
 }
+
+#[test]
+fn regex_anchored_suffix_matches_line_end() {
+    let tmp = TempDir::new().unwrap();
+    let picker = create_picker(
+        tmp.path(),
+        &[
+            ("hit.txt", "some error\nno match here\n"),
+            ("miss.txt", "errors abound\nerror-prone code\n"),
+        ],
+    );
+
+    let parsed = parse_grep_query("error$");
+    let result = picker.grep(&parsed, &regex_opts());
+
+    assert_eq!(result.matches.len(), 1);
+    assert_eq!(result.matches[0].line_content, "some error");
+}
+
+#[test]
+fn regex_anchored_suffix_no_false_negative_without_tail() {
+    // File lacks the tail entirely — suffix prefilter skips, DFA never runs.
+    let tmp = TempDir::new().unwrap();
+    let picker = create_picker(tmp.path(), &[("a.txt", "nothing here\n")]);
+
+    let parsed = parse_grep_query("zzz_nope$");
+    let result = picker.grep(&parsed, &regex_opts());
+
+    assert!(result.matches.is_empty());
+}
