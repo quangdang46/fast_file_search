@@ -10,14 +10,84 @@ use serde::Serialize;
 use crate::cli::OutputFormat;
 use crate::commands::pagination::footer;
 
-/// Read a file's bytes for searching: single open, single read_to_end (one
-/// syscall, no second `File::open`, no per-file metadata syscall).
-fn read_for_search(path: &Path) -> std::io::Result<Vec<u8>> {
+/// Bytes examined by the leading binary probe.
+const BINARY_PROBE_LEN: usize = 8 * 1024;
+
+/// Read a file's bytes for searching, rejecting binaries from a leading probe
+/// before paying for the full read.
+///
+/// The probe is what makes `--no-ignore` on a build-output tree tractable:
+/// `target/` here holds ~28GB across 42k files, and a full `read_to_end` per
+/// file costs the whole tree on every run. Deciding "binary" from the first
+/// chunk — exactly as ripgrep does — turns that into a few KB per rejected
+/// file. (Measured on this repo: `rg --no-ignore` 614ms vs `rg -a
+/// --no-ignore` 13729ms, i.e. ~95% of rg's time there is this cheap skip.)
+///
+/// Returns `Ok(None)` when the file should be skipped: binary content, or a
+/// failed/partial probe read. `search_text` (`-a`/`--text`) disables binary
+/// rejection, matching rg.
+///
+/// Small files still cost one open + one read: the probe buffer is grown into
+/// the full content rather than read twice.
+fn read_for_search(path: &Path, search_text: bool) -> std::io::Result<Option<Vec<u8>>> {
     use std::io::Read;
     let mut file = std::fs::File::open(path)?;
-    let mut buf = Vec::new();
+
+    // Leading probe — decides binaries before the size of the file matters.
+    let mut buf = vec![0u8; BINARY_PROBE_LEN];
+    let mut filled = 0usize;
+    while filled < BINARY_PROBE_LEN {
+        match file.read(&mut buf[filled..]) {
+            Ok(0) => break,
+            Ok(n) => filled += n,
+            Err(e) => return Err(e),
+        }
+    }
+    buf.truncate(filled);
+
+    if !search_text && buf.contains(&0u8) {
+        return Ok(None);
+    }
+    if filled < BINARY_PROBE_LEN {
+        return Ok(Some(buf)); // probe already consumed the whole file
+    }
+
+    // Larger text file: continue from where the probe stopped.
     file.read_to_end(&mut buf)?;
-    Ok(buf)
+    Ok(Some(buf))
+}
+
+/// Probe-only read for the `-l` fast path: fetch the leading chunk and decide
+/// whether the file can be rejected without the full read.
+///
+/// Returns `Ok(None)` for binaries (and unreadable files) — the caller skips.
+/// Otherwise returns the leading chunk plus whether it covered the whole file,
+/// so the caller can answer definitively for small files and fall back to
+/// `read_for_search` for the rest.
+fn read_prefix(path: &Path, search_text: bool) -> std::io::Result<Option<(Vec<u8>, bool)>> {
+    use std::io::Read;
+    let mut file = std::fs::File::open(path)?;
+    let mut buf = vec![0u8; BINARY_PROBE_LEN];
+    let mut filled = 0usize;
+    while filled < BINARY_PROBE_LEN {
+        match file.read(&mut buf[filled..]) {
+            Ok(0) => break,
+            Ok(n) => filled += n,
+            Err(e) => return Err(e),
+        }
+    }
+    buf.truncate(filled);
+
+    if !search_text && buf.contains(&0u8) {
+        return Ok(None);
+    }
+
+    // Files whose size is an exact multiple of the probe length report
+    // `whole_file = false` here and pay one redundant (but harmless) extra
+    // `read_for_search` pass below — correctness is unaffected, and that
+    // exact-multiple case is rare enough not to warrant extra complexity.
+    let whole_file = filled < BINARY_PROBE_LEN;
+    Ok(Some((buf, whole_file)))
 }
 
 /// Push a path-only hit (-l / --files-without-match) with the shared
@@ -792,14 +862,20 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
                         }
                     }
                     _ => {
-                        let Ok(content) = read_for_search(&path) else {
-                            return ignore::WalkState::Continue;
-                        };
-                        let probe = &content[..content.len().min(8 * 1024)];
-                        if !search_text && probe.contains(&0u8) {
-                            return ignore::WalkState::Continue;
+                        // Probe first: binaries (the bulk of a --no-ignore
+                        // build-output tree) and small files are fully decided
+                        // from the leading chunk, so only genuinely large text
+                        // files pay the second, full read.
+                        match read_prefix(&path, search_text) {
+                            Ok(None) => return ignore::WalkState::Continue, // binary/unreadable
+                            Ok(Some((prefix, true))) => matcher.is_match(&prefix),
+                            Ok(Some(_)) | Err(_) => {
+                                let Ok(Some(content)) = read_for_search(&path, search_text) else {
+                                    return ignore::WalkState::Continue;
+                                };
+                                matcher.is_match(&content)
+                            }
                         }
-                        matcher.is_match(&content)
                     }
                 };
                 let emit = if files_without_match {
@@ -823,13 +899,11 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
 
             // Content mode (not -l/--files-without-match): needs the full
             // buffer to resolve line numbers and context, so no streaming.
-            let Ok(content) = read_for_search(&path) else {
+            // Binary rejection still happens inside `read_for_search`, so a
+            // --no-ignore tree doesn't pay for binary content here either.
+            let Ok(Some(content)) = read_for_search(&path, search_text) else {
                 return ignore::WalkState::Continue;
             };
-            let probe = &content[..content.len().min(8 * 1024)];
-            if !search_text && probe.contains(&0u8) {
-                return ignore::WalkState::Continue;
-            }
 
             // Newline index built once per file (rg builds its line table
             // once per buffer too — rebuilding per match is O(matches × file)).

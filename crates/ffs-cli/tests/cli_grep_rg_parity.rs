@@ -206,3 +206,67 @@ fn ignore_case_no_false_positive_on_control_byte() {
         "DLE must not false-positive-match '0' under -i"
     );
 }
+
+#[test]
+fn files_with_matches_skips_binary_content() {
+    // The -l fast path rejects binaries from a leading probe (see #116); a
+    // NUL byte in the first chunk must skip the file even when the needle is
+    // present as literal text further in. `-a/--text` must override that.
+    let tmp = TempDir::new().unwrap();
+    let p = tmp.path().join("bin.dat");
+    let mut data = b"prefix ".to_vec();
+    data.push(0u8); // NUL in the first chunk
+    data.extend_from_slice(b"NEEDLE_AFTER_NUL\n");
+    std::fs::write(&p, &data).unwrap();
+
+    let v = grep_json(tmp.path(), &["-l", "NEEDLE_AFTER_NUL"]);
+    assert_eq!(
+        v["hits"].as_array().unwrap().len(),
+        0,
+        "binary file must be skipped by -l"
+    );
+
+    let v_text = grep_json(tmp.path(), &["-l", "-a", "NEEDLE_AFTER_NUL"]);
+    assert_eq!(
+        v_text["hits"].as_array().unwrap().len(),
+        1,
+        "-a/--text must search binaries"
+    );
+}
+
+#[test]
+fn files_with_matches_finds_needle_past_the_probe_chunk() {
+    // A match beyond the 8KB probe window must not be missed: the probe only
+    // rejects binaries, it never decides "no match" for a larger file.
+    let tmp = TempDir::new().unwrap();
+    let mut data = vec![b'x'; 32 * 1024];
+    let tail = b"NEEDLE_PAST_PROBE";
+    let pos = data.len() - tail.len() - 1;
+    data[pos..pos + tail.len()].copy_from_slice(tail);
+    std::fs::write(tmp.path().join("big.txt"), &data).unwrap();
+
+    let v = grep_json(tmp.path(), &["-l", "NEEDLE_PAST_PROBE"]);
+    let hits = v["hits"].as_array().unwrap();
+    assert_eq!(hits.len(), 1, "match past the probe chunk must be found");
+    assert!(hits[0]["path"].as_str().unwrap().ends_with("big.txt"));
+}
+
+#[test]
+fn content_mode_skips_binary_and_finds_large_text() {
+    // Content (non -l) mode shares the probe: binaries skipped, large text
+    // files still searched in full.
+    let tmp = TempDir::new().unwrap();
+    let mut bin = b"aaa".to_vec();
+    bin.push(0u8);
+    bin.extend_from_slice(b"\nNEEDLE_CONTENT\n");
+    std::fs::write(tmp.path().join("bin.dat"), &bin).unwrap();
+
+    let mut big = vec![b'y'; 40 * 1024];
+    big.extend_from_slice(b"\nNEEDLE_CONTENT\n");
+    std::fs::write(tmp.path().join("big.txt"), &big).unwrap();
+
+    let v = grep_json(tmp.path(), &["NEEDLE_CONTENT"]);
+    let hits = v["hits"].as_array().unwrap();
+    assert_eq!(hits.len(), 1, "only the text file should match");
+    assert!(hits[0]["path"].as_str().unwrap().ends_with("big.txt"));
+}
