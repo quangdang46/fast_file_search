@@ -1566,6 +1566,26 @@ fn grep_search_parsed<'a>(
     let finder = memchr::memmem::Finder::new(&finder_pattern);
     let pattern_len = finder_pattern.len() as u32;
 
+    // Regex inner-literal prefilter (ripgrep's required-literal trick): when
+    // regex mode has a guaranteed literal of 3+ bytes, files lacking it skip
+    // the DFA entirely via the whole-file memmem check in `perform_grep`.
+    // The bytes live in `regex_literal_bytes` so the Finder borrow is valid.
+    let regex_literal_bytes: Option<Vec<u8>> = match regex {
+        Some(_) => {
+            crate::bigram_query::longest_required_literal(&effective_pattern, 3).map(|lit| {
+                if case_insensitive {
+                    lit.to_ascii_lowercase()
+                } else {
+                    lit
+                }
+            })
+        }
+        None => None,
+    };
+    let regex_literal_finder: Option<memchr::memmem::Finder<'_>> = regex_literal_bytes
+        .as_deref()
+        .map(memchr::memmem::Finder::new);
+
     // Bigram prefiltering: query the inverted index + merge overlay.
     // For PlainText mode: extract bigrams directly from the literal pattern.
     // For Regex mode: decompose the regex HIR into an AND/OR bigram query tree
@@ -1746,7 +1766,15 @@ fn grep_search_parsed<'a>(
     }
     .build();
 
-    let should_prefilter = regex.is_none();
+    // Prefilter anchor: whole literal needle for plain text, longest
+    // required literal for regex (None when the pattern has no 3+ byte
+    // guaranteed literal — e.g. pure classes — preserving old behavior).
+    let prefilter: Option<&memchr::memmem::Finder<'_>> =
+        match (&regex_literal_finder, regex.is_none()) {
+            (Some(lit_finder), false) => Some(lit_finder),
+            (None, true) => Some(&finder),
+            _ => None,
+        };
     let mut result = perform_grep(
         &files_to_search,
         options,
@@ -1757,7 +1785,7 @@ fn grep_search_parsed<'a>(
             base_path,
             arena,
             overflow_arena,
-            prefilter: should_prefilter.then_some(&finder),
+            prefilter,
             prefilter_case_insensitive: case_insensitive,
             abort_signal,
         },
