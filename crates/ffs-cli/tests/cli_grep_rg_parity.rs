@@ -209,13 +209,14 @@ fn ignore_case_no_false_positive_on_control_byte() {
 
 #[test]
 fn files_with_matches_skips_binary_content() {
-    // The -l fast path rejects binaries from a leading probe (see #116); a
-    // NUL byte in the first chunk must skip the file even when the needle is
-    // present as literal text further in. `-a/--text` must override that.
+    // The -l fast path rejects binaries from a leading 512B probe (rg
+    // contract, see #122); a NUL byte inside the window must skip the file
+    // even when the needle is present as literal text further in.
+    // `-a/--text` must override that.
     let tmp = TempDir::new().unwrap();
     let p = tmp.path().join("bin.dat");
     let mut data = b"prefix ".to_vec();
-    data.push(0u8); // NUL in the first chunk
+    data.push(0u8); // NUL inside the 512B window
     data.extend_from_slice(b"NEEDLE_AFTER_NUL\n");
     std::fs::write(&p, &data).unwrap();
 
@@ -235,8 +236,25 @@ fn files_with_matches_skips_binary_content() {
 }
 
 #[test]
+fn files_with_matches_nul_past_probe_window_is_text() {
+    // rg contract (issue 122): only the first 512 bytes decide
+    // binary-vs-text. A NUL at offset 600 is an ordinary byte — the file is
+    // searched as text, exactly like rg.
+    let tmp = TempDir::new().unwrap();
+    let mut data = vec![b'A'; 600];
+    data.push(0u8); // NUL past the 512B window
+    data.extend_from_slice(b"NEEDLE_AFTER_NUL\n");
+    std::fs::write(tmp.path().join("late-nul.bin"), &data).unwrap();
+
+    let v = grep_json(tmp.path(), &["-l", "NEEDLE_AFTER_NUL"]);
+    let hits = v["hits"].as_array().unwrap();
+    assert_eq!(hits.len(), 1, "NUL past 512B must not skip the file");
+    assert!(hits[0]["path"].as_str().unwrap().ends_with("late-nul.bin"));
+}
+
+#[test]
 fn files_with_matches_finds_needle_past_the_probe_chunk() {
-    // A match beyond the 8KB probe window must not be missed: the probe only
+    // A match beyond the 512B probe window must not be missed: the probe only
     // rejects binaries, it never decides "no match" for a larger file.
     let tmp = TempDir::new().unwrap();
     let mut data = vec![b'x'; 32 * 1024];
@@ -269,4 +287,50 @@ fn content_mode_skips_binary_and_finds_large_text() {
     let hits = v["hits"].as_array().unwrap();
     assert_eq!(hits.len(), 1, "only the text file should match");
     assert!(hits[0]["path"].as_str().unwrap().ends_with("big.txt"));
+}
+
+#[test]
+fn word_regexp_filters_partial_matches_on_literal_path() {
+    // `-w` on a pattern with no metacharacters takes the Literal matcher —
+    // the flag must still be honored (issue 126: it was silently dropped).
+    let tmp = TempDir::new().unwrap();
+    write_file(tmp.path(), "a.rs", "foo-bar foo_bar foo\n");
+    // Plain: all three occurrences.
+    let v = grep_json(tmp.path(), &["-o", "foo"]);
+    assert_eq!(v["hits"].as_array().unwrap().len(), 3);
+    // Whole-word: `foo-bar` (left boundary, `-` is non-word) + trailing
+    // standalone `foo`; `foo_bar` is excluded (`_` is a word char).
+    let v = grep_json(tmp.path(), &["-w", "-o", "foo"]);
+    assert_eq!(v["hits"].as_array().unwrap().len(), 2);
+}
+
+#[test]
+fn word_regexp_unicode_mode_treats_multibyte_as_word() {
+    // `café` is one word: the `caf` prefix must not match whole-word.
+    let tmp = TempDir::new().unwrap();
+    write_file(tmp.path(), "u.txt", "café cafe\n");
+    let v = grep_json(tmp.path(), &["-w", "-o", "caf"]);
+    assert_eq!(v["hits"].as_array().unwrap().len(), 0);
+    let v = grep_json(tmp.path(), &["-w", "-o", "cafe"]);
+    assert_eq!(v["hits"].as_array().unwrap().len(), 1);
+}
+
+#[test]
+fn word_regexp_ascii_mode_treats_non_ascii_as_boundary() {
+    let tmp = TempDir::new().unwrap();
+    write_file(tmp.path(), "u.txt", "café cafe\n");
+    // Byte-level: the 0xC3 after `caf` is a boundary, so the prefix counts.
+    let v = grep_json(tmp.path(), &["-w", "-o", "caf", "--word-boundary", "ascii"]);
+    assert_eq!(v["hits"].as_array().unwrap().len(), 1);
+}
+
+#[test]
+fn word_regexp_works_in_files_with_matches_mode() {
+    let tmp = TempDir::new().unwrap();
+    write_file(tmp.path(), "a.rs", "foo_bar\n");
+    write_file(tmp.path(), "b.rs", "a foo here\n");
+    let v = grep_json(tmp.path(), &["-w", "-l", "foo"]);
+    let hits = v["hits"].as_array().unwrap();
+    assert_eq!(hits.len(), 1);
+    assert!(hits[0]["path"].as_str().unwrap().ends_with("b.rs"));
 }

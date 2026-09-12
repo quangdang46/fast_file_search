@@ -20,19 +20,20 @@ use crate::cli::OutputFormat;
 /// Threshold above which `-l` (`--files-with-matches`) streams the file
 /// through Aho-Corasick's `stream_find_iter` instead of `fs::read`-ing it
 /// whole. Mirrors the same fix in `grep.rs` — a multi-GB file with no NUL
-/// byte in its first 8KB would otherwise be fully materialized per rayon
+/// byte in its first 512B would otherwise be fully materialized per rayon
 /// worker just to answer a yes/no question.
 const STREAM_THRESHOLD: u64 = 8 * 1024 * 1024;
 
-/// Peek the first 8KB for a NUL byte (rg's binary heuristic), without
-/// reading the rest of the file. Used only on the large-file streaming path;
-/// the normal path still probes the already-loaded `content`.
+/// Peek the first 512B for a NUL byte (rg's binary heuristic — same window
+/// as `grep.rs`'s `BINARY_PROBE_LEN`), without reading the rest of the file.
+/// Used only on the large-file streaming path; the normal path still probes
+/// the already-loaded `content`.
 fn probably_binary_prefix(path: &Path) -> bool {
     use std::io::Read;
     let Ok(mut f) = std::fs::File::open(path) else {
         return false;
     };
-    let mut buf = [0u8; 8 * 1024];
+    let mut buf = [0u8; 512];
     let n = f.read(&mut buf).unwrap_or(0);
     buf[..n].contains(&0u8)
 }
@@ -229,7 +230,9 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         let Ok(content) = std::fs::read(path) else {
             return;
         };
-        let probe = &content[..content.len().min(8 * 1024)];
+        // Same 512B binary window as `grep.rs` (`BINARY_PROBE_LEN`): a NUL
+        // past it does not make the file binary (rg contract, issue 122).
+        let probe = &content[..content.len().min(512)];
         if probe.contains(&0u8) {
             return;
         }

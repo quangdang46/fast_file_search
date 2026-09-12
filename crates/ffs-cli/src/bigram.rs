@@ -266,8 +266,10 @@ fn extract_file_bigrams(path: &Path) -> Option<(HashSet<u16>, FileFingerprint)> 
         return None;
     }
     let content = std::fs::read(path).ok()?;
-    // Quick binary sniff: NUL in the first 8 KB.
-    let probe = &content[..content.len().min(8 * 1024)];
+    // Binary sniff over the same 512B window the search path uses
+    // (`BINARY_PROBE_LEN` in `commands/grep.rs`): a NUL past it does not make
+    // the file binary (rg contract, issue 122).
+    let probe = &content[..content.len().min(512)];
     if probe.contains(&0u8) {
         return None;
     }
