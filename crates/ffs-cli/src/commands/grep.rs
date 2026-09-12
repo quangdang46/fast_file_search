@@ -11,7 +11,15 @@ use crate::cli::OutputFormat;
 use crate::commands::pagination::footer;
 
 /// Bytes examined by the leading binary probe.
-const BINARY_PROBE_LEN: usize = 8 * 1024;
+/// Binary-detection probe window.
+///
+/// ripgrep decides binary-vs-text from an initial block of the file (512
+/// bytes in `grep-searcher`'s current source), NOT from the whole file. ffs
+/// matches that contract: only this many leading bytes decide binary-vs-text.
+/// Probing only the head is also what makes `--no-ignore` on a build-output
+/// tree tractable — each rejected file costs one small read instead of its
+/// full size.
+const BINARY_PROBE_LEN: usize = 512;
 
 /// Read a file's bytes for searching, rejecting binaries from a leading probe
 /// before paying for the full read.
@@ -64,6 +72,17 @@ fn read_for_search(path: &Path, search_text: bool) -> std::io::Result<Option<Vec
 /// Otherwise returns the leading chunk plus whether it covered the whole file,
 /// so the caller can answer definitively for small files and fall back to
 /// `read_for_search` for the rest.
+///
+/// `whole_file` is exact, not heuristic: after filling the probe buffer we
+/// attempt one more byte. EOF there proves the probe consumed everything;
+/// any byte (or an I/O error, conservatively) means there is more.
+///
+/// Why the extra read matters: `filled < BINARY_PROBE_LEN` alone reports
+/// "whole file" only when the final `read` returned short — but a file whose
+/// size is an exact multiple of the window fills the buffer without hitting
+/// EOF, and would be misreported as partial. The old comment called that
+/// "redundant but harmless"; it is not harmless, because the caller trusts
+/// `whole_file == true` to answer *negatively* from the prefix alone.
 fn read_prefix(path: &Path, search_text: bool) -> std::io::Result<Option<(Vec<u8>, bool)>> {
     use std::io::Read;
     let mut file = std::fs::File::open(path)?;
@@ -82,11 +101,19 @@ fn read_prefix(path: &Path, search_text: bool) -> std::io::Result<Option<(Vec<u8
         return Ok(None);
     }
 
-    // Files whose size is an exact multiple of the probe length report
-    // `whole_file = false` here and pay one redundant (but harmless) extra
-    // `read_for_search` pass below — correctness is unaffected, and that
-    // exact-multiple case is rare enough not to warrant extra complexity.
-    let whole_file = filled < BINARY_PROBE_LEN;
+    // Exact EOF check: only a 0-byte read proves the probe saw everything.
+    let whole_file = if filled < BINARY_PROBE_LEN {
+        true
+    } else {
+        let mut extra = [0u8; 1];
+        match file.read(&mut extra) {
+            Ok(0) => true,
+            // More content (or an error we treat as more content): the prefix
+            // alone cannot answer. The unused byte is dropped — the fallback
+            // `read_for_search` re-reads the file from the start.
+            _ => false,
+        }
+    };
     Ok(Some((buf, whole_file)))
 }
 
@@ -133,9 +160,10 @@ const STREAM_THRESHOLD: u64 = 8 * 1024 * 1024;
 /// allocating the full file content. Carries a small tail overlap between
 /// chunks so a match spanning a chunk boundary is never missed.
 ///
-/// Returns `None` when the file looks binary (NUL byte in the first chunk)
-/// and `search_text` is false — mirrors the whole-file binary skip so
-/// streamed and non-streamed paths agree on which files count at all.
+/// Returns `None` when the file looks binary (NUL byte in the first
+/// `BINARY_PROBE_LEN` bytes — the same window `read_for_search` uses) and
+/// `search_text` is false, so streamed and non-streamed paths agree on which
+/// files count at all.
 fn stream_match_literal(
     path: &Path,
     needle: &[u8],
@@ -180,8 +208,10 @@ fn stream_match_literal(
 
         if first_chunk {
             first_chunk = false;
-            if !search_text && buf[..filled].contains(&0u8) {
-                return None; // binary — same as the whole-file probe skip
+            // Same `BINARY_PROBE_LEN` window as `read_for_search` — a NUL
+            // past it does not make the file binary (rg contract).
+            if !search_text && buf[..filled.min(BINARY_PROBE_LEN)].contains(&0u8) {
+                return None;
             }
         }
 
@@ -261,6 +291,13 @@ pub struct Args {
     /// Require whole-word matches (wraps the pattern with `\b…\b`).
     #[arg(short = 'w', long = "word-regexp")]
     pub word_regexp: bool,
+
+    /// Word-boundary definition for `-w` on the literal path: `unicode`
+    /// (default, like `rg -w` — letters and digits are word chars) or `ascii`
+    /// (ASCII letters/digits only). Regex-mode `-w` always uses the regex
+    /// engine's own `\b`.
+    #[arg(long = "word-boundary", default_value = "unicode", value_parser = ["unicode", "ascii"])]
+    pub word_boundary: String,
 
     /// Invert matching: select non-matching lines (like `rg -v`).
     #[arg(short = 'v', long = "invert-match")]
@@ -478,6 +515,11 @@ enum Matcher {
     Literal {
         needle: Vec<u8>,
         case_insensitive: bool,
+        /// Enforce whole-word matches; the hot `find_iter` checks this inline
+        /// per candidate instead of routing every literal through the regex
+        /// engine. `word_unicode` selects the word-char definition.
+        whole_word: bool,
+        word_unicode: bool,
     },
     Regex(regex::bytes::Regex),
 }
@@ -548,6 +590,11 @@ impl Matcher {
                 Matcher::Literal {
                     needle: needle_bytes,
                     case_insensitive: !smart_case_sensitive,
+                    // `-w` on the literal path: checked inline per candidate
+                    // (see `is_word_hit`), so the literal fast path keeps its
+                    // SIMD scan instead of paying for a regex engine.
+                    whole_word: args.word_regexp,
+                    word_unicode: args.word_boundary != "ascii",
                 },
                 "literal",
             ))
@@ -565,22 +612,36 @@ impl Matcher {
             Matcher::Literal {
                 needle,
                 case_insensitive,
+                whole_word,
+                word_unicode,
             } => {
                 let nlen = needle.len();
+                let (whole_word, word_unicode) = (*whole_word, *word_unicode);
                 if *case_insensitive {
                     // Case-insensitive ASCII: scan for (first, last) needle
                     // bytes via memchr2, then verify the interior with a fast
                     // case-folded compare. No lowercased copy, fully lazy.
                     let needle = needle.clone();
-                    Box::new(CaseInsensitiveLiteralIter {
-                        haystack,
-                        needle,
-                        pos: 0,
-                    })
+                    Box::new(
+                        CaseInsensitiveLiteralIter {
+                            haystack,
+                            needle,
+                            pos: 0,
+                        }
+                        .filter(move |(s, e)| {
+                            !whole_word || is_word_hit(haystack, *s, *e, word_unicode)
+                        }),
+                    )
                 } else {
                     // Case-sensitive literal: stream via memmem lazily (no
                     // intermediate position Vec).
-                    Box::new(memmem::find_iter(haystack, needle).map(move |p| (p, p + nlen)))
+                    Box::new(
+                        memmem::find_iter(haystack, needle)
+                            .map(move |p| (p, p + nlen))
+                            .filter(move |(s, e)| {
+                                !whole_word || is_word_hit(haystack, *s, *e, word_unicode)
+                            }),
+                    )
                 }
             }
             Matcher::Regex(re) => Box::new(re.find_iter(haystack).map(|m| (m.start(), m.end()))),
@@ -594,6 +655,8 @@ impl Matcher {
             Matcher::Literal {
                 needle,
                 case_insensitive,
+                whole_word,
+                word_unicode,
             } => {
                 if *case_insensitive {
                     CaseInsensitiveLiteralIter {
@@ -601,15 +664,58 @@ impl Matcher {
                         needle: needle.clone(),
                         pos: 0,
                     }
-                    .next()
-                    .is_some()
+                    .any(|(s, e)| !whole_word || is_word_hit(haystack, s, e, *word_unicode))
                 } else {
-                    memmem::find(haystack, needle).is_some()
+                    match (needle.is_empty(), whole_word) {
+                        (true, _) => true,
+                        (false, false) => memmem::find(haystack, needle).is_some(),
+                        (false, true) => memmem::find_iter(haystack, needle)
+                            .any(|p| is_word_hit(haystack, p, p + needle.len(), *word_unicode)),
+                    }
                 }
             }
             Matcher::Regex(re) => re.is_match(haystack),
         }
     }
+}
+
+/// Byte before `start` is a word char (so `start` is NOT a left boundary), or
+/// the byte after `end - 1` is a word char (NOT a right boundary).
+#[inline]
+fn is_word_hit(haystack: &[u8], start: usize, end: usize, unicode: bool) -> bool {
+    // Empty needle at a position is a boundary hit by definition — treat as
+    // matching; the callers that can produce it (`-o` on empty lines) already
+    // handle display, and `memmem::find` callers special-case empties first.
+    if start >= end {
+        return true;
+    }
+    let left_ok = match start.checked_sub(1).and_then(|i| haystack.get(i)) {
+        None => true, // start of buffer is a boundary
+        Some(&b) => !is_word_byte(b, unicode),
+    };
+    if !left_ok {
+        return false;
+    }
+    match haystack.get(end) {
+        None => true, // end of buffer is a boundary
+        Some(&b) => !is_word_byte(b, unicode),
+    }
+}
+
+/// Word-char predicate for `-w` on the literal path. Both modes treat `_`
+/// as a word char, exactly like the regex engine's `\b` (so `foo_bar` does
+/// not contain a whole-word `foo`). `unicode` (default, like `rg -w`) also
+/// treats any non-ASCII byte as a word char — in UTF-8 those are the leading
+/// and continuation bytes of multibyte chars, so `café` counts as one word.
+/// `ascii` restricts beyond-ASCII handling to ASCII letters/digits/`_`.
+#[inline]
+fn is_word_byte(b: u8, unicode: bool) -> bool {
+    if b.is_ascii_alphanumeric() || b == b'_' {
+        return true;
+    }
+    // Non-ASCII byte: part of a multibyte UTF-8 sequence (a "letter" for
+    // boundary purposes) in unicode mode, a boundary in ASCII mode.
+    unicode && !b.is_ascii()
 }
 
 /// Lazy case-insensitive ASCII literal iterator.
@@ -763,6 +869,10 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     };
     let invert_match = args.invert_match;
     let only_matching = args.only_matching;
+    // Note: the `--word-boundary` flag is consumed inside `Matcher::build`
+    // (stored on the `Literal` variant). There is deliberately no local here —
+    // an earlier revision threaded it through the walker closure and left a
+    // dead `let _ = word_unicode;` behind.
     let search_text = args.text;
     let files_without_match = args.files_without_match;
     let files_with_matches = args.files_with_matches;
@@ -887,11 +997,31 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
                         Matcher::Literal {
                             needle,
                             case_insensitive,
+                            whole_word,
+                            ..
                         },
                     ) => {
-                        match stream_match_literal(&path, needle, *case_insensitive, search_text) {
-                            Some(m) => m,
-                            None => return ignore::WalkState::Continue, // binary or unreadable
+                        // Large-file streaming answers only the "does the raw
+                        // needle occur?" question. A `-w` query additionally
+                        // requires boundary checks, which need full-line
+                        // context around each candidate — not something the
+                        // chunk scanner can decide. Fall through to the exact
+                        // path whenever `-w` is on.
+                        if *whole_word {
+                            let Ok(Some(content)) = read_for_search(&path, search_text) else {
+                                return ignore::WalkState::Continue;
+                            };
+                            matcher.is_match(&content)
+                        } else {
+                            match stream_match_literal(
+                                &path,
+                                needle,
+                                *case_insensitive,
+                                search_text,
+                            ) {
+                                Some(m) => m,
+                                None => return ignore::WalkState::Continue, // binary or unreadable
+                            }
                         }
                     }
                     _ => {
@@ -1600,6 +1730,44 @@ mod tests {
         assert!(looks_like_regex("a|b"));
         assert!(!looks_like_regex("EXPORT_SYMBOL_GPL"));
         assert!(!looks_like_regex("simple_word"));
+    }
+
+    // ── is_word_hit (-w on the literal path) ────────────────────────────
+    // Line under test: `foo-bar foo_bar foo` (offsets 0..19).
+
+    #[test]
+    fn word_hit_rejects_hyphen_and_underscore_adjacent() {
+        let h = b"foo-bar foo_bar foo";
+        // `foo` at 0 is followed by `-` (boundary), preceded by start.
+        assert!(is_word_hit(h, 0, 3, true));
+        // `foo` at 8 is followed by `_` (word char) → reject.
+        assert!(!is_word_hit(h, 8, 11, true));
+        // `foo` at 16 is followed by end-of-buffer (boundary).
+        assert!(is_word_hit(h, 16, 19, true));
+    }
+
+    #[test]
+    fn word_hit_unicode_mode_treats_multibyte_as_word() {
+        // `caf` inside `café` (bytes 0..2, next byte 0xC3 starts é):
+        // right side is a word char → reject.
+        let h = "café cafe".as_bytes();
+        assert!(!is_word_hit(h, 0, 3, true));
+        // Standalone `cafe` at 6..10, flanked by spaces → accept.
+        assert!(is_word_hit(h, 6, 10, true));
+        // `café` (bytes 0..5) in `caféx café` followed by `x` → reject;
+        // standalone trailing `café` (bytes 7..12) → accept.
+        let h2 = "caféx café".as_bytes();
+        assert!(!is_word_hit(h2, 0, 5, true));
+        assert!(is_word_hit(h2, 7, 12, true));
+    }
+
+    #[test]
+    fn word_hit_ascii_mode_treats_non_ascii_as_boundary() {
+        // Same `café cafe` line, ASCII mode: the 0xC3 byte after `caf` is a
+        // boundary, so the prefix `caf` counts as a whole word.
+        let h = "café cafe".as_bytes();
+        assert!(is_word_hit(h, 0, 3, false));
+        assert!(is_word_hit(h, 6, 10, false));
     }
 
     #[test]
