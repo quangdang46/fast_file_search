@@ -334,3 +334,26 @@ fn word_regexp_works_in_files_with_matches_mode() {
     assert_eq!(hits.len(), 1);
     assert!(hits[0]["path"].as_str().unwrap().ends_with("b.rs"));
 }
+
+#[test]
+fn invert_match_clean_file_emits_all_lines() {
+    // Fast path: a file with zero matches must emit every line (the
+    // matched-set would be empty, so skipping its construction must not
+    // change output).
+    let tmp = TempDir::new().unwrap();
+    write_file(tmp.path(), "a.rs", "aaa\nbbb\nccc\n");
+    write_file(tmp.path(), "b.rs", "foo here\nbar\n");
+    let v = grep_json(tmp.path(), &["-v", "foo"]);
+    let hits = v["hits"].as_array().unwrap();
+    assert_eq!(hits.len(), 4);
+    let texts: Vec<&str> = hits.iter().map(|h| h["text"].as_str().unwrap()).collect();
+    assert_eq!(texts, vec!["aaa", "bbb", "ccc", "bar"]);
+}
+
+#[test]
+fn invert_match_respects_max_count() {
+    let tmp = TempDir::new().unwrap();
+    write_file(tmp.path(), "a.rs", "aaa\nbbb\nccc\n");
+    let v = grep_json(tmp.path(), &["-v", "-m", "2", "foo"]);
+    assert_eq!(v["hits"].as_array().unwrap().len(), 2);
+}
