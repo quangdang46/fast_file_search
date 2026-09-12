@@ -916,22 +916,35 @@ fn find_dependents(root: &Path, target_name: &str, limit: usize) -> Vec<std::pat
     out
 }
 
+/// Options for [`find_flow`]. Grouped into a struct because the function
+/// takes more parameters than clippy's `too_many_arguments` lint allows.
+pub struct FlowOptions<'a> {
+    pub engine: &'a Engine,
+    pub root: &'a Path,
+    pub name: &'a str,
+    pub limit: usize,
+    pub offset: usize,
+    pub callees_top: usize,
+    pub callers_top: usize,
+    /// Caps the total bytes of body excerpts (0 = unlimited). It is a real
+    /// cap, not advisory: without it a symbol with many long definitions
+    /// dumps every raw line of each one, and the default `maxResults` of 10
+    /// made that unbounded.
+    pub budget: usize,
+}
+
 /// Simplified flow: definitions + body + callees + callers.
-///
-/// `budget` caps the total bytes of body excerpts (0 = unlimited). It is a
-/// real cap, not advisory: without it a symbol with many long definitions
-/// dumps every raw line of each one, and the default `maxResults` of 10 made
-/// that unbounded.
-pub fn find_flow(
-    engine: &Engine,
-    root: &Path,
-    name: &str,
-    limit: usize,
-    offset: usize,
-    callees_top: usize,
-    callers_top: usize,
-    budget: usize,
-) -> String {
+pub fn find_flow(opts: FlowOptions<'_>) -> String {
+    let FlowOptions {
+        engine,
+        root,
+        name,
+        limit,
+        offset,
+        callees_top,
+        callers_top,
+        budget,
+    } = opts;
     let mut definitions = resolve_symbol_name(name, &engine.handles.symbols);
     definitions.sort_by_key(|b| std::cmp::Reverse(b.weight));
     let mut out = String::new();
@@ -1366,7 +1379,16 @@ mod flow_budget_tests {
             ("b.rs", "pub fn dup() {\n    helper();\n}\n"),
             ("c.rs", "pub fn helper() {}\npub fn caller() { dup(); }\n"),
         ]);
-        let out = find_flow(&engine, tmp.path(), "dup", 10, 0, 5, 5, 10_000);
+        let out = find_flow(FlowOptions {
+            engine: &engine,
+            root: tmp.path(),
+            name: "dup",
+            limit: 10,
+            offset: 0,
+            callees_top: 5,
+            callers_top: 5,
+            budget: 10_000,
+        });
         assert_eq!(
             out.matches("callers (").count(),
             1,
@@ -1388,13 +1410,20 @@ mod flow_budget_tests {
     fn flow_respects_body_budget() {
         // A definition far larger than the budget must be clipped, with a
         // truncation marker, instead of dumping every line.
-        let big_body: String = (0..400)
-            .map(|i| format!("    let v{i} = {i};\n"))
-            .collect();
+        let big_body: String = (0..400).map(|i| format!("    let v{i} = {i};\n")).collect();
         let src = format!("pub fn huge() {{\n{big_body}}}\n");
         let (tmp, engine) = engine_for(&[("big.rs", &src)]);
 
-        let out = find_flow(&engine, tmp.path(), "huge", 10, 0, 5, 5, 1000);
+        let out = find_flow(FlowOptions {
+            engine: &engine,
+            root: tmp.path(),
+            name: "huge",
+            limit: 10,
+            offset: 0,
+            callees_top: 5,
+            callers_top: 5,
+            budget: 1000,
+        });
         assert!(
             out.contains("truncated"),
             "oversized body must be clipped, got {} bytes:\n{out}",
@@ -1410,7 +1439,16 @@ mod flow_budget_tests {
     #[test]
     fn flow_zero_budget_means_unlimited() {
         let (tmp, engine) = engine_for(&[("a.rs", "pub fn small() {\n    let x = 1;\n}\n")]);
-        let out = find_flow(&engine, tmp.path(), "small", 10, 0, 5, 5, 10_000);
+        let out = find_flow(FlowOptions {
+            engine: &engine,
+            root: tmp.path(),
+            name: "small",
+            limit: 10,
+            offset: 0,
+            callees_top: 5,
+            callers_top: 5,
+            budget: 10_000,
+        });
         assert!(out.contains("let x = 1;"), "body should be present:\n{out}");
         assert!(!out.contains("truncated"));
     }
@@ -1449,12 +1487,16 @@ mod token_shape_tests {
 
     #[test]
     fn refs_omits_weight_and_unresolved_enclosing_placeholder() {
-        let (tmp, engine) = engine_for(&[
-            ("a.rs", "pub fn target() {}\npub fn caller() { target(); }\n"),
-        ]);
+        let (tmp, engine) = engine_for(&[(
+            "a.rs",
+            "pub fn target() {}\npub fn caller() { target(); }\n",
+        )]);
         let r = find_refs(&engine, tmp.path(), "target", 50, 0);
         let out = format_refs_result(&r, tmp.path());
-        assert!(!out.contains("w="), "weight must not be emitted, got:\n{out}");
+        assert!(
+            !out.contains("w="),
+            "weight must not be emitted, got:\n{out}"
+        );
         assert!(
             !out.contains("(in ?)"),
             "unresolved enclosing must not print a placeholder, got:\n{out}"
@@ -1477,16 +1519,32 @@ mod token_shape_tests {
             "pub fn helper() {}\npub fn c0() { repeated(); }\npub fn c1() { repeated(); }\n"
                 .to_string(),
         ));
-        let refs: Vec<(&str, &str)> = files.iter().map(|(a, b)| (a.as_str(), b.as_str())).collect();
+        let refs: Vec<(&str, &str)> = files
+            .iter()
+            .map(|(a, b)| (a.as_str(), b.as_str()))
+            .collect();
         let (tmp, engine) = engine_for(&refs);
 
-        let out = find_flow(&engine, tmp.path(), "repeated", 10, 0, 5, 5, 10_000);
+        let out = find_flow(FlowOptions {
+            engine: &engine,
+            root: tmp.path(),
+            name: "repeated",
+            limit: 10,
+            offset: 0,
+            callees_top: 5,
+            callers_top: 5,
+            budget: 10_000,
+        });
         assert_eq!(
             out.matches("callers (").count(),
             1,
             "callers must be listed once, not once per card:\n{out}"
         );
         assert_eq!(out.matches("callees (").count(), 1, "callees once:\n{out}");
-        assert_eq!(out.matches("── card ").count(), 6, "6 cards expected:\n{out}");
+        assert_eq!(
+            out.matches("── card ").count(),
+            6,
+            "6 cards expected:\n{out}"
+        );
     }
 }
