@@ -994,16 +994,16 @@ impl FfsServer {
         let budget = normalize_max_results(params.budget, 10_000);
         let engine = self.engine.get_or_build(&root, 25_000);
         catch_unwind_result(|| {
-            let text = crate::engine_tools::find_flow(
-                &engine,
-                &root,
-                &params.name,
+            let text = crate::engine_tools::find_flow(crate::engine_tools::FlowOptions {
+                engine: &engine,
+                root: &root,
+                name: &params.name,
                 limit,
                 offset,
                 callees_top,
                 callers_top,
                 budget,
-            );
+            });
             Ok(CallToolResult::success(vec![Content::text(text)]))
         })
     }

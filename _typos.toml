@@ -34,6 +34,9 @@ scaner = "scaner"
 Alpah = "Alpah"
 # Intentional typo in `ffs find --fuzzy` test.
 mian = "mian"
+# Test needle in `ffs grep -w` tests: a 3-letter prefix of "café"
+# used to verify unicode vs ascii word boundaries. Not a typo.
+caf = "caf"
 
 [default]
 extend-ignore-re = [
