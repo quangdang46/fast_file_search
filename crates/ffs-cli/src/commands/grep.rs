@@ -1082,19 +1082,34 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
                 .expect("built above whenever a line-resolving branch runs");
             if invert_match {
                 // -v: every NON-matching line is a hit (rg semantics).
-                let matched_lines: std::collections::HashSet<u32> = matcher
-                    .find_iter(&content)
-                    .map(|(off, _)| newline_index.byte_to_line(&content, off).0)
-                    .collect();
+                // Fast path: when nothing in the file matches, every line is
+                // a hit — emit them directly without resolving match offsets
+                // through the newline index (and without building the matched
+                // set at all). This is the common case for selective needles
+                // (`-v nomatch` over a whole tree) and skips an O(matches)
+                // index pass plus a HashSet that would only ever be empty.
                 let text = String::from_utf8_lossy(&content);
-                for (idx, line_text) in text.lines().enumerate() {
-                    let line = (idx + 1) as u32;
-                    if matched_lines.contains(&line) {
-                        continue;
+                if !matcher.is_match(&content) {
+                    for (idx, line_text) in text.lines().enumerate() {
+                        line_hits.push(((idx + 1) as u32, line_text.to_string(), Vec::new()));
+                        if line_hits.len() >= max_count {
+                            break;
+                        }
                     }
-                    line_hits.push((line, line_text.to_string(), Vec::new()));
-                    if line_hits.len() >= max_count {
-                        break;
+                } else {
+                    let matched_lines: std::collections::HashSet<u32> = matcher
+                        .find_iter(&content)
+                        .map(|(off, _)| newline_index.byte_to_line(&content, off).0)
+                        .collect();
+                    for (idx, line_text) in text.lines().enumerate() {
+                        let line = (idx + 1) as u32;
+                        if matched_lines.contains(&line) {
+                            continue;
+                        }
+                        line_hits.push((line, line_text.to_string(), Vec::new()));
+                        if line_hits.len() >= max_count {
+                            break;
+                        }
                     }
                 }
             } else if only_matching {
