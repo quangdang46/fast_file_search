@@ -432,10 +432,13 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
             .matches
             .iter()
             .map(|m| {
-                let path = std::path::Path::new(m);
+                let pbuf = std::path::PathBuf::from(m);
+                let rel = pbuf.strip_prefix(root).unwrap_or(&pbuf);
+                let mrel = rel.to_string_lossy().into_owned();
+                let path = std::path::Path::new(&mrel);
                 let role = detect_role(path);
                 ScoredMatch {
-                    path: m.clone(),
+                    path: mrel,
                     score: role.score_bonus(),
                     role: role.as_str().to_string(),
                     role_bonus: Some(role.score_bonus()),
@@ -465,17 +468,20 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         let path_spec = super::render::path_spec();
         let fuzzy_spec = super::render::match_spec();
         for m in &p.matches {
+            let pbuf = std::path::PathBuf::from(m);
+            let rel = pbuf.strip_prefix(root).unwrap_or(&pbuf);
+            let mrel = rel.to_string_lossy().into_owned();
             if p.fuzzy_fallback {
                 // Fuzzy tier: color the whole path, overlay the matched spans.
-                let ranges = fuzzy_highlight_ranges(m, &p.needle);
+                let ranges = fuzzy_highlight_ranges(&mrel, &p.needle);
                 out.push_str(&super::render::colorize_with_base(
-                    m,
+                    &mrel,
                     &ranges,
                     &path_spec,
                     &fuzzy_spec,
                 ));
             } else {
-                out.push_str(&super::render::colorize(m, &path_spec));
+                out.push_str(&super::render::colorize(&mrel, &path_spec));
             }
             out.push('\n');
         }

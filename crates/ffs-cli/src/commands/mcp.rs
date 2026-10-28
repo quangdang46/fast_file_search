@@ -380,9 +380,23 @@ fn handle_tool(state: &mut McpState, root: &Path, name: &str, args: &Value) -> R
         "ffs_grep" => {
             // Bug 3: accept both `query` (MCP idiom) and `needle` (CLI idiom).
             let query = get_query(args)?;
-            let limit = get_limit(args, 20);
+            let limit = get_limit(args, 40);
             let hits = grep_files(root, query, limit);
-            Ok(text_json(serde_json::to_string(&hits)?))
+            let mut out = String::with_capacity(hits.len() * 96);
+            for h in &hits {
+                let pbuf = std::path::PathBuf::from(&h.path);
+                let rel = pbuf.strip_prefix(root).unwrap_or(&pbuf);
+                out.push_str(&rel.to_string_lossy());
+                out.push(':');
+                out.push_str(&h.line.to_string());
+                out.push(':');
+                out.push_str(h.text.trim_start());
+                out.push('\n');
+            }
+            if hits.is_empty() {
+                out.push_str("0 matches\n");
+            }
+            Ok(text_json(out))
         }
         "ffs_multi_grep" => {
             // Accept `queries` (legacy MCP stub) or `patterns` (engine/agent docs).
@@ -391,23 +405,40 @@ fn handle_tool(state: &mut McpState, root: &Path, name: &str, args: &Value) -> R
                 .or_else(|| args.get("patterns"))
                 .and_then(Value::as_array)
                 .ok_or_else(|| anyhow::anyhow!("missing queries or patterns"))?;
-            let limit = get_limit(args, 20);
+            let limit = get_limit(args, 40);
             let mut all_hits = Vec::new();
-            // Prefer a single multi-literal pass via the CLI multi-grep path when
-            // all entries are plain strings (same OR semantics as Aho-Corasick).
             let needles: Vec<&str> = queries.iter().filter_map(Value::as_str).collect();
             if !needles.is_empty() {
                 let mut hits = multi_grep_files(root, &needles, limit);
                 all_hits.append(&mut hits);
             }
             all_hits.truncate(limit);
-            Ok(text_json(serde_json::to_string(&all_hits)?))
+            let mut out = String::with_capacity(all_hits.len() * 96);
+            for h in &all_hits {
+                let pbuf = std::path::PathBuf::from(&h.path);
+                let rel = pbuf.strip_prefix(root).unwrap_or(&pbuf);
+                out.push_str(&rel.to_string_lossy());
+                out.push(':');
+                out.push_str(&h.line.to_string());
+                out.push(':');
+                out.push_str(h.text.trim_start());
+                out.push('\n');
+            }
+            if all_hits.is_empty() {
+                out.push_str("0 matches\n");
+            }
+            Ok(text_json(out))
         }
         "ffs_glob" => {
             let pattern = get_string(args, "pattern")?;
-            let limit = get_limit(args, 50);
+            let limit = get_limit(args, 100);
             let hits = glob_files(root, pattern, limit);
-            Ok(text_json(serde_json::to_string(&hits)?))
+            let mut out = String::with_capacity(hits.len() * 64);
+            for h in &hits {
+                out.push_str(h);
+                out.push('\n');
+            }
+            Ok(text_json(out))
         }
         "ffs_find" => {
             let query = get_query(args)?;
@@ -418,7 +449,14 @@ fn handle_tool(state: &mut McpState, root: &Path, name: &str, args: &Value) -> R
                 hits = super::find::fuzzy_search_matches(&scopes, query);
             }
             hits.truncate(limit);
-            Ok(text_json(serde_json::to_string(&hits)?))
+            let mut out = String::with_capacity(hits.len() * 64);
+            for h in &hits {
+                let pbuf = std::path::PathBuf::from(h);
+                let rel = pbuf.strip_prefix(root).unwrap_or(&pbuf);
+                out.push_str(&rel.to_string_lossy());
+                out.push('\n');
+            }
+            Ok(text_json(out))
         }
         "ffs_dispatch" => {
             let query = get_query(args)?;
@@ -476,23 +514,56 @@ fn handle_tool(state: &mut McpState, root: &Path, name: &str, args: &Value) -> R
             state.ensure_indexed(root);
             let mut hits = state.engine.handles.symbols.lookup_exact(nm);
             hits.truncate(limit);
-            Ok(text_json(serde_json::to_string(&symbol_locs_to_json(
-                hits,
-            ))?))
+            let mut out = String::with_capacity(hits.len() * 96);
+            for h in &hits {
+                let rel = h.path.strip_prefix(root).unwrap_or(&h.path);
+                out.push_str(&rel.to_string_lossy());
+                out.push(':');
+                out.push_str(&h.line.to_string());
+                out.push_str(" [");
+                out.push_str(nm);
+                out.push_str("]\n");
+            }
+            if out.is_empty() {
+                out.push_str("0 matches\n");
+            }
+            Ok(text_json(out))
         }
         "ffs_callers" => {
             let nm = get_string(args, "name")?;
             let limit = get_limit(args, 50);
             state.ensure_indexed(root);
             let hits = collect_callers(state, root, nm, limit);
-            Ok(text_json(serde_json::to_string(&hits)?))
+            let mut out = String::with_capacity(hits.len() * 80);
+            for h in &hits {
+                let pbuf = std::path::PathBuf::from(&h.path);
+                let rel = pbuf.strip_prefix(root).unwrap_or(&pbuf);
+                out.push_str(&rel.to_string_lossy());
+                out.push(':');
+                out.push_str(&h.line.to_string());
+                out.push_str(": ");
+                out.push_str(h.text.trim_start());
+                out.push('\n');
+            }
+            if out.is_empty() {
+                out.push_str("0 matches\n");
+            }
+            Ok(text_json(out))
         }
         "ffs_callees" => {
             let nm = get_string(args, "name")?;
             let limit = get_limit(args, 50);
             state.ensure_indexed(root);
             let hits = collect_callees(state, root, nm, limit);
-            Ok(text_json(serde_json::to_string(&hits)?))
+            let mut out = String::with_capacity(hits.len() * 80);
+            for h in &hits {
+                out.push_str(&h.name);
+                out.push('\n');
+            }
+            if out.is_empty() {
+                out.push_str("0 matches\n");
+            }
+            Ok(text_json(out))
         }
         "ffs_refs" => {
             let nm = get_string(args, "name")?;

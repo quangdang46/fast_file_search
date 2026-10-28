@@ -42,11 +42,8 @@ struct GlobResult {
 /// Delegate to the shared core glob function which handles Windows correctly
 /// (falling back to `globset::Glob` + `ignore::WalkBuilder` on unsupported
 /// platforms) and respects gitignore rules consistently.
-fn glob_files(root: &Path, pattern: &str, limit: usize) -> Vec<String> {
-    ffs_search::glob_matcher::glob_files(root, pattern, limit)
-        .into_iter()
-        .map(|rel| root.join(&rel).to_string_lossy().to_string())
-        .collect()
+fn glob_files(_root: &Path, pattern: &str, limit: usize) -> Vec<String> {
+    ffs_search::glob_matcher::glob_files(_root, pattern, limit)
 }
 
 pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
