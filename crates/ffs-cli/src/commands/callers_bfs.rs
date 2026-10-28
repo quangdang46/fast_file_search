@@ -18,7 +18,8 @@ use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 use ffs_engine::{Engine, PreFilterStack};
-use ffs_symbol::types::{Lang, OutlineEntry};
+use ffs_symbol::lang::detect_file_type;
+use ffs_symbol::types::{FileType, Lang, OutlineEntry};
 
 use crate::commands::callers::CallerHit;
 use crate::commands::session::Session;
@@ -101,6 +102,35 @@ pub struct CandidateFile {
     pub mtime: SystemTime,
     pub content: String,
     pub lang: Option<Lang>,
+}
+
+impl CandidateFile {
+    /// Walk `root` and materialize every readable file.
+    ///
+    /// Delegates to [`ffs_engine::CodeFile::collect_all`] so the CLI, MCP, and
+    /// C ABI share one walker. Non-code files are kept with `lang: None`
+    /// on purpose: `callers`/`refs`/`flow` still report hits found in them
+    /// (a symbol name can appear in prose), and dropping them would change
+    /// existing output.
+    pub fn collect(root: &Path) -> Vec<Self> {
+        // Keep the CLI's parallel walk (faster on large trees) and reuse the
+        // shared read/filter primitives rather than the serial walker.
+        ffs_engine::CodeFile::from_paths(super::walk_files(root), false)
+            .into_iter()
+            .map(|f| {
+                let lang = match detect_file_type(&f.path) {
+                    FileType::Code(l) => Some(l),
+                    _ => None,
+                };
+                Self {
+                    path: f.path,
+                    mtime: f.mtime,
+                    content: f.content,
+                    lang,
+                }
+            })
+            .collect()
+    }
 }
 
 pub fn run_bfs(

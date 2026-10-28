@@ -1,0 +1,18 @@
+{
+  "cli": {
+    "subcommands": 20,
+    "differences": "NONE"
+  },
+  "mcp_embedded": {
+    "tool_count": 17,
+    "removed": "NONE",
+    "params_lost": "NONE",
+    "required_changed": "NONE"
+  },
+  "c_abi": {
+    "count": 45,
+    "identical": true,
+    "removed": "NONE"
+  },
+  "verdict": "PASS"
+}
