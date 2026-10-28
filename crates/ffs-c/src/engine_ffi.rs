@@ -505,8 +505,8 @@ pub unsafe extern "C" fn ffs_engine_impact(
     name: *const c_char,
     limit: u64,
     offset: u64,
-    _hops: u32,
-    _hub_guard: u64,
+    hops: u32,
+    hub_guard: u64,
 ) -> *mut FfsResponse {
     if engine.is_null() {
         return make_error("engine is null");
@@ -518,75 +518,78 @@ pub unsafe extern "C" fn ffs_engine_impact(
     let limit = if limit == 0 { 20 } else { limit as usize };
     let offset = offset as usize;
 
-    // Walk code files to find callers via bloom + contains
-    let stack = PreFilterStack::new(e.inner.handles.bloom.clone());
-    let mut candidates: Vec<(std::path::PathBuf, String)> = Vec::new();
-    for entry in ignore::WalkBuilder::new(&e.root)
-        .standard_filters(true)
-        .follow_links(false)
-        .build()
-        .flatten()
-    {
-        if !entry.file_type().is_some_and(|t| t.is_file()) {
-            continue;
-        }
-        let path = entry.into_path();
-        if !matches!(detect_file_type(&path), FileType::Code(_)) {
-            continue;
-        }
-        let Ok(content) = ffs::bom::read_file(&path) else {
-            continue;
-        };
-        candidates.push((path, content));
+    // Direct call sites: bloom-narrowed, confirmed with a literal scan.
+    let direct_hits = collect_call_hits(e, n, limit.max(100));
+
+    // path -> (direct, transitive)
+    let mut scores: std::collections::BTreeMap<String, (u32, u32)> =
+        std::collections::BTreeMap::new();
+    for (path, _line) in &direct_hits {
+        scores.entry(path.clone()).or_default().0 += 1;
     }
-    let confirm_input: Vec<_> = candidates
-        .iter()
-        .map(|(p, c)| (p.clone(), SystemTime::UNIX_EPOCH, c.clone()))
-        .collect();
-    let survivors = stack.confirm_symbol(&confirm_input, n);
-    let survivor_set: std::collections::HashSet<&std::path::Path> =
-        survivors.iter().map(|s| s.path.as_path()).collect();
 
-    let mut results: Vec<serde_json::Value> = Vec::new();
-    let definitions = e.inner.handles.symbols.lookup_exact(n);
-    let def_line_set: std::collections::HashSet<(String, u32)> = definitions
-        .iter()
-        .map(|d| (d.path.to_string_lossy().to_string(), d.line))
-        .collect();
+    // Transitive signal. `hops <= 1` disables it, matching the CLI's
+    // `ffs impact --hops 1`. The frontier advances through enclosing symbols
+    // resolved from the outline cache — the same primitive the CLI uses.
+    let hops = hops.clamp(1, 3);
+    if hops > 1 {
+        let guard = hub_guard as usize;
+        let mut frontier: Vec<String> = vec![n.to_string()];
+        let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+        seen.insert(n.to_string());
 
-    for (path, content) in &candidates {
-        if !survivor_set.contains(path.as_path()) {
-            continue;
-        }
-        let path_str = path.to_string_lossy().to_string();
-        let mut direct = 0u32;
-        for (lineno, line) in content.lines().enumerate() {
-            let lineno = (lineno + 1) as u32;
-            if !line.contains(n) {
-                continue;
+        for _depth in 2..=hops {
+            let mut next: Vec<String> = Vec::new();
+            for sym in &frontier {
+                // One hit past the guard so `is_hub` is decidable.
+                let sym_hits = collect_call_hits(e, sym, guard.saturating_add(1));
+                let is_hub = sym_hits.len() > guard;
+                for (path, _line) in &sym_hits {
+                    scores.entry(path.clone()).or_default().1 += 1;
+                }
+                if is_hub {
+                    continue;
+                }
+                for (path, line) in &sym_hits {
+                    if let Some(encl) = enclosing_for_path_line(e, path, *line)
+                        && encl != *sym
+                        && seen.insert(encl.clone())
+                    {
+                        next.push(encl);
+                    }
+                }
             }
-            if def_line_set.contains(&(path_str.clone(), lineno)) {
-                continue;
+            if next.is_empty() {
+                break;
             }
-            direct += 1;
-        }
-        if direct > 0 {
-            results.push(serde_json::json!({
-                "path": path_str,
-                "score": direct * 3,
-                "direct": direct,
-            }));
+            frontier = next;
         }
     }
 
-    results.sort_by(|a, b| {
-        b["score"]
-            .as_u64()
-            .cmp(&a["score"].as_u64())
-            .then_with(|| a["path"].as_str().cmp(&b["path"].as_str()))
+    let mut rows: Vec<(String, u32, u32)> = scores
+        .into_iter()
+        .map(|(path, (direct, transitive))| (path, direct, transitive))
+        .collect();
+    rows.sort_by(|a, b| {
+        let sa = a.1 * 3 + a.2;
+        let sb = b.1 * 3 + b.2;
+        sb.cmp(&sa).then_with(|| a.0.cmp(&b.0))
     });
-    let total = results.len();
-    let page: Vec<_> = results.into_iter().skip(offset).take(limit).collect();
+
+    let total = rows.len();
+    let page: Vec<serde_json::Value> = rows
+        .into_iter()
+        .skip(offset)
+        .take(limit)
+        .map(|(path, direct, transitive)| {
+            serde_json::json!({
+                "path": path,
+                "score": direct * 3 + transitive,
+                "direct": direct,
+                "transitive": transitive,
+            })
+        })
+        .collect();
 
     let payload = serde_json::json!({
         "name": n,
@@ -596,4 +599,157 @@ pub unsafe extern "C" fn ffs_engine_impact(
         "has_more": offset + page.len() < total,
     });
     make_response(payload.to_string())
+}
+
+/// Literal call-site hits for `symbol` under the engine root, as
+/// `(relative path, line)` pairs. Bloom-narrowed, definition lines excluded.
+fn collect_call_hits(e: &FfsEngine, symbol: &str, limit: usize) -> Vec<(String, u32)> {
+    let stack = PreFilterStack::new(e.inner.handles.bloom.clone());
+    let candidates = ffs_engine::CodeFile::collect(&e.root);
+    let confirm_input = ffs_engine::CodeFile::into_confirm_input(&candidates);
+    let survivors = stack.confirm_symbol(&confirm_input, symbol);
+    let survivor_set: std::collections::HashSet<&std::path::Path> =
+        survivors.iter().map(|s| s.path.as_path()).collect();
+
+    let def_line_set: std::collections::HashSet<(String, u32)> = e
+        .inner
+        .handles
+        .symbols
+        .lookup_exact(symbol)
+        .iter()
+        .map(|d| (d.path.to_string_lossy().to_string(), d.line))
+        .collect();
+
+    let mut hits = Vec::new();
+    for file in &candidates {
+        if !survivor_set.contains(file.path.as_path()) {
+            continue;
+        }
+        let rel = file
+            .path
+            .strip_prefix(&e.root)
+            .unwrap_or(&file.path)
+            .to_string_lossy()
+            .into_owned();
+        let abs = file.path.to_string_lossy().to_string();
+        for (idx, line) in file.content.lines().enumerate() {
+            let lineno = (idx + 1) as u32;
+            if !line.contains(symbol) {
+                continue;
+            }
+            if def_line_set.contains(&(abs.clone(), lineno)) {
+                continue;
+            }
+            hits.push((rel.clone(), lineno));
+            if hits.len() >= limit {
+                return hits;
+            }
+        }
+    }
+    hits
+}
+
+/// Enclosing symbol for a `(relative path, line)` hit, via the outline cache.
+fn enclosing_for_path_line(e: &FfsEngine, rel: &str, line: u32) -> Option<String> {
+    let abs = e.root.join(rel);
+    let lang = match detect_file_type(&abs) {
+        FileType::Code(l) => l,
+        _ => return None,
+    };
+    let (content, mtime) = ffs::bom::read_file_with_mtime(&abs).ok()?;
+    let outline = e
+        .inner
+        .handles
+        .outlines
+        .get_or_compute(&abs, mtime, &content, lang);
+    fn walk(
+        entries: &[ffs_symbol::types::OutlineEntry],
+        line: u32,
+    ) -> Option<&ffs_symbol::types::OutlineEntry> {
+        for entry in entries {
+            if line < entry.start_line || line > entry.end_line {
+                continue;
+            }
+            if let Some(child) = walk(&entry.children, line) {
+                return Some(child);
+            }
+            return Some(entry);
+        }
+        None
+    }
+    walk(&outline, line).map(|entry| entry.name.clone())
+}
+
+#[cfg(test)]
+mod impact_tests {
+    use super::*;
+    use std::ffi::CString;
+
+    fn build(root: &Path) -> *mut FfsEngine {
+        let c = CString::new(root.to_string_lossy().into_owned()).unwrap();
+        unsafe { ffs_engine_new(c.as_ptr(), 25_000) }
+    }
+
+    fn impact(engine: *mut FfsEngine, name: &str, hops: u32, hub_guard: u64) -> String {
+        let c = CString::new(name).unwrap();
+        unsafe {
+            let resp = ffs_engine_impact(engine, c.as_ptr(), 20, 0, hops, hub_guard);
+            assert!(!resp.is_null());
+            let payload = CStr::from_ptr((*resp).payload)
+                .to_string_lossy()
+                .into_owned();
+            ffs_engine_free_response(resp);
+            payload
+        }
+    }
+
+    fn chain_fixture() -> tempfile::TempDir {
+        // leaf <- mid <- top
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("leaf.rs"), "pub fn leaf_fn() {}\n").unwrap();
+        std::fs::write(
+            dir.path().join("mid.rs"),
+            "pub fn mid_fn() { leaf_fn(); }\n",
+        )
+        .unwrap();
+        std::fs::write(dir.path().join("top.rs"), "pub fn top_fn() { mid_fn(); }\n").unwrap();
+        dir
+    }
+
+    #[test]
+    fn hops_controls_transitive_reach() {
+        let dir = chain_fixture();
+        let engine = build(dir.path());
+        assert!(!engine.is_null());
+
+        let h1 = impact(engine, "leaf_fn", 1, 50);
+        let h3 = impact(engine, "leaf_fn", 3, 50);
+
+        assert!(h1.contains("mid.rs"), "hops=1: {h1}");
+        assert!(
+            !h1.contains("top.rs"),
+            "hops=1 must not reach transitive callers: {h1}"
+        );
+        assert!(
+            h3.contains("top.rs"),
+            "hops=3 must reach the transitive caller: {h3}"
+        );
+
+        unsafe { ffs_engine_free(engine) };
+    }
+
+    #[test]
+    fn hub_guard_zero_blocks_propagation_but_keeps_hits() {
+        let dir = chain_fixture();
+        let engine = build(dir.path());
+
+        let guarded = impact(engine, "leaf_fn", 3, 0);
+        assert!(
+            !guarded.contains("top.rs"),
+            "hub_guard=0 must stop propagation: {guarded}"
+        );
+        assert!(guarded.contains("mid.rs"), "hits must survive: {guarded}");
+
+        unsafe { ffs_engine_free(engine) };
+    }
 }

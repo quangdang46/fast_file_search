@@ -474,7 +474,7 @@ impl FfsServer {
     /// IMPORTANT: Keep queries SHORT — prefer 1-2 terms max.
     #[tool(
         name = "ffs_find",
-        description = "Fuzzy file search by name. Searches FILE NAMES, not file contents. Use it when you need to find a file, not a definition. Use ffs_grep instead for searching code content (definitions, usage patterns). Supports fuzzy matching, path prefixes ('src/'), and glob constraints ('name **/src/*.{ts,tsx} !test/'). IMPORTANT: Keep queries SHORT — prefer 1-2 terms max. Multiple words are a waterfall (each narrows results), NOT OR. If unsure, start broad with 1 term and refine."
+        description = "Find files by name (fuzzy). Keep queries short (1-2 terms). Multiple words narrow (waterfall), NOT OR. Use ffs_grep for content."
     )]
     fn ffs_find(
         &self,
@@ -594,7 +594,7 @@ impl FfsServer {
     /// Fuzzy directory search by name. Searches DIRECTORY names, not file contents.
     #[tool(
         name = "ffs_find_dirs",
-        description = "Fuzzy directory search by name. Searches DIRECTORY names only. Use ffs_find for files, ffs_find_mixed for both. Supports fuzzy matching and path prefixes ('src/'). Returns directories ranked by match quality and frecency."
+        description = "Find directories by name (fuzzy). Use ffs_find for files."
     )]
     fn ffs_find_dirs(
         &self,
@@ -678,7 +678,7 @@ impl FfsServer {
     /// Fuzzy search across both files and directories, merged by score.
     #[tool(
         name = "ffs_find_mixed",
-        description = "Fuzzy search across both files AND directories, merged and ranked by score. Use ffs_find for files only, ffs_find_dirs for directories only. Trailing '/' in query restricts to directories."
+        description = "Find files and directories by name (fuzzy). Trailing '/' restricts to directories."
     )]
     fn ffs_find_mixed(
         &self,
@@ -773,7 +773,7 @@ impl FfsServer {
     /// Prefer plain text over regex. Filter files with constraints.
     #[tool(
         name = "ffs_grep",
-        description = "Search file contents. Search for bare identifiers (e.g. 'InProgressQuote', 'ActorAuth'), NOT code syntax or regex. Filter files with constraints (e.g. '*.rs query', 'src/ query'). Use filename, directory (ending with /) or glob expressions to prefilter. See server instructions for constraint syntax and core rules."
+        description = "Search file contents for bare identifiers, NOT code syntax or regex. Prepend constraints to limit scope ('*.rs query', 'src/ query', '!test/ query'). See server instructions."
     )]
     fn grep(
         &self,
@@ -816,7 +816,7 @@ impl FfsServer {
     /// Patterns are literal text — NEVER escape special characters.
     #[tool(
         name = "ffs_multi_grep",
-        description = "Search file contents for lines matching ANY of multiple patterns (OR logic). IMPORTANT: This returns files where ANY query matches, NOT all patterns. Patterns are literal text — NEVER escape special characters (no \\( \\) \\. etc). Faster than regex alternation for literal text. See server instructions for constraint syntax."
+        description = "Search for lines matching ANY of multiple patterns (OR, not AND). Patterns are literal — never escape them. Faster than regex alternation."
     )]
     fn ffs_multi_grep(
         &self,
@@ -832,7 +832,7 @@ impl FfsServer {
 
     #[tool(
         name = "ffs_symbol",
-        description = "Look up a symbol definition by exact name (or by prefix when the name ends with '*'). Backed by the tree-sitter symbol index over 16 languages."
+        description = "Find symbol definitions by exact name (AST-based, not substring). Trailing '*' does prefix search."
     )]
     fn engine_symbol(
         &self,
@@ -872,7 +872,7 @@ impl FfsServer {
 
     #[tool(
         name = "ffs_callers",
-        description = "Find all call sites of `name` in the workspace, narrowed by the bigram + bloom pre-filter stack and confirmed with a literal text scan. Excludes definition lines."
+        description = "Find call sites of a symbol (excludes definitions)."
     )]
     fn engine_callers(
         &self,
@@ -892,7 +892,7 @@ impl FfsServer {
 
     #[tool(
         name = "ffs_callees",
-        description = "Find all symbols referenced inside the body of `name` (i.e. the symbols `name` calls). Definitions are scanned via the symbol index; tokens that resolve to known definitions are emitted."
+        description = "Find symbols referenced inside a symbol's body."
     )]
     fn engine_callees(
         &self,
@@ -912,7 +912,7 @@ impl FfsServer {
 
     #[tool(
         name = "ffs_read",
-        description = "Read a file with token-budget-aware truncation. The body is filtered (none / minimal / aggressive), then clipped to fit `maxTokens` (default 25000). The footer '[truncated to budget]' is preserved when the budget runs out."
+        description = "Read file with token budget truncation (default 25000)."
     )]
     fn engine_read(
         &self,
@@ -955,7 +955,7 @@ impl FfsServer {
 
     #[tool(
         name = "ffs_refs",
-        description = "List all definitions of `name` plus single-hop usages in one shot. Returns JSON with `definitions[]`, `usages[]`, and pagination metadata. Mirrors `ffs refs` from the CLI."
+        description = "Definitions + single-hop usages of a symbol."
     )]
     fn engine_refs(
         &self,
@@ -976,7 +976,7 @@ impl FfsServer {
 
     #[tool(
         name = "ffs_flow",
-        description = "Drill-down envelope per definition: def metadata + body excerpt + top-N callees + top-N callers. Returns JSON cards with pagination. Mirrors `ffs flow` from the CLI."
+        description = "Per-definition card: def + body excerpt + top callees/callers."
     )]
     fn engine_flow(
         &self,
@@ -1010,7 +1010,7 @@ impl FfsServer {
 
     #[tool(
         name = "ffs_impact",
-        description = "Rank workspace files by how much they'd be affected if `name` changed. Score = direct*3 + imports*2 + transitive*1. Returns JSON `results[]` sorted by score desc."
+        description = "Rank files by impact if symbol changes (direct/imports/transitive)."
     )]
     fn engine_impact(
         &self,
@@ -1024,16 +1024,29 @@ impl FfsServer {
             .hops
             .map(|v| v.round().clamp(1.0, 3.0) as u32)
             .unwrap_or(3);
+        // `hubGuard: 0` is meaningful (blocks all propagation, like the CLI's
+        // `--hub-guard 0`), so do not floor it at 1.
+        let hub_guard = params
+            .hub_guard
+            .map(|v| v.round().max(0.0) as usize)
+            .unwrap_or(50);
         let engine = self.engine.get_or_build(&root, 25_000);
         catch_unwind_result(|| {
-            let text =
-                crate::engine_tools::find_impact(&engine, &root, &params.name, limit, offset, hops);
+            let text = crate::engine_tools::find_impact(
+                &engine,
+                &root,
+                &params.name,
+                limit,
+                offset,
+                hops,
+                hub_guard,
+            );
             Ok(CallToolResult::success(vec![Content::text(text)]))
         })
     }
     #[tool(
         name = "ffs_siblings",
-        description = "List sibling symbols (peers in the same parent scope as `name`). Useful for navigating around a definition: when you find a method, this surfaces the rest of the impl block / class. Mirrors `ffs siblings` from the CLI."
+        description = "Peer symbols in the same scope as a definition."
     )]
     fn engine_siblings(
         &self,
@@ -1059,7 +1072,7 @@ impl FfsServer {
 
     #[tool(
         name = "ffs_deps",
-        description = "Show a file's imports (raw + resolved) and the workspace files that depend on it. Use to understand the blast radius of changing a single file. Mirrors `ffs deps` from the CLI."
+        description = "File imports and dependents (blast radius)."
     )]
     fn engine_deps(
         &self,
@@ -1070,14 +1083,20 @@ impl FfsServer {
         let limit = normalize_max_results(params.max_results, 100);
         let offset = params.offset.map(|v| v.round() as usize).unwrap_or(0);
         catch_unwind_result(|| {
-            let text = crate::engine_tools::find_deps(&root, &params.target, limit, offset);
+            let text = crate::engine_tools::find_deps(
+                &root,
+                &params.target,
+                limit,
+                offset,
+                params.no_dependents.unwrap_or(false),
+            );
             Ok(CallToolResult::success(vec![Content::text(text)]))
         })
     }
 
     #[tool(
         name = "ffs_map",
-        description = "Render the workspace as a tree annotated with file count and an LLM-token estimate per directory. Use to orient yourself in an unfamiliar repo before drilling into a subtree. Mirrors `ffs map` from the CLI."
+        description = "Workspace tree with file counts and token estimates."
     )]
     fn engine_map(
         &self,
@@ -1097,7 +1116,7 @@ impl FfsServer {
     /// hooks; for now every mention resolves to a local file/dir/image.
     #[tool(
         name = "ffs_mention_search",
-        description = "Resolve a @-mention-style input against the workspace and return a JSON array of `ResolvedMention` payloads (path, kind, content, token cost, audit). Mirrors `ffs mention-search` (CLI) and `ffs_mention_search_json` (C ABI). Use when an agent receives a mention string and needs the underlying file contents token-budgeted for an LLM context."
+        description = "Resolve @-mentions to token-budgeted file contents."
     )]
     fn ffs_mention_search(
         &self,

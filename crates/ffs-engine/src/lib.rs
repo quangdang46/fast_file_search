@@ -1,6 +1,7 @@
 //! Orchestration layer: classify queries, run the unified scanner, dispatch
 //! to the right search backend, rank, and enforce the memory budget.
 
+pub mod candidates;
 pub mod classify;
 pub mod dispatch;
 pub mod memory;
@@ -9,6 +10,7 @@ pub mod prefilter;
 pub mod ranking;
 pub mod scanner;
 
+pub use candidates::CodeFile;
 pub use classify::{classify_query, ClassifiedQuery};
 pub use dispatch::{DispatchResult, Engine, EngineConfig, EngineHandles, ReadResult};
 pub use memory::{MemoryGuard, RepoSize};

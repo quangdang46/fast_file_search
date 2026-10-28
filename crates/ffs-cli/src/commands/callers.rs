@@ -10,8 +10,6 @@ use clap::{Parser, ValueEnum};
 use serde::Serialize;
 
 use ffs_engine::{Engine, PreFilterStack};
-use ffs_symbol::lang::detect_file_type;
-use ffs_symbol::types::FileType;
 
 use crate::cli::OutputFormat;
 use crate::commands::callers_bfs::{
@@ -161,25 +159,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
 
     let engine = crate::cache::load_or_build_engine(root);
 
-    let files = super::walk_files(root);
-    let candidates: Vec<CandidateFile> = files
-        .iter()
-        .filter_map(|path| {
-            let meta = std::fs::metadata(path).ok()?;
-            let mtime = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
-            let content = ffs_search::bom::read_file(path).ok()?;
-            let lang = match detect_file_type(path) {
-                FileType::Code(l) => Some(l),
-                _ => None,
-            };
-            Some(CandidateFile {
-                path: path.clone(),
-                mtime,
-                content,
-                lang,
-            })
-        })
-        .collect();
+    let candidates = CandidateFile::collect(root);
 
     let (mut hits, telemetry) = if args.hops <= 1 {
         (

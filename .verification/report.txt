@@ -1,0 +1,39 @@
+FFS refactor verification
+date: 2026-10-28T17:26:16Z
+base: d34576d4
+branch: main
+
+== git status ==
+ M crates/ffs-c/src/engine_ffi.rs
+ M crates/ffs-cli/assets/AGENT_GUIDE.md
+ M crates/ffs-cli/src/commands/callers.rs
+ M crates/ffs-cli/src/commands/callers_bfs.rs
+ M crates/ffs-cli/src/commands/flow.rs
+ M crates/ffs-cli/src/commands/impact.rs
+ M crates/ffs-cli/src/commands/mcp.rs
+ M crates/ffs-cli/src/commands/refs.rs
+ M crates/ffs-engine/src/lib.rs
+ M crates/ffs-mcp/src/engine_tools.rs
+ M crates/ffs-mcp/src/main.rs
+ M crates/ffs-mcp/src/server.rs
+?? .verification/
+?? benches/BASELINE.md
+?? benches/bench_multi_grep.py
+?? crates/ffs-engine/src/candidates.rs
+
+== cargo build --workspace ==
+   Compiling ffs-c v0.1.30 (/Users/tranquangdang21/Projects/fast_file_search/crates/ffs-c)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 34s
+build_exit=0
+
+== cargo test --workspace ==
+total passed: 963
+failures: 0
+test_exit: 0
+
+== cargo clippy --workspace --features zlob -- -D warnings ==
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.72s
+clippy_exit=0
+
+== cargo fmt --all --check ==
+fmt_exit=0

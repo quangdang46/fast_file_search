@@ -10,7 +10,6 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
-use std::time::SystemTime;
 
 use anyhow::Result;
 use clap::Parser;
@@ -71,25 +70,8 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     let root_canon = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
     let engine = crate::cache::load_or_build_engine(&root_canon);
 
-    let files = super::walk_files(&root_canon);
-    let candidates: Vec<CandidateFile> = files
-        .iter()
-        .filter_map(|path| {
-            let meta = std::fs::metadata(path).ok()?;
-            let mtime = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
-            let content = ffs_search::bom::read_file(path).ok()?;
-            let lang = match detect_file_type(path) {
-                FileType::Code(l) => Some(l),
-                _ => None,
-            };
-            Some(CandidateFile {
-                path: path.clone(),
-                mtime,
-                content,
-                lang,
-            })
-        })
-        .collect();
+    let files = CandidateFile::collect(&root_canon);
+    let candidates = files.as_slice();
 
     let definitions = engine.handles.symbols.lookup_exact(&args.name);
     let defn_paths: BTreeSet<PathBuf> = definitions
@@ -109,7 +91,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     let bfs = run_bfs(
         &engine,
         &args.name,
-        &candidates,
+        candidates,
         BfsConfig {
             max_hops: hops,
             hub_guard: args.hub_guard,

@@ -6,7 +6,6 @@
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::SystemTime;
 
 use once_cell::sync::OnceCell;
 use parking_lot::Mutex;
@@ -75,7 +74,6 @@ pub struct EngineImpactParams {
     /// BFS depth for the transitive signal (default 3, capped at 3).
     pub hops: Option<f64>,
     /// Hub-guard threshold mirroring `ffs callers` (default 50).
-    #[allow(dead_code)]
     #[serde(rename = "hubGuard")]
     pub hub_guard: Option<f64>,
 }
@@ -116,7 +114,6 @@ pub struct EngineDepsParams {
     /// Skip this many dependents before starting the page (default 0).
     pub offset: Option<f64>,
     /// Skip the dependents walk; resolve imports only (default false).
-    #[allow(dead_code)]
     #[serde(rename = "noDependents")]
     pub no_dependents: Option<bool>,
 }
@@ -320,35 +317,10 @@ pub fn find_callee_sites(engine: &Engine, root: &Path, symbol: &str, limit: usiz
 /// the duration of one callers/refs request). Fine for typical repos; if this
 /// ever shows up in a profile, the fix is to probe the bloom cache per file
 /// during the walk and retain only survivors' content.
-fn walk_code_files(root: &Path) -> Vec<(std::path::PathBuf, SystemTime, String)> {
-    use ignore::WalkBuilder;
-    let mut out = Vec::new();
-    for entry in WalkBuilder::new(root)
-        .standard_filters(true)
-        .follow_links(false)
-        .build()
-        .flatten()
-    {
-        if !entry.file_type().is_some_and(|t| t.is_file()) {
-            continue;
-        }
-        let path = entry.into_path();
-        if !matches!(
-            detect_file_type(&path),
-            ffs_symbol::types::FileType::Code(_)
-        ) {
-            continue;
-        }
-        let Ok(meta) = std::fs::metadata(&path) else {
-            continue;
-        };
-        let mtime = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
-        let Ok(content) = ffs::bom::read_file(&path) else {
-            continue;
-        };
-        out.push((path, mtime, content));
-    }
-    out
+fn walk_code_files(root: &Path) -> Vec<(std::path::PathBuf, std::time::SystemTime, String)> {
+    // Shared walker with `ffs-cli` and `ffs-c`. Serial and ordered on purpose:
+    // hits are truncated at a limit, so walk order decides what is returned.
+    ffs_engine::CodeFile::into_confirm_input(&ffs_engine::CodeFile::collect(root))
 }
 
 /// Find the innermost enclosing symbol from an outline for a given line.
@@ -369,6 +341,23 @@ fn enclosing_symbol(entries: &[ffs_symbol::types::OutlineEntry], line: u32) -> O
         None
     }
     walk(entries, line).map(|e| e.name.clone())
+}
+
+/// Enclosing symbol name for a call hit, resolved through the shared outline
+/// cache. `path` is the relative path emitted by `find_call_sites`, so it is
+/// re-rooted before reading.
+fn enclosing_for_hit(engine: &Engine, root: &Path, path: &str, line: u32) -> Option<String> {
+    let abs = root.join(path);
+    let lang = match detect_file_type(&abs) {
+        ffs_symbol::types::FileType::Code(l) => l,
+        _ => return None,
+    };
+    let (content, mtime) = ffs::bom::read_file_with_mtime(&abs).ok()?;
+    let outline = engine
+        .handles
+        .outlines
+        .get_or_compute(&abs, mtime, &content, lang);
+    enclosing_symbol(&outline, line)
 }
 
 /// Result of an in-process refs lookup. Mirrors the CLI's `RefUsage`.
@@ -762,28 +751,14 @@ pub fn format_map(root: &Path, depth: u32, _symbols: u32) -> String {
     out
 }
 
-/// Check if a file path looks like an entry point (main.rs, lib.rs, index.*, etc.)
-fn _is_entry_point(path: &Path) -> bool {
-    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-    matches!(
-        name,
-        "main.rs"
-            | "lib.rs"
-            | "mod.rs"
-            | "index.ts"
-            | "index.js"
-            | "index.tsx"
-            | "index.jsx"
-            | "__init__.py"
-            | "main.py"
-            | "main.go"
-            | "main.c"
-            | "main.cpp"
-    )
-}
-
 /// Find imports for a file and dependents. Simplified in-process version.
-pub fn find_deps(root: &Path, target: &str, limit: usize, _offset: usize) -> String {
+pub fn find_deps(
+    root: &Path,
+    target: &str,
+    limit: usize,
+    _offset: usize,
+    skip_dependents: bool,
+) -> String {
     let target_path = if std::path::Path::new(target).is_absolute() {
         std::path::PathBuf::from(target)
     } else {
@@ -816,6 +791,10 @@ pub fn find_deps(root: &Path, target: &str, limit: usize, _offset: usize) -> Str
         for imp in &imports {
             out.push_str(&format!("  {imp}\n"));
         }
+    }
+
+    if skip_dependents {
+        return out;
     }
 
     // Find dependents (files that reference the target)
@@ -1040,7 +1019,8 @@ pub fn find_impact(
     name: &str,
     limit: usize,
     offset: usize,
-    _hops: u32,
+    hops: u32,
+    hub_guard: usize,
 ) -> String {
     let mut definitions = resolve_symbol_name(name, &engine.handles.symbols);
     definitions.sort_by_key(|b| std::cmp::Reverse(b.weight));
@@ -1050,12 +1030,57 @@ pub fn find_impact(
 
     // Direct callers
     let callers = find_call_sites(engine, root, name, limit.max(100));
-    let mut scores: std::collections::BTreeMap<String, (u32, u32)> =
-        std::collections::BTreeMap::new(); // path -> (direct_score, import_score)
+    // path -> (direct_score, import_score, transitive_score)
+    let mut scores: std::collections::BTreeMap<String, (u32, u32, u32)> =
+        std::collections::BTreeMap::new();
 
     for c in &callers {
         let entry = scores.entry(c.path.clone()).or_default();
         entry.0 += 3; // direct callers weighted 3x
+    }
+
+    // Transitive signal: BFS over the caller graph beyond depth 1. `hops == 1`
+    // disables it (matching `ffs impact --hops 1`). The MCP surface previously
+    // accepted `hops`/`hubGuard` and ignored both; they now drive this walk.
+    //
+    // The frontier advances through *enclosing symbols* resolved from the
+    // outline cache — the same primitive the CLI's `callers --hops N` uses.
+    // Token-splitting a call-site line is not a substitute: it picks up
+    // keywords (`pub`, `fn`) and never advances past the first hop.
+    if hops > 1 {
+        let mut frontier: Vec<String> = vec![name.to_string()];
+        let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+        seen.insert(name.to_string());
+
+        for _depth in 2..=hops {
+            let mut next: Vec<String> = Vec::new();
+            for sym in &frontier {
+                // Count one hit past the guard so `is_hub` is decidable even
+                // when a name is far more popular than `hub_guard`.
+                let sym_callers = find_call_sites(engine, root, sym, hub_guard.saturating_add(1));
+                // Hub guard: a name producing more than `hub_guard` hits stops
+                // propagating (its hits still count) — mirrors `ffs callers`.
+                let is_hub = sym_callers.len() > hub_guard;
+                for c in &sym_callers {
+                    scores.entry(c.path.clone()).or_default().2 += 1;
+                }
+                if is_hub {
+                    continue;
+                }
+                for c in &sym_callers {
+                    let Some(encl) = enclosing_for_hit(engine, root, &c.path, c.line) else {
+                        continue;
+                    };
+                    if encl != *sym && seen.insert(encl.clone()) {
+                        next.push(encl);
+                    }
+                }
+            }
+            if next.is_empty() {
+                break;
+            }
+            frontier = next;
+        }
     }
 
     // Reverse imports: files that import files containing the symbol.
@@ -1106,11 +1131,12 @@ pub fn find_impact(
         }
     }
 
-    // Sort by total score desc
+    // Sort by total score desc (direct*3 + imports*2 + transitive*1, where the
+    // weights are already baked into each accumulator).
     let mut rows: Vec<_> = scores.into_iter().collect();
     rows.sort_by(|a, b| {
-        let a_score = a.1.0 + a.1.1;
-        let b_score = b.1.0 + b.1.1;
+        let a_score = a.1.0 + a.1.1 + a.1.2;
+        let b_score = b.1.0 + b.1.1 + b.1.2;
         b_score.cmp(&a_score).then_with(|| a.0.cmp(&b.0))
     });
 
@@ -1121,8 +1147,8 @@ pub fn find_impact(
     }
 
     let mut out = String::new();
-    for (path, (direct, import)) in &page {
-        let score = direct + import;
+    for (path, (direct, import, transitive)) in &page {
+        let score = direct + import + transitive;
         out.push_str(&format!("{score:>5}  {path}\n"));
     }
     if offset + page.len() < total {
@@ -1317,7 +1343,7 @@ mod impact_path_tests {
         let engine = Engine::new(EngineConfig::default());
         engine.index(root);
 
-        let out = find_impact(&engine, root, "target_fn", 20, 0, 1);
+        let out = find_impact(&engine, root, "target_fn", 20, 0, 1, 50);
 
         // Every emitted row path must be relative to `root` — an absolute
         // path here means the two halves of the score map disagreed.
@@ -1347,6 +1373,87 @@ mod impact_path_tests {
             before,
             sorted.len(),
             "impact output has duplicate rows: {paths:?}"
+        );
+    }
+
+    #[test]
+    fn deps_no_dependents_skips_the_walk() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        std::fs::write(root.join("lib.rs"), "use serde::Serialize;\n").unwrap();
+        std::fs::write(root.join("user.rs"), "use lib;\n").unwrap();
+
+        let full = find_deps(root, "lib.rs", 10, 0, false);
+        let skipped = find_deps(root, "lib.rs", 10, 0, true);
+
+        assert!(full.contains("Dependents"), "full output: {full:?}");
+        assert!(
+            !skipped.contains("Dependents"),
+            "noDependents must skip the dependents section: {skipped:?}"
+        );
+        // Imports are still resolved in both.
+        assert!(
+            skipped.contains("Imports"),
+            "imports must remain: {skipped:?}"
+        );
+    }
+
+    #[test]
+    fn impact_hops_controls_transitive_signal() {
+        // chain: leaf <- mid <- top
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        std::fs::write(root.join("leaf.rs"), "pub fn leaf_fn() {}\n").unwrap();
+        std::fs::write(root.join("mid.rs"), "pub fn mid_fn() { leaf_fn(); }\n").unwrap();
+        std::fs::write(root.join("top.rs"), "pub fn top_fn() { mid_fn(); }\n").unwrap();
+
+        let engine = Engine::new(EngineConfig::default());
+        engine.index(root);
+
+        let hops1 = find_impact(&engine, root, "leaf_fn", 20, 0, 1, 50);
+        let hops3 = find_impact(&engine, root, "leaf_fn", 20, 0, 3, 50);
+
+        // depth-1 may only reach the direct caller.
+        assert!(hops1.contains("mid.rs"), "hops=1 output: {hops1:?}");
+        assert!(
+            !hops1.contains("top.rs"),
+            "hops=1 must not reach transitive callers: {hops1:?}"
+        );
+        // depth-3 must reach the transitive caller through mid_fn.
+        assert!(
+            hops3.contains("top.rs"),
+            "hops=3 should reach the transitive caller: {hops3:?}"
+        );
+    }
+
+    #[test]
+    fn impact_hub_guard_param_is_accepted() {
+        // The parameter must be functional, not decorative: a hub_guard so low
+        // that every name is a hub stops propagation beyond depth 1.
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        std::fs::write(root.join("leaf.rs"), "pub fn leaf_fn() {}\n").unwrap();
+        std::fs::write(root.join("mid.rs"), "pub fn mid_fn() { leaf_fn(); }\n").unwrap();
+        std::fs::write(root.join("top.rs"), "pub fn top_fn() { mid_fn(); }\n").unwrap();
+
+        let engine = Engine::new(EngineConfig::default());
+        engine.index(root);
+
+        let guarded = find_impact(&engine, root, "leaf_fn", 20, 0, 3, 0);
+        assert!(
+            !guarded.contains("top.rs"),
+            "hub_guard=0 must stop propagation: {guarded:?}"
+        );
+        // The direct caller is still reported — the guard stops propagation,
+        // it does not erase hits.
+        assert!(guarded.contains("mid.rs"), "hits must survive: {guarded:?}");
+
+        // Sanity: the same walk with a normal guard does reach depth 2, so the
+        // assertion above is about the guard and not about a broken walk.
+        let unguarded = find_impact(&engine, root, "leaf_fn", 20, 0, 3, 50);
+        assert!(
+            unguarded.contains("top.rs"),
+            "guard=50 should allow propagation: {unguarded:?}"
         );
     }
 }

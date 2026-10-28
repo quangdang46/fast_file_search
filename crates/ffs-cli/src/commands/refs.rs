@@ -11,8 +11,6 @@ use clap::Parser;
 use serde::Serialize;
 
 use ffs_engine::{Engine, PreFilterStack};
-use ffs_symbol::lang::detect_file_type;
-use ffs_symbol::types::FileType;
 
 use crate::cli::OutputFormat;
 use crate::commands::callers_bfs::{enclosing_symbol, CandidateFile};
@@ -96,24 +94,7 @@ fn collect_definitions(engine: &Engine, name: &str) -> Vec<RefDefinition> {
 }
 
 fn build_candidates(root: &Path) -> Vec<CandidateFile> {
-    super::walk_files(root)
-        .into_iter()
-        .filter_map(|path| {
-            let meta = std::fs::metadata(&path).ok()?;
-            let mtime = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
-            let content = ffs_search::bom::read_file(&path).ok()?;
-            let lang = match detect_file_type(&path) {
-                FileType::Code(l) => Some(l),
-                _ => None,
-            };
-            Some(CandidateFile {
-                path,
-                mtime,
-                content,
-                lang,
-            })
-        })
-        .collect()
+    CandidateFile::collect(root)
 }
 
 fn collect_usages(engine: &Engine, name: &str, candidates: &[CandidateFile]) -> Vec<RefUsage> {

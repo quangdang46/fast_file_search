@@ -384,9 +384,7 @@ fn handle_tool(state: &mut McpState, root: &Path, name: &str, args: &Value) -> R
             let hits = grep_files(root, query, limit);
             let mut out = String::with_capacity(hits.len() * 96);
             for h in &hits {
-                let pbuf = std::path::PathBuf::from(&h.path);
-                let rel = pbuf.strip_prefix(root).unwrap_or(&pbuf);
-                out.push_str(&rel.to_string_lossy());
+                out.push_str(&display_path(root, Path::new(&h.path)));
                 out.push(':');
                 out.push_str(&h.line.to_string());
                 out.push(':');
@@ -415,9 +413,7 @@ fn handle_tool(state: &mut McpState, root: &Path, name: &str, args: &Value) -> R
             all_hits.truncate(limit);
             let mut out = String::with_capacity(all_hits.len() * 96);
             for h in &all_hits {
-                let pbuf = std::path::PathBuf::from(&h.path);
-                let rel = pbuf.strip_prefix(root).unwrap_or(&pbuf);
-                out.push_str(&rel.to_string_lossy());
+                out.push_str(&display_path(root, Path::new(&h.path)));
                 out.push(':');
                 out.push_str(&h.line.to_string());
                 out.push(':');
@@ -451,9 +447,7 @@ fn handle_tool(state: &mut McpState, root: &Path, name: &str, args: &Value) -> R
             hits.truncate(limit);
             let mut out = String::with_capacity(hits.len() * 64);
             for h in &hits {
-                let pbuf = std::path::PathBuf::from(h);
-                let rel = pbuf.strip_prefix(root).unwrap_or(&pbuf);
-                out.push_str(&rel.to_string_lossy());
+                out.push_str(&display_path(root, Path::new(h)));
                 out.push('\n');
             }
             Ok(text_json(out))
@@ -516,8 +510,7 @@ fn handle_tool(state: &mut McpState, root: &Path, name: &str, args: &Value) -> R
             hits.truncate(limit);
             let mut out = String::with_capacity(hits.len() * 96);
             for h in &hits {
-                let rel = h.path.strip_prefix(root).unwrap_or(&h.path);
-                out.push_str(&rel.to_string_lossy());
+                out.push_str(&display_path(root, &h.path));
                 out.push(':');
                 out.push_str(&h.line.to_string());
                 out.push_str(" [");
@@ -536,9 +529,7 @@ fn handle_tool(state: &mut McpState, root: &Path, name: &str, args: &Value) -> R
             let hits = collect_callers(state, root, nm, limit);
             let mut out = String::with_capacity(hits.len() * 80);
             for h in &hits {
-                let pbuf = std::path::PathBuf::from(&h.path);
-                let rel = pbuf.strip_prefix(root).unwrap_or(&pbuf);
-                out.push_str(&rel.to_string_lossy());
+                out.push_str(&display_path(root, Path::new(&h.path)));
                 out.push(':');
                 out.push_str(&h.line.to_string());
                 out.push_str(": ");
@@ -820,9 +811,9 @@ struct GrepHit {
 }
 
 fn grep_files(root: &Path, query: &str, limit: usize) -> Vec<GrepHit> {
-    let query_lower = query.to_lowercase();
     let smart_case = query.chars().any(char::is_uppercase);
     let mut hits = Vec::new();
+    let mut lower_buf = String::new();
     for path in super::walk_files(root) {
         if hits.len() >= limit {
             break;
@@ -831,10 +822,14 @@ fn grep_files(root: &Path, query: &str, limit: usize) -> Vec<GrepHit> {
             continue;
         };
         for (line_idx, line) in text.lines().enumerate() {
+            // Reuse one buffer for the case-folded line: allocating a fresh
+            // String per line dominated this loop on large files.
             let found = if smart_case {
                 line.contains(query)
             } else {
-                line.to_lowercase().contains(&query_lower)
+                lower_buf.clear();
+                lower_buf.extend(line.chars().flat_map(char::to_lowercase));
+                lower_buf.contains(query)
             };
             if found {
                 hits.push(GrepHit {
@@ -886,26 +881,41 @@ fn multi_grep_files(root: &Path, needles: &[&str], limit: usize) -> Vec<GrepHit>
             continue;
         };
         let bytes = text.as_bytes();
+
+        // Aho-Corasick yields matches in ascending byte order, so we advance a
+        // line cursor instead of rescanning the prefix per match (the old bug)
+        // and instead of precomputing a line table for files with no matches
+        // (which paid an extra pass over the whole tree).
+        let mut scan = 0usize; // bytes consumed by the line cursor
+        let mut line_idx = 0usize; // 0-based line containing `scan`
+        let mut line_start = 0usize; // byte offset where `line_idx` begins
+
         for mat in ac.find_iter(bytes) {
             if hits.len() >= limit {
                 break;
             }
-            // Map byte offset → 1-based line
-            let line = bytes[..mat.start()].iter().filter(|&&b| b == b'\n').count() + 1;
-            let key = (display_path(root, &path), line);
-            if !seen_lines.insert(key.clone()) {
+            // Walk newlines from `scan` up to the match start.
+            while let Some(rel) = bytes[scan..mat.start()].iter().position(|&b| b == b'\n') {
+                scan += rel + 1;
+                line_idx += 1;
+                line_start = scan;
+            }
+            scan = mat.start();
+
+            let line = line_idx + 1;
+            let path_str = display_path(root, &path);
+            if !seen_lines.insert((path_str.clone(), line)) {
                 continue;
             }
-            let line_text = text
-                .lines()
-                .nth(line.saturating_sub(1))
-                .unwrap_or("")
-                .trim()
-                .to_string();
+            let end = bytes[mat.start()..]
+                .iter()
+                .position(|&b| b == b'\n')
+                .map(|rel| mat.start() + rel)
+                .unwrap_or(bytes.len());
             hits.push(GrepHit {
-                path: key.0,
-                line: key.1,
-                text: line_text,
+                path: path_str,
+                line,
+                text: text[line_start..end].trim().to_string(),
             });
         }
     }
@@ -1285,6 +1295,88 @@ mod tests {
             .as_str()
             .unwrap()
             .contains("mcp.rs"));
+    }
+
+    #[test]
+    fn grep_files_case_insensitive_matches_multibyte_lines() {
+        let td = tempfile::tempdir().unwrap();
+        let root = td.path();
+        std::fs::write(
+            root.join("a.rs"),
+            "Hello World\nTODO here\ntodo there\nÜnïcode TÉST\nİstanbul\n",
+        )
+        .unwrap();
+        // Lowercase query -> smart-case off -> case-folded comparison.
+        let hits = grep_files(root, "todo", 10);
+        let lines: Vec<usize> = hits.iter().map(|h| h.line).collect();
+        assert_eq!(lines, vec![2, 3], "both cases matched, line numbers exact");
+
+        // Uppercase query -> smart-case on -> case-sensitive.
+        let hits = grep_files(root, "TODO", 10);
+        assert_eq!(
+            hits.iter().map(|h| h.line).collect::<Vec<_>>(),
+            vec![2],
+            "smart-case must stay case-sensitive for uppercase needles"
+        );
+
+        // Non-ASCII case folding must not be lost by the reused buffer.
+        let hits = grep_files(root, "ünïcode", 10);
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].line, 4);
+        assert_eq!(hits[0].text, "Ünïcode TÉST");
+    }
+
+    #[test]
+    fn multi_grep_maps_byte_offsets_to_correct_lines() {
+        let td = tempfile::tempdir().unwrap();
+        let root = td.path();
+        // Multiple matches per line and matches on the first/last line — the
+        // exact cases the old O(prefix) line counter could get wrong.
+        std::fs::write(
+            root.join("b.rs"),
+            "alpha beta alpha\nno match here\ngamma alpha\n\nfinal alpha",
+        )
+        .unwrap();
+        let hits = multi_grep_files(root, &["alpha", "gamma"], 50);
+        let mut got: Vec<(usize, String)> = hits.iter().map(|h| (h.line, h.text.clone())).collect();
+        got.sort();
+
+        let mut want = vec![
+            (1, "alpha beta alpha".to_string()),
+            (3, "gamma alpha".to_string()),
+            (5, "final alpha".to_string()),
+        ];
+        want.sort();
+        assert_eq!(got, want, "one row per line, exact text and line numbers");
+    }
+
+    #[test]
+    fn multi_grep_stops_at_limit_and_deduplicates_per_line() {
+        let td = tempfile::tempdir().unwrap();
+        let root = td.path();
+        std::fs::write(root.join("d.rs"), "alpha alpha\nalpha\nbeta\nalpha\n").unwrap();
+        // Second "alpha" on line 1 is a duplicate (same file+line) — dropped.
+        let hits = multi_grep_files(root, &["alpha", "beta"], 3);
+        let mut got: Vec<(usize, String)> = hits.iter().map(|h| (h.line, h.text.clone())).collect();
+        got.sort();
+        assert_eq!(got.len(), 3);
+        assert_eq!(got[0], (1, "alpha alpha".to_string()));
+        assert_eq!(got[1], (2, "alpha".to_string()));
+        assert_eq!(got[2], (3, "beta".to_string()));
+    }
+
+    #[test]
+    fn multi_grep_handles_crlf_and_trailing_newline() {
+        let td = tempfile::tempdir().unwrap();
+        let root = td.path();
+        std::fs::write(
+            root.join("c.rs"),
+            "first alpha\r\nsecond\r\nthird alpha\r\n",
+        )
+        .unwrap();
+        let hits = multi_grep_files(root, &["alpha"], 50);
+        let lines: Vec<usize> = hits.iter().map(|h| h.line).collect();
+        assert_eq!(lines, vec![1, 3]);
     }
 
     #[test]
