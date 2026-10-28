@@ -1,25 +1,24 @@
 # Verification artifacts
 
-Produced on 2026-10-29 against base commit `d34576d4`.
+Produced 2026-10-29 against base commit `d34576d4`.
 
 | File | What it proves |
 |---|---|
-| `report.txt` | `cargo build` / `cargo test` / `clippy -D warnings` / `fmt --check` output with exit codes |
-| `api_compat.json` | CLI flags, MCP tool schemas, and C exports compared before/after (`verdict: PASS`) |
+| `report.txt` | `cargo build` / `cargo test` / `clippy -D warnings` / `fmt --check` with exit codes |
+| `api_compat.json` | CLI flags, MCP tool schemas, C exports compared base-vs-branch (`verdict: PASS`) |
 | `json_equivalence.txt` | 35 CLI command/flag combinations produce byte-identical JSON |
-| `verify_api.py` | Script that regenerates `api_compat.json` |
-| `c_before.rs`, `engine_before.rs` | Base-commit C ABI sources used as the comparison baseline |
+| `verify_api.py` | Regenerates `api_compat.json`; exits non-zero on any lost tool, schema property, required field, or C export |
+
+The C ABI baseline is read from git (`git show <rev>:crates/ffs-c/src/...`)
+rather than vendored into this directory, so it cannot drift or rot.
 
 ## Reproduce
 
 ```bash
-git stash                                  # base state
-cargo build -p ffs-cli && cp target/debug/ffs /tmp/ffs-before
-git stash pop
+# A binary built from the base commit to compare against:
+git stash && cargo build -p ffs-cli && cp target/debug/ffs /tmp/ffs-before && git stash pop
 cargo build -p ffs-cli
 
-python .verification/verify_api.py /tmp/ffs-before ./target/debug/ffs <fixture-dir> "$PWD"
+python .verification/verify_api.py \
+    /tmp/ffs-before ./target/debug/ffs <fixture-dir> "$PWD" origin/main
 ```
-
-`verify_api.py` exits non-zero when any tool is missing, a schema property is
-lost, a required set changes, or a C export disappears.

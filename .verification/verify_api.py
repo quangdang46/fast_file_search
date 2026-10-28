@@ -49,7 +49,25 @@ mb, ma = mcp_surface(before_bin, fixture), mcp_surface(after_bin, fixture)
 mcp_missing = sorted(set(mb)-set(ma))
 mcp_params_lost = {n: sorted(set(mb[n][0])-set(ma[n][0])) for n in mb if n in ma and set(mb[n][0])-set(ma[n][0])}
 mcp_required_changed = {n:(mb[n][1],ma[n][1]) for n in mb if n in ma and mb[n][1]!=ma[n][1]}
-c_b = c_exports([f'{repo}/.verification/c_before.rs', f'{repo}/.verification/engine_before.rs'])
+def c_exports_from_git(repo, rev):
+    """Read the C ABI sources at `rev` instead of vendoring a copy.
+
+    Keeps the comparison honest as the tree moves: the baseline is always
+    whatever that commit actually shipped, not a frozen snapshot.
+    """
+    names = []
+    for rel in ("crates/ffs-c/src/lib.rs", "crates/ffs-c/src/engine_ffi.rs"):
+        try:
+            src = subprocess.run(
+                ["git", "-C", repo, "show", f"{rev}:{rel}"],
+                capture_output=True, text=True, check=True).stdout
+        except subprocess.CalledProcessError:
+            continue
+        names += re.findall(r'extern "C" fn (\w+)', src)
+    return sorted(set(names))
+
+base_rev = sys.argv[5] if len(sys.argv) > 5 else "origin/main"
+c_b = c_exports_from_git(repo, base_rev)
 c_a = c_exports([f'{repo}/crates/ffs-c/src/lib.rs', f'{repo}/crates/ffs-c/src/engine_ffi.rs'])
 
 report = {
