@@ -1625,8 +1625,8 @@ fn get_simple_outline(text: &str) -> Vec<SymEntry> {
                 }
                 // impl blocks
                 else if let Some(name) = parse_after_keyword(trimmed, "impl ") {
-                    // Extract just the type name (before the { or where)
-                    let name = name.split(['{', 'w']).next().unwrap_or(&name).trim();
+                    // Extract just the type name (before the {)
+                    let name = name.split('{').next().unwrap_or(&name).trim();
                     let end = find_block_end(&lines[i..], line_num);
                     entries.push(SymEntry {
                         kind: "impl".into(),

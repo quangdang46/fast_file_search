@@ -425,12 +425,7 @@ fn simple_outline(text: &str) -> Vec<SymEntry> {
                 end_line: end,
             });
         } else if let Some(name) = kw_match(trimmed, "impl ") {
-            let name = name
-                .split(['{', 'w'])
-                .next()
-                .unwrap_or("")
-                .trim()
-                .to_string();
+            let name = name.split('{').next().unwrap_or("").trim().to_string();
             let end = find_block_end(&lines[i..], line_num);
             entries.push(SymEntry {
                 kind: "impl".into(),
