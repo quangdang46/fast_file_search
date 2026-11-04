@@ -660,7 +660,7 @@ pub fn target_three() {}
 RS
   "$FFS_BIN" --root "$TMP" grep --group "target_" >"$out" 2>/dev/null
   assert_contains "grep --group impl Narrow not truncated (#132)" "impl Narrow @ L2" "$out"
-  assert_contains "grep --group impl Drawable not truncated (#132)" "impl Drawable @" "$out"
+  assert_contains "grep --group impl Drawable for Narrow groups under Narrow (#132)" "impl Narrow @ L5-L7" "$out"
   assert_contains "grep --group impl worker not empty (#132)" "impl worker @" "$out"
   if grep -qE '(^|\s)impl (Narro|Dra)($|\s)' "$out" 2>/dev/null; then
     log_fail "grep --group truncated impl name present (#132)"
@@ -669,6 +669,36 @@ RS
   fi
   # A bodyless `struct X;` must not swallow the next impl block's matches.
   assert_contains "grep --group bodyless struct scope (#132)" "function target_one @" "$out"
+
+  # Generic impls and duplicate impl types keep their own groups.
+  cat > "$TMP/src/impl_more.rs" <<'RS'
+pub struct Narrow;
+impl Narrow {
+    fn a(&self) { hit_a(); }
+}
+impl Narrow {
+    fn b(&self) { hit_b(); }
+}
+impl<T> Boxed<T> where T: Clone {
+    fn c(&self) { hit_c(); }
+}
+pub fn hit_a() {}
+pub fn hit_b() {}
+pub fn hit_c() {}
+RS
+  "$FFS_BIN" --root "$TMP" grep --group "hit_" >"$out" 2>/dev/null
+  assert_contains "grep --group generic impl named (#132)" "impl Boxed @" "$out"
+  assert_contains "grep --group duplicate impl first scope (#132)" "impl Narrow @ L2-L4" "$out"
+  assert_contains "grep --group duplicate impl second scope (#132)" "impl Narrow @ L5-L7" "$out"
+  # The two impl blocks must remain separate groups even if both match.
+  # Each block appears as its own "impl Narrow @ L...-L..." line.
+  if grep -c '^  impl Narrow @ ' "$out" 2>/dev/null | awk '{exit ($1>=2)?0:1}'; then
+    log_pass "grep --group duplicate impls not merged (#132)"
+  elif grep -A10 "impl Narrow @ L2-L4" "$out" | grep -q "impl Narrow @"; then
+    log_pass "grep --group duplicate impls not merged (#132)"
+  else
+    log_fail "grep --group duplicate impls merged (#132)"
+  fi
 
   # --group with no matches must report a real file count, not usize::MAX
   "$FFS_BIN" --root "$TMP" grep --group "zzznomatch132" >"$out" 2>/dev/null

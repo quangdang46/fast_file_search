@@ -170,10 +170,12 @@ pub fn grep(root: &Path, needle: &str, options: &GrepOptions) -> GrepResult {
                 .iter()
                 .find(|e| e.start_line <= line_usize && line_usize <= e.end_line);
             if let Some(sym) = enclosing {
-                if let Some(g) = groups
-                    .iter_mut()
-                    .find(|g: &&mut MatchGroup| g.name == sym.name && g.kind == sym.kind)
-                {
+                if let Some(g) = groups.iter_mut().find(|g: &&mut MatchGroup| {
+                    g.name == sym.name
+                        && g.kind == sym.kind
+                        && g.start_line == (sym.start_line as u32)
+                        && g.end_line == (sym.end_line as u32)
+                }) {
                     g.matches.push(GrepMatch {
                         line: *line,
                         text: text.clone(),
@@ -425,7 +427,32 @@ fn simple_outline(text: &str) -> Vec<SymEntry> {
                 end_line: end,
             });
         } else if let Some(name) = kw_match(trimmed, "impl ") {
-            let name = name.split('{').next().unwrap_or("").trim().to_string();
+            // Extract impl name: prefer implementing type (for impl Trait for Type)
+            let mut rest = name.as_str();
+            if let Some(pos) = rest.find(" for ") {
+                rest = &rest[pos + 5..];
+            }
+            // Strip generics from impl side if present in the captured name
+            if rest.starts_with('<') {
+                let mut depth = 0usize;
+                if let Some(mut end) = None::<usize> {
+                    // not used
+                }
+                for (i, c) in rest.char_indices() {
+                    match c {
+                        '<' => depth += 1,
+                        '>' => {
+                            depth -= 1;
+                            if depth == 0 {
+                                rest = rest[i + c.len_utf8()..].trim_start();
+                                break;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            let name = rest.split('{').next().unwrap_or(rest).trim().to_string();
             let end = find_block_end(&lines[i..], line_num);
             entries.push(SymEntry {
                 kind: "impl".into(),

@@ -1497,11 +1497,13 @@ fn build_grouped_result(needle: &str, hits: &[GrepHit], mode: &'static str) -> G
                 .iter()
                 .find(|e| e.start_line <= line && line <= e.end_line);
             if let Some(sym) = enclosing {
-                // Check if we already have a group for this symbol
-                if let Some(g) = groups
-                    .iter_mut()
-                    .find(|g: &&mut MatchGroup| g.name == sym.name && g.kind == sym.kind)
-                {
+                // Check if we already have a group for this symbol (same symbol instance)
+                if let Some(g) = groups.iter_mut().find(|g: &&mut MatchGroup| {
+                    g.name == sym.name
+                        && g.kind == sym.kind
+                        && g.start_line == (sym.start_line as u32)
+                        && g.end_line == (sym.end_line as u32)
+                }) {
                     g.matches.push(GroupedMatch {
                         line: hit.line,
                         text: hit.text.clone(),
@@ -1625,13 +1627,11 @@ fn get_simple_outline(text: &str) -> Vec<SymEntry> {
                     });
                 }
                 // impl blocks
-                else if let Some(name) = parse_after_keyword(trimmed, "impl ") {
-                    // Extract just the type name (before the {)
-                    let name = name.split('{').next().unwrap_or(&name).trim();
+                else if let Some(name) = impl_name(trimmed) {
                     let end = find_block_end(&lines[i..], line_num);
                     entries.push(SymEntry {
                         kind: "impl".into(),
-                        name: name.to_string(),
+                        name,
                         start_line: line_num,
                         end_line: end,
                     });
@@ -1704,6 +1704,41 @@ fn parse_after_keyword(line: &str, kw: &str) -> Option<String> {
     let rest = line.strip_prefix(kw)?;
     // Extract name (up to (, <, :, {, whitespace)
     let name = rest.split(['(', '<', ':', '{', ' ']).next()?.trim();
+    if name.is_empty() {
+        None
+    } else {
+        Some(name.to_string())
+    }
+}
+
+/// Name for an `impl` header: the implementing type when present
+/// (`impl<T> Trait for Type` → `Type`), else the bare/generic type.
+fn impl_name(line: &str) -> Option<String> {
+    let s = line.trim_start();
+    let mut rest = s.strip_prefix("impl")?.trim_start();
+    // Drop the impl's own generic parameters: `impl<T: Clone>`.
+    if rest.starts_with('<') {
+        let mut depth = 0usize;
+        let mut end = None;
+        for (i, c) in rest.char_indices() {
+            match c {
+                '<' => depth += 1,
+                '>' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        end = Some(i + c.len_utf8());
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        rest = rest[end?..].trim_start();
+    }
+    if let Some(pos) = rest.find(" for ") {
+        rest = rest[pos + 5..].trim_start();
+    }
+    let name = rest.split(['{', '<', ':', ' ']).next()?.trim();
     if name.is_empty() {
         None
     } else {
