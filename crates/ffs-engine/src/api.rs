@@ -435,9 +435,6 @@ fn simple_outline(text: &str) -> Vec<SymEntry> {
             // Strip generics from impl side if present in the captured name
             if rest.starts_with('<') {
                 let mut depth = 0usize;
-                if let Some(mut end) = None::<usize> {
-                    // not used
-                }
                 for (i, c) in rest.char_indices() {
                     match c {
                         '<' => depth += 1,
