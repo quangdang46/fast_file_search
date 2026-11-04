@@ -214,7 +214,10 @@ RS
 GIT
 
   # Large file for budget/truncation test
-  python3 -c "for i in range(3000): print(f'// line {i}: some code here with Alpha and Beta')" > "$TMP/src/large.rs"
+  : > "$TMP/src/large.rs"
+  for i in $(seq 1 3000); do
+    printf '// line %s: some code here with Alpha and Beta\n' "$i" >> "$TMP/src/large.rs"
+  done
 
   git -C "$TMP" init -q 2>/dev/null || true
   git -C "$TMP" add -A 2>/dev/null || true
@@ -394,16 +397,10 @@ suite_read() {
   assert_contains "read binary marker" "binary" "$out" || log_skip "read binary marker (format may vary)"
 
   # Deeply nested file (stack-overflow regression)
-  python3 -c "
-depth=600
-s='';
-for i in range(depth):
-    s+=f'fn f{i}() {{\n'
-s+='let x=1;\n'
-for _ in range(depth):
-    s+='}\n'
-open('$TMP/src/deep.rs','w').write(s)
-"
+  : > "$TMP/src/deep.rs"
+  for i in $(seq 1 600); do printf 'fn f%s() {\n' "$i" >> "$TMP/src/deep.rs"; done
+  echo "let x=1;" >> "$TMP/src/deep.rs"
+  for _ in $(seq 1 600); do echo "}" >> "$TMP/src/deep.rs"; done
   run_ok "read deeply nested file" -- read "src/deep.rs"
 }
 
