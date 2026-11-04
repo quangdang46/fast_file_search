@@ -498,6 +498,10 @@ fn find_block_end(lines: &[&str], start: usize) -> usize {
         if first_brace && depth <= 0 {
             return start + i;
         }
+        // Bodyless declaration (`struct X;`, `fn f();`): end at this line.
+        if !first_brace && line.trim_end().ends_with(';') {
+            return start + i;
+        }
     }
     start + lines.len()
 }

@@ -636,10 +636,44 @@ suite_regression() {
   "$FFS_BIN" --root "$TMP" find "file with spaces" >"$out" 2>/dev/null
   # just ensure it doesn't crash
 
-  # Symlink loop guard (don't follow symlinks)
+  # Symlink loop guard (don't follow symlinks). On Windows without developer
+  # mode `ln -s` falls back to copying the directory, so remove either kind.
   ln -sf "$TMP/src" "$TMP/link_to_src" 2>/dev/null || true
   run_ok "regression symlink find" -- find "Alpha"
-  rm -f "$TMP/link_to_src"
+  rm -rf "$TMP/link_to_src" 2>/dev/null || true
+
+  # Regression #132: impl names must not be truncated at the first lowercase w
+  cat > "$TMP/src/impl_names.rs" <<'RS'
+pub struct Narrow;
+impl Narrow {
+    fn first(&self) { target_one(); }
+}
+impl Drawable for Narrow {
+    fn second(&self) { target_two(); }
+}
+impl worker {
+    fn third(&self) { target_three(); }
+}
+pub fn target_one() {}
+pub fn target_two() {}
+pub fn target_three() {}
+RS
+  "$FFS_BIN" --root "$TMP" grep --group "target_" >"$out" 2>/dev/null
+  assert_contains "grep --group impl Narrow not truncated (#132)" "impl Narrow @ L2" "$out"
+  assert_contains "grep --group impl Drawable not truncated (#132)" "impl Drawable @" "$out"
+  assert_contains "grep --group impl worker not empty (#132)" "impl worker @" "$out"
+  if grep -qE '(^|\s)impl (Narro|Dra)($|\s)' "$out" 2>/dev/null; then
+    log_fail "grep --group truncated impl name present (#132)"
+  else
+    log_pass "grep --group no truncated impl names (#132)"
+  fi
+  # A bodyless `struct X;` must not swallow the next impl block's matches.
+  assert_contains "grep --group bodyless struct scope (#132)" "function target_one @" "$out"
+
+  # --group with no matches must report a real file count, not usize::MAX
+  "$FFS_BIN" --root "$TMP" grep --group "zzznomatch132" >"$out" 2>/dev/null
+  assert_not_contains "grep --group no-match file count sane (#132)" "18446744073709551615" "$out"
+  assert_contains "grep --group no-match message (#132)" "no matches across" "$out"
 
   # MCP-specific regression tests (verified via unit tests in ffs-mcp):
   # #85: catch_unwind on engine tool handlers — unit tested in engine_tools::tests

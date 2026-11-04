@@ -1282,13 +1282,22 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         };
     }
 
+    // Resolve the real file count before any renderer uses it. Without a
+    // bigram cache `total_files` is usize::MAX and the real count comes
+    // from `file_counter` filled during the fused walk.
+    let total_files = if total_files == usize::MAX {
+        file_counter.load(Ordering::Relaxed)
+    } else {
+        total_files
+    };
+
     // When --group is set, emit symbol-grouped output instead
     if args.group {
         let grouped = build_grouped_result(&args.needle, &hits, mode);
         return super::emit(format, &grouped, |p| {
             let mut out = String::new();
             if p.files.is_empty() {
-                out.push_str(&format!("[no matches across {total_files} files]\n"));
+                out.push_str(&format!("[no matches across {} files]\n", total_files));
                 return out;
             }
             for f in &p.files {
@@ -1310,14 +1319,6 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
             out
         });
     }
-
-    // When there's no bigram cache, `total_files` was set to usize::MAX and we
-    // derived the real count from `file_counter` during the fused walk.
-    let total_files = if total_files == usize::MAX {
-        file_counter.load(Ordering::Relaxed)
-    } else {
-        total_files
-    };
 
     let returned = hits.len();
     // --compact: rg-style `rel/path:line:text` rows, paths relative to the
@@ -1724,6 +1725,11 @@ fn find_block_end(lines: &[&str], start: usize) -> usize {
             }
         }
         if first_brace && depth <= 0 {
+            return abs_line;
+        }
+        // Bodyless declaration (`struct X;`, `fn f();`): end at this line
+        // instead of swallowing the next block that happens to start with `{`.
+        if !first_brace && line.trim_end().ends_with(';') {
             return abs_line;
         }
     }
