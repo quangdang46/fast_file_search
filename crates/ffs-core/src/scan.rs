@@ -350,28 +350,6 @@ impl ScanJob {
                 picker.set_bigram_index(index, BigramOverlay::new(unsafe_snapshot.indexable_count));
             }
         }
-
-        if config.content_indexing && !signals.cancelled.load(Ordering::Acquire) {
-            let indexable_files = &files[..unsafe_snapshot.indexable_count.min(files.len())];
-            let (index, content_binary) = build_bigram_index(
-                indexable_files,
-                budget,
-                &unsafe_snapshot.base_path,
-                unsafe_snapshot.arena,
-            );
-
-            if let Ok(mut guard) = shared_picker.write()
-                && let Some(picker) = guard.as_mut()
-            {
-                for &idx in &content_binary {
-                    if let Some(file) = picker.get_file_mut(idx) {
-                        file.set_binary(true);
-                    }
-                }
-
-                picker.set_bigram_index(index, BigramOverlay::new(unsafe_snapshot.indexable_count));
-            }
-        }
     }
 }
 
