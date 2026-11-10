@@ -392,7 +392,7 @@ fn resolve_text(path: &Path, size: u64, raw: String, opts: &ResolveOptions) -> R
     };
 
     // 2. Apply filter.
-    let filtered = apply_filter(&sliced, opts.filter_level);
+    let filtered = apply_filter(path, &sliced, opts.filter_level);
 
     // 3. Truncate to token budget. Convert tokens -> bytes using the
     //    same 4-bytes-per-token estimate the budget module uses
@@ -423,11 +423,11 @@ fn resolve_text(path: &Path, size: u64, raw: String, opts: &ResolveOptions) -> R
     }
 }
 
-fn apply_filter(input: &str, level: FilterLevel) -> String {
+fn apply_filter(path: &Path, input: &str, level: FilterLevel) -> String {
     match level {
         FilterLevel::None => NoFilter.apply(input),
-        FilterLevel::Minimal => MinimalFilter.apply(input),
-        FilterLevel::Aggressive => AggressiveFilter.apply(input),
+        FilterLevel::Minimal => MinimalFilter.apply_path(path, input),
+        FilterLevel::Aggressive => AggressiveFilter.apply_path(path, input),
     }
 }
 

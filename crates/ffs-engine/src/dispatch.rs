@@ -27,6 +27,11 @@ pub struct EngineConfig {
     pub max_bytes_per_result: usize,
     pub filter_level: FilterLevel,
     pub total_token_budget: u64,
+    /// When true, [`Engine::read`] renders binary files as lossy UTF-8
+    /// instead of returning the "refusing to render" notice. Set by
+    /// `ffs read --full`, the documented escape hatch.
+    #[serde(default)]
+    pub allow_binary: bool,
 }
 
 impl Default for EngineConfig {
@@ -36,6 +41,7 @@ impl Default for EngineConfig {
             max_bytes_per_result: 64 * 1024,
             filter_level: FilterLevel::Minimal,
             total_token_budget: 25_000,
+            allow_binary: false,
         }
     }
 }
@@ -148,7 +154,12 @@ impl Engine {
 
     /// Read a file with token-budget-aware filtering and truncation.
     pub fn read(&self, path: &Path) -> ReadResult {
-        let mut bytes = match std::fs::read(path) {
+        // Bounded read: the rendered body is capped at `max_bytes_per_result`
+        // anyway, so never pull more than READ_CAP bytes into memory — a
+        // multi-GB file must not spike RAM before the budget logic runs.
+        // Mirrors the 4 MiB indexing cap in `scanner::index_one`.
+        const READ_CAP: u64 = 8 * 1024 * 1024;
+        let bytes = match read_capped(path, READ_CAP) {
             Ok(b) => b,
             Err(e) => {
                 return ReadResult {
@@ -166,9 +177,17 @@ impl Engine {
             }
         };
 
+        // UTF-16 (BOM'd or strong NUL-parity heuristic) is text, not binary —
+        // transcode before the binary check so UTF-16 files render the same
+        // way `rg` shows them, on every read path.
+        if let Some(text) = ffs_search::bom::decode_utf16(&bytes) {
+            return self.finish_read(path, text, false);
+        }
+
         // Refuse binary content with a structured error rather than producing
-        // garbled output (and risk panicking inside char-boundary slicing).
-        if is_binary(&bytes) {
+        // garbled output (and risk panicking inside char-boundary slicing) —
+        // unless the caller explicitly forced the read (`--full`).
+        if is_binary(&bytes) && !self.config.allow_binary {
             let body = format!(
                 "[binary file: {} bytes; refusing to render. Use --full to force.]",
                 bytes.len()
@@ -189,18 +208,25 @@ impl Engine {
         }
 
         // Strip UTF-8 BOM from the raw bytes before decoding.
-        if bytes.starts_with(b"\xEF\xBB\xBF") {
-            bytes.drain(..3);
-        }
+        let stripped: &[u8] = if bytes.starts_with(b"\xEF\xBB\xBF") {
+            &bytes[3..]
+        } else {
+            &bytes[..]
+        };
+        let text = String::from_utf8_lossy(stripped).into_owned();
+        self.finish_read(path, text, is_binary(&bytes) && self.config.allow_binary)
+    }
 
-        let text = String::from_utf8_lossy(&bytes).into_owned();
-
+    /// Shared tail of [`Engine::read`]: comment filter + token-budget
+    /// truncation. `was_binary` marks results that came from a forced
+    /// binary read (still flagged so callers can label the mode).
+    fn finish_read(&self, path: &Path, text: String, was_binary: bool) -> ReadResult {
         let filter: Box<dyn FilterStrategy> = match self.config.filter_level {
             FilterLevel::None => Box::new(NoFilter),
             FilterLevel::Minimal => Box::new(MinimalFilter),
             FilterLevel::Aggressive => Box::new(AggressiveFilter),
         };
-        let filtered = filter.apply(&text);
+        let filtered = filter.apply_path(path, &text);
 
         let split = BudgetSplit::default_for(self.config.total_token_budget);
         let body_budget_bytes = (split.body * 4) as usize;
@@ -214,9 +240,14 @@ impl Engine {
             oc
         } else {
             apply_preserving_footer(&mut buf, max_bytes, footer, |target, budget| {
-                // Clip to a UTF-8 char boundary so we never split a multi-byte
-                // codepoint when handing the slice to downstream `&str` ops.
-                let take = floor_char_boundary(&filtered, filtered.len().min(budget));
+                // Clip to a UTF-8 char boundary, then back off to the last
+                // newline so output never ends mid-line.
+                let mut take = floor_char_boundary(&filtered, filtered.len().min(budget));
+                if take < filtered.len() {
+                    if let Some(nl) = filtered[..take].rfind('\n') {
+                        take = nl + 1;
+                    }
+                }
                 target.push_str(&filtered[..take]);
                 take
             })
@@ -227,9 +258,23 @@ impl Engine {
             body: buf,
             outcome,
             is_error: false,
-            is_binary: false,
+            is_binary: was_binary,
         }
     }
+}
+
+/// Read at most `cap` bytes from `path`. Small files are read in one shot;
+/// larger files are streamed only up to the cap so memory stays bounded.
+fn read_capped(path: &Path, cap: u64) -> std::io::Result<Vec<u8>> {
+    use std::io::Read;
+    let len = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
+    if len <= cap {
+        return std::fs::read(path);
+    }
+    let mut f = std::fs::File::open(path)?;
+    let mut buf = Vec::with_capacity(cap as usize);
+    f.by_ref().take(cap).read_to_end(&mut buf)?;
+    Ok(buf)
 }
 
 // Round `idx` down to the nearest UTF-8 char boundary so slicing `&s[..idx]`
