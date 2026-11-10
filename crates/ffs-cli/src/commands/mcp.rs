@@ -745,7 +745,7 @@ fn section_body(
         FilterLevel::Minimal => Box::new(MinimalFilter),
         FilterLevel::Aggressive => Box::new(AggressiveFilter),
     };
-    let filtered = filter.apply(&slice);
+    let filtered = filter.apply_path(path, &slice);
 
     let split = BudgetSplit::default_for(budget);
     let body_budget_bytes = (split.body * 4) as usize;

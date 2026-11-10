@@ -5,7 +5,7 @@ use anyhow::{anyhow, Result};
 use clap::Parser;
 use serde::Serialize;
 
-use ffs_budget::cascade::{cascade_read, CascadeResult, OutlineLike, ViewMode};
+use ffs_budget::cascade::{cascade_read_for_path, CascadeResult, OutlineLike, ViewMode};
 use ffs_budget::{
     apply_preserving_footer, smart_truncate, AggressiveFilter, BudgetSplit, FilterLevel,
     FilterStrategy, MinimalFilter, NoFilter, TruncationOutcome,
@@ -321,6 +321,9 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     let cfg = EngineConfig {
         filter_level: level,
         total_token_budget: budget,
+        // --full is the documented escape hatch: render binary content
+        // (lossy UTF-8) instead of the refusal notice.
+        allow_binary: args.full,
         ..EngineConfig::default()
     };
     let engine = Engine::new(cfg);
@@ -355,7 +358,8 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
                 let refs = as_outline_refs(&entries);
                 let refs_slice: Vec<&dyn OutlineLike> = refs.iter().map(|b| b.as_ref()).collect();
                 let split = BudgetSplit::default_for(budget);
-                let casc: CascadeResult = cascade_read(&content, &refs_slice, level, split);
+                let casc: CascadeResult =
+                    cascade_read_for_path(&content, &refs_slice, level, split, &path);
                 view = Some(match casc.mode {
                     ViewMode::Full => "full",
                     ViewMode::Outline => "outline",
@@ -433,9 +437,51 @@ fn parse_target(target: &str) -> (&str, Option<u32>) {
 }
 
 fn read_section(path: &Path, line: u32, level: FilterLevel, budget: u64) -> Result<ReadOutput> {
+    // Non-code files have no structural outline — but `path:line` focus is
+    // still meaningful: return the requested line (with the same filter +
+    // budget pipeline) instead of erroring out.
     let lang = match detect_file_type(path) {
         FileType::Code(l) => l,
-        _ => return Err(anyhow!("not a code file: {}", path.display())),
+        _ => {
+            let content = ffs_search::bom::read_file(path)
+                .map_err(|e| anyhow!("read {}: {e}", path.display()))?;
+            let mut slice = String::new();
+            for (i, l) in content.lines().enumerate() {
+                if i as u32 + 1 == line {
+                    slice.push_str(l);
+                    slice.push('\n');
+                    break;
+                }
+            }
+            if slice.is_empty() && content.lines().count() < line as usize {
+                return Err(anyhow!(
+                    "line {line} out of range ({} has {} lines)",
+                    path.display(),
+                    content.lines().count()
+                ));
+            }
+            let filter: Box<dyn FilterStrategy> = match level {
+                FilterLevel::None => Box::new(NoFilter),
+                FilterLevel::Minimal => Box::new(MinimalFilter),
+                FilterLevel::Aggressive => Box::new(AggressiveFilter),
+            };
+            let filtered = filter.apply_path(path, &slice);
+            let split = BudgetSplit::default_for(budget);
+            let body_budget_bytes = (split.body * 4) as usize;
+            let max_bytes = body_budget_bytes.min(EngineConfig::default().max_bytes_per_result);
+            let (body, outcome) = budgeted(&filtered, max_bytes);
+            return Ok(ReadOutput {
+                path: path.to_string_lossy().to_string(),
+                mode: "section",
+                body,
+                kept_bytes: outcome.kept_bytes,
+                footer_bytes: outcome.footer_bytes,
+                line: Some(line),
+                section: None,
+                resolved_from: None,
+                view: None,
+            });
+        }
     };
 
     let max_bytes_default = EngineConfig::default().max_bytes_per_result;
@@ -466,7 +512,7 @@ fn read_section(path: &Path, line: u32, level: FilterLevel, budget: u64) -> Resu
         FilterLevel::Minimal => Box::new(MinimalFilter),
         FilterLevel::Aggressive => Box::new(AggressiveFilter),
     };
-    let filtered = filter.apply(&slice);
+    let filtered = filter.apply_path(path, &slice);
 
     let split = BudgetSplit::default_for(budget);
     let body_budget_bytes = (split.body * 4) as usize;
@@ -665,7 +711,17 @@ fn budgeted(filtered: &str, max_bytes: usize) -> (String, TruncationOutcome) {
         oc
     } else {
         apply_preserving_footer(&mut buf, max_bytes, footer, |target, budget| {
-            let take = filtered.len().min(budget);
+            let mut take = filtered.len().min(budget);
+            // Never cut mid-line: back off to the last newline that fits,
+            // then to a UTF-8 char boundary.
+            while take > 0 && !filtered.is_char_boundary(take) {
+                take -= 1;
+            }
+            if take < filtered.len() {
+                if let Some(nl) = filtered[..take].rfind('\n') {
+                    take = nl + 1;
+                }
+            }
             target.push_str(&filtered[..take]);
             take
         })

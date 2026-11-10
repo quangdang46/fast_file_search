@@ -6,72 +6,61 @@ use parking_lot::Mutex;
 
 /// Walk `root`, find files matching `pattern`, return up to `max_files` paths.
 ///
-/// Paths are relative to `root`. Uses zlob (SIMD glob matching with
-/// gitignore support) when the `zlob` feature is enabled and the platform
-/// supports it; falls back to `globset::Glob` + `ignore::WalkBuilder`.
+/// Paths are relative to `root` with `/` separators. Matching semantics are
+/// gitignore-style: a pattern with no `/` matches the file *name* at any
+/// depth (`*.rs`, `main.rs`, `*in*`), while a pattern containing `/` matches
+/// the full relative path (`src/**/*.ts`, `docs/*.md`). `**` crosses
+/// directories, `*`/`?`/`{a,b}`/`[…]` behave per `globset`.
+///
+/// Hidden files and `.gitignore`/`.git/info/exclude`/global-exclude rules are
+/// respected exactly like `ffs find`/`ffs grep` — `**` no longer leaks into
+/// `.git`, `node_modules`, or ignored directories. Only real files are
+/// returned (directories and symlinks are skipped), and results are sorted
+/// for deterministic output.
 pub fn glob_files(root: &Path, pattern: &str, max_files: usize) -> Vec<String> {
-    // Fast path: simple doublestar-extension patterns (e.g. `**/*.rs`).
-    // Uses parallel directory walking which is significantly faster than
-    // the single-threaded zlob/globset paths for this common case.
-    if let Some(result) = fast_ext_glob(root, pattern, max_files) {
-        return result;
+    if max_files == 0 {
+        return Vec::new();
     }
-
-    // zlob is a C library that doesn't work on Windows (no native glob()).
-    // Use the pure-Rust fallback there regardless of the feature flag.
-    #[cfg(all(feature = "zlob", not(target_family = "windows")))]
-    {
-        let flags = zlob::ZlobFlags::BRACE
-            | zlob::ZlobFlags::DOUBLESTAR_RECURSIVE
-            | zlob::ZlobFlags::NOSORT
-            | zlob::ZlobFlags::PERIOD;
-        let canon = crate::path_utils::canonicalize(root).unwrap_or_else(|_| root.to_path_buf());
-        #[cfg(windows)]
-        let base = std::borrow::Cow::Owned(canon.to_string_lossy().replace('\\', "/"));
-        #[cfg(not(windows))]
-        let base = canon.to_string_lossy();
-        match zlob::zlob_at(&base, pattern, flags) {
-            Ok(Some(result)) => result
-                .iter()
-                .take(max_files)
-                .map(|s| s.to_string())
-                .collect(),
-            Ok(None) => Vec::new(),
-            Err(_) => fallback_glob(root, pattern, max_files),
-        }
-    }
-
-    #[cfg(not(all(feature = "zlob", not(target_family = "windows"))))]
-    {
-        fallback_glob(root, pattern, max_files)
-    }
-}
-
-/// Fast path for simple extension patterns like `**/*.rs` or `*.rs`.
-/// Uses parallel directory walking for a significant speedup over zlob.
-fn fast_ext_glob(root: &Path, pattern: &str, max_files: usize) -> Option<Vec<String>> {
-    // Match: **/*.ext  or  *.ext
-    let ext = pattern
-        .strip_prefix("**/*.")
-        .or_else(|| pattern.strip_prefix("*."))?;
-
-    if ext.is_empty() || ext.contains('*') || ext.contains('/') || ext.contains('{') {
-        return None;
-    }
+    // No '/' → basename match at any depth; otherwise full-path match where
+    // `*` stays within a component and `**` crosses components.
+    let basename_mode = !pattern.contains('/');
+    let Ok(glob) = globset::GlobBuilder::new(pattern)
+        .literal_separator(true)
+        .build()
+    else {
+        return Vec::new();
+    };
+    let matcher = glob.compile_matcher();
 
     let done = Arc::new(AtomicBool::new(false));
-    let matches = Arc::new(Mutex::new(Vec::with_capacity(max_files.min(512))));
-    let suffix = format!(".{ext}");
+    let matches = Arc::new(Mutex::new(Vec::with_capacity(max_files.min(1024))));
+    let root_owned = root.to_path_buf();
 
-    struct ExtVisitor {
-        suffix: String,
+    struct GlobVisitor {
+        matcher: globset::GlobMatcher,
+        basename_mode: bool,
         root: std::path::PathBuf,
         max_files: usize,
         done: Arc<AtomicBool>,
         matches: Arc<Mutex<Vec<String>>>,
     }
 
-    impl ignore::ParallelVisitor for ExtVisitor {
+    impl GlobVisitor {
+        #[inline]
+        fn rel_string(&self, path: &Path) -> Option<String> {
+            let rel = path.strip_prefix(&self.root).unwrap_or(path);
+            #[cfg(windows)]
+            {
+                Some(rel.to_string_lossy().replace('\\', "/"))
+            }
+            #[cfg(not(windows))]
+            {
+                rel.to_str().map(str::to_string)
+            }
+        }
+    }
+
+    impl ignore::ParallelVisitor for GlobVisitor {
         fn visit(&mut self, result: Result<ignore::DirEntry, ignore::Error>) -> ignore::WalkState {
             if self.done.load(Ordering::Relaxed) {
                 return ignore::WalkState::Quit;
@@ -80,25 +69,25 @@ fn fast_ext_glob(root: &Path, pattern: &str, max_files: usize) -> Option<Vec<Str
                 Ok(e) => e,
                 Err(_) => return ignore::WalkState::Skip,
             };
-            let _ft = match entry.file_type() {
-                Some(ft) if ft.is_file() => ft,
-                _ => return ignore::WalkState::Continue,
+            // is_file() is false for directories AND symlinks — a dangling
+            // symlink can never be returned regardless of the pattern.
+            if !entry.file_type().is_some_and(|ft| ft.is_file()) {
+                return ignore::WalkState::Continue;
+            }
+            let candidate = if self.basename_mode {
+                entry.file_name().to_str().map(str::to_string)
+            } else {
+                self.rel_string(entry.path())
             };
-            let name = match entry.file_name().to_str() {
-                Some(n) => n,
-                None => return ignore::WalkState::Continue,
+            let Some(candidate) = candidate else {
+                return ignore::WalkState::Continue;
             };
-            if name.len() > self.suffix.len()
-                && name.ends_with(self.suffix.as_str())
-                && let Ok(rel) = entry.path().strip_prefix(&self.root)
+            if self.matcher.is_match(&candidate)
+                && let Some(rel) = self.rel_string(entry.path())
             {
-                #[cfg(windows)]
-                let rel_str = rel.to_string_lossy().replace('\\', "/");
-                #[cfg(not(windows))]
-                let rel_str = rel.to_string_lossy().to_string();
                 let mut guard = self.matches.lock();
                 if guard.len() < self.max_files {
-                    guard.push(rel_str);
+                    guard.push(rel);
                     if guard.len() >= self.max_files {
                         self.done.store(true, Ordering::Relaxed);
                         return ignore::WalkState::Quit;
@@ -109,18 +98,20 @@ fn fast_ext_glob(root: &Path, pattern: &str, max_files: usize) -> Option<Vec<Str
         }
     }
 
-    struct ExtVisitorBuilder {
-        suffix: String,
+    struct GlobVisitorBuilder {
+        matcher: globset::GlobMatcher,
+        basename_mode: bool,
         root: std::path::PathBuf,
         max_files: usize,
         done: Arc<AtomicBool>,
         matches: Arc<Mutex<Vec<String>>>,
     }
 
-    impl<'a> ignore::ParallelVisitorBuilder<'a> for ExtVisitorBuilder {
+    impl<'a> ignore::ParallelVisitorBuilder<'a> for GlobVisitorBuilder {
         fn build(&mut self) -> Box<dyn ignore::ParallelVisitor + 'a> {
-            Box::new(ExtVisitor {
-                suffix: self.suffix.clone(),
+            Box::new(GlobVisitor {
+                matcher: self.matcher.clone(),
+                basename_mode: self.basename_mode,
                 root: self.root.clone(),
                 max_files: self.max_files,
                 done: Arc::clone(&self.done),
@@ -129,14 +120,17 @@ fn fast_ext_glob(root: &Path, pattern: &str, max_files: usize) -> Option<Vec<Str
         }
     }
 
-    let root_owned = root.to_path_buf();
     let walker = ignore::WalkBuilder::new(root)
         .standard_filters(true)
+        // Apply .gitignore even outside a git checkout (temp dirs, exported
+        // trees) — `ffs find`/`grep` behave the same way.
+        .require_git(false)
         .follow_links(false)
         .build_parallel();
 
-    walker.visit(&mut ExtVisitorBuilder {
-        suffix,
+    walker.visit(&mut GlobVisitorBuilder {
+        matcher,
+        basename_mode,
         root: root_owned,
         max_files,
         done,
@@ -144,47 +138,11 @@ fn fast_ext_glob(root: &Path, pattern: &str, max_files: usize) -> Option<Vec<Str
     });
 
     let mut result = Arc::try_unwrap(matches).unwrap().into_inner();
+    // Parallel walk order is nondeterministic — sort so `--format json` and
+    // text output are stable across runs.
+    result.sort_unstable();
     result.truncate(max_files);
-    Some(result)
-}
-
-/// Pure-Rust glob implementation using `globset` + `ignore::WalkBuilder`.
-fn fallback_glob(root: &Path, pattern: &str, max_files: usize) -> Vec<String> {
-    let Ok(glob) = globset::GlobBuilder::new(pattern)
-        .literal_separator(true)
-        .build()
-    else {
-        return Vec::new();
-    };
-    let matcher = glob.compile_matcher();
-    ignore::WalkBuilder::new(root)
-        .hidden(false)
-        .git_ignore(true)
-        .git_exclude(true)
-        .git_global(true)
-        .build()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().is_some_and(|ft| ft.is_file()))
-        .filter_map(|e| {
-            let path = e.path();
-            let rel = path.strip_prefix(root).unwrap_or(path);
-            if matcher.is_match(rel) {
-                rel.to_str().map(|s| {
-                    #[cfg(windows)]
-                    {
-                        s.replace('\\', "/")
-                    }
-                    #[cfg(not(windows))]
-                    {
-                        s.to_string()
-                    }
-                })
-            } else {
-                None
-            }
-        })
-        .take(max_files)
-        .collect()
+    result
 }
 
 #[cfg(test)]
@@ -242,27 +200,89 @@ mod tests {
     }
 
     #[test]
-    fn test_fast_ext_glob_doublestar() {
+    fn test_glob_files_basename_matches_any_depth() {
         let dir = tempfile::tempdir().unwrap();
-        fs::write(dir.path().join("a.rs"), "").unwrap();
-        fs::write(dir.path().join("b.rs"), "").unwrap();
-        fs::write(dir.path().join("c.txt"), "").unwrap();
-        let sub = dir.path().join("src");
+        fs::write(dir.path().join("main.rs"), "").unwrap();
+        let sub = dir.path().join("src").join("deep");
         fs::create_dir_all(&sub).unwrap();
-        fs::write(sub.join("d.rs"), "").unwrap();
+        fs::write(sub.join("main.rs"), "").unwrap();
+        fs::write(sub.join("other.txt"), "").unwrap();
 
-        let results = glob_files(dir.path(), "**/*.rs", 100);
-        assert_eq!(results.len(), 3);
+        // `main.rs` has no '/' → basename match at any depth.
+        let results = glob_files(dir.path(), "main.rs", 100);
+        assert_eq!(results.len(), 2);
+        assert!(results.iter().any(|p| p == "main.rs"));
+        assert!(results.iter().any(|p| p == "src/deep/main.rs"));
+
+        // `*in*` likewise matches basenames at any depth.
+        let results = glob_files(dir.path(), "*in*", 100);
+        assert_eq!(results.len(), 2);
     }
 
     #[test]
-    fn test_fast_ext_glob_simple() {
+    fn test_glob_files_brace_expansion() {
         let dir = tempfile::tempdir().unwrap();
         fs::write(dir.path().join("a.rs"), "").unwrap();
         fs::write(dir.path().join("b.py"), "").unwrap();
+        fs::write(dir.path().join("c.txt"), "").unwrap();
+
+        let results = glob_files(dir.path(), "*.{rs,py}", 100);
+        assert_eq!(results.len(), 2);
+        assert!(results.iter().any(|p| p == "a.rs"));
+        assert!(results.iter().any(|p| p == "b.py"));
+    }
+
+    #[test]
+    fn test_glob_files_respects_gitignore_and_hidden() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join(".gitignore"), "ignored_dir/\n").unwrap();
+        fs::write(dir.path().join("keep.rs"), "").unwrap();
+        fs::create_dir_all(dir.path().join("ignored_dir")).unwrap();
+        fs::write(dir.path().join("ignored_dir").join("skip.rs"), "").unwrap();
+        fs::create_dir_all(dir.path().join(".hidden")).unwrap();
+        fs::write(dir.path().join(".hidden").join("dot.rs"), "").unwrap();
+        fs::write(dir.path().join(".dotfile.rs"), "").unwrap();
+
+        let results = glob_files(dir.path(), "**/*.rs", 100);
+        assert_eq!(results, vec!["keep.rs".to_string()]);
+    }
+
+    #[test]
+    fn test_glob_files_star_returns_files_not_dirs() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::create_dir_all(dir.path().join("subdir")).unwrap();
+        fs::write(dir.path().join("a.txt"), "").unwrap();
+        fs::write(dir.path().join("subdir").join("b.txt"), "").unwrap();
+
+        let results = glob_files(dir.path(), "*", 100);
+        assert_eq!(
+            results,
+            vec!["a.txt".to_string(), "subdir/b.txt".to_string()]
+        );
+    }
+
+    #[test]
+    fn test_glob_files_skips_dangling_symlink() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("real.rs"), "").unwrap();
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(
+            dir.path().join("nonexistent.rs"),
+            dir.path().join("dangling.rs"),
+        )
+        .unwrap();
 
         let results = glob_files(dir.path(), "*.rs", 100);
-        assert_eq!(results.len(), 1);
-        assert_eq!(results[0], "a.rs");
+        assert_eq!(results, vec!["real.rs".to_string()]);
+    }
+
+    #[test]
+    fn test_glob_files_results_sorted() {
+        let dir = tempfile::tempdir().unwrap();
+        for name in ["z.rs", "a.rs", "m.rs"] {
+            fs::write(dir.path().join(name), "").unwrap();
+        }
+        let results = glob_files(dir.path(), "*.rs", 100);
+        assert_eq!(results, vec!["a.rs", "m.rs", "z.rs"]);
     }
 }

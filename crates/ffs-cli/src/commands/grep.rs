@@ -859,6 +859,9 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     // so a page past the first one (`--offset`) doesn't force a full re-scan
     // of everything before it — we just scan a little further and slice.
     let take = offset.saturating_add(limit);
+    // `--limit 0` (with no offset) scans nothing — the "[no matches]" message
+    // would be a lie, so renderers get an explicit marker instead.
+    let limit_zero = take == 0;
     let (before_context, after_context) = args.context_lines();
     // -m N is shorthand for --max-count N (rg semantics); explicit
     // --max-count wins when both are given.
@@ -876,6 +879,10 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     let search_text = args.text;
     let files_without_match = args.files_without_match;
     let files_with_matches = args.files_with_matches;
+    // Path-only modes (`-l`, `--files-without-match`) must emit bare paths —
+    // a `[N-M of N]` footer or `[no matches]` line would be fed to xargs as
+    // a bogus filename.
+    let path_only_mode = files_with_matches || files_without_match;
     let compact = args.compact;
     let globs = build_glob_filter(&args.globs)?;
     // --compact renders paths relative to the search root (rg-style, token
@@ -1353,11 +1360,21 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
                     out.push('\n');
                 }
             }
-            if p.hits.is_empty() {
-                out.push_str(&format!(
-                    "[no matches across {} files]\n",
-                    p.total_files_searched
-                ));
+            if path_only_mode {
+                // Bare paths only — no footer, no "[no matches]" noise.
+            } else if p.hits.is_empty() {
+                if limit_zero {
+                    out.push_str("[--limit 0: no matches scanned]\n");
+                } else if p.total_matches_at_least == 0 {
+                    out.push_str(&format!(
+                        "[no matches across {} files]\n",
+                        p.total_files_searched
+                    ));
+                } else {
+                    // Page past the collected matches (--offset / --limit 0
+                    // with offset): matches exist, this page is just empty.
+                    out.push_str(&footer(p.total_matches_at_least, p.offset, 0, true));
+                }
             } else {
                 let has_more = p.truncated || p.offset + returned < p.total_matches_at_least;
                 out.push_str(&footer(
@@ -1413,11 +1430,19 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
                 }
             }
         }
-        if p.hits.is_empty() {
-            out.push_str(&format!(
-                "[no matches across {} files]\n",
-                p.total_files_searched
-            ));
+        if path_only_mode {
+            // Bare paths only — no footer, no "[no matches]" noise.
+        } else if p.hits.is_empty() {
+            if limit_zero {
+                out.push_str("[--limit 0: no matches scanned]\n");
+            } else if p.total_matches_at_least == 0 {
+                out.push_str(&format!(
+                    "[no matches across {} files]\n",
+                    p.total_files_searched
+                ));
+            } else {
+                out.push_str(&footer(p.total_matches_at_least, p.offset, 0, true));
+            }
         } else {
             let has_more = p.truncated || p.offset + returned < p.total_matches_at_least;
             out.push_str(&footer(

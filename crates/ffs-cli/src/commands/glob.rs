@@ -72,11 +72,13 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     };
     super::emit(format, &payload, |p| {
         let mut out = String::new();
-        for m in &p.matches {
-            out.push_str(m);
-            out.push('\n');
-        }
-        if !p.matches.is_empty() {
+        if p.matches.is_empty() {
+            out.push_str(&format!("[no matches for `{}`]\n", p.pattern));
+        } else {
+            for m in &p.matches {
+                out.push_str(m);
+                out.push('\n');
+            }
             let has_more = p.truncated || p.offset + returned < p.total_matches_at_least;
             out.push_str(&footer(
                 p.total_matches_at_least,

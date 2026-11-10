@@ -36,5 +36,17 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    args.run()
+    let format = args.format;
+    match args.run() {
+        Ok(()) => Ok(()),
+        Err(e) => {
+            // `--format json` consumers parse structured output — a plain
+            // "Error: ..." line breaks that contract, so mirror the error as
+            // JSON on stderr before propagating.
+            if matches!(format, cli::OutputFormat::Json) {
+                eprintln!("{}", serde_json::json!({ "error": format!("{e:#}") }));
+            }
+            Err(e)
+        }
+    }
 }
