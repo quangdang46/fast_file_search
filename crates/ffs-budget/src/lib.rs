@@ -15,7 +15,8 @@ pub mod tokens;
 pub mod truncate;
 
 pub use filter::{
-    detect_filter_level, AggressiveFilter, FilterLevel, FilterStrategy, MinimalFilter, NoFilter,
+    comment_syntax_for, detect_filter_level, AggressiveFilter, CommentSyntax, FilterLevel,
+    FilterStrategy, MinimalFilter, NoFilter,
 };
 pub use stream::{BlockHandler, BlockStreamFilter, StreamFilter};
 pub use tokens::{

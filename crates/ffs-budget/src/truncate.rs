@@ -36,31 +36,67 @@ pub fn smart_truncate(input: &str, max_bytes: usize) -> (String, TruncationOutco
         );
     }
 
-    let mut kept = Vec::with_capacity(total);
+    // The footer width is monotone in the dropped-line count, so
+    // "[<total> more lines]" is the widest footer this input can produce.
+    // Reserving it up-front keeps the payload budget honest: previously a
+    // tiny `max_bytes` could emit a footer *larger* than the budget, or a
+    // bare footer with zero content lines.
+    let widest_footer = format!("[{total} more lines]\n");
+    let footer_reserve = widest_footer.len();
+
+    // Degenerate budget: not even the footer fits. Hard-clip at a char
+    // boundary rather than emit an over-budget footer.
+    if max_bytes <= footer_reserve {
+        let mut end = max_bytes.min(input.len());
+        while end > 0 && !input.is_char_boundary(end) {
+            end -= 1;
+        }
+        let out = input[..end].to_string();
+        let kept_lines = out.lines().count();
+        return (
+            out,
+            TruncationOutcome {
+                kept_lines,
+                dropped_lines: total.saturating_sub(kept_lines),
+                kept_bytes: end,
+                footer_bytes: 0,
+            },
+        );
+    }
+
+    let payload_budget = max_bytes - footer_reserve;
+    let mut kept: Vec<&str> = Vec::with_capacity(total);
     let mut bytes_so_far = 0usize;
-    let mut footer = String::new();
 
-    for (i, line) in lines.iter().enumerate() {
+    for line in &lines {
         let prospective = bytes_so_far + line.len() + 1; // +1 for newline
-        let remaining_lines = total.saturating_sub(i);
-        let candidate_footer = if remaining_lines > 0 {
-            format!("[{remaining_lines} more lines]\n")
-        } else {
-            String::new()
-        };
-
-        if prospective + candidate_footer.len() > max_bytes {
-            let dropped = remaining_lines;
-            footer = if dropped > 0 {
-                format!("[{dropped} more lines]\n")
-            } else {
-                String::new()
-            };
+        if prospective > payload_budget {
             break;
         }
         kept.push(*line);
         bytes_so_far = prospective;
     }
+
+    // First-line guarantee: a budget smaller than `line1 + footer` must
+    // still show the head of the file, not a bare "[N more lines]" footer.
+    // Clip line 0 to the payload budget at a char boundary.
+    if kept.is_empty() {
+        if let Some(first) = lines.first() {
+            let mut take = first.len().min(payload_budget.saturating_sub(1));
+            while take > 0 && !first.is_char_boundary(take) {
+                take -= 1;
+            }
+            kept.push(&first[..take]);
+            bytes_so_far = take + 1;
+        }
+    }
+
+    let dropped = total.saturating_sub(kept.len());
+    let footer = if dropped > 0 {
+        format!("[{dropped} more lines]\n")
+    } else {
+        String::new()
+    };
 
     let mut out = String::with_capacity(bytes_so_far + footer.len());
     for l in &kept {
@@ -135,8 +171,8 @@ mod tests {
 
     #[test]
     fn truncates_with_footer() {
-        let input = "a\nb\nc\nd\ne\n";
-        let (out, outcome) = smart_truncate(input, 8);
+        let input: String = (0..10).map(|i| format!("l{i}\n")).collect();
+        let (out, outcome) = smart_truncate(&input, 20);
         assert!(outcome.dropped_lines > 0);
         assert!(out.contains("more lines]"));
     }

@@ -1,6 +1,8 @@
 //! View-mode cascade: degrade from full content → outline → signatures-only
 //! when a file exceeds its byte budget.
 
+use std::path::Path;
+
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -37,10 +39,33 @@ pub fn cascade_read(
     level: FilterLevel,
     split: BudgetSplit,
 ) -> CascadeResult {
+    cascade_read_inner(content, outline, level, split, None)
+}
+
+/// Path-aware variant of [`cascade_read`]: the comment filter picks its
+/// syntax from `path` so non-code files (Markdown, `.txt`, …) keep their
+/// `#`-prefixed lines.
+pub fn cascade_read_for_path(
+    content: &str,
+    outline: &[&dyn OutlineLike],
+    level: FilterLevel,
+    split: BudgetSplit,
+    path: &Path,
+) -> CascadeResult {
+    cascade_read_inner(content, outline, level, split, Some(path))
+}
+
+fn cascade_read_inner(
+    content: &str,
+    outline: &[&dyn OutlineLike],
+    level: FilterLevel,
+    split: BudgetSplit,
+    path: Option<&Path>,
+) -> CascadeResult {
     let body_budget_bytes = (split.body * 4) as usize;
 
     // 1. Full content with filter applied.
-    let filtered = apply_filter(content, level);
+    let filtered = apply_filter(content, level, path);
     if filtered.len() <= body_budget_bytes {
         let kept = filtered.len();
         let kept_lines = content.lines().count();
@@ -99,13 +124,16 @@ pub fn cascade_read(
     }
 }
 
-fn apply_filter(content: &str, level: FilterLevel) -> String {
+fn apply_filter(content: &str, level: FilterLevel, path: Option<&Path>) -> String {
     let filter: Box<dyn FilterStrategy> = match level {
         FilterLevel::None => Box::new(NoFilter),
         FilterLevel::Minimal => Box::new(MinimalFilter),
         FilterLevel::Aggressive => Box::new(AggressiveFilter),
     };
-    filter.apply(content)
+    match path {
+        Some(p) => filter.apply_path(p, content),
+        None => filter.apply(content),
+    }
 }
 
 fn render_outline(entries: &[&dyn OutlineLike]) -> String {

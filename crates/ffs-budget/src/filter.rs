@@ -43,7 +43,235 @@ pub fn detect_filter_level(path: &Path, level: FilterLevel) -> FilterLevel {
 pub trait FilterStrategy: Send + Sync {
     fn name(&self) -> &'static str;
     fn apply(&self, input: &str) -> String;
+
+    /// Path-aware variant: comment syntax is chosen from the file's
+    /// extension/name so e.g. `#`-headers in Markdown are never stripped.
+    /// Default falls back to the language-blind [`Self::apply`] for callers
+    /// that don't know the source path.
+    fn apply_path(&self, path: &Path, input: &str) -> String {
+        let _ = path;
+        self.apply(input)
+    }
 }
+
+/// Which comment markers a file's language actually uses. `NONE` means the
+/// file type has no recognized comment syntax — filters must pass content
+/// through untouched rather than guessing (Markdown `#` headers, `.txt`,
+/// `.ini`, extensionless files, …).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CommentSyntax {
+    /// `//` starts a line comment.
+    pub line_slash: bool,
+    /// `#` starts a line comment.
+    pub line_hash: bool,
+    /// `/* … */` block comments exist.
+    pub block_c_style: bool,
+}
+
+impl CommentSyntax {
+    /// No comment syntax recognized — filters degrade to passthrough.
+    pub const NONE: Self = Self {
+        line_slash: false,
+        line_hash: false,
+        block_c_style: false,
+    };
+}
+
+/// Map a path to its comment syntax. Extensionless well-known filenames
+/// (Makefile, Dockerfile, dotfiles like `.gitignore`) are handled by name.
+#[must_use]
+pub fn comment_syntax_for(path: &Path) -> CommentSyntax {
+    let name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+
+    // Extensionless / dotfile names with `#` comments.
+    if matches!(
+        name.as_str(),
+        "makefile"
+            | "gnumakefile"
+            | "dockerfile"
+            | ".gitignore"
+            | ".dockerignore"
+            | ".gitattributes"
+            | ".gitmodules"
+            | ".ignore"
+            | ".rgignore"
+            | "gemfile"
+            | "rakefile"
+            | "vagrantfile"
+            | "brewfile"
+            | "justfile"
+            | "procfile"
+            | ".env"
+            | ".envrc"
+            | ".editorconfig"
+            | "cmakelists.txt"
+    ) || name.starts_with(".env.")
+    {
+        return CommentSyntax {
+            line_slash: false,
+            line_hash: true,
+            block_c_style: false,
+        };
+    }
+
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+
+    let hash = matches!(
+        ext.as_str(),
+        "py" | "pyi"
+            | "pyw"
+            | "rb"
+            | "pl"
+            | "pm"
+            | "sh"
+            | "bash"
+            | "zsh"
+            | "ksh"
+            | "fish"
+            | "yaml"
+            | "yml"
+            | "toml"
+            | "coffee"
+            | "ps1"
+            | "psm1"
+            | "psd1"
+            | "r"
+            | "jl"
+            | "ex"
+            | "exs"
+            | "erl"
+            | "hrl"
+            | "nix"
+            | "tf"
+            | "tfvars"
+            | "hcl"
+            | "cmake"
+            | "mk"
+            | "make"
+            | "gemspec"
+            | "bazel"
+            | "bzl"
+            | "bzlmod"
+            | "just"
+    );
+
+    let slash = matches!(
+        ext.as_str(),
+        "rs" | "c"
+            | "h"
+            | "cc"
+            | "cpp"
+            | "cxx"
+            | "c++"
+            | "hpp"
+            | "hh"
+            | "hxx"
+            | "java"
+            | "kt"
+            | "kts"
+            | "scala"
+            | "sc"
+            | "go"
+            | "js"
+            | "jsx"
+            | "mjs"
+            | "cjs"
+            | "ts"
+            | "tsx"
+            | "mts"
+            | "cts"
+            | "swift"
+            | "m"
+            | "mm"
+            | "dart"
+            | "php"
+            | "cs"
+            | "fs"
+            | "fsx"
+            | "proto"
+            | "graphql"
+            | "gql"
+            | "sol"
+            | "vy"
+            | "cairo"
+            | "jsonc"
+            | "json5"
+            | "scss"
+            | "less"
+            | "sass"
+            | "vue"
+            | "svelte"
+            | "astro"
+            | "hx"
+            | "zig"
+            | "odin"
+            | "v"
+            | "mojo"
+            | "nim"
+            | "cr"
+            | "d"
+            | "pas"
+            | "pp"
+            | "ino"
+            | "pde"
+            | "cu"
+            | "cuh"
+            | "metal"
+            | "wgsl"
+            | "sv"
+            | "svh"
+            | "gradle"
+            | "ron"
+            | "cue"
+            | "tf"
+            | "tfvars"
+            | "hcl"
+    );
+
+    // Block comments `/* */` apply to C-style languages plus stylesheet-ish
+    // formats that have no line comment but do have block comments.
+    let block = slash
+        || matches!(
+            ext.as_str(),
+            "css"
+                | "scss"
+                | "less"
+                | "sass"
+                | "styl"
+                | "html"
+                | "htm"
+                | "xml"
+                | "svg"
+                | "vue"
+                | "svelte"
+                | "astro"
+        );
+
+    if !hash && !slash && !block {
+        return CommentSyntax::NONE;
+    }
+    CommentSyntax {
+        line_slash: slash,
+        line_hash: hash,
+        block_c_style: block,
+    }
+}
+
+/// Legacy language-blind syntax used by [`FilterStrategy::apply`] when no
+/// path is known: both `//` and `#` line comments plus `/* */` blocks.
+const LEGACY_SYNTAX: CommentSyntax = CommentSyntax {
+    line_slash: true,
+    line_hash: true,
+    block_c_style: true,
+};
 
 /// Identity passthrough.
 pub struct NoFilter;
@@ -66,9 +294,24 @@ impl FilterStrategy for MinimalFilter {
         "minimal"
     }
     fn apply(&self, input: &str) -> String {
+        self.apply_with_syntax(LEGACY_SYNTAX, input)
+    }
+    fn apply_path(&self, path: &Path, input: &str) -> String {
+        self.apply_with_syntax(comment_syntax_for(path), input)
+    }
+}
+
+impl MinimalFilter {
+    fn apply_with_syntax(&self, syntax: CommentSyntax, input: &str) -> String {
+        // Files with no recognized comment syntax pass through untouched —
+        // guessing markers destroys content (Markdown `#` headers, `.txt`,
+        // `.ini`, extensionless files).
+        if syntax == CommentSyntax::NONE {
+            return input.to_string();
+        }
         let mut out = String::with_capacity(input.len());
         for line in input.split_inclusive('\n') {
-            let body = strip_line_comment_keep_doc(line);
+            let body = strip_line_comment_keep_doc(line, syntax);
             let trimmed = trim_trailing_whitespace_keep_newline(&body);
             out.push_str(&trimmed);
         }
@@ -85,8 +328,24 @@ impl FilterStrategy for AggressiveFilter {
         "aggressive"
     }
     fn apply(&self, input: &str) -> String {
-        let no_block = strip_block_comments(input);
-        let no_line = strip_all_line_comments(&no_block);
+        self.apply_with_syntax(LEGACY_SYNTAX, input)
+    }
+    fn apply_path(&self, path: &Path, input: &str) -> String {
+        self.apply_with_syntax(comment_syntax_for(path), input)
+    }
+}
+
+impl AggressiveFilter {
+    fn apply_with_syntax(&self, syntax: CommentSyntax, input: &str) -> String {
+        if syntax == CommentSyntax::NONE {
+            return input.to_string();
+        }
+        let no_block = if syntax.block_c_style {
+            strip_block_comments(input)
+        } else {
+            input.to_string()
+        };
+        let no_line = strip_all_line_comments(&no_block, syntax);
         collapse_blank_lines(&no_line)
     }
 }
@@ -95,7 +354,7 @@ impl FilterStrategy for AggressiveFilter {
 // Helpers
 // ---------------------------------------------------------------------------
 
-fn strip_line_comment_keep_doc(line: &str) -> String {
+fn strip_line_comment_keep_doc(line: &str, syntax: CommentSyntax) -> String {
     let stripped_newline_len = if line.ends_with("\r\n") {
         2
     } else if line.ends_with('\n') {
@@ -106,7 +365,7 @@ fn strip_line_comment_keep_doc(line: &str) -> String {
     let body = &line[..line.len() - stripped_newline_len];
     let newline = &line[line.len() - stripped_newline_len..];
 
-    if let Some(idx) = find_line_comment_start(body) {
+    if let Some(idx) = find_line_comment_start(body, syntax) {
         let prefix = &body[..idx];
         // Defensive: idx + 2 may not land on a UTF-8 char boundary if `body`
         // came from `from_utf8_lossy` and the marker byte (e.g. `#`) sits
@@ -121,7 +380,7 @@ fn strip_line_comment_keep_doc(line: &str) -> String {
     line.to_string()
 }
 
-fn find_line_comment_start(body: &str) -> Option<usize> {
+fn find_line_comment_start(body: &str, syntax: CommentSyntax) -> Option<usize> {
     let bytes = body.as_bytes();
     let mut in_string: Option<u8> = None;
     let mut i = 0;
@@ -143,10 +402,10 @@ fn find_line_comment_start(body: &str) -> Option<usize> {
             i += 1;
             continue;
         }
-        if b == b'/' && bytes[i + 1] == b'/' {
+        if syntax.line_slash && b == b'/' && bytes[i + 1] == b'/' {
             return Some(i);
         }
-        if b == b'#' && i + 1 < bytes.len() {
+        if syntax.line_hash && b == b'#' && i + 1 < bytes.len() {
             return Some(i);
         }
         i += 1;
@@ -188,7 +447,7 @@ fn strip_block_comments(s: &str) -> String {
     BLOCK_COMMENT_RE.replace_all(s, "").into_owned()
 }
 
-fn strip_all_line_comments(input: &str) -> String {
+fn strip_all_line_comments(input: &str, syntax: CommentSyntax) -> String {
     let mut out = String::with_capacity(input.len());
     for line in input.split_inclusive('\n') {
         let stripped_newline_len = if line.ends_with("\r\n") {
@@ -200,7 +459,7 @@ fn strip_all_line_comments(input: &str) -> String {
         };
         let body = &line[..line.len() - stripped_newline_len];
         let newline = &line[line.len() - stripped_newline_len..];
-        if let Some(idx) = find_line_comment_start(body) {
+        if let Some(idx) = find_line_comment_start(body, syntax) {
             out.push_str(body[..idx].trim_end());
             out.push_str(newline);
         } else {
