@@ -24,13 +24,14 @@ use rayon::prelude::*;
 use smallvec::SmallVec;
 use std::path::Path;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use tracing::Level;
 
 use super::classify::is_definition_line;
 use super::fuzzy_grep::fuzzy_grep_search;
 use super::utils::{
-    has_unescaped_newline_escape, replace_unescaped_newline_escapes, strip_file_path_constraints,
+    has_unescaped_newline_escape, regex_can_match_newline, replace_unescaped_newline_escapes,
+    strip_file_path_constraints,
 };
 
 /// Controls how the grep pattern is interpreted.
@@ -937,11 +938,10 @@ pub(super) fn build_regex(pattern: &str, smart_case: bool) -> Result<regex::byte
         return Err("empty pattern".to_string());
     }
 
-    let regex_pattern = if pattern.contains("\\n") {
-        pattern.replace("\\n", "\n")
-    } else {
-        pattern.to_string()
-    };
+    // Only *unescaped* `\n` becomes a real newline — `\\n` (escaped
+    // backslash + literal `n`, e.g. a `\\nvim-data` path) must survive.
+    // The old `str::replace` mangled every backslash-n regardless of parity.
+    let regex_pattern = replace_unescaped_newline_escapes(pattern);
 
     let case_insensitive = if smart_case {
         !pattern.chars().any(|c| c.is_uppercase())
@@ -1028,6 +1028,12 @@ where
     let search_start = std::time::Instant::now();
     let page_limit = options.page_limit;
     let budget_exceeded = AtomicBool::new(false);
+    // Matches found so far, incremented inside the rayon workers. The budget
+    // check below cannot read `all_matches` (only populated between chunks,
+    // i.e. always empty during the parallel phase) — this counter is the
+    // live signal that keeps `--time-budget` effective on single-chunk
+    // (non-paginated) searches.
+    let match_count = AtomicUsize::new(0);
 
     // For paginated searches, process files in chunks to enable early
     // termination. Each chunk is searched in parallel with rayon; between
@@ -1070,7 +1076,7 @@ where
                     }
 
                     if let Some(budget) = time_budget
-                        && all_matches.len() > 1
+                        && match_count.load(Ordering::Relaxed) > 1
                         && search_start.elapsed() > budget
                     {
                         budget_exceeded.store(true, Ordering::Relaxed);
@@ -1112,6 +1118,7 @@ where
                     if file_matches.is_empty() {
                         return None;
                     }
+                    match_count.fetch_add(file_matches.len(), Ordering::Relaxed);
 
                     Some((chunk_offset + local_idx, *file, file_matches))
                 },
@@ -1466,11 +1473,23 @@ fn grep_search_parsed<'a>(
     let non_ascii_pattern = !grep_text.is_ascii();
 
     let mut regex_fallback_error: Option<String> = None;
+    // True only for `GrepMode::Regex` — the PlainText+non-ASCII+CI arm below
+    // compiles an *escaped* regex purely for Unicode case folding, so the
+    // regex-oriented file prefilters (required-literal, suffix, bigram
+    // decomposition) must not treat the literal needle as regex syntax.
+    let is_user_regex = matches!(options.mode, GrepMode::Regex);
     let regex = match options.mode {
         // Unicode-aware case folding for non-ASCII needles (see above);
-        // pure-ASCII patterns keep the faster literal path.
+        // pure-ASCII patterns keep the faster literal path. The needle is
+        // LITERAL text: escape it before handing it to the regex engine —
+        // otherwise `a.café` would match `abcafé`, `foo|bar` would become
+        // an alternation, and `café(` would fail to compile.
         GrepMode::PlainText if case_insensitive && non_ascii_pattern => {
-            build_regex(&grep_text, options.smart_case)
+            let expanded = replace_unescaped_newline_escapes(&grep_text);
+            let mut pat = String::with_capacity(expanded.len() + 4);
+            pat.push_str("(?i)");
+            pat.push_str(&regex::escape(&expanded));
+            build_regex(&pat, false)
                 .inspect_err(|err| {
                     tracing::warn!("Regex compilation failed for {}. Error {}", grep_text, err);
                     regex_fallback_error = Some(err.to_string());
@@ -1579,7 +1598,14 @@ fn grep_search_parsed<'a>(
             .ok(),
     };
 
-    let is_multiline = has_unescaped_newline_escape(&grep_text);
+    // Literal needle matched through the regex engine (the non-ASCII CI
+    // PlainText arm): ASCII-only memmem/bigram prefilters can't fold
+    // non-ASCII case and the regex-oriented prefilters would misread the
+    // literal needle as regex syntax — disable all file-skip prefilters.
+    let plaintext_via_regex = regex.is_some() && !is_user_regex;
+
+    let is_multiline = has_unescaped_newline_escape(&grep_text)
+        || (is_user_regex && regex_can_match_newline(&grep_text));
 
     let effective_pattern = if is_multiline {
         replace_unescaped_newline_escapes(&grep_text)
@@ -1602,7 +1628,7 @@ fn grep_search_parsed<'a>(
     // the DFA entirely via the whole-file memmem check in `perform_grep`.
     // The bytes live in `regex_literal_bytes` so the Finder borrow is valid.
     let regex_literal_bytes: Option<Vec<u8>> = match regex {
-        Some(_) => {
+        Some(_) if is_user_regex => {
             crate::bigram_query::longest_required_literal(&effective_pattern, 3).map(|lit| {
                 if case_insensitive {
                     lit.to_ascii_lowercase()
@@ -1611,7 +1637,7 @@ fn grep_search_parsed<'a>(
                 }
             })
         }
-        None => None,
+        _ => None,
     };
     let regex_literal_finder: Option<memchr::memmem::Finder<'_>> = regex_literal_bytes
         .as_deref()
@@ -1622,14 +1648,16 @@ fn grep_search_parsed<'a>(
     // literal when both exist (tail check is strictly more selective for
     // anchored patterns). Bytes live in `suffix_bytes` for the borrow.
     let suffix_bytes: Option<Vec<u8>> = match regex {
-        Some(_) => crate::bigram_query::anchored_literal_suffix(&effective_pattern, 3).map(|lit| {
-            if case_insensitive {
-                lit.to_ascii_lowercase()
-            } else {
-                lit
-            }
-        }),
-        None => None,
+        Some(_) if is_user_regex => {
+            crate::bigram_query::anchored_literal_suffix(&effective_pattern, 3).map(|lit| {
+                if case_insensitive {
+                    lit.to_ascii_lowercase()
+                } else {
+                    lit
+                }
+            })
+        }
+        _ => None,
     };
 
     // Bigram prefiltering: query the inverted index + merge overlay.
@@ -1637,7 +1665,12 @@ fn grep_search_parsed<'a>(
     // For Regex mode: decompose the regex HIR into an AND/OR bigram query tree
     // and evaluate it against the inverted index (supports alternation, optional
     // groups, character classes, and sparse-1 bigrams across single-byte wildcards).
-    let bigram_candidates = if let Some(idx) = bigram_index
+    let bigram_candidates = if plaintext_via_regex {
+        // Literal non-ASCII needle under case-insensitive matching: the
+        // bigram index only folds ASCII case, so a literal bigram query
+        // would drop files whose case differs in non-ASCII bytes.
+        None
+    } else if let Some(idx) = bigram_index
         && idx.is_ready()
     {
         let raw_candidates = if regex.is_none() {

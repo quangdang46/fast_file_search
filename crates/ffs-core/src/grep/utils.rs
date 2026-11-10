@@ -77,6 +77,71 @@ pub fn replace_unescaped_newline_escapes(text: &str) -> String {
     String::from_utf8(result).unwrap_or_else(|_| text.to_string())
 }
 
+/// Heuristic: can this regex pattern match a `\n` byte? Used to decide
+/// `multi_line` for the searcher — patterns that can span lines via `(?s)`,
+/// `\s`, or a negated class `[^…]` count as multiline even without a
+/// literal `\n` escape. Conservative by design: a false positive only costs
+/// the multiline code path, never correctness.
+pub fn regex_can_match_newline(pattern: &str) -> bool {
+    let bytes = pattern.as_bytes();
+    let mut i = 0;
+    let mut in_class = false;
+    while i < bytes.len() {
+        let b = bytes[i];
+        if b == b'\\' {
+            if i + 1 < bytes.len() {
+                match bytes[i + 1] {
+                    // \s matches \n; \n is a literal newline. \S excludes
+                    // whitespace (incl. \n) so it cannot match it.
+                    b's' | b'n' => return true,
+                    _ => {}
+                }
+                i += 2;
+                continue;
+            }
+            i += 1;
+            continue;
+        }
+        if in_class {
+            if b == b']' {
+                in_class = false;
+            }
+            i += 1;
+            continue;
+        }
+        match b {
+            b'[' => {
+                in_class = true;
+                // A negated class `[^…]` can match \n unless the class
+                // explicitly excludes it — treat any `[^` as multiline.
+                if bytes.get(i + 1) == Some(&b'^') {
+                    return true;
+                }
+                i += 1;
+            }
+            b'(' => {
+                // (?s) / (?s:…) / flag groups containing `s`.
+                if bytes.get(i + 1) == Some(&b'?') {
+                    let mut j = i + 2;
+                    let mut saw_s = false;
+                    while j < bytes.len() && bytes[j] != b')' && bytes[j] != b':' {
+                        if bytes[j] == b's' {
+                            saw_s = true;
+                        }
+                        j += 1;
+                    }
+                    if saw_s {
+                        return true;
+                    }
+                }
+                i += 1;
+            }
+            _ => i += 1,
+        }
+    }
+    false
+}
+
 pub fn parse_grep_query(query: &str) -> FfsQuery<'_> {
     let parser = QueryParser::new(GrepConfig);
     parser.parse(query)
