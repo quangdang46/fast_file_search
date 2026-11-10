@@ -13,8 +13,10 @@ use crate::cli::OutputFormat;
 #[derive(Debug, Parser)]
 pub struct Args {
     /// Discard any existing `<root>/.ffs/` cache and rebuild from scratch.
-    /// Use after large refactors when the file-count drift / git HEAD
-    /// invalidation didn't trigger but you want a fresh index anyway.
+    /// Normal runs already refresh the symbol index incrementally (mtime-
+    /// aware) on top of the on-disk cache, so this is only needed when the
+    /// cache itself is suspect — e.g. after a crash mid-write, a schema
+    /// change, or when you want a guaranteed-clean rebuild.
     #[arg(short = 'f', long)]
     pub force: bool,
 }

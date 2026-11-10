@@ -201,6 +201,17 @@ impl CacheDir {
 pub fn load_or_build_engine(root: &Path) -> Engine {
     let cache = CacheDir::at(root);
     if let Some(idx) = cache.load_symbol_index(root) {
+        // The file-count/git-HEAD tolerance check above only proves the cache
+        // is *plausibly* fresh — ordinary edits inside an unchanged file
+        // count never invalidate it. Always run the mtime-aware refresh so
+        // modified/deleted/added files are picked up; it is a no-op (single
+        // walk + stat per file) when nothing changed. The cache payload is
+        // rewritten only when refresh actually changed the index.
+        if refresh_symbol_index(&idx, root) {
+            if let Err(e) = cache.write_symbol_index(&idx, root) {
+                eprintln!("warning: failed to write symbol cache: {}", e);
+            }
+        }
         return Engine::with_symbols(EngineConfig::default(), Arc::new(idx));
     }
     if let Some(idx) = cache.load_symbol_index_stale(root) {
@@ -223,8 +234,13 @@ pub fn load_or_build_engine(root: &Path) -> Engine {
 /// `root`. Drops symbols from files that no longer exist and re-parses
 /// files whose mtime moved since the snapshot. `SymbolIndex::index_file`
 /// is itself mtime-skip aware, so unchanged files stay free.
-pub fn refresh_symbol_index(idx: &SymbolIndex, root: &Path) {
+///
+/// Returns `true` when the index actually changed (files dropped or
+/// re-parsed) so callers can decide whether the on-disk cache needs a
+/// rewrite.
+pub fn refresh_symbol_index(idx: &SymbolIndex, root: &Path) -> bool {
     use rayon::prelude::*;
+    use std::sync::atomic::{AtomicBool, Ordering};
 
     let on_disk = crate::commands::walk_files(root);
     let on_disk_set: std::collections::HashSet<&Path> =
@@ -235,6 +251,7 @@ pub fn refresh_symbol_index(idx: &SymbolIndex, root: &Path) {
         .into_iter()
         .filter(|p| !on_disk_set.contains(p.as_path()))
         .collect();
+    let changed = AtomicBool::new(!stale.is_empty());
     idx.drop_files(&stale);
 
     on_disk.par_iter().for_each(|path| {
@@ -245,6 +262,7 @@ pub fn refresh_symbol_index(idx: &SymbolIndex, root: &Path) {
         if idx.mtime_for(path) == Some(mtime) {
             return;
         }
+        changed.store(true, Ordering::Relaxed);
         // 4 MB cap mirrors UnifiedScanner — keeps a single huge file from
         // stalling refresh.
         if meta.len() == 0 || meta.len() > 4 * 1024 * 1024 {
@@ -255,6 +273,8 @@ pub fn refresh_symbol_index(idx: &SymbolIndex, root: &Path) {
         };
         idx.index_file(path, mtime, &content);
     });
+
+    changed.load(Ordering::Relaxed)
 }
 
 fn head_matches(root: &Path, expected: Option<&str>) -> bool {
