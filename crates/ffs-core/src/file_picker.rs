@@ -1347,20 +1347,21 @@ impl FilePicker {
     /// 3. Only `[..base_count]` is accessed — base files use the immutable
     ///    base arena. Overflow files use a different arena.
     pub(crate) unsafe fn post_scan_snapshot(&self) -> Option<PostScanUnsafeSnapshot> {
+        // Atomic test-and-set: two concurrent callers must not both observe
+        // `false` and mint overlapping raw-pointer snapshots (check-then-store
+        // is a TOCTOU — the loser would dereference pointers freed when the
+        // winner's drop clears the flag and a rescan commits new sync data).
         if self
             .signals
             .post_scan_indexing_active
-            .load(Ordering::Acquire)
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .is_err()
         {
             tracing::error!(
                 "Can not acquire post scan unsafe snapshot, someone already acquired it"
             );
             return None;
         }
-
-        self.signals
-            .post_scan_indexing_active
-            .store(true, Ordering::Release);
 
         let files = &self.sync_data.files;
         let dirs = &self.sync_data.dirs;
