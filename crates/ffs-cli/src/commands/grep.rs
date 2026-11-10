@@ -225,9 +225,7 @@ fn stream_match_literal(
             if !search_text && buf[..filled.min(BINARY_PROBE_LEN)].contains(&0u8) {
                 // UTF-16 text trips the NUL check: slurp the rest and search
                 // the transcoded UTF-8 instead of skipping the file.
-                if ffs_search::bom::decode_utf16(&buf[..filled]).is_none() {
-                    return None;
-                }
+                ffs_search::bom::decode_utf16(&buf[..filled])?;
                 let mut rest = Vec::new();
                 if reader.read_to_end(&mut rest).is_err() {
                     return None;
