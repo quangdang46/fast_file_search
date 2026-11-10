@@ -18,6 +18,14 @@
 //! passed to the resolver. Phase A (lives on main, not in this worktree)
 //! will replace the substring pass with a proper candidate pipeline; the
 //! surface stays the same.
+//!
+//! Single-token semantics (e.g. `ffs mention-search foo`): the one token is
+//! a **case-sensitive substring match against the whole absolute path** —
+//! it can hit a directory component (`src/foo/bar.rs` matches `foo`) as
+//! well as a filename, and it is NOT a fuzzy/symbol search. A token that
+//! matches nothing yields zero candidates and an empty `mentions` list
+//! (exit 0, no error); wrap the query in quotes is unnecessary since the
+//! input is already a single shell argument.
 
 use std::path::{Path, PathBuf};
 
@@ -33,7 +41,9 @@ use crate::cli::OutputFormat;
 #[derive(Debug, Parser)]
 pub struct Args {
     /// Input string. Tokens are split on whitespace; each token becomes a
-    /// substring candidate query that is resolved by Phase B.
+    /// case-sensitive substring query matched against the whole path.
+    /// A single token therefore matches directory components too —
+    /// `mention-search src` resolves every file under `src/`.
     pub input: String,
 
     /// Cursor into the input (1-based, informational only — surfaces

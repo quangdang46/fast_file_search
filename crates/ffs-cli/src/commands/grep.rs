@@ -54,7 +54,14 @@ fn read_for_search(path: &Path, search_text: bool) -> std::io::Result<Option<Vec
     buf.truncate(filled);
 
     if !search_text && buf.contains(&0u8) {
-        return Ok(None);
+        // NUL bytes usually mean binary — but UTF-16 text is NUL-heavy by
+        // construction. Probe-decode cheaply; only slurp the rest when the
+        // leading bytes really look like UTF-16.
+        if ffs_search::bom::decode_utf16(&buf).is_none() {
+            return Ok(None);
+        }
+        file.read_to_end(&mut buf)?;
+        return Ok(ffs_search::bom::decode_utf16(&buf).map(String::into_bytes));
     }
     if filled < BINARY_PROBE_LEN {
         return Ok(Some(buf)); // probe already consumed the whole file
@@ -98,6 +105,11 @@ fn read_prefix(path: &Path, search_text: bool) -> std::io::Result<Option<(Vec<u8
     buf.truncate(filled);
 
     if !search_text && buf.contains(&0u8) {
+        // UTF-16 text trips the NUL check — hand off to the full read path,
+        // which transcodes before matching.
+        if ffs_search::bom::decode_utf16(&buf).is_some() {
+            return read_for_search(path, search_text).map(|opt| opt.map(|c| (c, true)));
+        }
         return Ok(None);
     }
 
@@ -211,7 +223,19 @@ fn stream_match_literal(
             // Same `BINARY_PROBE_LEN` window as `read_for_search` — a NUL
             // past it does not make the file binary (rg contract).
             if !search_text && buf[..filled.min(BINARY_PROBE_LEN)].contains(&0u8) {
-                return None;
+                // UTF-16 text trips the NUL check: slurp the rest and search
+                // the transcoded UTF-8 instead of skipping the file.
+                if ffs_search::bom::decode_utf16(&buf[..filled]).is_none() {
+                    return None;
+                }
+                let mut rest = Vec::new();
+                if reader.read_to_end(&mut rest).is_err() {
+                    return None;
+                }
+                let mut full = buf[..filled].to_vec();
+                full.extend_from_slice(&rest);
+                let text = ffs_search::bom::decode_utf16(&full)?;
+                return Some(find_in_chunk(text.as_bytes(), needle, case_insensitive));
             }
         }
 

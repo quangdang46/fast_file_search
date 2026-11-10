@@ -733,10 +733,21 @@ fn process_file(
     // Zero-copy fast path: the warmup phase may have cached this file's
     // content already. Avoid re-reading from disk.
     if let Some(cached) = file.get_content(arena, base_path, budget) {
-        if crate::file_picker::detect_binary_content(cached) {
+        // UTF-16 text is transcoded before indexing: raw UTF-16 bytes are
+        // full of NULs (would flag the file binary) and their bigrams could
+        // never match a UTF-8 query anyway.
+        let transcoded;
+        let data: &[u8] = match crate::bom::decode_utf16(cached) {
+            Some(t) => {
+                transcoded = t.into_bytes();
+                transcoded.as_slice()
+            }
+            None => cached,
+        };
+        if crate::file_picker::detect_binary_content(data) {
             return FileOutcome::Binary;
         }
-        let capped = &cached[..cached.len().min(BIGRAM_CONTENT_CAP)];
+        let capped = &data[..data.len().min(BIGRAM_CONTENT_CAP)];
         builder.add_file_content(skip_builder, file_idx, capped);
         return FileOutcome::Indexed;
     }
@@ -757,7 +768,15 @@ fn process_file(
         if filled == 0 {
             return FileOutcome::Skipped;
         }
-        let data = &buf[..filled];
+        // Same UTF-16 transcoding as the cached path above.
+        let transcoded;
+        let data: &[u8] = match crate::bom::decode_utf16(&buf[..filled]) {
+            Some(t) => {
+                transcoded = t.into_bytes();
+                transcoded.as_slice()
+            }
+            None => &buf[..filled],
+        };
         if crate::file_picker::detect_binary_content(data) {
             return FileOutcome::Binary;
         }

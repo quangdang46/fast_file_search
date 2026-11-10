@@ -1,9 +1,16 @@
 //! `ffs impact <symbol>` — rank workspace files by how much each one would
-//! be affected if `<symbol>` changed. Combines three signals per file:
+//! be affected if `<symbol>` changed. Combines four signals per file:
 //!
 //! * direct callers (single-hop call sites)        — weight 3
 //! * reverse-import edges to the symbol's defn(s)  — weight 2
 //! * transitive callers (BFS depth 2 + 3 hits)     — weight 1
+//! * text mentions in non-code files (.md/.txt/…)  — flat weight 1 per file
+//!
+//! Call-site detection is a substring heuristic over file contents, so a
+//! doc file that merely *mentions* the symbol would otherwise score like a
+//! real caller. Non-code hits are therefore demoted to a single flat
+//! "mentions" point per file — docs can appear in the report but can never
+//! outrank a file with an actual code hit.
 //!
 //! Lock zones: only `crates/ffs-cli` is touched. The command is purely
 //! additive (new sub-command, no changes to existing ones).
@@ -100,10 +107,24 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         &root_canon,
     );
 
+    // Paths (as `hit.path` carries them — pre-relativization) that hold
+    // parsed code. Everything else is prose/docs and only earns the flat
+    // "mentions" signal below.
+    let code_paths: std::collections::HashSet<String> = candidates
+        .iter()
+        .filter(|c| c.lang.is_some())
+        .map(|c| c.path.to_string_lossy().into_owned())
+        .collect();
+
     let mut direct: HashMap<String, u32> = HashMap::new();
     let mut transitive: HashMap<String, u32> = HashMap::new();
+    let mut mentions: HashMap<String, u32> = HashMap::new();
     for hit in &bfs.hits {
         let path = display_relative(Path::new(&hit.path), &root_canon);
+        if !code_paths.contains(hit.path.as_str()) {
+            *mentions.entry(path).or_default() += 1;
+            continue;
+        }
         if hit.depth <= 1 {
             *direct.entry(path).or_default() += 1;
         } else {
@@ -118,6 +139,7 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     paths.extend(direct.keys().cloned());
     paths.extend(transitive.keys().cloned());
     paths.extend(imports.keys().cloned());
+    paths.extend(mentions.keys().cloned());
 
     let mut rows: Vec<ImpactResult> = paths
         .into_iter()
@@ -125,7 +147,9 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
             let d = *direct.get(&path).unwrap_or(&0);
             let i = *imports.get(&path).unwrap_or(&0);
             let t = *transitive.get(&path).unwrap_or(&0);
-            let score = d * 3 + i * 2 + t;
+            let m = *mentions.get(&path).unwrap_or(&0);
+            // Doc mentions contribute a flat 1 regardless of hit count.
+            let score = d * 3 + i * 2 + t + u32::from(m > 0);
             let mut reasons = Vec::new();
             if d > 0 {
                 reasons.push(format!("direct: {d}"));
@@ -135,6 +159,9 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
             }
             if t > 0 {
                 reasons.push(format!("transitive: {t}"));
+            }
+            if m > 0 {
+                reasons.push(format!("mentions: {m}"));
             }
             ImpactResult {
                 path,

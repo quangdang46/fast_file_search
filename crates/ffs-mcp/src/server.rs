@@ -38,6 +38,37 @@ fn normalize_max_results(raw: Option<f64>, default: usize) -> usize {
     }
 }
 
+/// "[still indexing]" prefix for empty-result responses while the background
+/// scan is running. Cold-start calls used to report "0 matches" /
+/// "0 results (0 indexed)" against a partially-built index — a silent false
+/// negative that agents cannot distinguish from a real miss.
+fn indexing_notice(picker: &ffs::FilePicker) -> Option<String> {
+    let progress = picker.get_scan_progress();
+    if !progress.is_scanning {
+        return None;
+    }
+    Some(format!(
+        "[still indexing: {} files scanned so far — results may be incomplete, retry shortly]\n",
+        progress.scanned_files_count
+    ))
+}
+
+/// Lexically normalize `.`/`..` components without touching the filesystem.
+fn normalize_lexical(path: &std::path::Path) -> std::path::PathBuf {
+    use std::path::Component;
+    let mut out = std::path::PathBuf::new();
+    for comp in path.components() {
+        match comp {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                out.pop();
+            }
+            other => out.push(other.as_os_str()),
+        }
+    }
+    out
+}
+
 fn cleanup_fuzzy_query(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for c in s.chars() {
@@ -418,15 +449,17 @@ impl FfsServer {
                 }
             }
 
-            return Ok(CallToolResult::success(vec![Content::text(
-                "0 matches.".to_string(),
-            )]));
+            let notice = indexing_notice(picker).unwrap_or_default();
+            return Ok(CallToolResult::success(vec![Content::text(format!(
+                "{notice}0 matches."
+            ))]));
         }
 
         if result.matches.is_empty() {
-            return Ok(CallToolResult::success(vec![Content::text(
-                "0 matches.".to_string(),
-            )]));
+            let notice = indexing_notice(picker).unwrap_or_default();
+            return Ok(CallToolResult::success(vec![Content::text(format!(
+                "{notice}0 matches."
+            ))]));
         }
 
         let mut cs = self.lock_cursors()?;
@@ -443,7 +476,10 @@ impl FfsServer {
         }
         .format(&mut cs);
 
-        Ok(CallToolResult::success(vec![Content::text(text)]))
+        let notice = indexing_notice(picker).unwrap_or_default();
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "{notice}{text}"
+        ))]))
     }
 }
 
@@ -541,8 +577,9 @@ impl FfsServer {
             };
 
         if items.is_empty() {
+            let notice = indexing_notice(picker).unwrap_or_default();
             return Ok(CallToolResult::success(vec![Content::text(format!(
-                "0 results ({} indexed)",
+                "{notice}0 results ({} indexed)",
                 total_files
             ))]));
         }
@@ -586,7 +623,9 @@ impl FfsServer {
             lines.push(format!("cursor: {}", cursor_id));
         }
 
-        let mut result = CallToolResult::success(vec![Content::text(lines.join("\n"))]);
+        let notice = indexing_notice(picker).unwrap_or_default();
+        let mut result =
+            CallToolResult::success(vec![Content::text(format!("{notice}{}", lines.join("\n")))]);
         self.maybe_append_update_notice(&mut result);
         Ok(result)
     }
@@ -640,8 +679,9 @@ impl FfsServer {
         let total_dirs = result.total_dirs;
 
         if result.items.is_empty() {
+            let notice = indexing_notice(picker).unwrap_or_default();
             return Ok(CallToolResult::success(vec![Content::text(format!(
-                "0 directory results ({} indexed dirs)",
+                "{notice}0 directory results ({} indexed dirs)",
                 total_dirs
             ))]));
         }
@@ -670,7 +710,9 @@ impl FfsServer {
             lines.push(format!("cursor: {}", cursor_id));
         }
 
-        let mut out = CallToolResult::success(vec![Content::text(lines.join("\n"))]);
+        let notice = indexing_notice(picker).unwrap_or_default();
+        let mut out =
+            CallToolResult::success(vec![Content::text(format!("{notice}{}", lines.join("\n")))]);
         self.maybe_append_update_notice(&mut out);
         Ok(out)
     }
@@ -723,8 +765,9 @@ impl FfsServer {
         let result = picker.fuzzy_search_mixed(&ffs_query, None, opts);
 
         if result.items.is_empty() {
+            let notice = indexing_notice(picker).unwrap_or_default();
             return Ok(CallToolResult::success(vec![Content::text(format!(
-                "0 results ({} files, {} dirs)",
+                "{notice}0 results ({} files, {} dirs)",
                 result.total_files, result.total_dirs
             ))]));
         }
@@ -764,7 +807,9 @@ impl FfsServer {
             lines.push(format!("cursor: {}", cursor_id));
         }
 
-        let mut out = CallToolResult::success(vec![Content::text(lines.join("\n"))]);
+        let notice = indexing_notice(picker).unwrap_or_default();
+        let mut out =
+            CallToolResult::success(vec![Content::text(format!("{notice}{}", lines.join("\n")))]);
         self.maybe_append_update_notice(&mut out);
         Ok(out)
     }
@@ -845,8 +890,14 @@ impl FfsServer {
         catch_unwind_result(|| {
             let name = params.name.trim();
             let text = if let Some(prefix) = name.strip_suffix('*') {
-                let mut hits = engine.handles.symbols.lookup_prefix(prefix);
-                hits.truncate(max_results);
+                // Bounded lookup: `lookup_prefix` + `truncate` used to clone
+                // every matching (name, location) pair before cutting to
+                // `max_results` — a `*` query on a large index allocated the
+                // whole symbol table. Bound during collection instead.
+                let hits = engine
+                    .handles
+                    .symbols
+                    .lookup_prefix_limited(prefix, max_results);
                 if hits.is_empty() {
                     format!("[no symbols starting with '{prefix}']\n")
                 } else {
@@ -935,11 +986,27 @@ impl FfsServer {
                 .unwrap_or(&params.path);
 
             let path = std::path::Path::new(path_part);
-            let abs_path = if path.is_absolute() {
+            // Resolve against the canonical root so symlinked roots compare
+            // correctly, then canonicalize the target itself when it exists.
+            let root_canon = root.canonicalize().unwrap_or_else(|_| root.clone());
+            let joined = if path.is_absolute() {
                 path.to_path_buf()
             } else {
-                root.join(path)
+                root_canon.join(path)
             };
+            // Confine reads to the repository root: absolute paths and `..`
+            // segments that escape it are rejected (CLI parity — `ffs read`
+            // does the same unless --allow-outside-root is passed).
+            let abs_norm = joined
+                .canonicalize()
+                .unwrap_or_else(|_| normalize_lexical(&joined));
+            if !abs_norm.starts_with(&root_canon) {
+                return Ok(CallToolResult::error(vec![Content::text(format!(
+                    "[error] path '{}' escapes the repository root",
+                    params.path
+                ))]));
+            }
+            let abs_path = abs_norm;
 
             let cfg = ffs_engine::EngineConfig {
                 filter_level: level,
@@ -1220,15 +1287,17 @@ impl FfsServer {
                 }
             }
 
-            return Ok(CallToolResult::success(vec![Content::text(
-                "0 matches.".to_string(),
-            )]));
+            let notice = indexing_notice(picker).unwrap_or_default();
+            return Ok(CallToolResult::success(vec![Content::text(format!(
+                "{notice}0 matches."
+            ))]));
         }
 
         if result.matches.is_empty() {
-            return Ok(CallToolResult::success(vec![Content::text(
-                "0 matches.".to_string(),
-            )]));
+            let notice = indexing_notice(picker).unwrap_or_default();
+            return Ok(CallToolResult::success(vec![Content::text(format!(
+                "{notice}0 matches."
+            ))]));
         }
 
         let mut cs = self.lock_cursors()?;
@@ -1245,7 +1314,10 @@ impl FfsServer {
         }
         .format(&mut cs);
 
-        Ok(CallToolResult::success(vec![Content::text(text)]))
+        let notice = indexing_notice(picker).unwrap_or_default();
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "{notice}{text}"
+        ))]))
     }
 }
 

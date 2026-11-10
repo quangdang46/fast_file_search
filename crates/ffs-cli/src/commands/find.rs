@@ -448,6 +448,9 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         if format == OutputFormat::Json {
             println!("{}", serde_json::to_string_pretty(&scored)?);
         } else {
+            if scored.is_empty() {
+                println!("[no matches for `{}`]", payload.needle);
+            }
             for s in &scored {
                 let bonus = if s.score > 0 {
                     format!("+{}", s.score)
@@ -464,6 +467,9 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         let mut out = String::new();
         if p.fuzzy_fallback && !p.matches.is_empty() {
             out.push_str("# fuzzy fallback (no exact match)\n");
+        }
+        if p.total == 0 {
+            out.push_str(&format!("[no matches for `{}`]\n", p.needle));
         }
         let path_spec = super::render::path_spec();
         let fuzzy_spec = super::render::match_spec();

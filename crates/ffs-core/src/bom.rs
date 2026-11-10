@@ -2,13 +2,18 @@
 const UTF8_BOM: &[u8] = b"\xEF\xBB\xBF";
 
 /// Read a file and strip the UTF-8 BOM prefix if present.
+///
+/// Files that aren't valid UTF-8 get a UTF-16 decode attempt (BOM'd or
+/// NUL-parity detected) before erroring — `rg`-style transcoding so BOM'd
+/// UTF-16 sources stay readable/searchable.
 pub fn read_file(path: impl AsRef<std::path::Path>) -> std::io::Result<String> {
     let mut bytes = std::fs::read(path)?;
     strip_bom_bytes(&mut bytes);
-    String::from_utf8(bytes).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+    decode_text(bytes)
 }
 
 /// Read a file, strip the UTF-8 BOM, and return content + mtime.
+/// Same UTF-16 fallback as [`read_file`].
 pub fn read_file_with_mtime(
     path: impl AsRef<std::path::Path>,
 ) -> std::io::Result<(String, std::time::SystemTime)> {
@@ -18,9 +23,23 @@ pub fn read_file_with_mtime(
         .and_then(|m| m.modified())
         .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
     strip_bom_bytes(&mut bytes);
-    let content = String::from_utf8(bytes)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+    let content = decode_text(bytes)?;
     Ok((content, mtime))
+}
+
+fn decode_text(bytes: Vec<u8>) -> std::io::Result<String> {
+    match String::from_utf8(bytes) {
+        Ok(s) => Ok(s),
+        Err(e) => {
+            let bytes = e.into_bytes();
+            decode_utf16(&bytes).ok_or_else(|| {
+                std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "file is not valid UTF-8 or UTF-16",
+                )
+            })
+        }
+    }
 }
 
 /// Strip a UTF-8 BOM prefix from a byte vector in place.

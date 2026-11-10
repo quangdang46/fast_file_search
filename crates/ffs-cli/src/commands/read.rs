@@ -76,6 +76,11 @@ pub struct Args {
     #[arg(long, default_value_t = false, conflicts_with = "full")]
     pub signatures: bool,
 
+    /// Allow reading paths outside `--root` (absolute paths and `..`
+    /// traversal). By default `read` is confined to the workspace root.
+    #[arg(long, default_value_t = false)]
+    pub allow_outside_root: bool,
+
     /// JS/TS artifact mode: extract export anchors (ESM/CJS/AMD/UMD) for
     /// bundled or minified files. No-op for non-JS/TS targets.
     #[arg(long, default_value_t = false)]
@@ -147,11 +152,16 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
     let budget = args.budget.unwrap_or(25_000);
 
     let (path_part, line) = parse_target(&args.target);
-    let initial_path = if Path::new(path_part).is_absolute() {
-        PathBuf::from(path_part)
-    } else {
-        root.join(path_part)
-    };
+
+    // `-` and `/dev/stdin` read piped stdin instead of a workspace file.
+    // (`path:line` focus works here too.)
+    if path_part == "-" || path_part == "/dev/stdin" {
+        return read_stdin(line, level, budget, format);
+    }
+
+    // Confine to `--root` by default: absolute paths and `..` segments that
+    // escape the workspace are rejected unless --allow-outside-root is set.
+    let initial_path = confine_to_root(root, path_part, args.allow_outside_root)?;
 
     // Bare-filename auto-pick: when the literal path doesn't resolve and the
     // target has no separator, search the workspace by basename. Exactly one
@@ -536,6 +546,113 @@ fn read_section(path: &Path, line: u32, level: FilterLevel, budget: u64) -> Resu
         resolved_from: None,
         view: None,
     })
+}
+
+/// Lexically normalize `.`/`..` components without touching the filesystem
+/// (works for paths that don't exist yet). `..` at the filesystem root is
+/// clamped, matching kernel path resolution.
+fn normalize_lexical(path: &Path) -> PathBuf {
+    use std::path::Component;
+    let mut out = PathBuf::new();
+    for comp in path.components() {
+        match comp {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                out.pop();
+            }
+            other => out.push(other.as_os_str()),
+        }
+    }
+    out
+}
+
+/// Reject paths that escape `root` unless `allow_outside` is set. Relative
+/// targets are joined onto the canonicalized root and the result is
+/// canonicalized when it exists, so symlinked roots and `..` segments can't
+/// smuggle a path outside the workspace. Nonexistent paths fall back to
+/// lexical `..` normalization — a symlink *inside* the root pointing outside
+/// is still possible for not-yet-existing paths, same as `cat`.
+fn confine_to_root(root: &Path, path_part: &str, allow_outside: bool) -> Result<PathBuf> {
+    let p = Path::new(path_part);
+    if allow_outside {
+        return Ok(if p.is_absolute() {
+            p.to_path_buf()
+        } else {
+            root.join(p)
+        });
+    }
+    let root_base = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
+    let root_norm = normalize_lexical(&root_base);
+    let joined = if p.is_absolute() {
+        p.to_path_buf()
+    } else {
+        root_norm.join(p)
+    };
+    let resolved = joined
+        .canonicalize()
+        .unwrap_or_else(|_| normalize_lexical(&joined));
+    if !resolved.starts_with(&root_norm) {
+        return Err(anyhow!(
+            "path {} escapes --root {}; pass --allow-outside-root to read outside the workspace",
+            path_part,
+            root.display()
+        ));
+    }
+    Ok(resolved)
+}
+
+/// Read piped stdin for `ffs read -` / `ffs read /dev/stdin`. Applies the
+/// same single-line `:N` focus and token budget as file reads; there is no
+/// filename so no language filtering or outline is attempted.
+fn read_stdin(
+    line: Option<u32>,
+    _level: FilterLevel,
+    budget: u64,
+    format: OutputFormat,
+) -> Result<()> {
+    use std::io::Read;
+    let mut content = String::new();
+    std::io::stdin()
+        .read_to_string(&mut content)
+        .map_err(|e| anyhow!("failed to read stdin: {e}"))?;
+
+    let (slice, mode) = if let Some(n) = line {
+        let mut slice = String::new();
+        for (i, l) in content.lines().enumerate() {
+            if i as u32 + 1 == n {
+                slice.push_str(l);
+                slice.push('\n');
+                break;
+            }
+        }
+        if slice.is_empty() && content.lines().count() < n as usize {
+            return Err(anyhow!(
+                "line {n} out of range (stdin has {} lines)",
+                content.lines().count()
+            ));
+        }
+        (slice, "section")
+    } else {
+        (content, "stdin")
+    };
+
+    let split = BudgetSplit::default_for(budget);
+    let body_budget_bytes = (split.body * 4) as usize;
+    let max_bytes = body_budget_bytes.min(EngineConfig::default().max_bytes_per_result);
+    let (body, outcome) = budgeted(&slice, max_bytes);
+
+    let payload = ReadOutput {
+        path: "<stdin>".to_string(),
+        mode,
+        body,
+        kept_bytes: outcome.kept_bytes,
+        footer_bytes: outcome.footer_bytes,
+        line,
+        section: None,
+        resolved_from: None,
+        view: None,
+    };
+    super::emit(format, &payload, section_text)
 }
 
 enum BareResolve {

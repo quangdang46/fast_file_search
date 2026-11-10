@@ -1,6 +1,5 @@
 use std::path::Path;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 use parking_lot::Mutex;
 
@@ -17,6 +16,10 @@ use parking_lot::Mutex;
 /// `.git`, `node_modules`, or ignored directories. Only real files are
 /// returned (directories and symlinks are skipped), and results are sorted
 /// for deterministic output.
+///
+/// The walk always visits the whole tree before truncating: early-quitting at
+/// `max_files` returned an arbitrary subset chosen by parallel arrival order,
+/// which made `--offset` paging and `--format json` output nondeterministic.
 pub fn glob_files(root: &Path, pattern: &str, max_files: usize) -> Vec<String> {
     if max_files == 0 {
         return Vec::new();
@@ -32,16 +35,13 @@ pub fn glob_files(root: &Path, pattern: &str, max_files: usize) -> Vec<String> {
     };
     let matcher = glob.compile_matcher();
 
-    let done = Arc::new(AtomicBool::new(false));
-    let matches = Arc::new(Mutex::new(Vec::with_capacity(max_files.min(1024))));
+    let matches = Arc::new(Mutex::new(Vec::new()));
     let root_owned = root.to_path_buf();
 
     struct GlobVisitor {
         matcher: globset::GlobMatcher,
         basename_mode: bool,
         root: std::path::PathBuf,
-        max_files: usize,
-        done: Arc<AtomicBool>,
         matches: Arc<Mutex<Vec<String>>>,
     }
 
@@ -62,9 +62,6 @@ pub fn glob_files(root: &Path, pattern: &str, max_files: usize) -> Vec<String> {
 
     impl ignore::ParallelVisitor for GlobVisitor {
         fn visit(&mut self, result: Result<ignore::DirEntry, ignore::Error>) -> ignore::WalkState {
-            if self.done.load(Ordering::Relaxed) {
-                return ignore::WalkState::Quit;
-            }
             let entry = match result {
                 Ok(e) => e,
                 Err(_) => return ignore::WalkState::Skip,
@@ -85,14 +82,7 @@ pub fn glob_files(root: &Path, pattern: &str, max_files: usize) -> Vec<String> {
             if self.matcher.is_match(&candidate)
                 && let Some(rel) = self.rel_string(entry.path())
             {
-                let mut guard = self.matches.lock();
-                if guard.len() < self.max_files {
-                    guard.push(rel);
-                    if guard.len() >= self.max_files {
-                        self.done.store(true, Ordering::Relaxed);
-                        return ignore::WalkState::Quit;
-                    }
-                }
+                self.matches.lock().push(rel);
             }
             ignore::WalkState::Continue
         }
@@ -102,8 +92,6 @@ pub fn glob_files(root: &Path, pattern: &str, max_files: usize) -> Vec<String> {
         matcher: globset::GlobMatcher,
         basename_mode: bool,
         root: std::path::PathBuf,
-        max_files: usize,
-        done: Arc<AtomicBool>,
         matches: Arc<Mutex<Vec<String>>>,
     }
 
@@ -113,8 +101,6 @@ pub fn glob_files(root: &Path, pattern: &str, max_files: usize) -> Vec<String> {
                 matcher: self.matcher.clone(),
                 basename_mode: self.basename_mode,
                 root: self.root.clone(),
-                max_files: self.max_files,
-                done: Arc::clone(&self.done),
                 matches: Arc::clone(&self.matches),
             })
         }
@@ -132,8 +118,6 @@ pub fn glob_files(root: &Path, pattern: &str, max_files: usize) -> Vec<String> {
         matcher,
         basename_mode,
         root: root_owned,
-        max_files,
-        done,
         matches: Arc::clone(&matches),
     });
 

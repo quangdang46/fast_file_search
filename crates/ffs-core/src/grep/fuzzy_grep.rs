@@ -181,6 +181,15 @@ pub(super) fn fuzzy_grep_search<'a>(
                 let file_bytes =
                     file.get_content_for_search(buf, mmap_slot, arena, base_path, budget)?;
 
+                // UTF-16 files: transcode to UTF-8 before line splitting —
+                // raw UTF-16 lines are never valid UTF-8 and would all be
+                // skipped below.
+                let utf16_text = crate::bom::decode_utf16(file_bytes);
+                let file_bytes: &[u8] = utf16_text
+                    .as_deref()
+                    .map(str::as_bytes)
+                    .unwrap_or(file_bytes);
+
                 // File-level prefilter: check if enough distinct needle chars
                 // exist anywhere in the file bytes.  Uses memchr for speed.
                 if min_chars_required > 0 {

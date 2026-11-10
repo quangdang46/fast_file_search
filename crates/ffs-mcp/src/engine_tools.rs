@@ -220,6 +220,12 @@ pub fn rel_path(root: &Path, path: &Path) -> String {
 /// final `String::contains` confirmation.
 pub fn find_call_sites(engine: &Engine, root: &Path, symbol: &str, limit: usize) -> Vec<CallHit> {
     let definitions = resolve_symbol_name(symbol, &engine.handles.symbols);
+    if definitions.is_empty() {
+        // No AST definition → the substring scan below would report bare text
+        // mentions as "call sites" (fn definitions of other symbols, prose,
+        // comments). An honest empty is better than mislabeled noise.
+        return Vec::new();
+    }
     let definition_lines: Vec<(PathBuf, u32)> = definitions
         .iter()
         .map(|d| (d.path.clone(), d.line))
@@ -320,7 +326,12 @@ pub fn find_callee_sites(engine: &Engine, root: &Path, symbol: &str, limit: usiz
 fn walk_code_files(root: &Path) -> Vec<(std::path::PathBuf, std::time::SystemTime, String)> {
     // Shared walker with `ffs-cli` and `ffs-c`. Serial and ordered on purpose:
     // hits are truncated at a limit, so walk order decides what is returned.
-    ffs_engine::CodeFile::into_confirm_input(&ffs_engine::CodeFile::collect(root))
+    // Move out of `CodeFile` instead of `into_confirm_input` — that used to
+    // clone every file's content a second time.
+    ffs_engine::CodeFile::collect(root)
+        .into_iter()
+        .map(|f| (f.path, f.mtime, f.content))
+        .collect()
 }
 
 /// Find the innermost enclosing symbol from an outline for a given line.
@@ -396,11 +407,14 @@ pub fn find_refs(
     let candidates = walk_code_files(root);
 
     let stack = PreFilterStack::new(engine.handles.bloom.clone());
-    let confirm_input: Vec<_> = candidates
-        .iter()
-        .map(|(p, m, c)| (p.clone(), *m, c.clone()))
-        .collect();
-    let survivors = stack.confirm_symbol(&confirm_input, name);
+    // Borrowed confirm — cloning every file body into `confirm_input` used
+    // to triple the peak memory of a refs/callers request.
+    let survivors = stack.confirm_symbol_ref(
+        candidates
+            .iter()
+            .map(|(p, m, c)| (p.as_path(), *m, c.as_str())),
+        name,
+    );
     let survivor_set: std::collections::HashSet<&std::path::Path> =
         survivors.iter().map(|s| s.path.as_path()).collect();
     let mut usages: Vec<RefUsage> = Vec::new();

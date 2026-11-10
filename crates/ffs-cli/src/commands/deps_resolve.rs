@@ -26,6 +26,14 @@ pub fn extract_imports(content: &str, lang: Lang) -> Vec<String> {
 }
 
 fn walk(node: Node, src: &[u8], lang: Lang, out: &mut Vec<String>) {
+    // Doc comments (`//!`, `///`, `#`, `//`, `/* */`) can contain example
+    // `use`/`import` lines — never treat comment content as real imports.
+    // Also skips ERROR-recovery subtrees: when a doc comment or string
+    // confuses the parser, recovered nodes can resurrect comment text as
+    // bogus import nodes.
+    if node.kind().contains("comment") || node.kind() == "ERROR" || node.is_error() {
+        return;
+    }
     if let Some(spec) = node_to_import(node, src, lang) {
         out.push(spec);
         // Imports do not nest, so don't recurse into them.
@@ -514,6 +522,16 @@ mod tests {
         let src = "use super::*;\n";
         let imports = extract_imports(src, Lang::Rust);
         assert_eq!(imports, vec!["super"]);
+    }
+
+    #[test]
+    fn doc_comment_examples_are_not_imports() {
+        let src = "//! Crate docs.\n//!\n//! ```rust\n//! use examples::not_real;\n//! ```\n\
+                   /// Also `use doc::hidden;` in a doc comment.\n\
+                   // use line_comment::also_hidden;\n\
+                   use real::dep;\n";
+        let imports = extract_imports(src, Lang::Rust);
+        assert_eq!(imports, vec!["real::dep"]);
     }
 
     #[test]

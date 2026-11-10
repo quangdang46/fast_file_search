@@ -1091,6 +1091,13 @@ where
                         ctx.budget,
                     )?;
 
+                    // UTF-16 files: transcode to UTF-8 so the byte-oriented
+                    // prefilter and searcher see normal text (line numbers
+                    // are preserved — UTF-16 `\n` maps to UTF-8 `\n`).
+                    let utf16_text = crate::bom::decode_utf16(content);
+                    let content: &[u8] =
+                        utf16_text.as_deref().map(str::as_bytes).unwrap_or(content);
+
                     // Fast whole-file memmem check before entering the
                     // grep-searcher machinery. Skips Vec alloc, Searcher
                     // setup, and line-splitting for files that can't match.
