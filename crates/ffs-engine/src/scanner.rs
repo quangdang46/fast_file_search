@@ -35,6 +35,10 @@ pub struct ScanReport {
     pub files_skipped_binary: usize,
     pub files_skipped_generated: usize,
     pub files_skipped_other: usize,
+    /// Directory-walk errors (permission denied, IO failures) that `ignore`
+    /// reported and we skipped — previously swallowed by `flatten()`, which
+    /// made partially-covered scans invisible.
+    pub files_walk_errors: usize,
 }
 
 /// Live progress counters readable from any thread.
@@ -99,7 +103,7 @@ impl UnifiedScanner {
 
     /// Scan the given root, populating all three indexes. Honors `.gitignore`.
     pub fn scan(&self, root: &Path) -> ScanReport {
-        let entries = self.collect_entries(root);
+        let (entries, walk_errors) = self.collect_entries(root);
 
         let bloom = Arc::clone(&self.bloom);
         let symbols = Arc::clone(&self.symbols);
@@ -113,7 +117,10 @@ impl UnifiedScanner {
             })
             .collect();
 
-        let mut report = ScanReport::default();
+        let mut report = ScanReport {
+            files_walk_errors: walk_errors,
+            ..ScanReport::default()
+        };
         for (visited, indexed, skipped) in counters {
             report.files_visited += visited;
             report.files_indexed += indexed;
@@ -122,20 +129,29 @@ impl UnifiedScanner {
         report
     }
 
-    fn collect_entries(&self, root: &Path) -> Vec<PathBuf> {
+    /// Walk `root` collecting file paths. Returns `(paths, walk_errors)` —
+    /// `ignore` reports per-entry errors (permission denied, vanished dirs)
+    /// that `flatten()` used to drop silently.
+    fn collect_entries(&self, root: &Path) -> (Vec<PathBuf>, usize) {
         let mut paths = Vec::new();
+        let mut walk_errors = 0usize;
         let walker = WalkBuilder::new(root)
             .standard_filters(true)
             .follow_links(false)
             .build();
-        for entry in walker.flatten() {
-            if let Some(ft) = entry.file_type() {
-                if ft.is_file() {
-                    paths.push(entry.into_path());
+        for entry in walker {
+            match entry {
+                Ok(e) => {
+                    if let Some(ft) = e.file_type() {
+                        if ft.is_file() {
+                            paths.push(e.into_path());
+                        }
+                    }
                 }
+                Err(_) => walk_errors += 1,
             }
         }
-        paths
+        (paths, walk_errors)
     }
 }
 

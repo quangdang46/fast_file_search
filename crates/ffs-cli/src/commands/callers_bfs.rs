@@ -147,10 +147,6 @@ pub fn run_bfs(
     let mut all_hits: Vec<CallerHit> = Vec::new();
     let mut telemetry = BfsTelemetry::default();
 
-    let confirm_input: Vec<(PathBuf, SystemTime, String)> = candidates
-        .iter()
-        .map(|c| (c.path.clone(), c.mtime, c.content.clone()))
-        .collect();
     let session = Session::new();
 
     let max_hops = cfg.max_hops.clamp(1, 5);
@@ -190,7 +186,12 @@ pub fn run_bfs(
                 .collect();
             def_roots.remove("");
 
-            let survivors = stack.confirm_symbol(&confirm_input, name);
+            let survivors = stack.confirm_symbol_ref(
+                candidates
+                    .iter()
+                    .map(|c| (c.path.as_path(), c.mtime, c.content.as_str())),
+                name,
+            );
             let survivor_set: HashSet<&std::path::Path> =
                 survivors.iter().map(|s| s.path.as_path()).collect();
 

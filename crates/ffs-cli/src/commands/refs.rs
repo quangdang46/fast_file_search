@@ -4,7 +4,6 @@
 // applies to usages only so the defs block is always complete.
 
 use std::path::Path;
-use std::time::SystemTime;
 
 use anyhow::Result;
 use clap::Parser;
@@ -105,11 +104,12 @@ fn collect_usages(engine: &Engine, name: &str, candidates: &[CandidateFile]) -> 
         .collect();
 
     let stack = PreFilterStack::new(engine.handles.bloom.clone());
-    let confirm_input: Vec<(std::path::PathBuf, SystemTime, String)> = candidates
-        .iter()
-        .map(|c| (c.path.clone(), c.mtime, c.content.clone()))
-        .collect();
-    let survivors = stack.confirm_symbol(&confirm_input, name);
+    let survivors = stack.confirm_symbol_ref(
+        candidates
+            .iter()
+            .map(|c| (c.path.as_path(), c.mtime, c.content.as_str())),
+        name,
+    );
     let survivor_set: std::collections::HashSet<&std::path::Path> =
         survivors.iter().map(|s| s.path.as_path()).collect();
 

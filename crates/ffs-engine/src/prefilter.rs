@@ -2,7 +2,7 @@
 //! cache confirms identifier presence before the (possibly expensive) full
 //! search backend runs.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::SystemTime;
 
@@ -38,13 +38,33 @@ impl PreFilterStack {
         candidates: &[(PathBuf, SystemTime, String)],
         symbol: &str,
     ) -> Vec<PreFilteredCandidate> {
+        self.confirm_symbol_ref(
+            candidates
+                .iter()
+                .map(|(p, m, c)| (p.as_path(), *m, c.as_str())),
+            symbol,
+        )
+    }
+
+    /// Borrow-based variant of [`PreFilterStack::confirm_symbol`]: callers
+    /// hand over `(path, mtime, &content)` triples so file bodies are never
+    /// cloned just to feed the bloom check.
+    #[must_use]
+    pub fn confirm_symbol_ref<'a, I>(
+        &self,
+        candidates: I,
+        symbol: &str,
+    ) -> Vec<PreFilteredCandidate>
+    where
+        I: IntoIterator<Item = (&'a Path, SystemTime, &'a str)>,
+    {
         candidates
-            .iter()
+            .into_iter()
             .filter_map(|(path, mtime, content)| {
-                if self.bloom.contains(path, *mtime, content, symbol) {
+                if self.bloom.contains(path, mtime, content, symbol) {
                     Some(PreFilteredCandidate {
-                        path: path.clone(),
-                        mtime: *mtime,
+                        path: path.to_path_buf(),
+                        mtime,
                     })
                 } else {
                     None

@@ -96,11 +96,32 @@ impl SymbolIndex {
 
     /// Glob-style prefix lookup: returns all symbols whose name starts with `prefix`.
     pub fn lookup_prefix(&self, prefix: &str) -> Vec<(String, SymbolLocation)> {
+        self.lookup_prefix_limited(prefix, usize::MAX)
+    }
+
+    /// Bounded variant of [`SymbolIndex::lookup_prefix`]: stops collecting
+    /// after `max_results` `(name, location)` pairs instead of materializing
+    /// every match first. Interactive surfaces (MCP tool calls) should use
+    /// this — on a large index `lookup_prefix("*")`-style queries otherwise
+    /// allocate a Vec proportional to the whole symbol table before
+    /// truncating.
+    ///
+    /// Like the unbounded form, results are in arbitrary `DashMap` order;
+    /// bounding early returns an arbitrary subset of the same order.
+    #[must_use]
+    pub fn lookup_prefix_limited(
+        &self,
+        prefix: &str,
+        max_results: usize,
+    ) -> Vec<(String, SymbolLocation)> {
         let mut out = Vec::new();
-        for entry in self.map.iter() {
+        'outer: for entry in self.map.iter() {
             if entry.key().starts_with(prefix) {
-                for loc in entry.value() {
+                for loc in entry.value().iter() {
                     out.push((entry.key().clone(), loc.clone()));
+                    if out.len() >= max_results {
+                        break 'outer;
+                    }
                 }
             }
         }
@@ -111,16 +132,44 @@ impl SymbolIndex {
     /// for callers that want a flat name list (e.g. fuzzy / typo fallback)
     /// without paying the per-location duplication of `lookup_prefix("")`.
     pub fn names(&self) -> Vec<String> {
-        self.map.iter().map(|e| e.key().clone()).collect()
+        self.names_limited(usize::MAX)
+    }
+
+    /// Bounded variant of [`SymbolIndex::names`]: stops after `max_results`
+    /// names instead of cloning the entire key set.
+    #[must_use]
+    pub fn names_limited(&self, max_results: usize) -> Vec<String> {
+        let mut out = Vec::new();
+        for entry in self.map.iter() {
+            out.push(entry.key().clone());
+            if out.len() >= max_results {
+                break;
+            }
+        }
+        out
     }
 
     /// Substring search across all known symbol names.
     pub fn lookup_substring(&self, needle: &str) -> Vec<(String, SymbolLocation)> {
+        self.lookup_substring_limited(needle, usize::MAX)
+    }
+
+    /// Bounded variant of [`SymbolIndex::lookup_substring`] — see
+    /// [`SymbolIndex::lookup_prefix_limited`] for why bounding matters.
+    #[must_use]
+    pub fn lookup_substring_limited(
+        &self,
+        needle: &str,
+        max_results: usize,
+    ) -> Vec<(String, SymbolLocation)> {
         let mut out = Vec::new();
-        for entry in self.map.iter() {
+        'outer: for entry in self.map.iter() {
             if entry.key().contains(needle) {
-                for loc in entry.value() {
+                for loc in entry.value().iter() {
                     out.push((entry.key().clone(), loc.clone()));
+                    if out.len() >= max_results {
+                        break 'outer;
+                    }
                 }
             }
         }

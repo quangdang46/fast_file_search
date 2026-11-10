@@ -20,6 +20,20 @@ pub struct RankInputs {
 }
 
 /// Compute a single score in `[0, u64::MAX)` with definition + exact matches first.
+///
+/// Semantics (intentional, verified against the ranking tests):
+/// * `is_definition` adds `def_weight * 1_000_000` — a definition with
+///   `def_weight >= 50` outranks an exact-match *usage* (50_000_000). This is
+///   deliberate: `ffs find`/`ffs symbol` are definition-first, and
+///   `def_weight` is language-kind aware (fn/class > var > field).
+/// * `exact` adds a flat 50_000_000 regardless of definition status, so an
+///   exact usage still beats a fuzzy definition.
+/// * `in_comment` subtracts a flat 10_000_000 with `saturating_sub`: a weak
+///   match can be pushed to 0, where it ties other zero-scored hits and is
+///   ordered by the caller's deterministic tie-break. It is a penalty, not
+///   a filter — comment hits are never excluded.
+/// * `frecency_score * 10` is added last and can lift a comment hit back
+///   above weak non-comment hits; frecency wins ties by design.
 #[must_use]
 pub fn score_one(inputs: RankInputs) -> u64 {
     let mut score: u64 = 0;

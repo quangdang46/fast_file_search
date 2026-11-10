@@ -62,8 +62,21 @@ pub fn fuzzy_search_files(
     query: &str,
     options: FuzzySearchOptions,
 ) -> Vec<FuzzyFileMatch> {
+    fuzzy_search_files_with_errors(root, query, options).0
+}
+
+/// [`fuzzy_search_files`] plus the number of directory-walk errors `ignore`
+/// reported (permission denied, unreadable dirs). The walk errors used to be
+/// dropped by `let-else-continue`, which made partially-covered scans look
+/// complete.
+#[must_use]
+pub fn fuzzy_search_files_with_errors(
+    root: &Path,
+    query: &str,
+    options: FuzzySearchOptions,
+) -> (Vec<FuzzyFileMatch>, usize) {
     if query.is_empty() || options.max_results == 0 {
-        return Vec::new();
+        return (Vec::new(), 0);
     }
 
     let query_lower = query.to_ascii_lowercase();
@@ -77,13 +90,20 @@ pub fn fuzzy_search_files(
         .git_global(options.git_ignore);
 
     let mut results: Vec<FuzzyFileMatch> = Vec::new();
+    let mut walk_errors = 0usize;
 
     for entry in walker.build() {
         if results.len() >= collect_limit {
             break;
         }
 
-        let Ok(entry) = entry else { continue };
+        let entry = match entry {
+            Ok(e) => e,
+            Err(_) => {
+                walk_errors += 1;
+                continue;
+            }
+        };
         let path = entry.path();
         let is_dir = entry.file_type().is_some_and(|ft| ft.is_dir());
 
@@ -134,7 +154,7 @@ pub fn fuzzy_search_files(
             .then(a.path.cmp(&b.path))
     });
     results.truncate(options.max_results);
-    results
+    (results, walk_errors)
 }
 
 #[cfg(test)]

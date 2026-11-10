@@ -358,11 +358,12 @@ pub unsafe extern "C" fn ffs_engine_refs(
 
     // 3. Bloom filter confirmation
     let stack = PreFilterStack::new(e.inner.handles.bloom.clone());
-    let confirm_input: Vec<_> = candidates
-        .iter()
-        .map(|(p, m, c)| (p.clone(), *m, c.clone()))
-        .collect();
-    let survivors = stack.confirm_symbol(&confirm_input, n);
+    let survivors = stack.confirm_symbol_ref(
+        candidates
+            .iter()
+            .map(|(p, m, c)| (p.as_path(), *m, c.as_str())),
+        n,
+    );
     let survivor_set: std::collections::HashSet<&std::path::Path> =
         survivors.iter().map(|s| s.path.as_path()).collect();
 
@@ -606,8 +607,12 @@ pub unsafe extern "C" fn ffs_engine_impact(
 fn collect_call_hits(e: &FfsEngine, symbol: &str, limit: usize) -> Vec<(String, u32)> {
     let stack = PreFilterStack::new(e.inner.handles.bloom.clone());
     let candidates = ffs_engine::CodeFile::collect(&e.root);
-    let confirm_input = ffs_engine::CodeFile::into_confirm_input(&candidates);
-    let survivors = stack.confirm_symbol(&confirm_input, symbol);
+    let survivors = stack.confirm_symbol_ref(
+        candidates
+            .iter()
+            .map(|cf| (cf.path.as_path(), cf.mtime, cf.content.as_str())),
+        symbol,
+    );
     let survivor_set: std::collections::HashSet<&std::path::Path> =
         survivors.iter().map(|s| s.path.as_path()).collect();
 

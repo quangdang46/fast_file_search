@@ -27,7 +27,7 @@ impl CodeFile {
     /// contract the per-surface copies had.
     #[must_use]
     pub fn collect(root: &Path) -> Vec<Self> {
-        Self::walk(root, true)
+        Self::walk(root, true).0
     }
 
     /// Like [`CodeFile::collect`] but reads **every** readable file, not only
@@ -36,6 +36,22 @@ impl CodeFile {
     /// Callers derive the language themselves and treat non-code as `None`.
     #[must_use]
     pub fn collect_all(root: &Path) -> Vec<Self> {
+        Self::collect_all_with_errors(root).0
+    }
+
+    /// [`CodeFile::collect`] plus the number of walk errors (unreadable
+    /// directories, permission failures) that `ignore` reported and we
+    /// skipped. `collect`/`collect_all` discard the count for compatibility;
+    /// callers that surface diagnostics should use the `_with_errors` forms.
+    #[must_use]
+    pub fn collect_with_errors(root: &Path) -> (Vec<Self>, usize) {
+        Self::walk(root, true)
+    }
+
+    /// [`CodeFile::collect_all`] plus the walk-error count — see
+    /// [`CodeFile::collect_with_errors`].
+    #[must_use]
+    pub fn collect_all_with_errors(root: &Path) -> (Vec<Self>, usize) {
         Self::walk(root, false)
     }
 
@@ -55,19 +71,29 @@ impl CodeFile {
 
     /// Serial walk. Ordered, which `ffs-mcp` and `ffs-c` rely on: they truncate
     /// hits at a limit, so the walk order decides which hits are returned.
-    fn walk(root: &Path, code_only: bool) -> Vec<Self> {
+    /// Returns `(files, walk_errors)` — walk errors are counted, not
+    /// swallowed, so callers can report partially-covered scans.
+    fn walk(root: &Path, code_only: bool) -> (Vec<Self>, usize) {
         use ignore::WalkBuilder;
 
-        Self::from_paths(
+        let mut walk_errors = 0usize;
+        let files = Self::from_paths(
             WalkBuilder::new(root)
                 .standard_filters(true)
                 .follow_links(false)
                 .build()
-                .flatten()
+                .filter_map(|entry| match entry {
+                    Ok(e) => Some(e),
+                    Err(_) => {
+                        walk_errors += 1;
+                        None
+                    }
+                })
                 .filter(|e| e.file_type().is_some_and(|t| t.is_file()))
                 .map(|e| e.into_path()),
             code_only,
-        )
+        );
+        (files, walk_errors)
     }
 
     /// Read one file into a `CodeFile`; `None` when metadata or content fails.
@@ -84,6 +110,11 @@ impl CodeFile {
     }
 
     /// `(path, mtime, content)` triple, the shape `PreFilterStack` consumes.
+    ///
+    /// This clones every file's content. When the triples are only fed to
+    /// the bloom confirm, prefer `PreFilterStack::confirm_symbol_ref` with
+    /// `(f.path.as_path(), f.mtime, f.content.as_str())` — it borrows the
+    /// bodies instead of duplicating the whole candidate set in memory.
     #[must_use]
     pub fn into_confirm_input(files: &[Self]) -> Vec<(PathBuf, SystemTime, String)> {
         files

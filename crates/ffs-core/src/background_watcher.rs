@@ -786,7 +786,7 @@ fn should_include_file(path: &Path, repo: Option<&Repository>) -> bool {
     }
 
     match repo.as_ref() {
-        Some(repo) => repo.is_path_ignored(path) != Ok(true),
+        Some(repo) => repo.is_path_ignored(repo_relative_path(repo, path)) != Ok(true),
         None => {
             // When we have no git repo apply basic sanity filters to preve
             // Hidden directories are skipped by the watcher setup (hidden(true)),
@@ -796,10 +796,22 @@ fn should_include_file(path: &Path, repo: Option<&Repository>) -> bool {
     }
 }
 
+/// `notify` delivers absolute paths while `git2::Repository::is_path_ignored`
+/// expects a path relative to the workdir. Strip the workdir prefix so
+/// `.gitignore` rules actually match (previously absolute paths never did).
+fn repo_relative_path<'a>(repo: &'a Repository, path: &'a Path) -> &'a Path {
+    if let Some(workdir) = repo.workdir()
+        && let Ok(rel) = path.strip_prefix(workdir)
+    {
+        return rel;
+    }
+    path
+}
+
 #[inline]
 fn is_path_ignored(path: &Path, repo: &Option<Repository>) -> bool {
     match repo.as_ref() {
-        Some(repo) => repo.is_path_ignored(path) == Ok(true),
+        Some(repo) => repo.is_path_ignored(repo_relative_path(repo, path)) == Ok(true),
         None => crate::ignore::is_non_code_directory(path),
     }
 }
