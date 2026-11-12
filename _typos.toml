@@ -11,6 +11,7 @@ fpr = "fpr"
 FPR = "FPR"
 # file extensions that look like typos
 thm = "thm"
+styl = "styl"
 # some typos we use for tests
 comparsion = "comparsion"
 modfiers = "modfiers"
