@@ -6,6 +6,7 @@
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::time::SystemTime;
 
 use dashmap::DashMap;
@@ -18,7 +19,7 @@ pub const DEFAULT_OUTLINE_CACHE_LIMIT: usize = 5_000;
 
 /// Concurrent outline cache. Cheap to clone via `Arc<OutlineCache>`.
 pub struct OutlineCache {
-    map: DashMap<PathBuf, (SystemTime, Vec<OutlineEntry>)>,
+    map: DashMap<PathBuf, (SystemTime, Arc<Vec<OutlineEntry>>)>,
     count: AtomicUsize,
     limit: AtomicUsize,
 }
@@ -70,6 +71,10 @@ impl OutlineCache {
     }
 
     /// Get or compute the outline for `(path, mtime, content, lang)`.
+    ///
+    /// Returns a cloned `Vec` — fine for one-shot callers. Hot loops that
+    /// hit the same file repeatedly should use [`OutlineCache::get_or_compute_arc`]
+    /// to avoid the per-call clone.
     pub fn get_or_compute(
         &self,
         path: &Path,
@@ -77,14 +82,28 @@ impl OutlineCache {
         content: &str,
         lang: Lang,
     ) -> Vec<OutlineEntry> {
+        self.get_or_compute_arc(path, mtime, content, lang)
+            .as_ref()
+            .clone()
+    }
+
+    /// [`OutlineCache::get_or_compute`] returning a shared `Arc` — cache hits
+    /// cost an atomic refcount bump instead of cloning the whole entry tree.
+    pub fn get_or_compute_arc(
+        &self,
+        path: &Path,
+        mtime: SystemTime,
+        content: &str,
+        lang: Lang,
+    ) -> Arc<Vec<OutlineEntry>> {
         if let Some(entry) = self.map.get(path) {
             let (cached_mtime, ref outline) = *entry;
             if cached_mtime == mtime {
-                return outline.clone();
+                return Arc::clone(outline);
             }
         }
 
-        let outline = get_outline_entries(content, lang);
+        let outline = Arc::new(get_outline_entries(content, lang));
 
         let limit = self.limit.load(Ordering::Relaxed);
         if self.count.load(Ordering::Relaxed) >= limit {
@@ -94,7 +113,7 @@ impl OutlineCache {
 
         if self
             .map
-            .insert(path.to_path_buf(), (mtime, outline.clone()))
+            .insert(path.to_path_buf(), (mtime, Arc::clone(&outline)))
             .is_none()
         {
             self.count.fetch_add(1, Ordering::Relaxed);

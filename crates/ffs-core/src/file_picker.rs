@@ -188,6 +188,38 @@ impl FileSync {
         self.files.get_mut(index)
     }
 
+    /// Base files only (`[..base_count]`). Overflow files are excluded —
+    /// the post-scan git/frecency pass only covers the walked set.
+    #[inline]
+    fn base_files(&self) -> &[FileItem] {
+        &self.files[..self.base_count]
+    }
+
+    /// Apply precomputed `(git_status, access_score, modification_score)`
+    /// updates to the base region and fold access scores into parent-dir
+    /// frecency. Runs under the picker write lock so no `&FileItem` reader
+    /// can observe a torn write.
+    fn apply_scan_updates(&mut self, updates: &[(Option<git2::Status>, i16, i16)]) {
+        for dir in self.dirs.iter() {
+            dir.reset_frecency();
+        }
+        for (i, (status, access, modification)) in updates.iter().enumerate() {
+            let Some(file) = self.files.get_mut(i) else {
+                break;
+            };
+            file.git_status = *status;
+            file.access_frecency_score = *access;
+            file.modification_frecency_score = *modification;
+            let score = i32::from(*access);
+            if score > 0 {
+                let dir_idx = file.parent_dir_index() as usize;
+                if let Some(dir) = self.dirs.get(dir_idx) {
+                    dir.update_frecency_if_larger(score);
+                }
+            }
+        }
+    }
+
     /// Find file index by path using binary search on the sorted base portion.
     /// `path` must be an absolute path under `base_path`.
     #[inline]
@@ -624,6 +656,17 @@ impl FilePicker {
     /// For frecency-sorted results, use search() which sorts matched results.
     pub fn get_files(&self) -> &[FileItem] {
         self.sync_data.files()
+    }
+
+    /// Base files only (`[..base_count]`), excluding watcher-added overflow.
+    pub(crate) fn base_files(&self) -> &[FileItem] {
+        self.sync_data.base_files()
+    }
+
+    /// Apply post-scan `(git_status, access, modification)` updates computed
+    /// off-lock. All mutation happens here, under the write lock.
+    pub(crate) fn apply_scan_updates(&mut self, updates: &[(Option<git2::Status>, i16, i16)]) {
+        self.sync_data.apply_scan_updates(updates);
     }
 
     pub fn get_overflow_files(&self) -> &[FileItem] {
@@ -1329,23 +1372,19 @@ impl FilePicker {
         Arc::clone(&self.scanned_files_count)
     }
 
-    /// Capture raw pointers to the picker's internal arrays for off-lock use.
+    /// Claim the post-scan indexing slot and return a guard that clears it
+    /// on drop.
     ///
-    /// Sets `post_scan_indexing_active` and returns a snapshot that clears it
-    /// on drop. This is the ONLY approved way to escape the lock for
-    /// long-running parallel work (git status, warmup, bigram).
+    /// Sets `post_scan_indexing_active`, which blocks `ScanJob::new_rescan`
+    /// so no `commit_new_sync` can swap `sync_data` while post-scan work
+    /// (git status, warmup, bigram) runs. Callers clone file data under the
+    /// read lock — the snapshot no longer exposes raw pointers.
     ///
     /// Returns `None` if `post_scan_indexing_active` is already set — this
-    /// means another post-scan is in flight and we must not create a second
-    /// set of dangling pointers.
+    /// means another post-scan is in flight.
     ///
     /// # Safety
-    /// 1. `walk_filesystem` reserved `MAX_OVERFLOW_FILES` capacity on the
-    ///    files Vec at creation — watcher pushes cannot reallocate it.
-    /// 2. `post_scan_indexing_active` is set — prevents `commit_new_sync`
-    ///    from replacing the Vec (ScanJob::new checks this flag).
-    /// 3. Only `[..base_count]` is accessed — base files use the immutable
-    ///    base arena. Overflow files use a different arena.
+    /// The returned guard must be held for the entire post-scan pass.
     pub(crate) unsafe fn post_scan_snapshot(&self) -> Option<PostScanUnsafeSnapshot> {
         // Atomic test-and-set: two concurrent callers must not both observe
         // `false` and mint overlapping raw-pointer snapshots (check-then-store
@@ -1363,24 +1402,30 @@ impl FilePicker {
             return None;
         }
 
-        let files = &self.sync_data.files;
-        let dirs = &self.sync_data.dirs;
         Some(PostScanUnsafeSnapshot {
-            files: files.as_ptr() as *mut FileItem,
             base_count: self.sync_data.base_count,
             indexable_count: self.sync_data.indexable_count,
-            dirs: dirs.as_ptr(),
-            dirs_len: dirs.len(),
-            arena: self.sync_data.arena_base_ptr(),
-            budget: &*self.cache_budget as *const _,
-            base_path: self.base_path.clone(),
             post_scan_flag: Arc::clone(&self.signals.post_scan_indexing_active),
         })
     }
 
     pub(crate) fn commit_new_sync(&mut self, sync: FileSync) {
+        // Overflow files were appended to the OLD sync_data by watcher
+        // events that arrived while the filesystem walk was running.
+        // Re-add them to the fresh sync so the wholesale swap doesn't
+        // silently drop files created during the scan window.
+        let overflow_paths: Vec<PathBuf> = self
+            .sync_data
+            .overflow_files()
+            .iter()
+            .filter(|f| !f.is_deleted())
+            .map(|f| f.absolute_path(&*self, &self.base_path))
+            .collect();
         self.sync_data = sync;
         self.cache_budget.reset();
+        for path in overflow_paths {
+            let _ = self.handle_create_or_modify(&path);
+        }
     }
 
     #[inline]
@@ -1846,20 +1891,17 @@ impl FileSlot {
     }
 }
 
-/// Raw pointers captured from the picker for off-lock parallel work.
-/// Created by [`FilePicker::post_scan_snapshot`]. See its safety docs.
+/// Guard returned by [`FilePicker::post_scan_snapshot`]. It no longer
+/// carries raw pointers — post-scan work clones file data under the read
+/// lock instead (the old `*mut FileItem` slices aliased `&mut` watcher
+/// writes with `&` reads, which is UB). What remains is the
+/// `post_scan_indexing_active` flag plus the base-region counts.
 ///
 /// Clears `post_scan_indexing_active` on drop — the flag is set by
 /// `post_scan_snapshot` and MUST only be cleared by dropping this struct.
 pub(crate) struct PostScanUnsafeSnapshot {
-    pub files: *mut FileItem,
     pub base_count: usize,
     pub indexable_count: usize,
-    pub dirs: *const crate::types::DirItem,
-    pub dirs_len: usize,
-    pub arena: ArenaPtr,
-    pub budget: *const crate::types::ContentCacheBudget,
-    pub base_path: PathBuf,
     /// Holds the flag reference so it is automatically flips
     /// when the pointsr
     post_scan_flag: Arc<AtomicBool>,
@@ -1870,11 +1912,6 @@ impl Drop for PostScanUnsafeSnapshot {
         self.post_scan_flag.store(false, Ordering::Release);
     }
 }
-
-// SAFETY: the pointers are derived from Vec/Arc storage that outlives
-// any use of this struct (guaranteed by reserve + post_scan_indexing_active).
-unsafe impl Send for PostScanUnsafeSnapshot {}
-unsafe impl Sync for PostScanUnsafeSnapshot {}
 
 /// A point-in-time snapshot of the file-scanning progress.
 ///

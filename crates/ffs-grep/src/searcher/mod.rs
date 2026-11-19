@@ -156,6 +156,43 @@ impl Default for Searcher {
     }
 }
 
+/// Configuration query methods used by the sink and internal search core.
+impl Searcher {
+    /// Returns the line terminator used by this searcher.
+    #[inline]
+    pub fn line_terminator(&self) -> LineTerminator {
+        self.config.line_term
+    }
+
+    /// Returns true if and only if this searcher is configured to count line
+    /// numbers.
+    #[inline]
+    pub fn line_number(&self) -> bool {
+        self.config.line_number
+    }
+
+    /// Returns true if and only if this searcher is configured to perform
+    /// multi line search.
+    #[inline]
+    pub fn multi_line(&self) -> bool {
+        self.config.multi_line
+    }
+
+    /// Returns true if and only if this searcher will choose a multi-line
+    /// strategy given the provided matcher.
+    pub fn multi_line_with_matcher<M: Matcher>(&self, matcher: M) -> bool {
+        if !self.multi_line() {
+            return false;
+        }
+        if let Some(line_term) = matcher.line_terminator()
+            && line_term == self.line_terminator()
+        {
+            return false;
+        }
+        true
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -263,41 +300,4 @@ mod tests {
         }
     }
     impl<T> Pipe for T {}
-}
-
-/// Configuration query methods used by the sink and internal search core.
-impl Searcher {
-    /// Returns the line terminator used by this searcher.
-    #[inline]
-    pub fn line_terminator(&self) -> LineTerminator {
-        self.config.line_term
-    }
-
-    /// Returns true if and only if this searcher is configured to count line
-    /// numbers.
-    #[inline]
-    pub fn line_number(&self) -> bool {
-        self.config.line_number
-    }
-
-    /// Returns true if and only if this searcher is configured to perform
-    /// multi line search.
-    #[inline]
-    pub fn multi_line(&self) -> bool {
-        self.config.multi_line
-    }
-
-    /// Returns true if and only if this searcher will choose a multi-line
-    /// strategy given the provided matcher.
-    pub fn multi_line_with_matcher<M: Matcher>(&self, matcher: M) -> bool {
-        if !self.multi_line() {
-            return false;
-        }
-        if let Some(line_term) = matcher.line_terminator()
-            && line_term == self.line_terminator()
-        {
-            return false;
-        }
-        true
-    }
 }

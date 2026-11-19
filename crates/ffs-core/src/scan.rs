@@ -24,7 +24,7 @@
 
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 
 use tracing::{error, info};
 
@@ -306,7 +306,10 @@ impl ScanJob {
             picker.set_cache_budget(ContentCacheBudget::new_for_repo(file_count));
         }
 
-        // we do unsafe dirty capturing here because we GUARANTEE that the files vec is not moving anywhere
+        // `post_scan_snapshot` sets `post_scan_indexing_active`, which
+        // blocks `ScanJob::new_rescan` — no rescan can swap `sync_data`
+        // while post-scan indexing runs. Only the flag/counts are used;
+        // file data itself is cloned under the read lock below.
         let Some(unsafe_snapshot) = shared_picker.read().ok().and_then(|guard| {
             guard
                 .as_ref()
@@ -316,28 +319,47 @@ impl ScanJob {
             return;
         };
 
-        let files: &[crate::types::FileItem] = unsafe {
-            std::slice::from_raw_parts(unsafe_snapshot.files, unsafe_snapshot.base_count)
+        // Clone the base file list under the read lock, then release it.
+        // The old code handed rayon a raw `*mut FileItem` slice — watcher
+        // `&mut` writes made those `&FileItem` reads UB. Clones are cheap
+        // (path chunk indices + scalars) and immune to watcher churn.
+        let (files, arena, base_path, local_budget) = {
+            let Ok(guard) = shared_picker.read() else {
+                return;
+            };
+            let Some(picker) = guard.as_ref() else {
+                return;
+            };
+            let real_budget = picker.cache_budget();
+            (
+                picker.get_files()[..unsafe_snapshot.base_count].to_vec(),
+                picker.arena_base_ptr(),
+                picker.base_path().to_path_buf(),
+                // Clone-side caching must not touch the real budget
+                // counters — the clones' OnceLocks die with the clones.
+                ContentCacheBudget {
+                    max_files: real_budget.max_files,
+                    max_bytes: real_budget.max_bytes,
+                    max_file_size: real_budget.max_file_size,
+                    cached_count: AtomicUsize::new(0),
+                    cached_bytes: AtomicU64::new(0),
+                },
+            )
         };
-        let budget: &ContentCacheBudget = unsafe { &*unsafe_snapshot.budget };
+
+        let indexable_count = unsafe_snapshot.indexable_count.min(files.len());
 
         if config.warmup && !signals.cancelled.load(Ordering::Acquire) {
-            warmup_mmaps(
-                files,
-                budget,
-                &unsafe_snapshot.base_path,
-                unsafe_snapshot.arena,
-            );
+            // NOTE: warmup populates the clones' content caches, so the
+            // persistent per-file cache is no longer pre-warmed — the OS
+            // page cache still is, and real caches fill lazily on first
+            // access. This is the price of eliminating the &/&mut UB.
+            warmup_mmaps(&files, &local_budget, &base_path, arena);
         }
 
         if config.content_indexing && !signals.cancelled.load(Ordering::Acquire) {
-            let indexable_files = &files[..unsafe_snapshot.indexable_count.min(files.len())];
-            let (index, content_binary) = build_bigram_index(
-                indexable_files,
-                budget,
-                &unsafe_snapshot.base_path,
-                unsafe_snapshot.arena,
-            );
+            let (index, content_binary) =
+                build_bigram_index(&files[..indexable_count], &local_budget, &base_path, arena);
 
             if let Ok(mut guard) = shared_picker.write()
                 && let Some(picker) = guard.as_mut()
@@ -347,7 +369,7 @@ impl ScanJob {
                         file.set_binary(true);
                     }
                 }
-                picker.set_bigram_index(index, BigramOverlay::new(unsafe_snapshot.indexable_count));
+                picker.set_bigram_index(index, BigramOverlay::new(indexable_count));
             }
         }
     }
@@ -416,7 +438,11 @@ fn apply_git_status_and_frecency(
         }
     };
 
-    let Some(unsafe_snapshot) = shared_picker.read().ok().and_then(|guard| {
+    // Hold `post_scan_indexing_active` for the whole pass: without it a
+    // rescan could `commit_new_sync` mid-apply and shift the base indices
+    // our precomputed updates refer to. Only the flag matters here — the
+    // snapshot's raw pointers are never dereferenced.
+    let Some(_post_scan_snapshot) = shared_picker.read().ok().and_then(|guard| {
         guard
             .as_ref()
             .and_then(|picker| unsafe { picker.post_scan_snapshot() })
@@ -424,53 +450,59 @@ fn apply_git_status_and_frecency(
         return;
     };
 
+    // Clone the base file list under the read lock, then release it.
+    // The old code built `&mut [FileItem]` from a raw pointer while
+    // readers held `&FileItem` — a genuine &mut/& aliasing UB. All heavy
+    // work now runs on the clone; mutation happens under the write lock.
+    let (files, arena, base_path) = {
+        let Ok(guard) = shared_picker.read() else {
+            return;
+        };
+        let Some(picker) = guard.as_ref() else {
+            return;
+        };
+        (
+            picker.base_files().to_vec(),
+            picker.arena_base_ptr(),
+            picker.base_path().to_path_buf(),
+        )
+    };
+
     let frecency = shared_frecency.read().ok();
     let frecency_ref = frecency.as_ref().and_then(|f| f.as_ref());
 
-    let files: &mut [crate::types::FileItem] = unsafe {
-        std::slice::from_raw_parts_mut(unsafe_snapshot.files, unsafe_snapshot.base_count)
-    };
-    let dirs: &[crate::types::DirItem] =
-        unsafe { std::slice::from_raw_parts(unsafe_snapshot.dirs, unsafe_snapshot.dirs_len) };
-
-    // Reset dir frecency before recomputation.
-    for dir in dirs.iter() {
-        dir.reset_frecency();
-    }
-
-    BACKGROUND_THREAD_POOL.install(|| {
-        files.par_iter_mut().for_each(|file| {
-            let mut buf = [0u8; crate::simd_path::PATH_BUF_SIZE];
-            let absolute_path = file.write_absolute_path(
-                unsafe_snapshot.arena,
-                &unsafe_snapshot.base_path,
-                &mut buf,
-            );
-
-            file.git_status = git_cache.lookup_status(absolute_path);
-            if let Some(frecency) = frecency_ref {
-                let _ = file.update_frecency_scores(
-                    frecency,
-                    unsafe_snapshot.arena,
-                    &unsafe_snapshot.base_path,
-                    mode,
-                );
-            }
-
-            let score = file.access_frecency_score as i32;
-            if score > 0 {
-                let dir_idx = file.parent_dir_index() as usize;
-                if let Some(dir) = dirs.get(dir_idx) {
-                    dir.update_frecency_if_larger(score);
-                }
-            }
-        });
+    // `(git_status, access_score, modification_score)` per base file.
+    // The modification score is computed against the *new* git status,
+    // matching the old mutate-in-place ordering.
+    let updates: Vec<(Option<git2::Status>, i16, i16)> = BACKGROUND_THREAD_POOL.install(|| {
+        files
+            .par_iter()
+            .map(|file| {
+                let mut buf = [0u8; crate::simd_path::PATH_BUF_SIZE];
+                let absolute_path = file.write_absolute_path(arena, &base_path, &mut buf);
+                let status = git_cache.lookup_status(absolute_path);
+                let (access, modification) = match frecency_ref {
+                    Some(f) => (
+                        f.get_access_score(absolute_path, mode) as i16,
+                        f.get_modification_score(file.modified, status, mode) as i16,
+                    ),
+                    None => (file.access_frecency_score, file.modification_frecency_score),
+                };
+                (status, access, modification)
+            })
+            .collect()
     });
     drop(frecency);
 
+    if let Ok(mut guard) = shared_picker.write()
+        && let Some(picker) = guard.as_mut()
+    {
+        picker.apply_scan_updates(&updates);
+    }
+
     info!(
         "SCAN: Applied git status to {} files ({} dirty)",
-        unsafe_snapshot.base_count,
+        files.len(),
         git_cache.statuses_len(),
     );
 }

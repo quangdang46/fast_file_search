@@ -16,6 +16,7 @@ use ffs_symbol::symbol_index::SymbolLocation;
 use ffs_symbol::types::QueryType;
 use ffs_symbol::{BloomFilterCache, SymbolIndex};
 
+use crate::candidates::CodeFileCache;
 use crate::classify::{classify_query, ClassifiedQuery};
 use crate::memory::{MemoryGuard, RepoSize};
 use crate::scanner::{ScanReport, UnifiedScanner};
@@ -60,6 +61,9 @@ pub struct Engine {
     pub handles: EngineHandles,
     pub guard: MemoryGuard,
     pub scanner: UnifiedScanner,
+    /// mtime-aware cache of code-file contents for navigation callers
+    /// (`engine_*` MCP tools). Empty/unused for one-shot CLI scans.
+    pub code_files: CodeFileCache,
 }
 
 impl Default for Engine {
@@ -88,6 +92,7 @@ impl Engine {
             handles,
             guard,
             scanner,
+            code_files: CodeFileCache::default(),
         }
     }
 
@@ -112,6 +117,7 @@ impl Engine {
             handles,
             guard,
             scanner,
+            code_files: CodeFileCache::default(),
         }
     }
 
@@ -131,13 +137,17 @@ impl Engine {
                 classified: classified.clone(),
                 hits: self.handles.symbols.lookup_exact(name),
             },
-            QueryType::SymbolGlob(prefix) => DispatchResult::SymbolGlob {
-                classified: classified.clone(),
-                hits: self
-                    .handles
-                    .symbols
-                    .lookup_prefix(prefix.trim_end_matches('*')),
-            },
+            QueryType::SymbolGlob(prefix) => {
+                // Glob sigils are not part of the prefix: `*foo`, `**foo`,
+                // `foo*` and `foo?` must all look up `foo`. Trailing-only
+                // trimming used to leave a literal `*foo` prefix that
+                // matched nothing.
+                let pat = prefix.trim_matches(|c| c == '*' || c == '?');
+                DispatchResult::SymbolGlob {
+                    classified: classified.clone(),
+                    hits: self.handles.symbols.lookup_prefix(pat),
+                }
+            }
             QueryType::Concept(_) | QueryType::Fallthrough(_) => DispatchResult::ContentFallback {
                 classified: classified.clone(),
             },
@@ -229,7 +239,9 @@ impl Engine {
         let filtered = filter.apply_path(path, &text);
 
         let split = BudgetSplit::default_for(self.config.total_token_budget);
-        let body_budget_bytes = (split.body * 4) as usize;
+        // tokens_to_bytes saturates at u64::MAX; a plain `* 4` could wrap.
+        let body_budget_bytes =
+            usize::try_from(ffs_budget::tokens_to_bytes(split.body)).unwrap_or(usize::MAX);
 
         let max_bytes = body_budget_bytes.min(self.config.max_bytes_per_result);
         let mut buf = String::new();
@@ -263,16 +275,13 @@ impl Engine {
     }
 }
 
-/// Read at most `cap` bytes from `path`. Small files are read in one shot;
-/// larger files are streamed only up to the cap so memory stays bounded.
+/// Read at most `cap` bytes from `path`. Always streams through `take` —
+/// a metadata-then-`fs::read` fast path raced file growth (TOCTOU) and
+/// could pull an unbounded buffer into memory.
 fn read_capped(path: &Path, cap: u64) -> std::io::Result<Vec<u8>> {
     use std::io::Read;
-    let len = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
-    if len <= cap {
-        return std::fs::read(path);
-    }
     let mut f = std::fs::File::open(path)?;
-    let mut buf = Vec::with_capacity(cap as usize);
+    let mut buf = Vec::with_capacity(cap.min(1024 * 1024) as usize);
     f.by_ref().take(cap).read_to_end(&mut buf)?;
     Ok(buf)
 }
@@ -333,12 +342,14 @@ mod tests {
     #[test]
     fn engine_indexes_and_dispatches_symbol() {
         let dir = tempfile::tempdir().unwrap();
-        std::fs::write(dir.path().join("a.rs"), "fn alpha() {}\nfn beta() {}").unwrap();
+        // `do_alpha` (snake_case) classifies as Symbol; a bare lowercase
+        // word like `alpha` now routes to content search by design.
+        std::fs::write(dir.path().join("a.rs"), "fn do_alpha() {}\nfn beta() {}").unwrap();
         let engine = Engine::default();
         let report = engine.index(dir.path());
         assert!(report.files_indexed >= 1);
 
-        let result = engine.dispatch("alpha", dir.path());
+        let result = engine.dispatch("do_alpha", dir.path());
         match result {
             DispatchResult::Symbol { hits, .. } => {
                 assert_eq!(hits.len(), 1);

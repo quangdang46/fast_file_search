@@ -685,14 +685,16 @@ fn match_and_score_in_arena<'a>(
                 calculate_current_file_penalty(file, base_score / 4, context, arena);
             let combo_match_boost = {
                 let last_same_query_match = context.last_same_query_match.as_ref().filter(|m| {
-                    let file_path_str = m.file_path.to_string_lossy();
+                    // Compare encoded path bytes directly — avoids a
+                    // to_string_lossy() allocation per candidate file.
+                    let file_path_bytes = m.file_path.as_os_str().as_encoded_bytes();
                     let total_len = file.path.byte_len as usize;
-                    if file_path_str.len() < total_len {
+                    if file_path_bytes.len() < total_len {
                         return false;
                     }
                     // Reuse dir_buf (already has capacity) for the full path
                     file.write_relative_path_from_arena(arena, &mut dir_buf);
-                    file_path_str.ends_with(dir_buf.as_str())
+                    file_path_bytes.ends_with(dir_buf.as_bytes())
                 });
 
                 match last_same_query_match {

@@ -81,6 +81,11 @@ impl std::ops::IndexMut<Match> for [u8] {
     }
 }
 
+/// # Contract
+/// `Match` offsets are **byte** offsets. Indexing a `str` panics if they
+/// are not on UTF-8 char boundaries — callers working with `str` must
+/// only construct matches at boundaries (e.g. via line/regex iteration
+/// over `&str`, not raw byte offsets into arbitrary UTF-8).
 impl std::ops::Index<Match> for str {
     type Output = str;
 

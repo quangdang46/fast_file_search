@@ -346,27 +346,21 @@ impl BigramFilter {
             prev = b;
         }
 
-        // strid-1 bigrams
+        // strid-1 bigrams: AND the skip columns straight into `result`
+        // (already tail-masked) instead of materializing a second bitset.
         if let Some(skip) = &self.skip_index
             && pattern.len() >= 3
-            && let Some(skip_candidates) = skip.query_skip(pattern)
+            && skip.and_skip_columns(pattern, &mut result)
         {
-            bitset_and(&mut result, &skip_candidates);
             has_filter = true;
         }
 
         has_filter.then_some(result)
     }
 
-    /// Query using stride-2 bigrams from the pattern.
-    /// For "ABCDE" queries with keys (A,C), (B,D), (C,E).
-    fn query_skip(&self, pattern: &[u8]) -> Option<Vec<u64>> {
-        let mut result = vec![u64::MAX; self.words];
-        if !self.file_count.is_multiple_of(64) {
-            let last = self.words - 1;
-            result[last] = (1u64 << (self.file_count % 64)) - 1;
-        }
-
+    /// AND stride-2 bigram columns ("ABCDE" -> (A,C),(B,D),(C,E)) directly
+    /// into `result`. Returns false when no column matched.
+    fn and_skip_columns(&self, pattern: &[u8], result: &mut [u64]) -> bool {
         let words = self.words;
         let mut has_filter = false;
 
@@ -378,14 +372,15 @@ impl BigramFilter {
                 let col = self.lookup[key as usize];
                 if col != NO_COLUMN {
                     let offset = col as usize * words;
+                    // SAFETY: compress() guarantees offset + words <= dense_data.len()
                     let slice = unsafe { self.dense_data.get_unchecked(offset..offset + words) };
-                    bitset_and(&mut result, slice);
+                    bitset_and(result, slice);
                     has_filter = true;
                 }
             }
         }
 
-        has_filter.then_some(result)
+        has_filter
     }
 
     /// Attach a skip-1 bigram index for tighter candidate filtering.

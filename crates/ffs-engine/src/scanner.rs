@@ -109,7 +109,7 @@ impl UnifiedScanner {
         let symbols = Arc::clone(&self.symbols);
         let progress = Arc::clone(&self.progress);
 
-        let counters: Vec<(usize, usize, usize)> = entries
+        let counters: Vec<SkipCounts> = entries
             .par_iter()
             .map(|path| {
                 progress.files_visited.fetch_add(1, Ordering::Relaxed);
@@ -121,10 +121,12 @@ impl UnifiedScanner {
             files_walk_errors: walk_errors,
             ..ScanReport::default()
         };
-        for (visited, indexed, skipped) in counters {
-            report.files_visited += visited;
-            report.files_indexed += indexed;
-            report.files_skipped_other += skipped;
+        for counts in counters {
+            report.files_visited += counts.visited;
+            report.files_indexed += counts.indexed;
+            report.files_skipped_binary += counts.binary;
+            report.files_skipped_generated += counts.generated;
+            report.files_skipped_other += counts.other;
         }
         report
     }
@@ -155,55 +157,103 @@ impl UnifiedScanner {
     }
 }
 
-/// Index a single file. Returns `(visited, indexed, skipped)`.
+/// Per-file outcome counters returned by [`index_one`].
+#[derive(Default)]
+struct SkipCounts {
+    visited: usize,
+    indexed: usize,
+    binary: usize,
+    generated: usize,
+    other: usize,
+}
+
+impl SkipCounts {
+    fn skipped(kind: SkipKind) -> Self {
+        let mut c = Self {
+            visited: 1,
+            ..Self::default()
+        };
+        match kind {
+            SkipKind::Binary => c.binary = 1,
+            SkipKind::Generated => c.generated = 1,
+            SkipKind::Other => c.other = 1,
+        }
+        c
+    }
+}
+
+enum SkipKind {
+    Binary,
+    Generated,
+    Other,
+}
+
+/// Index a single file. Returns per-category visit/index/skip counts.
 fn index_one(
     path: &Path,
     bloom: &BloomFilterCache,
     symbols: &SymbolIndex,
     progress: &ScanProgress,
-) -> (usize, usize, usize) {
+) -> SkipCounts {
+    macro_rules! skip {
+        ($kind:expr) => {{
+            progress.files_skipped.fetch_add(1, Ordering::Relaxed);
+            return SkipCounts::skipped($kind);
+        }};
+    }
+
     let Ok(meta) = std::fs::metadata(path) else {
-        progress.files_skipped.fetch_add(1, Ordering::Relaxed);
-        return (1, 0, 1);
+        skip!(SkipKind::Other);
     };
     let mtime = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
     let byte_len = meta.len();
 
+    // >4 MiB files stay excluded from the Bloom/symbol indexes (indexing
+    // cost); grep still searches them. UTF-16 and invalid-UTF-8 text are
+    // transcoded/lossied below so coverage matches the grep path.
     if byte_len == 0 || byte_len > 4 * 1024 * 1024 {
-        progress.files_skipped.fetch_add(1, Ordering::Relaxed);
-        return (1, 0, 1);
+        skip!(SkipKind::Other);
     }
 
     if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
         if is_generated_by_name(name) {
-            progress.files_skipped.fetch_add(1, Ordering::Relaxed);
-            return (1, 0, 1);
+            skip!(SkipKind::Generated);
         }
     }
 
     let Ok(content) = std::fs::read(path) else {
-        progress.files_skipped.fetch_add(1, Ordering::Relaxed);
-        return (1, 0, 1);
+        skip!(SkipKind::Other);
     };
 
-    if is_binary(&content) || is_generated_by_content(&content) {
-        progress.files_skipped.fetch_add(1, Ordering::Relaxed);
-        return (1, 0, 1);
-    }
-
-    let Ok(text) = std::str::from_utf8(&content) else {
-        progress.files_skipped.fetch_add(1, Ordering::Relaxed);
-        return (1, 0, 1);
+    // UTF-16 text is transcoded before indexing — raw UTF-16 is full of
+    // NULs (would flag binary) and its bigrams can't match a UTF-8 query.
+    let text = match ffs_search::bom::decode_utf16(&content) {
+        Some(t) => t,
+        None => {
+            if is_binary(&content) {
+                skip!(SkipKind::Binary);
+            }
+            if is_generated_by_content(&content) {
+                skip!(SkipKind::Generated);
+            }
+            // Lossy decode keeps coverage parity with grep: a stray
+            // non-UTF-8 byte must not drop the whole file from the indexes.
+            String::from_utf8_lossy(&content).into_owned()
+        }
     };
 
-    bloom.install(path, mtime, text);
+    bloom.install(path, mtime, &text);
 
     if matches!(detect_file_type(path), FileType::Code(_)) {
-        symbols.index_file(path, mtime, text);
+        symbols.index_file(path, mtime, &text);
     }
 
     progress.files_indexed.fetch_add(1, Ordering::Relaxed);
-    (1, 1, 0)
+    SkipCounts {
+        visited: 1,
+        indexed: 1,
+        ..SkipCounts::default()
+    }
 }
 
 #[cfg(test)]

@@ -84,6 +84,11 @@ impl BackgroundWatcher {
         let owner_weak_picker = shared_picker.weaken();
         let owner_frecency = shared_frecency.clone();
         let owner_git_workdir = git_workdir.clone();
+        // Sub-directories discovered while tracking a new dir are pushed
+        // back through this channel so the owner loop registers a watch on
+        // each of them and indexes their files too (inotify has no kernel
+        // recursion — without this, `newdir/sub/file` was never indexed).
+        let owner_watch_tx = watch_tx.clone();
 
         let debouncer = Self::create_debouncer(
             base_path,
@@ -145,6 +150,7 @@ impl BackgroundWatcher {
                         &strong_picker,
                         &owner_frecency,
                         &owner_git_workdir,
+                        &owner_watch_tx,
                     );
 
                     // Transient strong ref drops here, back
@@ -418,22 +424,24 @@ fn handle_debounced_events(
         // When macOS FSEvents (or other backends) overflow their event buffer, the kernel
         // drops individual events and emits a rescan flag telling us to re-scan the subtree
         if debounced_event.event.need_rescan() {
-            if debounced_event.event.paths.len() < 16 // this should be usually one event
+            let few_includable = debounced_event.event.paths.len() < 16 // this should be usually one event
                 && debounced_event
                     .paths
                     .iter()
                     // but we are smart enough and not falling into the paths
-                    .all(|p| should_include_file(p, repo.as_ref()))
-            {
+                    .all(|p| should_include_file(p, repo.as_ref()));
+            if !few_includable {
+                warn!(
+                    "Received rescan event for paths {:?}, triggering full rescan",
+                    debounced_event.event.paths
+                );
+                need_full_rescan = true;
                 break;
             }
-
-            warn!(
-                "Received rescan event for paths {:?}, triggering full rescan",
-                debounced_event.event.paths
-            );
-            need_full_rescan = true;
-            break;
+            // A small rescan only dropped a handful of events: fall through
+            // and re-stat the reported paths like normal events, then keep
+            // processing the rest of the batch. Breaking here used to skip
+            // both this event's paths and every remaining event.
         }
 
         tracing::debug!(event = ?debounced_event.event, "Processing FS event");
@@ -714,12 +722,15 @@ fn handle_debounced_events(
 }
 
 /// After registering a watch on a newly created directory, list its
-/// immediate children and add any files to the picker.
+/// children and add any files to the picker. Sub-directories are pushed
+/// back through `watch_tx` so the owner loop watches and indexes them
+/// recursively — required on Linux where inotify has no kernel recursion.
 fn track_files_from_new_directories(
     dir: &Path,
     shared_picker: &SharedFilePicker,
     shared_frecency: &SharedFrecency,
     git_workdir: &Option<PathBuf>,
+    watch_tx: &mpsc::Sender<PathBuf>,
 ) {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return;
@@ -729,11 +740,18 @@ fn track_files_from_new_directories(
     let mut files_to_add = Vec::new();
 
     for entry in entries.flatten() {
-        if entry.file_type().is_ok_and(|ft| ft.is_file()) {
-            let path = entry.path();
-            if should_include_file(&path, repo.as_ref()) {
-                files_to_add.push(path);
+        let Ok(file_type) = entry.file_type() else {
+            continue;
+        };
+        let path = entry.path();
+        if file_type.is_dir() {
+            // Re-queue sub-directories: the owner loop will register a
+            // watch on each and recursively track their contents.
+            if !is_path_ignored(&path, &repo) && watch_tx.send(path).is_err() {
+                return;
             }
+        } else if file_type.is_file() && should_include_file(&path, repo.as_ref()) {
+            files_to_add.push(path);
         }
     }
 
@@ -860,7 +878,12 @@ fn watch_git_status_paths(debouncer: &mut Debouncer, git_workdir: Option<&PathBu
         return;
     };
 
-    let git_dir = workdir.join(".git");
+    // `workdir/.git` is a *file* (not a dir) for linked worktrees and
+    // submodules — resolve the real gitdir through the repository so
+    // those layouts still get their HEAD/index watched.
+    let git_dir = Repository::open(workdir)
+        .map(|repo| repo.path().to_path_buf())
+        .unwrap_or_else(|_| workdir.join(".git"));
     if !git_dir.is_dir() {
         return;
     }

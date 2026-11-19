@@ -33,6 +33,11 @@ const BINARY_PROBE_BYTES: usize = 8 * 1024;
 /// Maximum entries in a directory listing. Keeps the resolved payload bounded.
 const DIRECTORY_LISTING_CAP: usize = 100;
 
+/// Maximum bytes read for the text path of `read_and_classify` — same cap
+/// `Engine::read` uses (dispatch.rs READ_CAP). Without it a multi-GB file
+/// would be pulled into memory in one `fs::read` before any budget logic.
+const MENTION_READ_CAP: u64 = 8 * 1024 * 1024;
+
 /// Image extensions recognized by the resolver. Anything matching is marked
 /// `MentionKind::Image` and never opened as text.
 const IMAGE_EXTS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp"];
@@ -282,14 +287,25 @@ fn read_and_classify(path: &Path) -> ClassifiedFile {
     if probe[..probe_len].contains(&0u8) {
         return ClassifiedFile::Binary;
     }
-    // Re-open and read the whole file as text. We use lossy UTF-8 so
-    // a stray multi-byte sequence in an otherwise-text file still
-    // produces *some* string the host can show.
-    let full = match fs::read(path) {
-        Ok(b) => b,
-        Err(e) => return ClassifiedFile::IoError(e.to_string()),
-    };
-    ClassifiedFile::Text(String::from_utf8_lossy(&full).into_owned())
+    // Re-open and read the file as text, capped at MENTION_READ_CAP —
+    // `fs::read` was unbounded and could OOM on multi-GB files. We use
+    // lossy UTF-8 so a stray multi-byte sequence in an otherwise-text
+    // file still produces *some* string the host can show.
+    let mut full = Vec::new();
+    let read_result =
+        fs::File::open(path).and_then(|f| f.take(MENTION_READ_CAP + 1).read_to_end(&mut full));
+    if let Err(e) = read_result {
+        return ClassifiedFile::IoError(e.to_string());
+    }
+    let truncated = full.len() as u64 > MENTION_READ_CAP;
+    if truncated {
+        full.truncate(MENTION_READ_CAP as usize);
+    }
+    let mut text = String::from_utf8_lossy(&full).into_owned();
+    if truncated {
+        text.push_str("\n[... truncated at 8 MiB ...]");
+    }
+    ClassifiedFile::Text(text)
 }
 
 fn resolve_directory(path: &Path, metadata: &fs::Metadata) -> ResolvedMention {
@@ -322,7 +338,8 @@ fn resolve_directory(path: &Path, metadata: &fs::Metadata) -> ResolvedMention {
         .collect();
     names.sort();
 
-    let truncated = names.len() > DIRECTORY_LISTING_CAP;
+    let total_entries = names.len();
+    let truncated = total_entries > DIRECTORY_LISTING_CAP;
     if truncated {
         names.truncate(DIRECTORY_LISTING_CAP);
     }
@@ -331,7 +348,7 @@ fn resolve_directory(path: &Path, metadata: &fs::Metadata) -> ResolvedMention {
         format!(
             "{}\n[{} more entries truncated]\n",
             body,
-            DIRECTORY_LISTING_CAP // upper bound on hidden count
+            total_entries - DIRECTORY_LISTING_CAP
         )
     } else {
         body

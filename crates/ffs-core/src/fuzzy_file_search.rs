@@ -80,7 +80,6 @@ pub fn fuzzy_search_files_with_errors(
     }
 
     let query_lower = query.to_ascii_lowercase();
-    let collect_limit = options.max_results.saturating_mul(2).max(200);
 
     let mut walker = ignore::WalkBuilder::new(root);
     walker
@@ -89,62 +88,82 @@ pub fn fuzzy_search_files_with_errors(
         .git_exclude(options.git_ignore)
         .git_global(options.git_ignore);
 
-    let mut results: Vec<FuzzyFileMatch> = Vec::new();
-    let mut walk_errors = 0usize;
+    // Parallel walk + per-entry match. The final sort makes collection order
+    // irrelevant; the old collect_limit early-exit is gone (a parallel walk
+    // can't stop cheaply), so matching is bounded by repo size, not results.
+    let threads = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(2)
+        .min(8);
+    walker.threads(threads);
 
-    for entry in walker.build() {
-        if results.len() >= collect_limit {
-            break;
-        }
+    use ignore::WalkState;
+    use parking_lot::Mutex;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
-        let entry = match entry {
-            Ok(e) => e,
-            Err(_) => {
-                walk_errors += 1;
-                continue;
+    let entries: Mutex<Vec<(std::path::PathBuf, bool)>> = Mutex::new(Vec::new());
+    let walk_errors = AtomicUsize::new(0);
+    walker.build_parallel().run(|| {
+        let entries = &entries;
+        let walk_errors = &walk_errors;
+        Box::new(move |result| match result {
+            Ok(entry) => {
+                let is_dir = entry.file_type().is_some_and(|ft| ft.is_dir());
+                let path = entry.into_path();
+                // Skip known-binary files (no useful filename to fuzzy-match).
+                if !is_dir && crate::file_picker::is_known_binary_extension(&path) {
+                    return WalkState::Continue;
+                }
+                entries.lock().push((path, is_dir));
+                WalkState::Continue
             }
-        };
-        let path = entry.path();
-        let is_dir = entry.file_type().is_some_and(|ft| ft.is_dir());
+            Err(_) => {
+                walk_errors.fetch_add(1, Ordering::Relaxed);
+                WalkState::Continue
+            }
+        })
+    });
 
-        // Skip known-binary files (they have no useful filename to fuzzy-match).
-        if !is_dir && crate::file_picker::is_known_binary_extension(path) {
-            continue;
-        }
+    use rayon::prelude::*;
+    let mut results: Vec<FuzzyFileMatch> = entries
+        .into_inner()
+        .into_par_iter()
+        .filter_map(|(path, is_dir)| {
+            let rel = path.strip_prefix(root).unwrap_or(&path);
+            let rel_str = rel.to_string_lossy();
+            #[cfg(windows)]
+            let path_str: std::borrow::Cow<'_, str> =
+                std::borrow::Cow::Owned(rel_str.replace("\\", "/"));
+            #[cfg(not(windows))]
+            let path_str: std::borrow::Cow<'_, str> = rel_str.clone();
 
-        let rel = path.strip_prefix(root).unwrap_or(path);
-        let rel_str = rel.to_string_lossy();
-        #[cfg(windows)]
-        let path_str: std::borrow::Cow<'_, str> =
-            std::borrow::Cow::Owned(rel_str.replace("\\", "/"));
-        #[cfg(not(windows))]
-        let path_str: std::borrow::Cow<'_, str> = rel_str.clone();
-        let lower = rel_str.to_ascii_lowercase();
+            // Zero-alloc ASCII case-insensitive substring check (needle is
+            // already lowercased). Replaces per-entry to_ascii_lowercase.
+            if !crate::case_insensitive_memmem::search(rel_str.as_bytes(), query_lower.as_bytes()) {
+                return None;
+            }
 
-        if !lower.contains(&query_lower) {
-            continue;
-        }
-
-        let score = if options.filename_boost {
-            let filename = rel
-                .file_name()
-                .map(|n| n.to_string_lossy().to_ascii_lowercase())
-                .unwrap_or_default();
-            if filename.contains(&query_lower) {
-                2
+            let score = if options.filename_boost {
+                let filename = rel
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_ascii_lowercase())
+                    .unwrap_or_default();
+                if filename.contains(&query_lower) {
+                    2
+                } else {
+                    1
+                }
             } else {
                 1
-            }
-        } else {
-            1
-        };
+            };
 
-        results.push(FuzzyFileMatch {
-            path: path_str.into_owned(),
-            score,
-            is_dir,
-        });
-    }
+            Some(FuzzyFileMatch {
+                path: path_str.into_owned(),
+                score,
+                is_dir,
+            })
+        })
+        .collect();
 
     // Sort: higher score first, directories after files, then alphabetically.
     results.sort_by(|a, b| {
@@ -154,7 +173,7 @@ pub fn fuzzy_search_files_with_errors(
             .then(a.path.cmp(&b.path))
     });
     results.truncate(options.max_results);
-    (results, walk_errors)
+    (results, walk_errors.load(Ordering::Relaxed))
 }
 
 #[cfg(test)]

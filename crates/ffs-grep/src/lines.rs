@@ -103,7 +103,7 @@ pub fn locate(bytes: &[u8], line_term: u8, range: Match) -> Match {
 mod tests {
     use super::*;
 
-    const SHERLOCK: &'static str = "\
+    const SHERLOCK: &str = "\
 For the Doctor Watsons of this world, as opposed to the Sherlock
 Holmeses, success in the province of detective work must always
 be, to a very large extent, the result of luck. Sherlock Holmes

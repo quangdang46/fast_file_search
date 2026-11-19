@@ -97,8 +97,13 @@ impl GitStatusCache {
         // so for a single file which is the most general use case we query directly the file
         if paths.len() == 1 {
             let full_path = paths[0].as_ref();
-            let relative_path = full_path.strip_prefix(&workdir)?;
-            let status = repo.status_file(relative_path)?;
+            // One out-of-workdir path must not fail the whole batch —
+            // callers pass watcher-touched paths that may live outside
+            // the repo (e.g. absolute paths from another mount).
+            let Ok(relative_path) = full_path.strip_prefix(&workdir) else {
+                return Ok(Self(AHashMap::new()));
+            };
+            let status = repo.status_file(&git_relative_path(relative_path))?;
 
             let mut map = AHashMap::with_capacity(1);
             map.insert(full_path.to_path_buf(), status);
@@ -106,8 +111,19 @@ impl GitStatusCache {
         }
 
         let mut status_options = default_status_options();
+        let mut pathspec_count = 0usize;
         for path in paths {
-            status_options.pathspec(path.as_ref().strip_prefix(&workdir)?);
+            // Skip paths outside the worktree instead of aborting the
+            // entire status query (`?` used to drop every status).
+            if let Ok(rel) = path.as_ref().strip_prefix(&workdir) {
+                status_options.pathspec(git_relative_path(rel));
+                pathspec_count += 1;
+            }
+        }
+        if pathspec_count == 0 {
+            // No in-repo paths: an empty pathspec list would match the
+            // whole worktree, which is never what the caller asked for.
+            return Ok(Self(AHashMap::new()));
         }
 
         let git_status_cache = Self::read_status_impl(repo, &mut status_options)?;
@@ -117,6 +133,20 @@ impl GitStatusCache {
         );
 
         Ok(git_status_cache)
+    }
+}
+
+/// libgit2 pathspecs/status_file expect `/` separators on every platform;
+/// `strip_prefix` yields native separators, which breaks matching on
+/// Windows (`a\b.rs` never equals git's `a/b.rs`).
+fn git_relative_path(rel: &Path) -> PathBuf {
+    #[cfg(windows)]
+    {
+        PathBuf::from(rel.to_string_lossy().replace('\\', "/"))
+    }
+    #[cfg(not(windows))]
+    {
+        rel.to_path_buf()
     }
 }
 

@@ -1,5 +1,30 @@
 //! Shared tree-sitter helpers used by symbol search and outline extraction.
 
+thread_local! {
+    /// One [`tree_sitter::Parser`] per worker thread. `index_file` runs under
+    /// rayon `par_iter`, so a fresh `Parser::new` + `set_language` + tree
+    /// alloc per file was pure overhead — parsers are reusable across
+    /// languages because `set_language` is cheap relative to the parse.
+    static TS_PARSER: std::cell::RefCell<tree_sitter::Parser> =
+        std::cell::RefCell::new(tree_sitter::Parser::new());
+}
+
+/// Parse `content` under `language`, reusing the thread-local parser.
+/// Returns `None` on grammar mismatch or parse failure — the same outcomes
+/// callers previously got from `set_language(..).is_err()` / `parse(..)`.
+pub(crate) fn parse_with_language(
+    language: &tree_sitter::Language,
+    content: &str,
+) -> Option<tree_sitter::Tree> {
+    TS_PARSER.with(|cell| {
+        let mut parser = cell.borrow_mut();
+        if parser.set_language(language).is_err() {
+            return None;
+        }
+        parser.parse(content, None)
+    })
+}
+
 /// Definition node kinds recognized across tree-sitter grammars.
 pub const DEFINITION_KINDS: &[&str] = &[
     "function_declaration",

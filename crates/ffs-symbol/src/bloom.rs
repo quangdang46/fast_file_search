@@ -230,12 +230,15 @@ impl BloomFilterCache {
 }
 
 /// Build a Bloom filter from file content by extracting all identifiers.
+///
+/// Two passes over the identifier iterator instead of collecting a `Vec`
+/// first: the state-machine scan is cheap (byte-level, no allocs) while the
+/// Vec cost one heap alloc + 8 bytes per identifier per file.
 pub fn build_filter(content: &str) -> BloomFilter {
-    let idents: Vec<&str> = extract_identifiers(content).collect();
-    let expected = idents.len().max(1);
+    let expected = extract_identifiers(content).count().max(1);
 
     let mut filter = BloomFilter::new(expected, 0.01);
-    for ident in idents {
+    for ident in extract_identifiers(content) {
         filter.insert(ident);
     }
     filter
@@ -259,6 +262,10 @@ enum ScanState {
     StringBacktick,
     LineComment,
     BlockComment,
+    /// Rust raw string `r"..."` / `r#"..."#` / `br#"..."#`. The payload is
+    /// the number of `#` delimiters; the string only ends on `"` followed
+    /// by that many `#`s, so embedded `"` cannot terminate it early.
+    RawString(u8),
 }
 
 struct IdentifierIter<'a> {
@@ -297,8 +304,29 @@ impl<'a> Iterator for IdentifierIter<'a> {
                         self.pos += 1;
                         continue;
                     }
+                    // Rust raw strings: `r"..."`, `r#"..."#`, `br#"..."#`.
+                    // Detected before identifier extraction so the `r`/`br`
+                    // prefix is not emitted as a bogus identifier.
+                    if b == b'r' || b == b'b' {
+                        if let Some((hashes, content_start)) = raw_string_prefix(bytes, i) {
+                            self.state = ScanState::RawString(hashes);
+                            self.pos = content_start;
+                            continue;
+                        }
+                    }
+
+                    // `'` only opens a string/char literal when a closing
+                    // quote sits within a few bytes (`'a'`, `'\n'`). Rust
+                    // lifetimes (`&'a str`, `<'a, T>`, `'static`) and label
+                    // colons (`'a: loop`) have no nearby closing quote, so
+                    // the byte is skipped and following identifiers survive.
+                    // Longer quoted strings degrade to false-positive
+                    // insertions, which a Bloom filter tolerates — the
+                    // invariant is that we never *miss* an identifier.
                     if b == b'\'' {
-                        self.state = ScanState::StringSingle;
+                        if char_literal_ahead(bytes, i) {
+                            self.state = ScanState::StringSingle;
+                        }
                         self.pos += 1;
                         continue;
                     }
@@ -366,6 +394,27 @@ impl<'a> Iterator for IdentifierIter<'a> {
                     }
                 }
 
+                ScanState::RawString(hashes) => {
+                    // No escapes in raw strings; only `"` + `hashes` × `#`
+                    // terminates.
+                    if b == b'"' {
+                        let mut k = 0u8;
+                        while k < hashes {
+                            let idx = i + 1 + usize::from(k);
+                            if idx >= len || bytes[idx] != b'#' {
+                                break;
+                            }
+                            k += 1;
+                        }
+                        if k == hashes {
+                            self.state = ScanState::Code;
+                            self.pos = i + 1 + usize::from(hashes);
+                            continue;
+                        }
+                    }
+                    self.pos += 1;
+                }
+
                 ScanState::LineComment => {
                     if b == b'\n' {
                         self.state = ScanState::Code;
@@ -386,6 +435,53 @@ impl<'a> Iterator for IdentifierIter<'a> {
 
         None
     }
+}
+
+/// Detect a Rust raw-string prefix starting at `i`: `r"`, `r#"`, `r##"`, …
+/// or the byte-string forms `br"`, `br#"`, … Returns `(hash_count,
+/// content_start)` where `content_start` is the index just past the
+/// opening quote.
+fn raw_string_prefix(bytes: &[u8], i: usize) -> Option<(u8, usize)> {
+    let mut j = i;
+    match bytes.get(j) {
+        Some(b'b') => {
+            j += 1;
+            if bytes.get(j) != Some(&b'r') {
+                return None;
+            }
+            j += 1;
+        }
+        Some(b'r') => {
+            j += 1;
+        }
+        _ => return None,
+    }
+    let mut hashes = 0u8;
+    while hashes < 16 && bytes.get(j) == Some(&b'#') {
+        hashes += 1;
+        j += 1;
+    }
+    if bytes.get(j) == Some(&b'"') {
+        Some((hashes, j + 1))
+    } else {
+        None
+    }
+}
+
+/// True when the `'` at `i` looks like a char/byte literal: a closing `'`
+/// appears within 5 bytes (≤4 content bytes), honoring `\` escapes.
+fn char_literal_ahead(bytes: &[u8], i: usize) -> bool {
+    let len = bytes.len();
+    let end = (i + 6).min(len);
+    let mut j = i + 1;
+    while j < end {
+        match bytes[j] {
+            b'\\' => j += 2,
+            b'\'' => return true,
+            _ => j += 1,
+        }
+    }
+    false
 }
 
 #[inline]
@@ -460,6 +556,55 @@ mod tests {
         assert!(idents.contains(&"another"));
         assert!(!idents.contains(&"fake"));
         assert!(!idents.contains(&"also_fake"));
+    }
+
+    #[test]
+    fn rust_lifetimes_do_not_swallow_code() {
+        // Regression: every `'` used to open StringSingle, so `&'a str`
+        // paired with a later `'` and everything between was treated as a
+        // string — identifiers after it were never inserted (false
+        // negatives in the pre-filter).
+        let code = "fn foo<'a, T>(x: &'a str) -> &'a T { bar() }";
+        let idents: Vec<&str> = extract_identifiers(code).collect();
+        for expected in ["fn", "foo", "T", "x", "str", "bar"] {
+            assert!(
+                idents.contains(&expected),
+                "missing {expected} in {idents:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn rust_char_literals_still_skipped() {
+        let code = "let c = 'x'; let d = '\\n'; call_me()";
+        let idents: Vec<&str> = extract_identifiers(code).collect();
+        assert!(idents.contains(&"let"));
+        assert!(idents.contains(&"call_me"));
+        assert!(!idents.contains(&"x"));
+        assert!(!idents.contains(&"n"));
+    }
+
+    #[test]
+    fn rust_raw_strings_with_embedded_quotes() {
+        // `r#"a "quoted" word"#` must not terminate at the inner `"`.
+        let code = r##"let s = r#"say "hi" ok"#; real_fn()"##;
+        let idents: Vec<&str> = extract_identifiers(code).collect();
+        assert!(idents.contains(&"let"));
+        assert!(idents.contains(&"s"));
+        assert!(idents.contains(&"real_fn"));
+        assert!(!idents.contains(&"say"));
+        assert!(!idents.contains(&"hi"));
+        assert!(!idents.contains(&"ok"));
+    }
+
+    #[test]
+    fn rust_raw_string_hashes_boundary() {
+        // `r##"..."##` ends only on `"##`; a `"#` inside must not end it.
+        let code = "let s = r##\"a \"# not end\"##; after_fn()";
+        let idents: Vec<&str> = extract_identifiers(code).collect();
+        assert!(idents.contains(&"after_fn"));
+        assert!(!idents.contains(&"not"));
+        assert!(!idents.contains(&"end"));
     }
 
     #[test]

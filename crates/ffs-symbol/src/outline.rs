@@ -1,7 +1,7 @@
 //! Tree-sitter driven outline extraction (functions, classes, modules, …)
 //! for the languages ffs supports.
 
-use tree_sitter::{Language, Node, Parser};
+use tree_sitter::{Language, Node};
 
 use crate::treesitter::{
     elixir_arguments, extract_definition_name, extract_elixir_definition_name, find_iife_function,
@@ -41,11 +41,7 @@ pub fn get_outline_entries(content: &str, lang: Lang) -> Vec<OutlineEntry> {
     let Some(language) = outline_language(lang) else {
         return Vec::new();
     };
-    let mut parser = Parser::new();
-    if parser.set_language(&language).is_err() {
-        return Vec::new();
-    }
-    let Some(tree) = parser.parse(content, None) else {
+    let Some(tree) = crate::treesitter::parse_with_language(&language, content) else {
         return Vec::new();
     };
     let lines: Vec<&str> = content.lines().collect();

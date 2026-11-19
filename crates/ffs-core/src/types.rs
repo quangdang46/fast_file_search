@@ -579,7 +579,20 @@ impl FileItem {
             return None;
         }
 
-        let abs = self.absolute_path(arena, base_path);
+        // Build the absolute path via a stack buffer — avoids the String +
+        // PathBuf allocations of absolute_path() on every cache miss. Paths
+        // beyond PATH_BUF_SIZE fall back to the allocating path.
+        let abs = if self.path.byte_len as usize <= PATH_BUF_SIZE {
+            let mut path_bytes = [0u8; PATH_BUF_SIZE];
+            let rel = self.path.read_to_buf(arena, &mut path_bytes);
+            if rel.is_empty() {
+                base_path.to_path_buf()
+            } else {
+                base_path.join(rel)
+            }
+        } else {
+            self.absolute_path(arena, base_path)
+        };
 
         // Large cache-miss files: a fresh transient mmap beats a big heap
         // allocation + one large read_exact. The mmap lives in a per-thread

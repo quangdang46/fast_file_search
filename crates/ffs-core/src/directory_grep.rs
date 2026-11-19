@@ -57,49 +57,64 @@ pub fn grep_directory(root: &Path, pattern: &str, max_matches: usize) -> Vec<Dir
         .ignore(true)
         .follow_links(false);
 
-    let walker = walk_builder.build();
+    // Parallel walk (gitignore-aware) + rayon reads. Results are flattened
+    // in sorted-path order so output order is deterministic; per-file match
+    // lists are capped at max_matches since the global cap can never exceed it.
+    let threads = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(2)
+        .min(8);
+    walk_builder.threads(threads);
+
+    use ignore::WalkState;
+    use parking_lot::Mutex;
+
+    let paths: Mutex<Vec<std::path::PathBuf>> = Mutex::new(Vec::new());
+    walk_builder.build_parallel().run(|| {
+        let paths = &paths;
+        Box::new(move |result| match result {
+            Ok(entry) => {
+                if entry.file_type().is_some_and(|ft| ft.is_file()) {
+                    let path = entry.into_path();
+                    if !crate::file_picker::is_known_binary_extension(&path) {
+                        paths.lock().push(path);
+                    }
+                }
+                WalkState::Continue
+            }
+            Err(_) => WalkState::Continue,
+        })
+    });
+
+    let mut paths = paths.into_inner();
+    paths.sort();
+
+    use rayon::prelude::*;
+    let per_file: Vec<Vec<DirectoryGrepMatch>> = paths
+        .par_iter()
+        .map(|path| {
+            let Ok(content) = crate::bom::read_file(path) else {
+                return Vec::new();
+            };
+            let path_str = path.to_string_lossy().into_owned();
+            content
+                .lines()
+                .enumerate()
+                .filter(|&(_, line)| re.is_match(line))
+                .map(|(line_number, line)| DirectoryGrepMatch {
+                    path: path_str.clone(),
+                    line_number: line_number as u64 + 1,
+                    line: line.to_string(),
+                })
+                .take(max_matches)
+                .collect()
+        })
+        .collect();
 
     let mut results: Vec<DirectoryGrepMatch> = Vec::new();
-
-    for result in walker {
-        if results.len() >= max_matches {
-            break;
-        }
-
-        let Ok(entry) = result else {
-            continue;
-        };
-
-        if !entry.file_type().is_some_and(|ft| ft.is_file()) {
-            continue;
-        }
-
-        let path = entry.path();
-
-        // Skip known-binary extensions without opening the file.
-        if crate::file_picker::is_known_binary_extension(path) {
-            continue;
-        }
-
-        // Read the file as text.
-        let content = match crate::bom::read_file(path) {
-            Ok(c) => c,
-            Err(_) => continue,
-        };
-
-        let path_str = path.to_string_lossy().into_owned();
-
-        for (line_number, line) in content.lines().enumerate() {
-            if !re.is_match(line) {
-                continue;
-            }
-
-            results.push(DirectoryGrepMatch {
-                path: path_str.clone(),
-                line_number: line_number as u64 + 1,
-                line: line.to_string(),
-            });
-
+    for file_matches in per_file {
+        for m in file_matches {
+            results.push(m);
             if results.len() >= max_matches {
                 return results;
             }

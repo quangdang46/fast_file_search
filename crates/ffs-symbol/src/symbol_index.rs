@@ -8,7 +8,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
-use tree_sitter::{Node, Parser};
+use tree_sitter::Node;
 
 use crate::lang::detect_file_type;
 use crate::outline::outline_language;
@@ -42,6 +42,10 @@ pub struct SymbolIndexSnapshot {
 #[derive(Default)]
 pub struct SymbolIndex {
     map: DashMap<String, Vec<SymbolLocation>>,
+    /// path -> names of symbols defined in that file. Reverse index so
+    /// `drop_files`/`remove_path` touch only entries for the affected files
+    /// instead of scanning the whole symbol map once per re-parsed file.
+    by_path: DashMap<PathBuf, Vec<String>>,
     files: DashMap<PathBuf, SystemTime>,
     files_indexed: AtomicUsize,
     symbols_indexed: AtomicUsize,
@@ -81,6 +85,7 @@ impl SymbolIndex {
     /// Drop everything.
     pub fn clear(&self) {
         self.map.clear();
+        self.by_path.clear();
         self.files.clear();
         self.files_indexed.store(0, Ordering::Relaxed);
         self.symbols_indexed.store(0, Ordering::Relaxed);
@@ -92,6 +97,14 @@ impl SymbolIndex {
             .get(name)
             .map(|v| v.value().clone())
             .unwrap_or_default()
+    }
+
+    /// Borrowed variant of [`SymbolIndex::lookup_exact`]: runs `f` on the
+    /// stored slice without cloning the `Vec<SymbolLocation>`. Hot callers
+    /// that only inspect a few fields (e.g. per-token callee scans) should
+    /// prefer this — `lookup_exact` allocates a full clone per call.
+    pub fn with_exact<R>(&self, name: &str, f: impl FnOnce(&[SymbolLocation]) -> R) -> Option<R> {
+        self.map.get(name).map(|v| f(v.value()))
     }
 
     /// Glob-style prefix lookup: returns all symbols whose name starts with `prefix`.
@@ -220,8 +233,19 @@ impl SymbolIndex {
             files.insert(k, UNIX_EPOCH + dur);
         }
         let files_total = files.len();
+        // Rebuild the path -> names reverse index from the snapshot.
+        let by_path: DashMap<PathBuf, Vec<String>> = DashMap::new();
+        for entry in map.iter() {
+            for loc in entry.value().iter() {
+                by_path
+                    .entry(loc.path.clone())
+                    .or_default()
+                    .push(entry.key().clone());
+            }
+        }
         Self {
             map,
+            by_path,
             files,
             files_indexed: AtomicUsize::new(files_total),
             symbols_indexed: AtomicUsize::new(symbols_total),
@@ -230,24 +254,38 @@ impl SymbolIndex {
 
     /// Drop all symbols originating from `paths` and forget their mtime
     /// entries. Used by incremental refresh.
+    ///
+    /// Uses the `by_path` reverse index so only symbol names that actually
+    /// have locations in the dropped files are visited — O(symbols in the
+    /// dropped files) instead of O(entire symbol map).
     pub fn drop_files(&self, paths: &[PathBuf]) {
         if paths.is_empty() {
             return;
         }
         let drop_set: std::collections::HashSet<&Path> =
             paths.iter().map(PathBuf::as_path).collect();
+        let mut names: std::collections::HashSet<String> = std::collections::HashSet::new();
         for p in paths {
             self.files.remove(p);
+            if let Some((_, ns)) = self.by_path.remove(p) {
+                names.extend(ns);
+            }
         }
         let mut removed = 0usize;
-        self.map.iter_mut().for_each(|mut entry| {
-            let before = entry.value().len();
-            entry
-                .value_mut()
-                .retain(|loc| !drop_set.contains(loc.path.as_path()));
-            removed += before - entry.value().len();
-        });
-        self.map.retain(|_, v| !v.is_empty());
+        for name in names {
+            let mut drop_entry = false;
+            if let Some(mut entry) = self.map.get_mut(&name) {
+                let before = entry.value().len();
+                entry
+                    .value_mut()
+                    .retain(|loc| !drop_set.contains(loc.path.as_path()));
+                removed += before - entry.value().len();
+                drop_entry = entry.value().is_empty();
+            }
+            if drop_entry {
+                self.map.remove(&name);
+            }
+        }
         if removed > 0 {
             self.symbols_indexed.fetch_sub(removed, Ordering::Relaxed);
         }
@@ -293,11 +331,7 @@ impl SymbolIndex {
             return 0;
         };
 
-        let mut parser = Parser::new();
-        if parser.set_language(&language).is_err() {
-            return 0;
-        }
-        let Some(tree) = parser.parse(content, None) else {
+        let Some(tree) = crate::treesitter::parse_with_language(&language, content) else {
             return 0;
         };
 
@@ -316,15 +350,33 @@ impl SymbolIndex {
     }
 
     fn insert(&self, name: String, loc: SymbolLocation) {
+        self.by_path
+            .entry(loc.path.clone())
+            .or_default()
+            .push(name.clone());
         self.map.entry(name).or_default().push(loc);
     }
 
+    /// Remove every symbol location originating from `path`. Uses the
+    /// `by_path` reverse index so only the names defined in this file are
+    /// visited instead of scanning the whole map.
     fn remove_path(&self, path: &Path) {
-        self.map
-            .iter_mut()
-            .for_each(|mut entry| entry.value_mut().retain(|loc| loc.path != path));
-        let removed = self.map.iter().filter(|e| e.value().is_empty()).count();
-        self.map.retain(|_, v| !v.is_empty());
+        let Some((_, names)) = self.by_path.remove(path) else {
+            return;
+        };
+        let mut removed = 0usize;
+        for name in names {
+            let mut drop_entry = false;
+            if let Some(mut entry) = self.map.get_mut(&name) {
+                let before = entry.value().len();
+                entry.value_mut().retain(|loc| loc.path != path);
+                removed += before - entry.value().len();
+                drop_entry = entry.value().is_empty();
+            }
+            if drop_entry {
+                self.map.remove(&name);
+            }
+        }
         if removed > 0 {
             self.symbols_indexed.fetch_sub(removed, Ordering::Relaxed);
         }
@@ -376,11 +428,13 @@ fn collect_definitions(
             }
         }
 
-        let mut cursor = n.walk();
-        // Push children in reverse so first child is processed first (pre-order).
-        let children: Vec<_> = n.children(&mut cursor).collect();
-        for child in children.into_iter().rev() {
-            stack.push(child);
+        // Push children in reverse so first child is processed first
+        // (pre-order). Indexed access avoids allocating a `Vec<Node>` per
+        // AST node — the old `children().collect()` did that for every node.
+        for i in (0..n.child_count()).rev() {
+            if let Some(child) = n.child(i) {
+                stack.push(child);
+            }
         }
     }
 }

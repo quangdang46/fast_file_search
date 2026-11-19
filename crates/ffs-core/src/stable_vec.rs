@@ -125,6 +125,7 @@ impl<T> StableVec<T> {
     }
 
     #[inline]
+    #[allow(dead_code)] // retained for pointer-based consumers; currently unused
     pub fn as_ptr(&self) -> *const T {
         self.inner.ptr.as_ptr()
     }

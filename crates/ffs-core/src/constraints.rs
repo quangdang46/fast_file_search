@@ -245,27 +245,65 @@ pub(crate) fn apply_constraints<'a, T: Constrainable + Sync>(
         .any(|c| matches!(c, Constraint::Glob(_) | Constraint::Not(_)));
 
     let glob_results = if has_globs {
+        // Relative paths are materialized in parallel (the expensive part is
+        // write_relative_path per item); the contiguous byte buffer + offset
+        // table is then assembled serially — pure memcpy, cheap.
+        let paths: Vec<String> = if items.len() >= PAR_THRESHOLD {
+            use rayon::prelude::*;
+            items
+                .par_iter()
+                .map(|item| {
+                    let arena = if item.is_overflow() {
+                        overflow_arena
+                    } else {
+                        base_arena
+                    };
+                    let mut s = String::with_capacity(64);
+                    item.write_relative_path(arena, &mut s);
+                    #[cfg(windows)]
+                    {
+                        // SAFETY: only ASCII '\\' bytes are overwritten with '/'.
+                        for b in unsafe { s.as_bytes_mut() } {
+                            if *b == b'\\' {
+                                *b = b'/';
+                            }
+                        }
+                    }
+                    s
+                })
+                .collect()
+        } else {
+            items
+                .iter()
+                .map(|item| {
+                    let arena = if item.is_overflow() {
+                        overflow_arena
+                    } else {
+                        base_arena
+                    };
+                    let mut s = String::with_capacity(64);
+                    item.write_relative_path(arena, &mut s);
+                    #[cfg(windows)]
+                    {
+                        for b in unsafe { s.as_bytes_mut() } {
+                            if *b == b'\\' {
+                                *b = b'/';
+                            }
+                        }
+                    }
+                    s
+                })
+                .collect()
+        };
+
         // Build a single contiguous buffer of all relative paths + offset table.
         // Overflow items must read chunks from the overflow arena — using the
         // base arena here is what caused the path-constraint segfault (#618/#620).
         let mut path_buf = Vec::<u8>::new();
         let mut offsets = Vec::<(usize, usize)>::with_capacity(items.len());
-        let mut tmp = String::with_capacity(64);
-        for item in items.iter() {
-            let arena = if item.is_overflow() {
-                overflow_arena
-            } else {
-                base_arena
-            };
+        for p in &paths {
             let start = path_buf.len();
-            item.write_relative_path(arena, &mut tmp);
-            path_buf.extend_from_slice(tmp.as_bytes());
-            #[cfg(windows)]
-            for b in &mut path_buf[start..] {
-                if *b == b'\\' {
-                    *b = b'/';
-                }
-            }
+            path_buf.extend_from_slice(p.as_bytes());
             offsets.push((start, path_buf.len() - start));
         }
         let path_refs: Vec<&str> = offsets

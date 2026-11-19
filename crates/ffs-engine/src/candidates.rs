@@ -5,7 +5,9 @@
 //! `(path, mtime, content)`. Each surface used to carry its own copy; this is
 //! the single implementation so the three cannot drift.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::SystemTime;
 
 use ffs_symbol::lang::detect_file_type;
@@ -53,6 +55,21 @@ impl CodeFile {
     #[must_use]
     pub fn collect_all_with_errors(root: &Path) -> (Vec<Self>, usize) {
         Self::walk(root, false)
+    }
+
+    /// Parallel variant of [`CodeFile::collect`]: same gitignore-aware walk
+    /// and code-only filter, but the walk runs on `ignore`'s thread pool and
+    /// file reads run under rayon. Output is sorted by path (deterministic),
+    /// unlike the serial walker whose order is directory order.
+    #[must_use]
+    pub fn collect_parallel(root: &Path, code_only: bool) -> Vec<Self> {
+        let (paths, _walk_errors) = walk_paths_sorted(root);
+        use rayon::prelude::*;
+        paths
+            .par_iter()
+            .filter(|p| !code_only || matches!(detect_file_type(p), FileType::Code(_)))
+            .filter_map(|p| Self::read(p))
+            .collect()
     }
 
     /// Read the given paths, keeping only code files when `code_only`.
@@ -121,6 +138,144 @@ impl CodeFile {
             .iter()
             .map(|f| (f.path.clone(), f.mtime, f.content.clone()))
             .collect()
+    }
+}
+
+/// Parallel walk of `root` returning every file path, sorted for
+/// deterministic downstream ordering. Same filters as [`CodeFile::collect`]
+/// (`standard_filters`, no symlink following); walk errors are counted and
+/// returned alongside.
+fn walk_paths_sorted(root: &Path) -> (Vec<PathBuf>, usize) {
+    use ignore::WalkState;
+
+    let threads = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(2)
+        .min(8);
+
+    let paths: parking_lot::Mutex<Vec<PathBuf>> = parking_lot::Mutex::new(Vec::new());
+    let walk_errors = std::sync::atomic::AtomicUsize::new(0);
+    let walker = ignore::WalkBuilder::new(root)
+        .standard_filters(true)
+        .follow_links(false)
+        .threads(threads)
+        .build_parallel();
+    walker.run(|| {
+        let paths = &paths;
+        let walk_errors = &walk_errors;
+        Box::new(move |entry| match entry {
+            Ok(e) => {
+                if e.file_type().is_some_and(|t| t.is_file()) {
+                    paths.lock().push(e.into_path());
+                }
+                WalkState::Continue
+            }
+            Err(_) => {
+                walk_errors.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                WalkState::Continue
+            }
+        })
+    });
+
+    let mut paths = paths.into_inner();
+    // Sort so hit truncation stays deterministic across calls — the parallel
+    // walker yields paths in arrival order.
+    paths.sort_unstable();
+    (
+        paths,
+        walk_errors.load(std::sync::atomic::Ordering::Relaxed),
+    )
+}
+
+/// Shared snapshot of code files: `Arc`-wrapped entries so unchanged files
+/// are reused across refreshes without cloning their contents.
+pub type CodeFileSnapshot = Arc<Vec<Arc<CodeFile>>>;
+
+struct CachedCodeFiles {
+    root: PathBuf,
+    files: CodeFileSnapshot,
+    /// path -> (mtime, byte_len) observed at snapshot time; the staleness key.
+    manifest: HashMap<PathBuf, (SystemTime, u64)>,
+}
+
+/// Incremental, mtime-aware cache of code-file contents for long-lived
+/// callers (the MCP `engine_*` tools).
+///
+/// [`CodeFileCache::get`] still walks the tree on every call — in parallel —
+/// and stats each file, but only files whose `(mtime, len)` changed since the
+/// previous snapshot are re-read; unchanged files reuse the cached `String`
+/// via `Arc`. The first call pays the full read; later calls pay
+/// walk+stat+diff only. A different `root` invalidates the whole snapshot.
+///
+/// Single-flight: concurrent callers serialize on the write lock and the
+/// second observes the refreshed snapshot, so results are always consistent.
+#[derive(Default)]
+pub struct CodeFileCache {
+    inner: parking_lot::RwLock<Option<CachedCodeFiles>>,
+}
+
+impl CodeFileCache {
+    /// Fresh (or incrementally refreshed) snapshot of every readable code
+    /// file under `root`, sorted by path.
+    #[must_use]
+    pub fn get(&self, root: &Path) -> CodeFileSnapshot {
+        use rayon::prelude::*;
+
+        let mut guard = self.inner.write();
+
+        // Phase 1: parallel walk, then parallel code-filter + stat.
+        let (paths, _walk_errors) = walk_paths_sorted(root);
+        let statted: Vec<(PathBuf, SystemTime, u64)> = paths
+            .par_iter()
+            .filter(|p| matches!(detect_file_type(p), FileType::Code(_)))
+            .filter_map(|p| {
+                let meta = std::fs::metadata(p).ok()?;
+                let mtime = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
+                Some((p.clone(), mtime, meta.len()))
+            })
+            .collect();
+        // par_iter preserves the sorted path order.
+
+        // Phase 2: diff against the previous snapshot; re-read only changes.
+        let old = guard.take().filter(|c| c.root == root);
+        let old_files: HashMap<PathBuf, Arc<CodeFile>> = old
+            .as_ref()
+            .map(|c| {
+                c.files
+                    .iter()
+                    .map(|f| (f.path.clone(), Arc::clone(f)))
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let mut files: Vec<Arc<CodeFile>> = Vec::with_capacity(statted.len());
+        let mut manifest: HashMap<PathBuf, (SystemTime, u64)> =
+            HashMap::with_capacity(statted.len());
+        for (path, mtime, len) in statted {
+            let unchanged = old
+                .as_ref()
+                .and_then(|c| c.manifest.get(&path))
+                .is_some_and(|&(om, ol)| om == mtime && ol == len);
+            if unchanged {
+                if let Some(f) = old_files.get(&path) {
+                    manifest.insert(path, (mtime, len));
+                    files.push(Arc::clone(f));
+                    continue;
+                }
+            }
+            if let Some(f) = CodeFile::read(&path) {
+                manifest.insert(f.path.clone(), (mtime, len));
+                files.push(Arc::new(f));
+            }
+        }
+
+        let snapshot: CodeFileSnapshot = Arc::new(files);
+        *guard = Some(CachedCodeFiles {
+            root: root.to_path_buf(),
+            files: Arc::clone(&snapshot),
+            manifest,
+        });
+        snapshot
     }
 }
 

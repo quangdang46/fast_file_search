@@ -29,10 +29,16 @@ pub fn classify_query(raw: &str, cwd: &Path) -> ClassifiedQuery {
 
     if let Some((path_part, line_str)) = parse_path_line(trimmed) {
         if let Ok(line) = line_str.parse::<usize>() {
-            return ClassifiedQuery {
-                raw: raw.to_string(),
-                query: QueryType::FilePathLine(cwd.join(path_part), line),
-            };
+            // `name.ext:NN` and `C:\dir\f.rs:NN` parse fine but the path
+            // may not exist — only treat as FilePathLine when it does,
+            // otherwise fall through to content search.
+            let candidate = cwd.join(path_part);
+            if candidate.exists() {
+                return ClassifiedQuery {
+                    raw: raw.to_string(),
+                    query: QueryType::FilePathLine(candidate, line),
+                };
+            }
         }
     }
 
@@ -116,7 +122,10 @@ fn is_likely_symbol(s: &str) -> bool {
     }
     let has_upper = s.chars().any(|c| c.is_uppercase());
     let has_underscore = s.contains('_');
-    has_upper || has_underscore || s.len() >= 4
+    // A single all-lowercase word (`error`, `config`, `main`) is far more
+    // often a content search than a symbol name — routing it to Symbol
+    // made the Concept/Fallthrough arms unreachable for single words.
+    has_upper || has_underscore
 }
 
 fn is_likely_concept(s: &str) -> bool {

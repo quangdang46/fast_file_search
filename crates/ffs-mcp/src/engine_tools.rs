@@ -4,14 +4,15 @@
 //! The engine tools are additive: they expose the symbol index, call-graph,
 //! and token-budgeted read APIs from `ffs-engine` to MCP clients.
 
-use std::path::{Path, PathBuf};
+use std::collections::{HashMap, HashSet};
+use std::path::Path;
 use std::sync::Arc;
 
 use once_cell::sync::OnceCell;
 use parking_lot::Mutex;
 
 use ffs_budget::FilterLevel;
-use ffs_engine::{Engine, EngineConfig, PreFilterStack};
+use ffs_engine::{CodeFileSnapshot, Engine, EngineConfig, PreFilterStack};
 use ffs_symbol::lang::detect_file_type;
 use ffs_symbol::symbol_index::{SymbolIndex, SymbolLocation};
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
@@ -219,6 +220,20 @@ pub fn rel_path(root: &Path, path: &Path) -> String {
 /// Find call sites for `symbol`, narrowed by `BloomFilterCache` before the
 /// final `String::contains` confirmation.
 pub fn find_call_sites(engine: &Engine, root: &Path, symbol: &str, limit: usize) -> Vec<CallHit> {
+    let files = engine.code_files.get(root);
+    find_call_sites_in(engine, root, symbol, limit, &files)
+}
+
+/// [`find_call_sites`] against a pre-fetched candidate snapshot — lets
+/// multi-symbol callers (e.g. `find_impact`'s BFS) share one walk+read
+/// instead of re-scanning the repo per frontier symbol.
+fn find_call_sites_in(
+    engine: &Engine,
+    root: &Path,
+    symbol: &str,
+    limit: usize,
+    files: &CodeFileSnapshot,
+) -> Vec<CallHit> {
     let definitions = resolve_symbol_name(symbol, &engine.handles.symbols);
     if definitions.is_empty() {
         // No AST definition → the substring scan below would report bare text
@@ -226,37 +241,42 @@ pub fn find_call_sites(engine: &Engine, root: &Path, symbol: &str, limit: usize)
         // comments). An honest empty is better than mislabeled noise.
         return Vec::new();
     }
-    let definition_lines: Vec<(PathBuf, u32)> = definitions
-        .iter()
-        .map(|d| (d.path.clone(), d.line))
-        .collect();
+    // path -> definition line numbers on that path. HashMap lookup per
+    // matching line replaces the old O(defs) `Vec::iter().any` scan.
+    let mut def_lines: HashMap<&Path, HashSet<u32>> = HashMap::new();
+    for d in &definitions {
+        def_lines
+            .entry(d.path.as_path())
+            .or_default()
+            .insert(d.line);
+    }
 
     let stack = PreFilterStack::new(engine.handles.bloom.clone());
 
-    let candidates = walk_code_files(root);
+    // Borrowed confirm — cloning every file body into `confirm_input` used
+    // to double the peak memory of a callers/refs request.
+    let survivors = stack.confirm_symbol_ref(
+        files
+            .iter()
+            .map(|f| (f.path.as_path(), f.mtime, f.content.as_str())),
+        symbol,
+    );
 
-    let survivors = stack.confirm_symbol(&candidates, symbol);
-
-    let mut survivor_set = std::collections::HashSet::new();
-    for s in &survivors {
-        survivor_set.insert(s.path.clone());
-    }
+    let survivor_set: HashSet<&Path> = survivors.iter().map(|s| s.path.as_path()).collect();
 
     let mut hits = Vec::new();
-    for (path, _mtime, content) in &candidates {
-        if !survivor_set.contains(path) {
+    for f in files.iter() {
+        if !survivor_set.contains(f.path.as_path()) {
             continue;
         }
-        let path_str = rel_path(root, path);
-        for (lineno, line) in content.lines().enumerate() {
+        let path_str = rel_path(root, &f.path);
+        let defs = def_lines.get(f.path.as_path());
+        for (lineno, line) in f.content.lines().enumerate() {
             let lineno = (lineno + 1) as u32;
             if !line.contains(symbol) {
                 continue;
             }
-            if definition_lines
-                .iter()
-                .any(|(p, l)| p == path && *l == lineno)
-            {
+            if defs.is_some_and(|s| s.contains(&lineno)) {
                 continue;
             }
             hits.push(CallHit {
@@ -279,11 +299,17 @@ pub fn find_callee_sites(engine: &Engine, root: &Path, symbol: &str, limit: usiz
         return Vec::new();
     }
     let mut hits = Vec::new();
-    for def in definitions {
+    for def in &definitions {
         let Ok(content) = ffs::bom::read_file(&def.path) else {
             continue;
         };
         let path_str = rel_path(root, &def.path);
+
+        // Pass 1: collect the unique identifier tokens in the body range.
+        // Resolving per token *occurrence* used to hit the DashMap + clone a
+        // `Vec<SymbolLocation>` for every token on every line (~4k clones per
+        // 200-line function); unique tokens cut that to one resolve each.
+        let mut tokens: HashSet<&str> = HashSet::new();
         for (idx, line) in content.lines().enumerate() {
             let lineno = (idx + 1) as u32;
             if lineno < def.line || lineno > def.end_line {
@@ -293,19 +319,52 @@ pub fn find_callee_sites(engine: &Engine, root: &Path, symbol: &str, limit: usiz
                 if tok.is_empty() || tok == symbol {
                     continue;
                 }
-                let candidates = resolve_symbol_name(tok, &engine.handles.symbols);
-                if candidates.is_empty() {
+                tokens.insert(tok);
+            }
+        }
+
+        // Resolve each unique token once; only the first candidate's kind is
+        // ever rendered, so store just that.
+        let mut resolved: HashMap<&str, String> = HashMap::with_capacity(tokens.len());
+        for tok in &tokens {
+            // Tokens can't contain `::` (`:` is a split delimiter), so the
+            // qualified-name fallback never applies — borrow the stored
+            // locations instead of cloning the whole Vec per token.
+            let kind = engine
+                .handles
+                .symbols
+                .with_exact(tok, |locs| locs.first().map(|l| l.kind.clone()))
+                .flatten();
+            if let Some(kind) = kind {
+                resolved.insert(*tok, kind);
+            }
+        }
+
+        // Pass 2: emit hits in the original line/token order.
+        'defs: for (idx, line) in content.lines().enumerate() {
+            let lineno = (idx + 1) as u32;
+            if lineno < def.line || lineno > def.end_line {
+                continue;
+            }
+            for tok in line.split(|c: char| !c.is_alphanumeric() && c != '_') {
+                if tok.is_empty() || tok == symbol {
                     continue;
                 }
+                let Some(kind) = resolved.get(tok) else {
+                    continue;
+                };
                 hits.push(CallHit {
                     path: path_str.clone(),
                     line: lineno,
-                    text: format!("{tok} ({})", candidates[0].kind),
+                    text: format!("{tok} ({kind})"),
                 });
                 if hits.len() >= limit {
-                    return hits;
+                    break 'defs;
                 }
             }
+        }
+        if hits.len() >= limit {
+            return hits;
         }
     }
     hits
@@ -318,20 +377,27 @@ pub fn find_callee_sites(engine: &Engine, root: &Path, symbol: &str, limit: usiz
 /// filter by `detect_file_type() == Code(_)`; skipping non-code avoids binary
 /// bloat and keeps callers/refs output consistent with the CLI.
 ///
-/// NOTE: this materializes every code file's contents at once, so peak memory
-/// scales with total source size (a large monorepo is tens of MB held live for
-/// the duration of one callers/refs request). Fine for typical repos; if this
-/// ever shows up in a profile, the fix is to probe the bloom cache per file
-/// during the walk and retain only survivors' content.
-fn walk_code_files(root: &Path) -> Vec<(std::path::PathBuf, std::time::SystemTime, String)> {
-    // Shared walker with `ffs-cli` and `ffs-c`. Serial and ordered on purpose:
-    // hits are truncated at a limit, so walk order decides what is returned.
-    // Move out of `CodeFile` instead of `into_confirm_input` — that used to
-    // clone every file's content a second time.
-    ffs_engine::CodeFile::collect(root)
-        .into_iter()
-        .map(|f| (f.path, f.mtime, f.content))
-        .collect()
+/// Backed by `Engine::code_files`: an mtime-aware cache that parallelizes
+/// the walk and re-reads only changed files, so repeated engine calls pay
+/// walk+stat instead of a full repo read. The snapshot is sorted by path,
+/// keeping hit truncation deterministic.
+fn walk_code_files(engine: &Engine, root: &Path) -> CodeFileSnapshot {
+    engine.code_files.get(root)
+}
+
+/// Allocation-free replacement for the old `trimmed.to_lowercase()` prefix /
+/// substring checks in subclass detection: `class ` at start, `: class `
+/// anywhere, or a `<` (generic/extends syntax) anywhere.
+fn is_class_like_line(trimmed: &str) -> bool {
+    const CLASS_PREFIX: &[u8] = b"class ";
+    const COLON_CLASS: &[u8] = b": class ";
+    let bytes = trimmed.as_bytes();
+    let starts_with_class = bytes.len() >= CLASS_PREFIX.len()
+        && bytes[..CLASS_PREFIX.len()].eq_ignore_ascii_case(CLASS_PREFIX);
+    let contains_colon_class = bytes
+        .windows(COLON_CLASS.len())
+        .any(|w| w.eq_ignore_ascii_case(COLON_CLASS));
+    starts_with_class || contains_colon_class || trimmed.contains('<')
 }
 
 /// Find the innermost enclosing symbol from an outline for a given line.
@@ -367,8 +433,34 @@ fn enclosing_for_hit(engine: &Engine, root: &Path, path: &str, line: u32) -> Opt
     let outline = engine
         .handles
         .outlines
-        .get_or_compute(&abs, mtime, &content, lang);
+        .get_or_compute_arc(&abs, mtime, &content, lang);
     enclosing_symbol(&outline, line)
+}
+
+/// [`enclosing_for_hit`] against a pre-fetched candidate snapshot: reuses the
+/// already-read file content instead of re-reading + re-outlining per hit.
+/// Falls back to the disk path when the hit's file isn't in the snapshot
+/// (e.g. created after the snapshot was taken).
+fn enclosing_for_hit_in(
+    engine: &Engine,
+    root: &Path,
+    path: &str,
+    line: u32,
+    files: &CodeFileSnapshot,
+) -> Option<String> {
+    let abs = root.join(path);
+    if let Some(f) = files.iter().find(|f| f.path == abs) {
+        let lang = match detect_file_type(&f.path) {
+            ffs_symbol::types::FileType::Code(l) => l,
+            _ => return None,
+        };
+        let outline = engine
+            .handles
+            .outlines
+            .get_or_compute_arc(&f.path, f.mtime, &f.content, lang);
+        return enclosing_symbol(&outline, line);
+    }
+    enclosing_for_hit(engine, root, path, line)
 }
 
 /// Result of an in-process refs lookup. Mirrors the CLI's `RefUsage`.
@@ -399,77 +491,69 @@ pub fn find_refs(
 ) -> RefsResult {
     let mut definitions: Vec<SymbolLocation> = resolve_symbol_name(name, &engine.handles.symbols);
     definitions.sort_by_key(|b| std::cmp::Reverse(b.weight));
-    let definition_line_set: std::collections::HashSet<(String, u32)> = definitions
-        .iter()
-        .map(|d| (d.path.to_string_lossy().to_string(), d.line))
-        .collect();
+    // path -> definition line numbers; per-line HashSet lookup replaces the
+    // old `HashSet<(String, u32)>` + `abs_str.clone()` per matching line.
+    let mut def_lines: HashMap<&Path, HashSet<u32>> = HashMap::new();
+    for d in &definitions {
+        def_lines
+            .entry(d.path.as_path())
+            .or_default()
+            .insert(d.line);
+    }
 
-    let candidates = walk_code_files(root);
+    let files = walk_code_files(engine, root);
 
     let stack = PreFilterStack::new(engine.handles.bloom.clone());
     // Borrowed confirm — cloning every file body into `confirm_input` used
     // to triple the peak memory of a refs/callers request.
     let survivors = stack.confirm_symbol_ref(
-        candidates
+        files
             .iter()
-            .map(|(p, m, c)| (p.as_path(), *m, c.as_str())),
+            .map(|f| (f.path.as_path(), f.mtime, f.content.as_str())),
         name,
     );
-    let survivor_set: std::collections::HashSet<&std::path::Path> =
-        survivors.iter().map(|s| s.path.as_path()).collect();
+    let survivor_set: HashSet<&Path> = survivors.iter().map(|s| s.path.as_path()).collect();
+
+    // Usages and subclass detection share one pass over the survivors —
+    // previously each ran its own full file×line scan.
     let mut usages: Vec<RefUsage> = Vec::new();
-    for (path, mtime, content) in &candidates {
-        if !survivor_set.contains(path.as_path()) {
+    let mut subclasses: Vec<RefUsage> = Vec::new();
+    for f in files.iter() {
+        if !survivor_set.contains(f.path.as_path()) {
             continue;
         }
-        // Definition-line skip set is keyed by absolute path; emit relative.
-        let abs_str = path.to_string_lossy().to_string();
-        let path_str = rel_path(root, path);
-        // Detect language for outline computation
-        let lang = match detect_file_type(path) {
+        let path_str = rel_path(root, &f.path);
+        // Snapshot files are code-only by construction, but keep the guard so
+        // the outline language resolution stays honest if that changes.
+        let lang = match detect_file_type(&f.path) {
             ffs_symbol::types::FileType::Code(l) => l,
             _ => continue,
         };
         let outline = engine
             .handles
             .outlines
-            .get_or_compute(path, *mtime, content, lang);
+            .get_or_compute_arc(&f.path, f.mtime, &f.content, lang);
+        let defs = def_lines.get(f.path.as_path());
 
-        for (lineno, line) in content.lines().enumerate() {
+        for (lineno, line) in f.content.lines().enumerate() {
             let lineno = (lineno + 1) as u32;
             if !line.contains(name) {
                 continue;
             }
-            // Skip definition lines
-            if definition_line_set.contains(&(abs_str.clone(), lineno)) {
-                continue;
+            // Skip definition lines for usages (subclass detection below is
+            // intentionally independent of the def-line skip, as before).
+            if !defs.is_some_and(|s| s.contains(&lineno)) {
+                usages.push(RefUsage {
+                    path: path_str.clone(),
+                    line: lineno,
+                    text: line.to_string(),
+                    enclosing: enclosing_symbol(&outline, lineno),
+                });
             }
-            usages.push(RefUsage {
-                path: path_str.clone(),
-                line: lineno,
-                text: line.to_string(),
-                enclosing: enclosing_symbol(&outline, lineno),
-            });
-        }
-    }
-
-    // Subclass detection: scan for `class child(parent)` or `name[extends](parent)`
-    let mut subclasses: Vec<RefUsage> = Vec::new();
-    for (path, _mtime, content) in &candidates {
-        if !survivor_set.contains(path.as_path()) {
-            continue;
-        }
-        let path_str = rel_path(root, path);
-        for (lineno, line) in content.lines().enumerate() {
-            let lineno = (lineno + 1) as u32;
-            if !line.contains(name) {
-                continue;
-            }
-            // Check for `class child(parent)` or `childName(parent,)` patterns
+            // Subclass detection: `class child(parent)` / `name[extends](parent)`.
+            // Allocation-free case checks replace the old `to_lowercase()`.
             let trimmed = line.trim();
-            let lower = trimmed.to_lowercase();
-            if !lower.starts_with("class ") && !lower.contains(": class ") && !trimmed.contains("<")
-            {
+            if !is_class_like_line(trimmed) {
                 continue;
             }
             // Must be a subclass definition: class X(name) or class X[extends](name)
@@ -714,29 +798,47 @@ fn collect_siblings(
 
 /// Render a tree map of the workspace. Mirrors `ffs map`.
 pub fn format_map(root: &Path, depth: u32, _symbols: u32) -> String {
-    use ignore::WalkBuilder;
+    use ignore::WalkState;
     use std::collections::BTreeMap;
 
-    // Collect directory stats
-    let mut dirs: BTreeMap<String, (u32, u64)> = BTreeMap::new(); // path -> (file_count, total_bytes)
-    for entry in WalkBuilder::new(root)
+    // Collect directory stats. Parallel walk (same filters/thread cap as the
+    // CLI's `walk_files`) and `DirEntry::metadata` instead of a second
+    // `std::fs::metadata` stat per file.
+    let threads = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(2)
+        .min(8);
+    let rows: Mutex<Vec<(String, u64)>> = Mutex::new(Vec::new());
+    let walker = ignore::WalkBuilder::new(root)
         .standard_filters(true)
         .follow_links(false)
-        .build()
-        .flatten()
-    {
-        if !entry.file_type().is_some_and(|t| t.is_file()) {
-            continue;
-        }
-        let path = entry.into_path();
-        let parent = path.parent().unwrap_or(root);
-        let rel = parent
-            .strip_prefix(root)
-            .unwrap_or(parent)
-            .to_string_lossy()
-            .to_string();
-        let key = if rel.is_empty() { ".".to_string() } else { rel };
-        let size = std::fs::metadata(&path).ok().map(|m| m.len()).unwrap_or(0);
+        .threads(threads)
+        .build_parallel();
+    walker.run(|| {
+        let rows = &rows;
+        Box::new(move |entry| {
+            let Ok(entry) = entry else {
+                return WalkState::Continue;
+            };
+            if !entry.file_type().is_some_and(|t| t.is_file()) {
+                return WalkState::Continue;
+            }
+            let path = entry.path();
+            let parent = path.parent().unwrap_or(root);
+            let rel = parent
+                .strip_prefix(root)
+                .unwrap_or(parent)
+                .to_string_lossy()
+                .into_owned();
+            let key = if rel.is_empty() { ".".to_string() } else { rel };
+            let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
+            rows.lock().push((key, size));
+            WalkState::Continue
+        })
+    });
+
+    let mut dirs: BTreeMap<String, (u32, u64)> = BTreeMap::new(); // path -> (file_count, total_bytes)
+    for (key, size) in rows.into_inner() {
         let entry = dirs.entry(key).or_default();
         entry.0 += 1;
         entry.1 += size;
@@ -879,34 +981,15 @@ fn extract_simple_imports(content: &str, lang: ffs_symbol::types::Lang) -> Vec<S
 }
 
 fn find_dependents(root: &Path, target_name: &str, limit: usize) -> Vec<std::path::PathBuf> {
-    let mut out = Vec::new();
-    for entry in ignore::WalkBuilder::new(root)
-        .standard_filters(true)
-        .follow_links(false)
-        .build()
-        .flatten()
-    {
-        if !entry.file_type().is_some_and(|t| t.is_file()) {
-            continue;
-        }
-        let path = entry.into_path();
-        if !matches!(
-            ffs_symbol::lang::detect_file_type(&path),
-            ffs_symbol::types::FileType::Code(_)
-        ) {
-            continue;
-        }
-        let Ok(content) = ffs::bom::read_file(&path) else {
-            continue;
-        };
-        if content.contains(target_name) {
-            out.push(path);
-            if out.len() >= limit {
-                break;
-            }
-        }
-    }
-    out
+    // Parallel walk + parallel reads via the shared candidate collector —
+    // replaces a serial walk that re-read every code file's contents.
+    let files = ffs_engine::CodeFile::collect_parallel(root, true);
+    files
+        .iter()
+        .filter(|f| f.content.contains(target_name))
+        .take(limit)
+        .map(|f| f.path.clone())
+        .collect()
 }
 
 /// Options for [`find_flow`]. Grouped into a struct because the function
@@ -966,7 +1049,11 @@ pub fn find_flow(opts: FlowOptions<'_>) -> String {
         }
     }
 
-    let callers = find_call_sites(engine, root, name, callers_top.max(50));
+    // Share one candidate snapshot between the caller scan and anything else
+    // in this request — `code_files.get` still walks+stats, so calling it
+    // twice would double that cost.
+    let files = engine.code_files.get(root);
+    let callers = find_call_sites_in(engine, root, name, callers_top.max(50), &files);
     out.push_str(&format!(
         "callers ({} shown of {}):\n",
         callers.len().min(callers_top),
@@ -1042,8 +1129,14 @@ pub fn find_impact(
         return format!("[no impact found for {name}]\n");
     }
 
+    // One candidate snapshot for the whole request: the direct-caller scan,
+    // every BFS frontier symbol, the enclosing-symbol lookups, and the
+    // reverse-import pass all reuse it. Previously each frontier symbol
+    // triggered a full repo re-walk + re-read (20–60 scans per request).
+    let files = walk_code_files(engine, root);
+
     // Direct callers
-    let callers = find_call_sites(engine, root, name, limit.max(100));
+    let callers = find_call_sites_in(engine, root, name, limit.max(100), &files);
     // path -> (direct_score, import_score, transitive_score)
     let mut scores: std::collections::BTreeMap<String, (u32, u32, u32)> =
         std::collections::BTreeMap::new();
@@ -1071,7 +1164,8 @@ pub fn find_impact(
             for sym in &frontier {
                 // Count one hit past the guard so `is_hub` is decidable even
                 // when a name is far more popular than `hub_guard`.
-                let sym_callers = find_call_sites(engine, root, sym, hub_guard.saturating_add(1));
+                let sym_callers =
+                    find_call_sites_in(engine, root, sym, hub_guard.saturating_add(1), &files);
                 // Hub guard: a name producing more than `hub_guard` hits stops
                 // propagating (its hits still count) — mirrors `ffs callers`.
                 let is_hub = sym_callers.len() > hub_guard;
@@ -1082,7 +1176,8 @@ pub fn find_impact(
                     continue;
                 }
                 for c in &sym_callers {
-                    let Some(encl) = enclosing_for_hit(engine, root, &c.path, c.line) else {
+                    let Some(encl) = enclosing_for_hit_in(engine, root, &c.path, c.line, &files)
+                    else {
                         continue;
                     };
                     if encl != *sym && seen.insert(encl.clone()) {
@@ -1105,39 +1200,24 @@ pub fn find_impact(
     // row would print an absolute path while the other printed the relative
     // one). `def_paths` likewise has to hold relative paths for the
     // definition-file skip below to actually match.
-    let def_paths: std::collections::HashSet<String> = definitions
+    let def_paths: HashSet<String> = definitions
         .iter()
         .map(|d| rel_path(root, &d.path))
         .collect();
-    for entry in ignore::WalkBuilder::new(root)
-        .standard_filters(true)
-        .follow_links(false)
-        .build()
-        .flatten()
-    {
-        if !entry.file_type().is_some_and(|t| t.is_file()) {
-            continue;
-        }
-        let path = entry.into_path();
-        let path_str = rel_path(root, &path);
+    // Reverse-import scan reuses the same snapshot: files are already
+    // code-filtered and content-loaded, so this replaces a third serial
+    // walk + full re-read.
+    for f in files.iter() {
+        let path_str = rel_path(root, &f.path);
         if def_paths.contains(&path_str) {
             continue;
         }
-        if !matches!(
-            ffs_symbol::lang::detect_file_type(&path),
-            ffs_symbol::types::FileType::Code(_)
-        ) {
-            continue;
-        }
-        let Ok(content) = ffs::bom::read_file(&path) else {
-            continue;
-        };
         for def_path in &def_paths {
-            let stem = std::path::Path::new(def_path)
+            let stem = Path::new(def_path)
                 .file_stem()
                 .and_then(|n| n.to_str())
                 .unwrap_or("");
-            if !stem.is_empty() && content.contains(stem) {
+            if !stem.is_empty() && f.content.contains(stem) {
                 let entry = scores.entry(path_str.clone()).or_default();
                 entry.1 += 2; // import edge weighted 2x
                 break;

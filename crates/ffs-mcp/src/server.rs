@@ -334,6 +334,16 @@ impl FfsServer {
         let ctx_lines = options.before_context;
 
         // Acquire picker lock once for the entire operation.
+        //
+        // NOTE (perf, tracked): the read guard is held for the whole grep —
+        // `FilePicker::grep` borrows the live `StableVec<FileItem>` index, so
+        // there is no cheap snapshot to drop the lock early. Watcher/rescan
+        // write locks therefore wait out a cold search (seconds on large
+        // repos). Mitigations in place: `grep_search` checks the abort flag
+        // once per file inside the rayon chunk loop (grep.rs), so a cancel
+        // still lands promptly; the structural fix (arc_swap'd immutable
+        // file snapshot) is deliberately deferred — it touches the picker's
+        // mutation paths and is too risky to land piecemeal.
         let guard = self.picker.read().map_err(|e| {
             ErrorData::internal_error(format!("Failed to acquire picker lock: {e}"), None)
         })?;

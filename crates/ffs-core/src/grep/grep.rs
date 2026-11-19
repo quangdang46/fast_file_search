@@ -974,21 +974,18 @@ pub(super) fn char_indices_to_byte_offsets(
         return SmallVec::new();
     }
 
-    // Build a map: char_index -> (byte_start, byte_end) for all chars.
-    // Iterating all chars is O(n) in the line length which is bounded by MAX_LINE_DISPLAY_LEN (512).
-    let char_byte_ranges: Vec<(usize, usize)> = line
-        .char_indices()
-        .map(|(byte_pos, ch)| (byte_pos, byte_pos + ch.len_utf8()))
-        .collect();
-
-    // Convert char indices to byte ranges, merging adjacent ranges
+    // Convert char indices to byte ranges, merging adjacent ranges.
+    // No intermediate map: nth() rescans are bounded by MAX_LINE_DISPLAY_LEN
+    // (512) chars and match counts per line are tiny — cheaper than a Vec
+    // alloc per line. Semantics (incl. out-of-bounds skip, unsorted input)
+    // are identical to the old map lookup.
     let mut result: SmallVec<[(u32, u32); 4]> = SmallVec::with_capacity(char_indices.len());
 
     for &ci in char_indices {
-        if ci >= char_byte_ranges.len() {
+        let Some((byte_pos, ch)) = line.char_indices().nth(ci) else {
             continue; // out of bounds (shouldn't happen with valid data)
-        }
-        let (start, end) = char_byte_ranges[ci];
+        };
+        let (start, end) = (byte_pos, byte_pos + ch.len_utf8());
         // Merge with previous range if adjacent
         if let Some(last) = result.last_mut()
             && last.1 == start as u32
