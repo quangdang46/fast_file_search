@@ -50,8 +50,12 @@ impl<'s, M: Matcher, S: Sink> Core<'s, M, S> {
         self.sink_matched(buf, range)
     }
 
-    pub(crate) fn find(&mut self, slice: &[u8]) -> Result<Option<Range>, S::Error> {
-        self.matcher.find(slice).map_err(S::Error::error_message)
+    /// Find at an absolute position in `buf` without re-slicing, so regex
+    /// anchors (`^`, `\A`, `\b`) still see the real haystack.
+    pub(crate) fn find_at(&mut self, buf: &[u8], at: usize) -> Result<Option<Range>, S::Error> {
+        self.matcher
+            .find_at(buf, at)
+            .map_err(S::Error::error_message)
     }
 
     pub(crate) fn begin(&mut self) -> Result<bool, S::Error> {

@@ -270,6 +270,36 @@ mod tests {
         }
     }
 
+    /// Emulates a `\A`-anchored regex: only matches at absolute offset 0.
+    /// Re-slicing the haystack would restart the anchor at every iteration.
+    struct AnchorStartMatcher;
+
+    impl Matcher for AnchorStartMatcher {
+        type Error = NoError;
+
+        fn find_at(&self, haystack: &[u8], at: usize) -> Result<Option<Match>, NoError> {
+            if at == 0 && haystack.starts_with(b"foo") {
+                Ok(Some(Match::new(0, 3)))
+            } else {
+                Ok(None)
+            }
+        }
+    }
+
+    #[test]
+    fn multiline_find_uses_absolute_positions() {
+        let hay = b"foo\nmiddle\nfoo\n";
+        let searcher = SearcherBuilder::new().multi_line(true).build();
+        let mut sink = CollectingSink { lines: Vec::new() };
+        searcher
+            .search_slice(AnchorStartMatcher, hay, &mut sink)
+            .unwrap();
+        // Only the anchored match at offset 0 may be reported; the `foo` on
+        // line 3 must not match because the haystack is never re-sliced.
+        assert_eq!(sink.lines.len(), 1);
+        assert_eq!(sink.lines[0].1, "foo\n");
+    }
+
     #[test]
     fn multiline_match_finds_across_lines() {
         struct SubMatcher;

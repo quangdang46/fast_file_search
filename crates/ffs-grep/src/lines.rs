@@ -38,12 +38,16 @@ impl LineStep {
     }
 
     #[inline(always)]
-    fn next_impl(&mut self, mut bytes: &[u8]) -> Option<(usize, usize)> {
-        bytes = &bytes[..self.end];
-        match bytes[self.pos..].find_byte(self.line_term) {
+    fn next_impl(&mut self, bytes: &[u8]) -> Option<(usize, usize)> {
+        // Clamp out-of-contract ranges instead of panicking: `end`/`pos`
+        // beyond the slice just mean "no more lines".
+        let end = self.end.min(bytes.len());
+        let bytes = &bytes[..end];
+        let pos = self.pos.min(bytes.len());
+        match bytes[pos..].find_byte(self.line_term) {
             None => {
-                if self.pos < bytes.len() {
-                    let m = (self.pos, bytes.len());
+                if pos < bytes.len() {
+                    let m = (pos, bytes.len());
                     assert!(m.0 <= m.1);
 
                     self.pos = m.1;
@@ -53,7 +57,7 @@ impl LineStep {
                 }
             }
             Some(line_end) => {
-                let m = (self.pos, self.pos + line_end + 1);
+                let m = (pos, pos + line_end + 1);
                 assert!(m.0 <= m.1);
 
                 self.pos = m.1;
@@ -86,15 +90,16 @@ pub fn without_terminator(bytes: &[u8], line_term: LineTerminator) -> &[u8] {
 /// Line terminators are considered part of the line they terminate.
 #[inline(always)]
 pub fn locate(bytes: &[u8], line_term: u8, range: Match) -> Match {
-    let line_start = bytes[..range.start()]
-        .rfind_byte(line_term)
-        .map_or(0, |i| i + 1);
-    let line_end = if range.end() > line_start && bytes[range.end() - 1] == line_term {
-        range.end()
+    // Clamp out-of-contract ranges to the slice instead of panicking.
+    let start = range.start().min(bytes.len());
+    let end = range.end().min(bytes.len()).max(start);
+    let line_start = bytes[..start].rfind_byte(line_term).map_or(0, |i| i + 1);
+    let line_end = if end > line_start && bytes[end - 1] == line_term {
+        end
     } else {
-        bytes[range.end()..]
+        bytes[end..]
             .find_byte(line_term)
-            .map_or(bytes.len(), |i| range.end() + i + 1)
+            .map_or(bytes.len(), |i| end + i + 1)
     };
     Match::new(line_start, line_end)
 }
@@ -229,5 +234,22 @@ and exhibited clearly, with a label attached.\
     fn line_iter_empty() {
         let mut it = LineStep::new(b'\n', 0, 0);
         assert_eq!(it.next_match(b"abc"), None);
+    }
+
+    #[test]
+    fn line_step_clamps_out_of_contract_range() {
+        // `end` beyond the slice and `pos` beyond `end` must not panic.
+        let mut it = LineStep::new(b'\n', 0, 100);
+        assert_eq!(it.next_match(b"abc"), Some(m(0, 3)));
+        assert_eq!(it.next_match(b"abc"), None);
+
+        let mut it = LineStep::new(b'\n', 50, 10);
+        assert_eq!(it.next_match(b"abc\n"), None);
+    }
+
+    #[test]
+    fn locate_clamps_out_of_contract_range() {
+        assert_eq!(loc("a\nb\n", 10, 20), m(4, 4));
+        assert_eq!(loc("a\nb", 5, 9), m(2, 3));
     }
 }
