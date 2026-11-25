@@ -1569,8 +1569,8 @@ mod tests {
         std::fs::write(outside.path().join("secret.txt"), "nope\n").unwrap();
 
         for target in [
-            "../outside.txt",
-            "..",
+            "../outside.txt".to_string(),
+            "..".to_string(),
             outside
                 .path()
                 .join("secret.txt")
