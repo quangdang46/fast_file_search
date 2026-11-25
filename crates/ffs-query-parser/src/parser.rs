@@ -169,22 +169,16 @@ impl<C: ParserConfig> QueryParser<C> {
             None
         };
 
+        // Drop empty parts left behind by location extraction
+        // (e.g. "foo :12" leaves an empty string where ":12" was).
+        text_parts.retain(|p| !p.is_empty());
+
         let fuzzy_query = if text_parts.is_empty() {
             FuzzyQuery::Empty
         } else if text_parts.len() == 1 {
-            // If the only remaining text is empty after location extraction, treat as Empty
-            if text_parts[0].is_empty() {
-                FuzzyQuery::Empty
-            } else {
-                FuzzyQuery::Text(text_parts[0])
-            }
+            FuzzyQuery::Text(text_parts[0])
         } else {
-            // Filter out empty parts that might result from location extraction
-            if text_parts.iter().all(|p| p.is_empty()) {
-                FuzzyQuery::Empty
-            } else {
-                FuzzyQuery::Parts(text_parts)
-            }
+            FuzzyQuery::Parts(text_parts)
         };
 
         FfsQuery {
@@ -443,7 +437,8 @@ fn parse_path_segment_trailing(token: &str) -> Option<Constraint<'_>> {
 /// Parse git status filter: modified|m|untracked|u|staged|s
 #[inline]
 fn parse_git_status(value: &str) -> Option<Constraint<'_>> {
-    if value == "*" {
+    // Empty value ("status:") must not match: every status name starts_with("").
+    if value.is_empty() || value == "*" {
         return None;
     }
 
@@ -553,6 +548,39 @@ mod tests {
             Some(Constraint::GitStatus(GitStatusFilter::Untracked))
         );
         assert_eq!(parse_git_status("invalid"), None);
+        assert_eq!(parse_git_status(""), None);
+    }
+
+    #[test]
+    fn test_empty_git_status_value_is_text() {
+        let parser = QueryParser::new(FileSearchConfig);
+        let result = parser.parse("status: foo");
+        assert!(result.constraints.is_empty());
+        match &result.fuzzy_query {
+            FuzzyQuery::Parts(parts) => {
+                assert!(parts.contains(&"status:"));
+            }
+            _ => panic!("Expected Parts fuzzy query"),
+        }
+    }
+
+    #[test]
+    fn test_location_extraction_drops_empty_parts() {
+        let parser = QueryParser::new(FileSearchConfig);
+        // ":12" becomes an empty text part after location extraction;
+        // it must not leak into FuzzyQuery::Parts.
+        let result = parser.parse("foo :12");
+        assert_eq!(result.location, Some(crate::Location::Line(12)));
+        assert_eq!(result.fuzzy_query, FuzzyQuery::Text("foo"));
+
+        let result = parser.parse("foo bar :12");
+        assert_eq!(result.location, Some(crate::Location::Line(12)));
+        match &result.fuzzy_query {
+            FuzzyQuery::Parts(parts) => {
+                assert_eq!(parts.as_slice(), &["foo", "bar"]);
+            }
+            _ => panic!("Expected Parts fuzzy query"),
+        }
     }
 
     #[test]

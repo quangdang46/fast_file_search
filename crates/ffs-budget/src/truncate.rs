@@ -79,7 +79,9 @@ pub fn smart_truncate(input: &str, max_bytes: usize) -> (String, TruncationOutco
 
     // First-line guarantee: a budget smaller than `line1 + footer` must
     // still show the head of the file, not a bare "[N more lines]" footer.
-    // Clip line 0 to the payload budget at a char boundary.
+    // Clip line 0 to the payload budget at a char boundary. The result is a
+    // partial line, so it is not counted as a kept line below.
+    let mut clipped_partial = false;
     if kept.is_empty() {
         if let Some(first) = lines.first() {
             let mut take = first.len().min(payload_budget.saturating_sub(1));
@@ -88,10 +90,15 @@ pub fn smart_truncate(input: &str, max_bytes: usize) -> (String, TruncationOutco
             }
             kept.push(&first[..take]);
             bytes_so_far = take + 1;
+            clipped_partial = true;
         }
     }
 
-    let dropped = total.saturating_sub(kept.len());
+    // A mid-line clip keeps only a fragment of `lines[0]`: count complete
+    // lines only so `dropped_lines`/`kept_lines` stay honest. Previously a
+    // single-line input reported dropped_lines = 0 and emitted no footer.
+    let complete_kept = kept.len().saturating_sub(usize::from(clipped_partial));
+    let dropped = total.saturating_sub(complete_kept);
     let footer = if dropped > 0 {
         format!("[{dropped} more lines]\n")
     } else {
@@ -106,8 +113,8 @@ pub fn smart_truncate(input: &str, max_bytes: usize) -> (String, TruncationOutco
     out.push_str(&footer);
 
     let outcome = TruncationOutcome {
-        kept_lines: kept.len(),
-        dropped_lines: total - kept.len(),
+        kept_lines: complete_kept,
+        dropped_lines: dropped,
         kept_bytes: bytes_so_far,
         footer_bytes: footer.len(),
     };
@@ -117,10 +124,14 @@ pub fn smart_truncate(input: &str, max_bytes: usize) -> (String, TruncationOutco
 
 /// Apply `producer` to fill `target` with content, preserving a `footer` even
 /// when the content overflows `max_bytes`. Guarantees the final byte sequence
-/// is `<truncated content><footer>` where footer always fits.
+/// is `<truncated content><footer>` with the footer preserved verbatim.
 ///
 /// `producer` is invoked with a mutable byte budget; it pushes payload into
 /// `target` and returns the number of payload bytes appended.
+///
+/// Precondition: `footer.len() <= max_bytes`. The footer is always appended
+/// verbatim, so an oversized footer produces output larger than `max_bytes`;
+/// callers must size `max_bytes` to fit their footer.
 pub fn apply_preserving_footer<F>(
     target: &mut String,
     max_bytes: usize,
@@ -205,6 +216,37 @@ mod tests {
         let outcome = apply_preserving_footer(&mut buf, 10, "[empty]\n", |_, _| 0);
         assert_eq!(outcome.kept_bytes, 0);
         assert_eq!(buf, "[empty]\n");
+    }
+
+    #[test]
+    fn mid_line_clip_reports_dropped_honestly() {
+        // Single very long line, tiny budget: only a fragment fits. The
+        // partial line must not count as kept — previously this reported
+        // dropped_lines = 0 and emitted no footer at all.
+        let input = "x".repeat(200);
+        let (out, outcome) = smart_truncate(&input, 30);
+        assert!(out.ends_with("more lines]\n"));
+        assert_eq!(outcome.kept_lines, 0);
+        assert_eq!(outcome.dropped_lines, 1);
+        assert!(out.len() <= 30);
+    }
+
+    #[test]
+    fn mid_line_clip_multi_line_counts_partial_as_dropped() {
+        let input = format!("{}\nline2\nline3\n", "x".repeat(200));
+        let (_out, outcome) = smart_truncate(&input, 30);
+        assert_eq!(outcome.kept_lines, 0);
+        assert_eq!(outcome.dropped_lines, 3);
+    }
+
+    #[test]
+    fn apply_preserving_footer_oversized_footer_still_appended() {
+        // Documents the precondition boundary: footer > max_bytes is appended
+        // verbatim and the result exceeds max_bytes (caller must size budget).
+        let mut buf = String::new();
+        let outcome = apply_preserving_footer(&mut buf, 5, "[a much longer footer]\n", |_, _| 0);
+        assert_eq!(buf, "[a much longer footer]\n");
+        assert_eq!(outcome.footer_bytes, "[a much longer footer]\n".len());
     }
 
     #[test]

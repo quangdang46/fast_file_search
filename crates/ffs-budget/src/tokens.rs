@@ -27,7 +27,7 @@ pub fn tokens_to_bytes(tokens: u64) -> u64 {
 /// Allocate `total` tokens as `pct%`, rounding down.
 #[must_use]
 pub fn percent_budget(total: u64, pct: u8) -> u64 {
-    (total / 100).saturating_mul(u64::from(pct))
+    total.saturating_mul(u64::from(pct)) / 100
 }
 
 /// Header / body / footer / emergency split based on `EMERGENCY_RESERVE_PCT` plus the user split.
@@ -87,6 +87,18 @@ mod tests {
         assert_eq!(s.body, 8500);
         assert_eq!(s.footer, 1000);
         assert_eq!(s.emergency, 300);
+    }
+
+    #[test]
+    fn percent_budget_small_totals() {
+        // Regression: previously computed pct% of floor(total/100)*100,
+        // which truncated to 0 for any total < 100.
+        assert_eq!(percent_budget(150, 50), 75);
+        assert_eq!(percent_budget(99, 85), 84);
+        assert_eq!(percent_budget(1, 85), 0);
+        assert_eq!(percent_budget(1_000_000, 100), 1_000_000);
+        // Saturating mul must not panic on huge totals.
+        assert!(percent_budget(u64::MAX, 85) > 0);
     }
 
     #[test]

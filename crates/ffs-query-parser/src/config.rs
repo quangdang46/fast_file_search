@@ -14,6 +14,12 @@ use crate::glob_detect::has_wildcards;
 fn is_filename_constraint_token(token: &str) -> bool {
     let bytes = token.as_bytes();
 
+    // Must NOT contain backslashes: Windows paths (C:\dir\f.rs) can never
+    // match the `/`-separated index paths, so keep them as fuzzy text.
+    if bytes.contains(&b'\\') {
+        return false;
+    }
+
     // Must NOT end with / (that's a PathSegment)
     if bytes.last() == Some(&b'/') {
         return false;
@@ -230,15 +236,10 @@ impl ParserConfig for AiGrepConfig {
             return false;
         }
         let bytes = token.as_bytes();
-        if bytes.len() >= 3
+        bytes.len() >= 3
             && bytes[0] == b'*'
             && bytes[bytes.len() - 1] == b'*'
             && bytes[1..bytes.len() - 1].iter().all(|&b| b != b'*')
-        {
-            return true;
-        }
-
-        false
     }
 
     fn parse_custom<'a>(&self, token: &'a str) -> Option<Constraint<'a>> {
@@ -279,5 +280,20 @@ pub struct MixedSearchConfig;
 impl ParserConfig for MixedSearchConfig {
     fn enable_path_segments(&self) -> bool {
         false
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn filename_token_rejects_backslash_paths() {
+        // Windows-style paths can never match `/`-separated index paths.
+        assert!(!is_filename_constraint_token("C:\\src\\main.rs"));
+        assert!(!is_filename_constraint_token("dir\\sub\\file.rs"));
+        // Unix paths and bare filenames still qualify.
+        assert!(is_filename_constraint_token("src/main.rs"));
+        assert!(is_filename_constraint_token("score.rs"));
     }
 }
