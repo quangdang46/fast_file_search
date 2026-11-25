@@ -54,7 +54,7 @@ fn indexing_notice(picker: &ffs::FilePicker) -> Option<String> {
 }
 
 /// Lexically normalize `.`/`..` components without touching the filesystem.
-fn normalize_lexical(path: &std::path::Path) -> std::path::PathBuf {
+pub(crate) fn normalize_lexical(path: &std::path::Path) -> std::path::PathBuf {
     use std::path::Component;
     let mut out = std::path::PathBuf::new();
     for comp in path.components() {
@@ -1181,10 +1181,21 @@ impl FfsServer {
     ) -> Result<CallToolResult, ErrorData> {
         self.bump_activity();
         let root = self.picker_base_path()?;
-        let depth = params.depth.map(|v| v.round() as u32).unwrap_or(3);
-        let symbols = params.symbols.map(|v| v.round() as u32).unwrap_or(0);
-        let text = crate::engine_tools::format_map(&root, depth, symbols);
-        Ok(CallToolResult::success(vec![Content::text(text)]))
+        // Clamp before the `as u32` cast: f64→u32 saturates at u32::MAX, so an
+        // absurd depth (e.g. 1e20) would otherwise request a useless deep
+        // render. 64 levels is already far beyond any useful tree.
+        let depth = params
+            .depth
+            .map(|v| v.round().clamp(0.0, 64.0) as u32)
+            .unwrap_or(3);
+        let symbols = params
+            .symbols
+            .map(|v| v.round().clamp(0.0, 64.0) as u32)
+            .unwrap_or(0);
+        catch_unwind_result(|| {
+            let text = crate::engine_tools::format_map(&root, depth, symbols);
+            Ok(CallToolResult::success(vec![Content::text(text)]))
+        })
     }
     /// Phase C @-mention surface. Resolves a free-form input string into a
     /// JSON array of `ResolvedMention` payloads, one per substring-matched

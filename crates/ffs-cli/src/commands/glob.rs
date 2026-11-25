@@ -62,7 +62,6 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
             matches.split_off(offset)
         };
     }
-    let returned = matches.len();
     let payload = GlobResult {
         pattern: args.pattern,
         matches,
@@ -70,23 +69,64 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         truncated,
         total_matches_at_least,
     };
-    super::emit(format, &payload, |p| {
-        let mut out = String::new();
-        if p.matches.is_empty() {
-            out.push_str(&format!("[no matches for `{}`]\n", p.pattern));
-        } else {
-            for m in &p.matches {
-                out.push_str(m);
-                out.push('\n');
-            }
-            let has_more = p.truncated || p.offset + returned < p.total_matches_at_least;
-            out.push_str(&footer(
-                p.total_matches_at_least,
-                p.offset,
-                returned,
-                has_more,
-            ));
+    super::emit(format, &payload, render_text)
+}
+
+fn render_text(p: &GlobResult) -> String {
+    let mut out = String::new();
+    // "[no matches]" is only honest when nothing matched at all — an empty
+    // page can also mean `--offset` skipped past the last match.
+    if p.matches.is_empty() && p.total_matches_at_least == 0 {
+        out.push_str(&format!("[no matches for `{}`]\n", p.pattern));
+        return out;
+    }
+    for m in &p.matches {
+        out.push_str(m);
+        out.push('\n');
+    }
+    let returned = p.matches.len();
+    let has_more = p.truncated || p.offset + returned < p.total_matches_at_least;
+    out.push_str(&footer(
+        p.total_matches_at_least,
+        p.offset,
+        returned,
+        has_more,
+    ));
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn payload(matches: Vec<String>, offset: usize, total: usize, truncated: bool) -> GlobResult {
+        GlobResult {
+            pattern: "*.rs".to_string(),
+            matches,
+            offset,
+            truncated,
+            total_matches_at_least: total,
         }
-        out
-    })
+    }
+
+    #[test]
+    fn no_matches_only_when_nothing_found() {
+        let out = render_text(&payload(Vec::new(), 0, 0, false));
+        assert!(out.contains("[no matches"), "got: {out:?}");
+    }
+
+    #[test]
+    fn empty_page_past_offset_is_not_no_matches() {
+        // 5 matches exist but --offset 10 skipped past all of them.
+        let out = render_text(&payload(Vec::new(), 10, 5, false));
+        assert!(!out.contains("[no matches"), "got: {out:?}");
+    }
+
+    #[test]
+    fn partial_page_renders_footer() {
+        let out = render_text(&payload(vec!["a.rs".into(), "b.rs".into()], 0, 5, true));
+        assert!(out.contains("a.rs"));
+        assert!(out.contains("[1-2 of 5]"), "got: {out:?}");
+        assert!(out.contains("--offset 2"));
+    }
 }

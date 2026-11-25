@@ -29,6 +29,24 @@ fn check_latest_release() -> String {
     }
 }
 
+/// Parse `major.minor.patch`-style versions into a comparable tuple.
+/// Pre-release suffixes are ignored for ordering (`0.10.2-nightly.x` sorts
+/// as `0.10.2`); returns `None` when no numeric triple can be extracted.
+fn version_tuple(v: &str) -> Option<(u64, u64, u64)> {
+    let v = v.trim().trim_start_matches('v');
+    let mut parts = v.split('.');
+    let mut nums = [0u64; 3];
+    for slot in &mut nums {
+        let p = parts.next()?;
+        let digits: String = p.chars().take_while(|c| c.is_ascii_digit()).collect();
+        if digits.is_empty() {
+            return None;
+        }
+        *slot = digits.parse().ok()?;
+    }
+    Some((nums[0], nums[1], nums[2]))
+}
+
 /// Compare the crate version against a release tag.
 /// Returns an update notice string, or empty if up-to-date.
 fn compare_versions(current_version: &str, release_tag: &str) -> String {
@@ -36,6 +54,15 @@ fn compare_versions(current_version: &str, release_tag: &str) -> String {
     let tag_version = tag.strip_prefix('v').unwrap_or(tag);
     if tag.is_empty() || tag_version == current_version {
         return String::new();
+    }
+
+    // Only claim an update when the tag is strictly newer — plain string
+    // inequality used to advertise "updates" pointing at older releases.
+    // Unparseable versions fall back to the old not-equal behaviour.
+    if let (Some(cur), Some(new)) = (version_tuple(current_version), version_tuple(tag_version)) {
+        if cur >= new {
+            return String::new();
+        }
     }
 
     format!(
@@ -104,5 +131,27 @@ mod tests {
         let notice = compare_versions("0.10.1", "0.10.2-nightly.6a239e9");
         assert!(!notice.is_empty());
         assert!(notice.contains("0.10.1 -> 0.10.2-nightly.6a239e9"));
+    }
+
+    #[test]
+    fn older_release_tag_is_silent() {
+        // Regression: string inequality alone claimed an "update" when the
+        // installed version was actually newer than the latest tag.
+        assert_eq!(compare_versions("0.10.2", "v0.10.1"), "");
+        assert_eq!(compare_versions("0.11.0", "v0.10.9"), "");
+        assert_eq!(compare_versions("1.0.0", "v0.99.99"), "");
+    }
+
+    #[test]
+    fn newer_release_tag_still_notifies() {
+        assert!(!compare_versions("0.10.1", "v0.10.2").is_empty());
+        assert!(!compare_versions("0.9.9", "v0.10.0").is_empty());
+    }
+
+    #[test]
+    fn unparseable_versions_fall_back_to_inequality() {
+        // Weird tags keep the old behaviour rather than crashing the check.
+        let notice = compare_versions("0.10.1", "nightly-build");
+        assert!(notice.contains("0.10.1 -> nightly-build"));
     }
 }

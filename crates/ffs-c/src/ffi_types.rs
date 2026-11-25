@@ -15,7 +15,12 @@ use ffs::{
 };
 
 /// Allocate a heap CString from a `&str`, returning a raw pointer.
+///
+/// C strings cannot contain interior NUL bytes. Rather than silently
+/// mapping such input to an empty string (the old `unwrap_or_default`
+/// behaviour), the string is truncated at the first NUL.
 fn cstring_new(s: &str) -> *mut c_char {
+    let s = s.split('\0').next().unwrap_or("");
     CString::new(s).unwrap_or_default().into_raw()
 }
 
@@ -234,6 +239,9 @@ impl FfsSearchResult {
             .map(|i| FfsFileItem::from_item(i, picker))
             .collect();
         let scores: Vec<FfsScore> = result.scores.iter().map(FfsScore::from).collect();
+        // `count` covers both arrays — a length mismatch would let C callers
+        // read past the shorter one.
+        debug_assert_eq!(items.len(), scores.len(), "items/scores length parity");
         let count = items.len() as u32;
 
         let (items_ptr, _) = vec_to_raw(items);
@@ -491,11 +499,11 @@ impl FfsResult {
     /// Create a successful result carrying a C string in the `handle` field.
     /// The caller must free it with `ffs_free_string`.
     pub fn ok_string(s: &str) -> *mut Self {
-        let cstr = CString::new(s).unwrap_or_default().into_raw();
+        let cstr = cstring_new(s) as *mut c_void;
         Box::into_raw(Box::new(FfsResult {
             success: true,
             error: ptr::null_mut(),
-            handle: cstr as *mut c_void,
+            handle: cstr,
             int_value: 0,
         }))
     }
@@ -504,7 +512,7 @@ impl FfsResult {
     pub fn err(error: &str) -> *mut Self {
         Box::into_raw(Box::new(FfsResult {
             success: false,
-            error: CString::new(error).unwrap_or_default().into_raw(),
+            error: cstring_new(error),
             handle: ptr::null_mut(),
             int_value: 0,
         }))
@@ -571,6 +579,7 @@ impl FfsDirSearchResult {
             .map(|i| FfsDirItem::from_item(i, picker))
             .collect();
         let scores: Vec<FfsScore> = result.scores.iter().map(FfsScore::from).collect();
+        debug_assert_eq!(items.len(), scores.len(), "items/scores length parity");
         let count = items.len() as u32;
 
         let (items_ptr, _) = vec_to_raw(items);
@@ -688,6 +697,7 @@ impl FfsMixedSearchResult {
             .map(|i| FfsMixedItem::from_mixed_ref(i, picker))
             .collect();
         let scores: Vec<FfsScore> = result.scores.iter().map(FfsScore::from).collect();
+        debug_assert_eq!(items.len(), scores.len(), "items/scores length parity");
         let count = items.len() as u32;
 
         let (items_ptr, _) = vec_to_raw(items);
@@ -722,6 +732,39 @@ impl From<ffs::file_picker::ScanProgress> for FfsScanProgress {
             is_scanning: p.is_scanning,
             is_watcher_ready: p.is_watcher_ready,
             is_warmup_complete: p.is_warmup_complete,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cstring_new_truncates_at_interior_nul() {
+        let p = cstring_new("foo\0bar");
+        assert!(!p.is_null());
+        // SAFETY: p was produced by CString::into_raw above.
+        let s = unsafe { CString::from_raw(p) };
+        assert_eq!(s.to_str().unwrap(), "foo");
+    }
+
+    #[test]
+    fn cstring_new_plain_string_roundtrips() {
+        let p = cstring_new("hello");
+        // SAFETY: p was produced by CString::into_raw above.
+        let s = unsafe { CString::from_raw(p) };
+        assert_eq!(s.to_str().unwrap(), "hello");
+    }
+
+    #[test]
+    fn cstring_new_empty_and_nul_only() {
+        for input in ["", "\0", "\0\0x"] {
+            let p = cstring_new(input);
+            assert!(!p.is_null());
+            // SAFETY: p was produced by CString::into_raw above.
+            let s = unsafe { CString::from_raw(p) };
+            assert_eq!(s.to_str().unwrap(), "");
         }
     }
 }

@@ -125,7 +125,8 @@ pub struct EngineMapParams {
     /// single summary line (default 3).
     pub depth: Option<f64>,
     /// Annotate each file leaf with its top-N symbols by weight (default 0
-    /// = no annotation).
+    /// = no annotation). Currently unused — reserved for future per-file
+    /// symbol annotation.
     pub symbols: Option<f64>,
 }
 
@@ -797,6 +798,8 @@ fn collect_siblings(
 }
 
 /// Render a tree map of the workspace. Mirrors `ffs map`.
+/// `symbols` is accepted for schema parity but currently unused — per-file
+/// symbol annotation is not implemented yet.
 pub fn format_map(root: &Path, depth: u32, _symbols: u32) -> String {
     use ignore::WalkState;
     use std::collections::BTreeMap;
@@ -847,7 +850,8 @@ pub fn format_map(root: &Path, depth: u32, _symbols: u32) -> String {
     let mut out = String::new();
     out.push_str(&format!("{} ({} entries)\n\n", root.display(), dirs.len()));
     for (rel, &(count, size)) in &dirs {
-        let depth_actual = rel.split('/').count() as u32;
+        // `rel` uses the platform separator — split on both '/' and '\\'.
+        let depth_actual = rel.split(['/', '\\']).count() as u32;
         let max_depth = if rel == "." { 0u32 } else { depth };
         if depth > 0 && depth_actual > max_depth + 1 {
             continue;
@@ -856,7 +860,7 @@ pub fn format_map(root: &Path, depth: u32, _symbols: u32) -> String {
         let name = if rel == "." {
             "."
         } else {
-            rel.split('/').next_back().unwrap_or(rel)
+            rel.split(['/', '\\']).next_back().unwrap_or(rel)
         };
         let tokens = ffs_symbol::types::estimate_tokens(size / u64::from(count));
         out.push_str(&format!(
@@ -867,6 +871,25 @@ pub fn format_map(root: &Path, depth: u32, _symbols: u32) -> String {
     out
 }
 
+/// Confine `target` to `root` — canonicalize + `starts_with` check mirroring
+/// `engine_read` in server.rs, so absolute paths and `..` escapes are rejected.
+fn resolve_in_root(root: &Path, target: &str) -> Result<std::path::PathBuf, String> {
+    let path = std::path::Path::new(target);
+    let root_canon = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
+    let joined = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        root_canon.join(path)
+    };
+    let abs = joined
+        .canonicalize()
+        .unwrap_or_else(|_| crate::server::normalize_lexical(&joined));
+    if !abs.starts_with(&root_canon) {
+        return Err(format!("path '{target}' escapes the repository root"));
+    }
+    Ok(abs)
+}
+
 /// Find imports for a file and dependents. Simplified in-process version.
 pub fn find_deps(
     root: &Path,
@@ -875,13 +898,14 @@ pub fn find_deps(
     _offset: usize,
     skip_dependents: bool,
 ) -> String {
-    let target_path = if std::path::Path::new(target).is_absolute() {
-        std::path::PathBuf::from(target)
-    } else {
-        root.join(target)
-    };
-
     let mut out = String::new();
+    let target_path = match resolve_in_root(root, target) {
+        Ok(p) => p,
+        Err(msg) => {
+            out.push_str(&format!("[{msg}]\n"));
+            return out;
+        }
+    };
     let Ok(content) = ffs::bom::read_file(&target_path) else {
         out.push_str(&format!("[cannot read {}]\n", target_path.display()));
         return out;
@@ -1089,7 +1113,12 @@ pub fn find_flow(opts: FlowOptions<'_>) -> String {
             let end = (def.end_line as usize).min(content.lines().count());
             out.push_str(&format!("body [{}..{}]:\n", def.line, end));
             let mut wrote = 0usize;
-            for (i, line) in content.lines().enumerate().skip(start).take(end - start) {
+            for (i, line) in content
+                .lines()
+                .enumerate()
+                .skip(start)
+                .take(end.saturating_sub(start))
+            {
                 let row = format!("  {:>4}: {line}\n", i + 1);
                 if row.len() > body_bytes_left {
                     out.push_str("  [body truncated by budget]\n");
@@ -1468,6 +1497,35 @@ mod impact_path_tests {
             sorted.len(),
             "impact output has duplicate rows: {paths:?}"
         );
+    }
+
+    #[test]
+    fn deps_rejects_paths_outside_root() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        std::fs::write(root.join("lib.rs"), "use serde::Serialize;\n").unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        std::fs::write(outside.path().join("secret.rs"), "fn s() {}\n").unwrap();
+
+        for target in [
+            "../secret.rs".to_string(),
+            "..".to_string(),
+            outside
+                .path()
+                .join("secret.rs")
+                .to_string_lossy()
+                .into_owned(),
+        ] {
+            let out = find_deps(root, &target, 10, 0, true);
+            assert!(
+                out.contains("escapes the repository root"),
+                "target {target:?} must be rejected, got: {out:?}"
+            );
+        }
+
+        // In-root targets still resolve normally.
+        let ok = find_deps(root, "lib.rs", 10, 0, true);
+        assert!(ok.contains("Imports"), "got: {ok:?}");
     }
 
     #[test]

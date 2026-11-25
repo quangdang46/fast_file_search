@@ -34,8 +34,18 @@ fn probably_binary_prefix(path: &Path) -> bool {
         return false;
     };
     let mut buf = [0u8; 512];
-    let n = f.read(&mut buf).unwrap_or(0);
-    buf[..n].contains(&0u8)
+    // A single read(2) may return short — loop until the buffer is full or
+    // EOF so the NUL probe covers the whole 512-byte window.
+    let mut filled = 0usize;
+    while filled < buf.len() {
+        match f.read(&mut buf[filled..]) {
+            Ok(0) => break,
+            Ok(n) => filled += n,
+            Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(_) => break,
+        }
+    }
+    buf[..filled].contains(&0u8)
 }
 
 #[derive(Debug, Parser)]
@@ -388,4 +398,47 @@ pub fn run(args: Args, root: &Path, format: OutputFormat) -> Result<()> {
         }
         out
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn probably_binary_prefix_detects_nul_inside_window() {
+        let td = tempfile::tempdir().unwrap();
+        let path = td.path().join("bin.dat");
+        // NUL near the end of the 512-byte probe window.
+        let mut data = vec![b'a'; 500];
+        data.push(0u8);
+        data.extend_from_slice(&[b'b'; 100]);
+        std::fs::write(&path, &data).unwrap();
+        assert!(probably_binary_prefix(&path));
+    }
+
+    #[test]
+    fn probably_binary_prefix_ignores_nul_past_window() {
+        let td = tempfile::tempdir().unwrap();
+        let path = td.path().join("text.bin");
+        // NUL beyond byte 512 must not mark the file binary (rg contract).
+        let mut data = vec![b'x'; 600];
+        data.push(0u8);
+        std::fs::write(&path, &data).unwrap();
+        assert!(!probably_binary_prefix(&path));
+    }
+
+    #[test]
+    fn probably_binary_prefix_plain_text_is_false() {
+        let td = tempfile::tempdir().unwrap();
+        let path = td.path().join("a.txt");
+        std::fs::write(&path, "hello world\n".repeat(100)).unwrap();
+        assert!(!probably_binary_prefix(&path));
+    }
+
+    #[test]
+    fn probably_binary_prefix_missing_file_is_false() {
+        assert!(!probably_binary_prefix(Path::new(
+            "/definitely/not/here.bin"
+        )));
+    }
 }

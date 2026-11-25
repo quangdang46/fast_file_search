@@ -78,7 +78,8 @@ pub fn run_healthcheck(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
             },
         );
     } else {
-        check("Frecency DB", false, "path not resolved");
+        // Optional path — unset is not a failure.
+        warn("Frecency DB", "not configured (skipped)");
     }
 
     // 4. Query history database
@@ -96,7 +97,7 @@ pub fn run_healthcheck(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
             },
         );
     } else {
-        check("History DB", false, "path not resolved");
+        warn("History DB", "not configured (skipped)");
     }
 
     // 5. Log file
@@ -114,7 +115,7 @@ pub fn run_healthcheck(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
             },
         );
     } else {
-        check("Log file", false, "path not resolved");
+        warn("Log file", "not configured (skipped)");
     }
 
     if all_ok {

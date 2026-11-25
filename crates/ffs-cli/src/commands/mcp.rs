@@ -154,23 +154,57 @@ pub fn run(args: Args, root: &Path) -> Result<()> {
         if id.is_null() {
             continue;
         }
-        let resp = match handle_method(&mut state, root, &req.method, &req.params) {
-            Ok(value) => Response {
-                jsonrpc: "2.0",
-                id,
-                result: Some(value),
-                error: None,
-            },
-            Err(e) => Response {
-                jsonrpc: "2.0",
-                id,
-                error: Some(json!({"code": -32000, "message": e.to_string()})),
-                result: None,
-            },
-        };
+        let resp = respond(&mut state, root, &req.method, &req.params, id);
         writeln!(out, "{}", serde_json::to_string(&resp)?)?;
     }
     Ok(())
+}
+
+fn panic_message(payload: &Box<dyn std::any::Any + Send>) -> String {
+    if let Some(s) = payload.downcast_ref::<&str>() {
+        (*s).to_string()
+    } else if let Some(s) = payload.downcast_ref::<String>() {
+        s.clone()
+    } else {
+        "handler panicked (unknown reason)".to_string()
+    }
+}
+
+/// Dispatch one JSON-RPC request to a `Response`. `catch_unwind` keeps a
+/// panicking handler from killing the long-lived stdio server — the client
+/// gets a JSON-RPC -32603 internal error instead (mirrors `catch_unwind_result`
+/// in `ffs-mcp`'s server.rs).
+fn respond(state: &mut McpState, root: &Path, method: &str, params: &Value, id: Value) -> Response {
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        handle_method(state, root, method, params)
+    }));
+    match result {
+        Ok(Ok(value)) => Response {
+            jsonrpc: "2.0",
+            id,
+            result: Some(value),
+            error: None,
+        },
+        Ok(Err(e)) => Response {
+            jsonrpc: "2.0",
+            id,
+            error: Some(json!({"code": -32000, "message": e.to_string()})),
+            result: None,
+        },
+        Err(payload) => {
+            let msg = panic_message(&payload);
+            eprintln!("ffs mcp: handler panicked: {msg}");
+            Response {
+                jsonrpc: "2.0",
+                id,
+                result: None,
+                error: Some(json!({
+                    "code": -32603,
+                    "message": format!("internal error: {msg}")
+                })),
+            }
+        }
+    }
 }
 
 fn handle_method(state: &mut McpState, root: &Path, method: &str, params: &Value) -> Result<Value> {
@@ -478,11 +512,7 @@ fn handle_tool(state: &mut McpState, root: &Path, name: &str, args: &Value) -> R
             // `path:line` focuses the structural section containing the line,
             // matching the CLI's `ffs read` behavior (Bug: MCP rejected spans).
             let (path_part, line) = parse_target(target);
-            let p = if Path::new(path_part).is_absolute() {
-                PathBuf::from(path_part)
-            } else {
-                root.join(path_part)
-            };
+            let p = resolve_in_root(root, path_part)?;
             let body = match line {
                 Some(l) => read_section_mcp(&state.engine, &p, l)?,
                 None => state.engine.read(&p).body,
@@ -491,11 +521,7 @@ fn handle_tool(state: &mut McpState, root: &Path, name: &str, args: &Value) -> R
         }
         "ffs_outline" => {
             let target = get_string(args, "path")?;
-            let p = if Path::new(target).is_absolute() {
-                PathBuf::from(target)
-            } else {
-                root.join(target)
-            };
+            let p = resolve_in_root(root, target)?;
             let body = match super::outline::render_agent(&p, target) {
                 Ok(b) => b,
                 Err(e) => format!("[error: {e}]"),
@@ -599,11 +625,7 @@ fn handle_tool(state: &mut McpState, root: &Path, name: &str, args: &Value) -> R
         }
         "ffs_deps" => {
             let target = get_string(args, "path")?;
-            let p = if Path::new(target).is_absolute() {
-                PathBuf::from(target)
-            } else {
-                root.join(target)
-            };
+            let p = resolve_in_root(root, target)?;
             let imports = list_imports(&p);
             Ok(text_json(serde_json::to_string(&imports)?))
         }
@@ -707,7 +729,17 @@ fn budgeted(filtered: &str, max_bytes: usize) -> (String, TruncationOutcome) {
         oc
     } else {
         apply_preserving_footer(&mut buf, max_bytes, footer, |target, budget| {
-            let take = filtered.len().min(budget);
+            let mut take = filtered.len().min(budget);
+            // Never cut mid-line or mid-codepoint: back off to a UTF-8 char
+            // boundary, then to the last newline that fits (same as read.rs).
+            while take > 0 && !filtered.is_char_boundary(take) {
+                take -= 1;
+            }
+            if take < filtered.len() {
+                if let Some(nl) = filtered[..take].rfind('\n') {
+                    take = nl + 1;
+                }
+            }
             target.push_str(&filtered[..take]);
             take
         })
@@ -1177,6 +1209,44 @@ fn lang_label(lang: &ffs_symbol::types::Lang) -> &'static str {
     }
 }
 
+/// Lexically normalize `.`/`..` components without touching the filesystem
+/// (same helper as `ffs-mcp`'s server.rs).
+fn normalize_lexical(path: &Path) -> PathBuf {
+    use std::path::Component;
+    let mut out = PathBuf::new();
+    for comp in path.components() {
+        match comp {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                out.pop();
+            }
+            other => out.push(other.as_os_str()),
+        }
+    }
+    out
+}
+
+/// Resolve `target` (relative or absolute) inside `root`, rejecting paths
+/// that escape it — same confinement as `ffs-mcp`'s `engine_read`.
+fn resolve_in_root(root: &Path, target: &str) -> Result<PathBuf> {
+    let path = Path::new(target);
+    // Canonicalize the root so symlinked roots compare correctly, then
+    // canonicalize the target itself when it exists.
+    let root_canon = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
+    let joined = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        root_canon.join(path)
+    };
+    let abs = joined
+        .canonicalize()
+        .unwrap_or_else(|_| normalize_lexical(&joined));
+    if !abs.starts_with(&root_canon) {
+        anyhow::bail!("path '{target}' escapes the repository root");
+    }
+    Ok(abs)
+}
+
 fn display_path(root: &Path, path: &Path) -> String {
     path.strip_prefix(root)
         .unwrap_or(path)
@@ -1473,5 +1543,94 @@ mod tests {
         assert_eq!(parse_target("main.rs:abc"), ("main.rs:abc", None));
         assert_eq!(parse_target("a/b.rs:3:x"), ("a/b.rs:3:x", None));
         assert_eq!(parse_target(r"C:\dir\file.rs"), (r"C:\dir\file.rs", None));
+    }
+
+    #[test]
+    fn resolve_in_root_accepts_files_inside_root() {
+        let td = tempfile::tempdir().unwrap();
+        let root = td.path();
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        std::fs::write(root.join("src/lib.rs"), "fn f() {}\n").unwrap();
+
+        let p = resolve_in_root(root, "src/lib.rs").unwrap();
+        assert!(p.ends_with("src/lib.rs"));
+        // Absolute path inside the root is fine too.
+        let abs = resolve_in_root(root, &root.join("src/lib.rs").to_string_lossy()).unwrap();
+        assert_eq!(p, abs);
+    }
+
+    #[test]
+    fn resolve_in_root_rejects_escapes() {
+        let td = tempfile::tempdir().unwrap();
+        let root = td.path();
+        std::fs::write(root.join("ok.rs"), "fn f() {}\n").unwrap();
+        // A file outside the root to aim at.
+        let outside = tempfile::tempdir().unwrap();
+        std::fs::write(outside.path().join("secret.txt"), "nope\n").unwrap();
+
+        for target in [
+            "../outside.txt",
+            "..",
+            outside
+                .path()
+                .join("secret.txt")
+                .to_string_lossy()
+                .into_owned(),
+        ] {
+            let err = resolve_in_root(root, &target).unwrap_err();
+            assert!(
+                err.to_string().contains("escapes the repository root"),
+                "target {target:?}: {err}"
+            );
+        }
+        // Non-existent in-root paths still resolve (canonicalize falls back
+        // to lexical normalization).
+        assert!(resolve_in_root(root, "src/new_file.rs").is_ok());
+    }
+
+    #[test]
+    fn budgeted_never_splits_utf8_codepoints() {
+        // 'é' is 2 bytes; a budget landing mid-codepoint must not panic.
+        let filtered = "aé".repeat(100);
+        for max_bytes in 1..filtered.len() {
+            let (out, _) = budgeted(&filtered, max_bytes);
+            // Output must always be valid UTF-8 (String guarantees this, but
+            // the pre-fix code panicked before producing it).
+            assert!(out.len() <= max_bytes + "[truncated to budget]\n".len() + 8);
+        }
+    }
+
+    #[test]
+    fn panic_message_extracts_payload() {
+        let payload: Box<dyn std::any::Any + Send> = Box::new("boom");
+        assert_eq!(panic_message(&payload), "boom");
+        let payload: Box<dyn std::any::Any + Send> = Box::new(String::from("bang"));
+        assert_eq!(panic_message(&payload), "bang");
+        let payload: Box<dyn std::any::Any + Send> = Box::new(42u8);
+        assert_eq!(panic_message(&payload), "handler panicked (unknown reason)");
+    }
+
+    #[test]
+    fn respond_returns_result_for_normal_method() {
+        let td = tempfile::tempdir().unwrap();
+        let mut state = McpState::new(Engine::default());
+        let resp = respond(&mut state, td.path(), "initialize", &Value::Null, json!(7));
+        assert_eq!(resp.id, json!(7));
+        assert!(resp.error.is_none());
+        assert!(resp.result.is_some());
+    }
+
+    #[test]
+    fn respond_maps_tool_errors_to_minus_32000() {
+        let td = tempfile::tempdir().unwrap();
+        let mut state = McpState::new(Engine::default());
+        let resp = respond(
+            &mut state,
+            td.path(),
+            "tools/call",
+            &json!({"name": "ffs_unknown", "arguments": {}}),
+            json!(3),
+        );
+        assert_eq!(resp.error.unwrap()["code"], -32000);
     }
 }
