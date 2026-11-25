@@ -59,10 +59,10 @@ fn compare_versions(current_version: &str, release_tag: &str) -> String {
     // Only claim an update when the tag is strictly newer — plain string
     // inequality used to advertise "updates" pointing at older releases.
     // Unparseable versions fall back to the old not-equal behaviour.
-    if let (Some(cur), Some(new)) = (version_tuple(current_version), version_tuple(tag_version)) {
-        if cur >= new {
-            return String::new();
-        }
+    if let (Some(cur), Some(new)) = (version_tuple(current_version), version_tuple(tag_version))
+        && cur >= new
+    {
+        return String::new();
     }
 
     format!(
