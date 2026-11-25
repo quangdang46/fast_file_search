@@ -138,11 +138,13 @@ impl Engine {
                 hits: self.handles.symbols.lookup_exact(name),
             },
             QueryType::SymbolGlob(prefix) => {
-                // Glob sigils are not part of the prefix: `*foo`, `**foo`,
-                // `foo*` and `foo?` must all look up `foo`. Trailing-only
-                // trimming used to leave a literal `*foo` prefix that
-                // matched nothing.
-                let pat = prefix.trim_matches(|c| c == '*' || c == '?');
+                // Glob sigils are not part of the symbol name: `*foo`,
+                // `**foo`, `foo*` and `foo?` must all look up `foo`. The
+                // lookup is prefix-based, so for interior sigils
+                // (`foo*bar`, `a?b`, `foo[0-9]`) we can only use the
+                // leading literal run — a mid-pattern sigil used to reach
+                // `lookup_prefix` verbatim and match nothing.
+                let pat = symbol_glob_prefix(prefix);
                 DispatchResult::SymbolGlob {
                     classified: classified.clone(),
                     hits: self.handles.symbols.lookup_prefix(pat),
@@ -323,6 +325,23 @@ pub enum DispatchResult {
     },
 }
 
+/// Extract the literal prefix usable for [`SymbolIndex::lookup_prefix`]
+/// from a glob-ish symbol query. `is_glob_pattern` treats `*`, `?` and
+/// `[` as sigils, so the prefix ends at the first one; patterns that open
+/// with sigils fall back to their first literal run (the old
+/// `trim_matches` behavior for `*foo*`).
+fn symbol_glob_prefix(pat: &str) -> &str {
+    const SIGILS: &[char] = &['*', '?', '['];
+    let end = pat.find(SIGILS).unwrap_or(pat.len());
+    let head = &pat[..end];
+    if !head.is_empty() {
+        return head;
+    }
+    pat.split(['*', '?', '[', ']'])
+        .find(|run| !run.is_empty())
+        .unwrap_or("")
+}
+
 /// Output of [`Engine::read`].
 #[derive(Debug, Clone)]
 pub struct ReadResult {
@@ -414,5 +433,23 @@ mod tests {
         let res = engine.read(std::path::Path::new("/no/such/file/xyz.rs"));
         assert!(res.is_error);
         assert!(res.body.starts_with("[error reading file"));
+    }
+
+    #[test]
+    fn symbol_glob_prefix_strips_interior_sigils() {
+        // Leading/trailing sigils (old trim_matches behavior).
+        assert_eq!(symbol_glob_prefix("*foo"), "foo");
+        assert_eq!(symbol_glob_prefix("**foo**"), "foo");
+        assert_eq!(symbol_glob_prefix("foo*"), "foo");
+        assert_eq!(symbol_glob_prefix("foo?"), "foo");
+        // Interior sigils: only the leading literal run is a usable prefix.
+        assert_eq!(symbol_glob_prefix("foo*bar"), "foo");
+        assert_eq!(symbol_glob_prefix("a?b"), "a");
+        assert_eq!(symbol_glob_prefix("foo[0-9]"), "foo");
+        // Pattern opening with sigils falls back to first literal run.
+        assert_eq!(symbol_glob_prefix("*foo*bar"), "foo");
+        assert_eq!(symbol_glob_prefix("?foo"), "foo");
+        // All-sigil pattern degrades to "" (matches everything, as before).
+        assert_eq!(symbol_glob_prefix("***"), "");
     }
 }

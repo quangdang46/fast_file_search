@@ -221,6 +221,22 @@ pub(crate) trait LmdbStore: Sized + Send + Sync + 'static {
             return;
         }
 
+        // Cross-process guard: two ffs processes can both observe an
+        // oversized `data.mdb` and race to delete it — one may unlink the
+        // file out from under a live env in the other process. Claim a
+        // pid-stamped lockfile first; a live holder wins, a dead one is
+        // reclaimed. Residual hazard (documented, not fully eliminated):
+        // a process that already has the env mmap'd keeps its orphaned
+        // pages — its writes are lost, but it cannot corrupt the new db.
+        let lock_path = db_path.join("data.mdb.erase-lock");
+        if !claim_erase_lock(&lock_path) {
+            tracing::warn!(
+                path = %db_path.display(),
+                "LMDB db exceeds size cap but another process holds the erase lock — skipping"
+            );
+            return;
+        }
+
         tracing::error!(
             path = %db_path.display(),
             size = meta.len(),
@@ -229,5 +245,53 @@ pub(crate) trait LmdbStore: Sized + Send + Sync + 'static {
         );
         let _ = fs::remove_file(&data);
         let _ = fs::remove_file(db_path.join("lock.mdb"));
+        let _ = fs::remove_file(&lock_path);
+    }
+}
+
+/// Try to claim `lock_path` for a DB erase. Returns `false` when another
+/// live process already holds it. The file content is our pid so a stale
+/// lock left by a crashed process can be reclaimed.
+#[cfg(unix)]
+fn claim_erase_lock(lock_path: &Path) -> bool {
+    match fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(lock_path)
+    {
+        Ok(mut f) => {
+            use std::io::Write;
+            let _ = write!(f, "{}", std::process::id());
+            true
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+            // Reclaim only when the recorded pid is dead.
+            let stale = fs::read_to_string(lock_path)
+                .ok()
+                .and_then(|s| s.trim().parse::<i32>().ok())
+                .is_some_and(|pid| unsafe { libc::kill(pid, 0) } != 0);
+            if stale {
+                let _ = fs::remove_file(lock_path);
+                claim_erase_lock(lock_path)
+            } else {
+                false
+            }
+        }
+        Err(_) => false,
+    }
+}
+
+/// Non-unix fallback: no cheap pid liveness check — treat an existing
+/// lockfile as held (conservative: skips the erase rather than risking a
+/// double-delete).
+#[cfg(not(unix))]
+fn claim_erase_lock(lock_path: &Path) -> bool {
+    match fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(lock_path)
+    {
+        Ok(_) => true,
+        Err(_) => false,
     }
 }

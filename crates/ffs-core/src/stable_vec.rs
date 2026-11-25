@@ -106,7 +106,20 @@ impl<T> StableVec<T> {
     }
 
     #[inline]
+    fn assert_unique_buffer(&self) {
+        // Any `StableVec` clone bumps the Arc count; mutating through
+        // `&mut` methods while clones exist is the latent aliasing UB
+        // documented on `get_mut`/`iter_mut`/`deref_mut`.
+        debug_assert_eq!(
+            Arc::strong_count(&self.inner),
+            1,
+            "StableVec mutation while Arc clones exist — &mut would alias shared memory"
+        );
+    }
+
+    #[inline]
     pub fn remove(&mut self, index: usize) -> T {
+        self.assert_unique_buffer();
         let len = self.inner.len.load(Ordering::Acquire);
         debug_assert!(index < len, "remove index out of bounds");
         unsafe {
@@ -132,13 +145,20 @@ impl<T> StableVec<T> {
 
     /// Mutable element access for in-place field updates. Never shifts.
     ///
-    /// LATENT UB: produces `&mut T` aliasing Arc-shared memory; the
-    /// `&mut self` on StableVec does NOT imply unique access to the
-    /// `StableBuf` when sibling Arc clones exist. Safe in practice
-    /// because callers hold the picker write lock and writes target
-    /// disjoint fields, but strictly forbidden by the aliasing model.
+    /// LATENT UB — READ BEFORE USE: produces `&mut T` aliasing Arc-shared
+    /// memory. `&mut self` on `StableVec` does NOT imply unique access to
+    /// the `StableBuf`: any `StableVec` clone (or a post-scan snapshot
+    /// holding one) shares the same allocation, so a `&mut T` here can
+    /// alias a live `&T` elsewhere — forbidden by the aliasing model.
+    ///
+    /// Safe in practice only because every caller holds the picker write
+    /// lock (single-writer) and writes disjoint fields. The
+    /// `debug_assert_eq!(Arc::strong_count(..), 1)` below catches a stray
+    /// clone in debug/test builds; a full redesign (e.g. `Arc<Mutex>` or
+    /// unique ownership) is out of scope.
     #[inline]
     pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
+        self.assert_unique_buffer();
         let len = self.inner.len.load(Ordering::Acquire);
         if index >= len {
             return None;
@@ -157,31 +177,14 @@ impl<T> StableVec<T> {
     }
 
     /// Iterate mutably for in-place field updates. Never shifts storage.
-    /// Same latent-UB caveat as [`get_mut`]: `&mut T` into Arc-shared memory.
+    /// Same latent-UB caveat as [`get_mut`]: `&mut [T]` into Arc-shared
+    /// memory — only sound while `Arc::strong_count == 1` (asserted in
+    /// debug builds) and the caller holds the picker write lock.
     #[inline]
     pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, T> {
+        self.assert_unique_buffer();
         let len = self.inner.len.load(Ordering::Acquire);
         unsafe { std::slice::from_raw_parts_mut(self.inner.ptr.as_ptr(), len).iter_mut() }
-    }
-
-    #[inline]
-    pub fn retain<F: FnMut(&T) -> bool>(&mut self, mut f: F) {
-        let len = self.inner.len.load(Ordering::Acquire);
-        let mut kept = 0usize;
-        unsafe {
-            let ptr = self.inner.ptr.as_ptr();
-            for i in 0..len {
-                if f(&*ptr.add(i)) {
-                    if kept != i {
-                        std::ptr::copy_nonoverlapping(ptr.add(i), ptr.add(kept), 1);
-                    }
-                    kept += 1;
-                } else {
-                    std::ptr::drop_in_place(ptr.add(i));
-                }
-            }
-        }
-        self.inner.len.store(kept, Ordering::Release);
     }
 }
 
@@ -210,11 +213,12 @@ impl<T> std::ops::Deref for StableVec<T> {
 }
 
 impl<T> std::ops::DerefMut for StableVec<T> {
-    /// LATENT UB: `&mut [T]` aliases Arc-shared memory. Kept for
-    /// Index/IndexMut ergonomics at call sites that write disjoint
-    /// fields under the picker write lock. See module-level doc.
+    /// LATENT UB: `&mut [T]` aliases Arc-shared memory — see `get_mut`.
+    /// Only sound while `Arc::strong_count == 1` (asserted in debug
+    /// builds) and the caller holds the picker write lock.
     #[inline]
     fn deref_mut(&mut self) -> &mut [T] {
+        self.assert_unique_buffer();
         let len = self.inner.len.load(Ordering::Acquire);
         unsafe { std::slice::from_raw_parts_mut(self.inner.ptr.as_ptr(), len) }
     }

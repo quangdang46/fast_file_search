@@ -133,7 +133,7 @@ pub fn grep(root: &Path, needle: &str, options: &GrepOptions) -> GrepResult {
             for (i, line) in text.lines().enumerate() {
                 let line_num = (i + 1) as u32;
                 let matched = if options.case_sensitive {
-                    line.contains(&needle_lower)
+                    line.contains(needle)
                 } else {
                     lower_buf.clear();
                     lower_buf.extend(line.chars().flat_map(char::to_lowercase));
@@ -377,11 +377,14 @@ pub fn find(root: &Path, query: &str, options: &FindOptions) -> FindResult {
 
     // Sort by score descending (stable: path order preserved for ties)
     scored.sort_by_key(|b| std::cmp::Reverse(b.score));
+    // `total_files` is the real match count — report it before truncating
+    // to `max_files` so callers can tell "50 shown of 1200 matches".
+    let total_files = scored.len();
     scored.truncate(options.max_files);
 
     FindResult {
         query: query.to_string(),
-        total_files: scored.len(),
+        total_files,
         files: scored,
     }
 }
@@ -666,4 +669,47 @@ fn extract_line_at(content: &[u8], offset: usize) -> String {
         .map(|i| offset + i)
         .unwrap_or(content.len());
     String::from_utf8_lossy(&content[start..end]).into_owned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn grep_case_sensitive_respects_needle_case() {
+        // Regression: the case-sensitive branch used to search for the
+        // *lowercased* needle, so `Foo` never matched `Foo` literally.
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("a.txt"), "FooBar\nfoobar\nFOO\n").unwrap();
+
+        let sensitive = GrepOptions {
+            case_sensitive: true,
+            ..GrepOptions::default()
+        };
+        let res = grep(dir.path(), "Foo", &sensitive);
+        assert_eq!(res.total_matches, 1, "only the exact-case line matches");
+
+        let insensitive = GrepOptions {
+            case_sensitive: false,
+            ..GrepOptions::default()
+        };
+        let res = grep(dir.path(), "Foo", &insensitive);
+        assert_eq!(res.total_matches, 3, "all case variants match");
+    }
+
+    #[test]
+    fn find_reports_total_before_truncation() {
+        let dir = tempfile::tempdir().unwrap();
+        // Five files all containing the query token in their names.
+        for i in 0..5 {
+            std::fs::write(dir.path().join(format!("needle_{i}.rs")), "fn f() {}\n").unwrap();
+        }
+        let options = FindOptions {
+            max_files: 2,
+            score_threshold: 1,
+        };
+        let res = find(dir.path(), "needle", &options);
+        assert_eq!(res.files.len(), 2);
+        assert_eq!(res.total_files, 5, "total must not be the truncated count");
+    }
 }
