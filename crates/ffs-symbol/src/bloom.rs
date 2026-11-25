@@ -273,6 +273,13 @@ struct IdentifierIter<'a> {
     src: &'a str,
     pos: usize,
     state: ScanState,
+    /// Sticky flags set once a `"` (or `` ` ``) is found with no matching
+    /// closer anywhere later in the file. That quote can only have opened
+    /// an unterminated string, so later quotes are ordinary bytes too —
+    /// this keeps one stray quote from swallowing every identifier after
+    /// it (a bloom false negative drops the whole file from search).
+    no_dquote_ahead: bool,
+    no_btick_ahead: bool,
 }
 
 impl<'a> IdentifierIter<'a> {
@@ -282,6 +289,8 @@ impl<'a> IdentifierIter<'a> {
             src: content,
             pos: 0,
             state: ScanState::Code,
+            no_dquote_ahead: false,
+            no_btick_ahead: false,
         }
     }
 }
@@ -300,7 +309,15 @@ impl<'a> Iterator for IdentifierIter<'a> {
             match self.state {
                 ScanState::Code => {
                     if b == b'"' {
-                        self.state = ScanState::StringDouble;
+                        if self.no_dquote_ahead {
+                            self.pos += 1;
+                            continue;
+                        }
+                        if memchr::memchr(b'"', &bytes[i + 1..]).is_some() {
+                            self.state = ScanState::StringDouble;
+                        } else {
+                            self.no_dquote_ahead = true;
+                        }
                         self.pos += 1;
                         continue;
                     }
@@ -331,7 +348,31 @@ impl<'a> Iterator for IdentifierIter<'a> {
                         continue;
                     }
                     if b == b'`' {
-                        self.state = ScanState::StringBacktick;
+                        if self.no_btick_ahead {
+                            self.pos += 1;
+                            continue;
+                        }
+                        if memchr::memchr(b'`', &bytes[i + 1..]).is_some() {
+                            self.state = ScanState::StringBacktick;
+                        } else {
+                            self.no_btick_ahead = true;
+                        }
+                        self.pos += 1;
+                        continue;
+                    }
+
+                    // `#` opens a line comment in Python/Ruby/shell/YAML/
+                    // TOML/etc., but only when followed by whitespace:
+                    // `#[attr]`/`r#ident` (Rust), `#field` (JS private
+                    // members) and `#include` (C preprocessor) must not
+                    // trigger it. Checked after raw-string detection so
+                    // `r#"..."#` payloads are unaffected.
+                    if b == b'#'
+                        && bytes
+                            .get(i + 1)
+                            .is_some_and(|next| next.is_ascii_whitespace())
+                    {
+                        self.state = ScanState::LineComment;
                         self.pos += 1;
                         continue;
                     }
@@ -582,6 +623,72 @@ mod tests {
         assert!(idents.contains(&"call_me"));
         assert!(!idents.contains(&"x"));
         assert!(!idents.contains(&"n"));
+    }
+
+    #[test]
+    fn hash_comments_skip_to_end_of_line() {
+        // Python/Ruby/shell/YAML/TOML style `#` comments: identifiers in
+        // them must not be indexed, and quotes inside them must not open
+        // string states that swallow real code.
+        let code = "# leading comment\ndef real_fn():\n    x = 1  # trailing \"quoted\" note\n    return x\n";
+        let idents: Vec<&str> = extract_identifiers(code).collect();
+        assert!(idents.contains(&"real_fn"));
+        assert!(idents.contains(&"return"));
+        assert!(!idents.contains(&"leading"));
+        assert!(!idents.contains(&"comment"));
+        assert!(!idents.contains(&"quoted"));
+        assert!(!idents.contains(&"note"));
+    }
+
+    #[test]
+    fn hash_comment_does_not_break_rust_or_js_or_c() {
+        // `#[attr]`, `r#ident`, JS `#private`, C `#include` are not comments.
+        let rust = "#[derive(Debug)]\nfn foo() { let r#type = 1; }";
+        let idents: Vec<&str> = extract_identifiers(rust).collect();
+        for expected in ["derive", "Debug", "foo", "type"] {
+            assert!(idents.contains(&expected), "missing {expected}");
+        }
+
+        let js = "class A { #count = 0; getCount() { return this.#count; } }";
+        let idents: Vec<&str> = extract_identifiers(js).collect();
+        for expected in ["class", "count", "getCount", "return"] {
+            assert!(idents.contains(&expected), "missing {expected}");
+        }
+
+        let c = "#include <stdio.h>\nint main() { return 0; }";
+        let idents: Vec<&str> = extract_identifiers(c).collect();
+        for expected in ["include", "stdio", "main", "return"] {
+            assert!(idents.contains(&expected), "missing {expected}");
+        }
+    }
+
+    #[test]
+    fn unterminated_double_quote_does_not_swallow_file() {
+        // A `"` with no closing quote later must not send the scanner into
+        // StringDouble state — everything after it would be lost (false
+        // negative: the file silently drops out of symbol search).
+        let code = "call_one()\nlet s = \"unterminated\ncall_two()\n";
+        let idents: Vec<&str> = extract_identifiers(code).collect();
+        assert!(idents.contains(&"call_one"));
+        assert!(idents.contains(&"call_two"));
+        assert!(idents.contains(&"let"));
+    }
+
+    #[test]
+    fn unterminated_backtick_does_not_swallow_file() {
+        let code = "call_one()\nlet s = `unterminated\ncall_two()\n";
+        let idents: Vec<&str> = extract_identifiers(code).collect();
+        assert!(idents.contains(&"call_one"));
+        assert!(idents.contains(&"call_two"));
+    }
+
+    #[test]
+    fn terminated_strings_still_skipped() {
+        let code = "let a = \"hidden_one\"; let b = `hidden_two`; real_fn()";
+        let idents: Vec<&str> = extract_identifiers(code).collect();
+        assert!(idents.contains(&"real_fn"));
+        assert!(!idents.contains(&"hidden_one"));
+        assert!(!idents.contains(&"hidden_two"));
     }
 
     #[test]

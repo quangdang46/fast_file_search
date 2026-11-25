@@ -136,13 +136,36 @@ fn extract_first_variable_declarator_name(
     node: tree_sitter::Node,
     lines: &[&str],
 ) -> Option<String> {
+    extract_variable_declaration_names(node, lines)
+        .into_iter()
+        .next()
+}
+
+/// All names bound by a variable declaration node — `const a = 1, b = 2`
+/// yields `a` and `b`, one per `variable_declarator` child.
+pub fn extract_variable_declaration_names(node: tree_sitter::Node, lines: &[&str]) -> Vec<String> {
+    let mut names = Vec::new();
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         if child.kind() == "variable_declarator" {
-            return extract_variable_declarator_name(child, lines);
+            if let Some(name) = extract_variable_declarator_name(child, lines) {
+                names.push(name);
+            }
         }
     }
-    None
+    names
+}
+
+/// All symbol names a definition node introduces. Variable declarations
+/// yield one name per declarator; every other kind yields at most one.
+pub fn extract_definition_names(node: tree_sitter::Node, lines: &[&str]) -> Vec<String> {
+    if matches!(node.kind(), "lexical_declaration" | "variable_declaration") {
+        let names = extract_variable_declaration_names(node, lines);
+        if !names.is_empty() {
+            return names;
+        }
+    }
+    extract_definition_name(node, lines).into_iter().collect()
 }
 
 pub fn is_js_function_expression_kind(kind: &str) -> bool {

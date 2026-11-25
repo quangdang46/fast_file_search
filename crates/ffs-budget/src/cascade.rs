@@ -68,7 +68,8 @@ fn cascade_read_inner(
     let filtered = apply_filter(content, level, path);
     if filtered.len() <= body_budget_bytes {
         let kept = filtered.len();
-        let kept_lines = content.lines().count();
+        // Count the lines actually emitted (post-filter), not the input's.
+        let kept_lines = filtered.lines().count();
         return CascadeResult {
             mode: ViewMode::Full,
             body: filtered,
@@ -226,6 +227,19 @@ mod tests {
         let r = cascade_read(&big, &as_refs(&outline), FilterLevel::None, split);
         assert_eq!(r.mode, ViewMode::Outline);
         assert!(r.body.contains("main"));
+    }
+
+    #[test]
+    fn kept_lines_counts_filtered_lines() {
+        // Aggressive filter collapses blank lines and strips comments, so the
+        // emitted body has fewer lines than the raw content.
+        let content = "// header\n\n\nfn main() {}\n\n\n";
+        let outline = vec![entry("main", Some("fn main()"), vec![])];
+        let split = BudgetSplit::default_for(100_000);
+        let r = cascade_read(content, &as_refs(&outline), FilterLevel::Aggressive, split);
+        assert_eq!(r.mode, ViewMode::Full);
+        assert_eq!(r.outcome.kept_lines, r.body.lines().count());
+        assert!(r.outcome.kept_lines < content.lines().count());
     }
 
     #[test]

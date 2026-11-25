@@ -199,11 +199,31 @@ impl FileSync {
     /// updates to the base region and fold access scores into parent-dir
     /// frecency. Runs under the picker write lock so no `&FileItem` reader
     /// can observe a torn write.
-    fn apply_scan_updates(&mut self, updates: &[(Option<git2::Status>, i16, i16)]) {
+    ///
+    /// `updates[i]` refers to base-file index `i` as it was when the caller
+    /// cloned the list. Base indices are stable between clone and apply:
+    /// deletes only tombstone (never compact) and `post_scan_snapshot`
+    /// blocks `commit_new_sync` for the whole pass. `expected_base_count`
+    /// is a cheap revalidation — if it ever disagrees we refuse to write
+    /// rather than risk stamping scores onto the wrong files.
+    fn apply_scan_updates(
+        &mut self,
+        updates: &[(Option<git2::Status>, i16, i16)],
+        expected_base_count: usize,
+    ) {
+        debug_assert_eq!(
+            self.base_count, expected_base_count,
+            "base region changed between scan-update computation and apply"
+        );
         for dir in self.dirs.iter() {
             dir.reset_frecency();
         }
         for (i, (status, access, modification)) in updates.iter().enumerate() {
+            // Never write past the base region — indices beyond
+            // `base_count` belong to overflow files with different arenas.
+            if i >= self.base_count {
+                break;
+            }
             let Some(file) = self.files.get_mut(i) else {
                 break;
             };
@@ -299,51 +319,6 @@ impl FileSync {
             .iter()
             .position(|f| f.relative_path_eq(overflow_arena, relative_path))
             .map(|pos| self.base_count + pos)
-    }
-
-    fn retain_files_with_arena<F>(&mut self, mut predicate: F) -> usize
-    where
-        F: FnMut(&FileItem, ArenaPtr) -> bool,
-    {
-        let base_arena = self.arena_base_ptr();
-        let overflow_arena = self.overflow_arena_ptr();
-
-        let indexable_count = self.indexable_count;
-        let base_count = self.base_count;
-        let initial_len = self.files.len();
-
-        if initial_len == 0 {
-            return 0;
-        }
-
-        let indexable_retained = self.files[..indexable_count]
-            .iter()
-            .filter(|f| predicate(f, base_arena))
-            .count();
-        let base_retained = self.files[indexable_count..base_count]
-            .iter()
-            .filter(|f| predicate(f, base_arena))
-            .count()
-            + indexable_retained;
-
-        self.files.retain(|f| {
-            predicate(
-                f,
-                if f.is_overflow() {
-                    overflow_arena
-                } else {
-                    base_arena
-                },
-            )
-        });
-
-        if initial_len != self.files.len() {
-            self.prune_empty_dirs();
-        }
-
-        self.indexable_count = indexable_retained;
-        self.base_count = base_retained;
-        initial_len - self.files.len()
     }
 
     /// Tombstones every dir matching `predicate` (dir-level FS events
@@ -665,8 +640,15 @@ impl FilePicker {
 
     /// Apply post-scan `(git_status, access, modification)` updates computed
     /// off-lock. All mutation happens here, under the write lock.
-    pub(crate) fn apply_scan_updates(&mut self, updates: &[(Option<git2::Status>, i16, i16)]) {
-        self.sync_data.apply_scan_updates(updates);
+    /// `expected_base_count` must be the base-file count the updates were
+    /// computed against — see [`FileSync::apply_scan_updates`].
+    pub(crate) fn apply_scan_updates(
+        &mut self,
+        updates: &[(Option<git2::Status>, i16, i16)],
+        expected_base_count: usize,
+    ) {
+        self.sync_data
+            .apply_scan_updates(updates, expected_base_count);
     }
 
     pub fn get_overflow_files(&self) -> &[FileItem] {
@@ -1041,12 +1023,10 @@ impl FilePicker {
         let time = std::time::Instant::now();
 
         let base_arena = self.sync_data.arena_base_ptr();
-        let overflow_arena = self
-            .sync_data
-            .overflow_builder
-            .as_ref()
-            .map(|b| b.as_arena_ptr())
-            .unwrap_or(base_arena);
+        // Never fall back to the base arena here — `overflow_arena_ptr`
+        // deliberately returns null when no overflow builder exists (the
+        // base arena can be a dangling aligned pointer; upstream #569).
+        let overflow_arena = self.sync_data.overflow_arena_ptr();
 
         let (items, scores, total_matched) = fuzzy_match_and_score_files(
             files,
@@ -1621,7 +1601,16 @@ impl FilePicker {
                 pos < guard.base_file_count()
             };
 
-            if in_indexable && let Ok(content) = std::fs::read(path) {
+            // Mirror the bigram builder's eligibility + read cap: it only
+            // indexes files within `max_file_size` and reads at most
+            // `BIGRAM_CONTENT_CAP` bytes, so a watcher modify event must
+            // not pull an unbounded `fs::read` into memory either.
+            let eligible = !file.is_binary() && size > 0 && size <= self.cache_budget.max_file_size;
+            if in_indexable
+                && eligible
+                && let Ok(content) =
+                    read_capped(path, crate::bigram_filter::BIGRAM_CONTENT_CAP as u64)
+            {
                 overlay.write().modify_file(pos, &content);
             }
         }
@@ -1757,15 +1746,80 @@ impl FilePicker {
         }
 
         let base_path = self.base_path.clone();
-        let tombstoned = self.sync_data.retain_files_with_arena(|file, arena| {
-            let keep = !dir_prefixes
+        let base_arena = self.sync_data.arena_base_ptr();
+        let overflow_arena = self.sync_data.overflow_arena_ptr();
+        let base_count = self.sync_data.base_count;
+
+        // Base files are TOMBSTONED, never physically removed: the bigram
+        // index and its overlay key entries by absolute index into
+        // `files[..base_count]`, so compacting the vec would shift every
+        // later index and silently produce grep false negatives until the
+        // next rescan (the same reason `remove_file_by_path` tombstones).
+        // Overflow files aren't covered by the bigram index and sit at the
+        // tail, so they can still be dropped outright.
+        let mut removed = 0usize;
+        let mut tombstoned: Vec<usize> = Vec::new();
+        let mut overflow_removed: Vec<usize> = Vec::new();
+
+        for idx in 0..self.sync_data.files.len() {
+            let file = &self.sync_data.files[idx];
+            // Already-tombstoned base entries are excluded from every
+            // result — re-processing them would double-count repeat dir
+            // deletes. A deleted overflow entry can still be dropped.
+            if file.is_deleted() {
+                if file.is_overflow() {
+                    overflow_removed.push(idx);
+                }
+                continue;
+            }
+            let arena = if file.is_overflow() {
+                overflow_arena
+            } else {
+                base_arena
+            };
+            let matched = dir_prefixes
                 .iter()
                 .any(|prefix| file.relative_path_starts_with(arena, prefix));
-            if !keep && let Some(callback) = callback.as_mut() {
+            if !matched {
+                continue;
+            }
+            removed += 1;
+            if let Some(callback) = callback.as_mut() {
                 callback(file.absolute_path(arena, &base_path).as_path());
             }
-            keep
-        });
+            if idx < base_count {
+                tombstoned.push(idx);
+            } else {
+                overflow_removed.push(idx);
+            }
+        }
+
+        // Clone the overlay handle up front: `get_file_mut` borrows all of
+        // `sync_data`, so the overlay can't be touched inside the loop.
+        let overlay = self.sync_data.bigram_overlay.as_ref().map(Arc::clone);
+        for &idx in &tombstoned {
+            if let Some(file) = self.sync_data.get_file_mut(idx) {
+                file.set_deleted(true);
+                // Same invariant as `remove_file_by_path`: a tombstone no
+                // longer maps to a worktree file, so any cached git status
+                // is stale.
+                file.git_status = None;
+                file.invalidate_mmap(&self.cache_budget);
+            }
+        }
+        // One write-lock acquisition for the whole batch — the overlay
+        // tombstone bitset is keyed by the same stable base indices.
+        if let Some(overlay) = overlay {
+            let mut guard = overlay.write();
+            for &idx in &tombstoned {
+                guard.delete_file(idx);
+            }
+        }
+
+        // Remove overflow entries in reverse so earlier indices stay valid.
+        for idx in overflow_removed.into_iter().rev() {
+            self.sync_data.files.remove(idx);
+        }
 
         // The whole subtree is gone: tombstone the dirs too so directory
         // search stops surfacing them.
@@ -1779,7 +1833,7 @@ impl FilePicker {
         // Tombstoned dirs get purged on the next retain pass.
         self.sync_data.prune_empty_dirs();
 
-        tombstoned
+        removed
     }
 
     /// Use this to prevent any substantial background threads from acquiring the locks
@@ -2376,6 +2430,17 @@ pub fn is_known_binary_extension(path: &Path) -> bool {
     )
 }
 
+/// Read at most `cap` bytes from `path`. Always streams through `take` —
+/// a metadata-then-`fs::read` fast path would race file growth (TOCTOU)
+/// and could pull an unbounded buffer into memory on every modify event.
+fn read_capped(path: &Path, cap: u64) -> std::io::Result<Vec<u8>> {
+    use std::io::Read;
+    let mut f = std::fs::File::open(path)?;
+    let mut buf = Vec::with_capacity(cap.min(64 * 1024) as usize);
+    f.by_ref().take(cap).read_to_end(&mut buf)?;
+    Ok(buf)
+}
+
 /// Detect binary content by scanning for a NUL byte anywhere in `content`.
 ///
 /// The old 512-byte window missed formats whose first kilobyte is plain
@@ -2659,5 +2724,76 @@ mod tests {
         assert_eq!(common_dir_prefix_len("src", "src"), 0);
         // "src" is emitted-as-dir; "src/x" extends it — full "src" is shared.
         assert_eq!(common_dir_prefix_len("src", "src/x"), 3);
+    }
+
+    /// Regression: directory deletes used to physically compact the base
+    /// `files` vec, shifting every index the bigram index/overlay is keyed
+    /// by → grep false negatives until rescan. Base files must be
+    /// tombstoned like single-file deletes; only overflow files (not
+    /// covered by the bigram index) may be physically removed.
+    #[test]
+    fn dir_delete_tombstones_base_files_without_shifting_indices() {
+        let dir = tempfile::tempdir().unwrap();
+        let base_buf = crate::path_utils::canonicalize(dir.path()).unwrap();
+        let base = base_buf.as_path();
+
+        for rel in ["src/a.rs", "src/b.rs", "other/c.rs", "root.txt"] {
+            let path = base.join(rel);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(&path, b"fn f() {}\n").unwrap();
+        }
+
+        let mut picker = FilePicker::new(FilePickerOptions {
+            base_path: base.to_str().unwrap().into(),
+            watch: false,
+            ..Default::default()
+        })
+        .unwrap();
+        picker.collect_files().unwrap();
+
+        let arena = picker.arena_base_ptr();
+        let rel_of = |f: &FileItem| f.relative_path(arena).replace('\\', "/");
+        let idx_other = picker
+            .get_files()
+            .iter()
+            .position(|f| rel_of(f) == "other/c.rs")
+            .expect("other/c.rs indexed");
+        let idx_root = picker
+            .get_files()
+            .iter()
+            .position(|f| rel_of(f) == "root.txt")
+            .expect("root.txt indexed");
+        let before = picker.get_files().len();
+
+        let removed = picker.remove_all_files_in_dir(base.join("src"));
+        assert_eq!(removed, 2, "both src/ files matched");
+
+        // Base vec must NOT have compacted — every index stays put.
+        assert_eq!(
+            picker.get_files().len(),
+            before,
+            "base files are tombstoned, not removed"
+        );
+        for f in picker.get_files() {
+            if rel_of(f).starts_with("src/") {
+                assert!(f.is_deleted(), "{} must be tombstoned", rel_of(f));
+                assert_eq!(f.git_status, None, "tombstone clears git status");
+            }
+        }
+        assert!(!picker.get_files()[idx_other].is_deleted());
+        assert!(!picker.get_files()[idx_root].is_deleted());
+        assert_eq!(rel_of(&picker.get_files()[idx_root]), "root.txt");
+
+        // An overflow file inside the deleted dir is still physically
+        // removed (it isn't covered by the bigram index).
+        let new_path = base.join("src/new.rs");
+        std::fs::write(&new_path, b"fn g() {}\n").unwrap();
+        assert!(picker.handle_create_or_modify(&new_path).is_some());
+        assert_eq!(picker.get_overflow_files().len(), 1);
+
+        let removed = picker.remove_all_files_in_dir(base.join("src"));
+        assert_eq!(removed, 1, "only the live overflow file remains to remove");
+        assert!(picker.get_overflow_files().is_empty());
+        assert_eq!(picker.get_files().len(), before);
     }
 }

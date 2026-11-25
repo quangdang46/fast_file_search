@@ -273,6 +273,21 @@ const LEGACY_SYNTAX: CommentSyntax = CommentSyntax {
     block_c_style: true,
 };
 
+/// Whether `'` opens a string literal in the file at `path`. Most languages
+/// treat `'…'` as a string/char literal, but Rust `'a`/`'static` lifetimes are
+/// not strings — treating them as such swallows the rest of the line and hides
+/// real `//` comments. Only Rust is excluded; other lifetime-less languages
+/// keep the previous behavior. Pathless [`FilterStrategy::apply`] callers get
+/// `true` (language unknown).
+fn apostrophe_strings_for(path: &Path) -> bool {
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    ext != "rs"
+}
+
 /// Identity passthrough.
 pub struct NoFilter;
 
@@ -294,15 +309,25 @@ impl FilterStrategy for MinimalFilter {
         "minimal"
     }
     fn apply(&self, input: &str) -> String {
-        self.apply_with_syntax(LEGACY_SYNTAX, input)
+        // Language unknown: assume `'` can open a string (prior behavior).
+        self.apply_with_syntax(LEGACY_SYNTAX, true, input)
     }
     fn apply_path(&self, path: &Path, input: &str) -> String {
-        self.apply_with_syntax(comment_syntax_for(path), input)
+        self.apply_with_syntax(
+            comment_syntax_for(path),
+            apostrophe_strings_for(path),
+            input,
+        )
     }
 }
 
 impl MinimalFilter {
-    fn apply_with_syntax(&self, syntax: CommentSyntax, input: &str) -> String {
+    fn apply_with_syntax(
+        &self,
+        syntax: CommentSyntax,
+        apostrophe_strings: bool,
+        input: &str,
+    ) -> String {
         // Files with no recognized comment syntax pass through untouched —
         // guessing markers destroys content (Markdown `#` headers, `.txt`,
         // `.ini`, extensionless files).
@@ -311,7 +336,7 @@ impl MinimalFilter {
         }
         let mut out = String::with_capacity(input.len());
         for line in input.split_inclusive('\n') {
-            let body = strip_line_comment_keep_doc(line, syntax);
+            let body = strip_line_comment_keep_doc(line, syntax, apostrophe_strings);
             let trimmed = trim_trailing_whitespace_keep_newline(&body);
             out.push_str(&trimmed);
         }
@@ -328,15 +353,25 @@ impl FilterStrategy for AggressiveFilter {
         "aggressive"
     }
     fn apply(&self, input: &str) -> String {
-        self.apply_with_syntax(LEGACY_SYNTAX, input)
+        // Language unknown: assume `'` can open a string (prior behavior).
+        self.apply_with_syntax(LEGACY_SYNTAX, true, input)
     }
     fn apply_path(&self, path: &Path, input: &str) -> String {
-        self.apply_with_syntax(comment_syntax_for(path), input)
+        self.apply_with_syntax(
+            comment_syntax_for(path),
+            apostrophe_strings_for(path),
+            input,
+        )
     }
 }
 
 impl AggressiveFilter {
-    fn apply_with_syntax(&self, syntax: CommentSyntax, input: &str) -> String {
+    fn apply_with_syntax(
+        &self,
+        syntax: CommentSyntax,
+        apostrophe_strings: bool,
+        input: &str,
+    ) -> String {
         if syntax == CommentSyntax::NONE {
             return input.to_string();
         }
@@ -345,7 +380,7 @@ impl AggressiveFilter {
         } else {
             input.to_string()
         };
-        let no_line = strip_all_line_comments(&no_block, syntax);
+        let no_line = strip_all_line_comments(&no_block, syntax, apostrophe_strings);
         collapse_blank_lines(&no_line)
     }
 }
@@ -354,7 +389,11 @@ impl AggressiveFilter {
 // Helpers
 // ---------------------------------------------------------------------------
 
-fn strip_line_comment_keep_doc(line: &str, syntax: CommentSyntax) -> String {
+fn strip_line_comment_keep_doc(
+    line: &str,
+    syntax: CommentSyntax,
+    apostrophe_strings: bool,
+) -> String {
     let stripped_newline_len = if line.ends_with("\r\n") {
         2
     } else if line.ends_with('\n') {
@@ -365,7 +404,7 @@ fn strip_line_comment_keep_doc(line: &str, syntax: CommentSyntax) -> String {
     let body = &line[..line.len() - stripped_newline_len];
     let newline = &line[line.len() - stripped_newline_len..];
 
-    if let Some(idx) = find_line_comment_start(body, syntax) {
+    if let Some(idx) = find_line_comment_start(body, syntax, apostrophe_strings) {
         let prefix = &body[..idx];
         // Defensive: idx + 2 may not land on a UTF-8 char boundary if `body`
         // came from `from_utf8_lossy` and the marker byte (e.g. `#`) sits
@@ -380,11 +419,17 @@ fn strip_line_comment_keep_doc(line: &str, syntax: CommentSyntax) -> String {
     line.to_string()
 }
 
-fn find_line_comment_start(body: &str, syntax: CommentSyntax) -> Option<usize> {
+fn find_line_comment_start(
+    body: &str,
+    syntax: CommentSyntax,
+    apostrophe_strings: bool,
+) -> Option<usize> {
     let bytes = body.as_bytes();
     let mut in_string: Option<u8> = None;
     let mut i = 0;
-    while i + 1 < bytes.len() {
+    // Loop to the last byte so a `#` marker on the final byte is seen; the
+    // `//` check below guards its own `i + 1` lookahead.
+    while i < bytes.len() {
         let b = bytes[i];
         if let Some(q) = in_string {
             if b == b'\\' {
@@ -397,15 +442,15 @@ fn find_line_comment_start(body: &str, syntax: CommentSyntax) -> Option<usize> {
             i += 1;
             continue;
         }
-        if matches!(b, b'"' | b'\'' | b'`') {
+        if b == b'"' || b == b'`' || (apostrophe_strings && b == b'\'') {
             in_string = Some(b);
             i += 1;
             continue;
         }
-        if syntax.line_slash && b == b'/' && bytes[i + 1] == b'/' {
+        if syntax.line_slash && b == b'/' && bytes.get(i + 1) == Some(&b'/') {
             return Some(i);
         }
-        if syntax.line_hash && b == b'#' && i + 1 < bytes.len() {
+        if syntax.line_hash && b == b'#' {
             return Some(i);
         }
         i += 1;
@@ -447,7 +492,7 @@ fn strip_block_comments(s: &str) -> String {
     BLOCK_COMMENT_RE.replace_all(s, "").into_owned()
 }
 
-fn strip_all_line_comments(input: &str, syntax: CommentSyntax) -> String {
+fn strip_all_line_comments(input: &str, syntax: CommentSyntax, apostrophe_strings: bool) -> String {
     let mut out = String::with_capacity(input.len());
     for line in input.split_inclusive('\n') {
         let stripped_newline_len = if line.ends_with("\r\n") {
@@ -459,7 +504,7 @@ fn strip_all_line_comments(input: &str, syntax: CommentSyntax) -> String {
         };
         let body = &line[..line.len() - stripped_newline_len];
         let newline = &line[line.len() - stripped_newline_len..];
-        if let Some(idx) = find_line_comment_start(body, syntax) {
+        if let Some(idx) = find_line_comment_start(body, syntax, apostrophe_strings) {
             out.push_str(body[..idx].trim_end());
             out.push_str(newline);
         } else {
@@ -547,5 +592,34 @@ mod tests {
         let input = "let url = \"https://example.com\";\n";
         let out = f.apply(input);
         assert!(out.contains("https://example.com"));
+    }
+
+    #[test]
+    fn hash_comment_on_last_byte_is_stripped() {
+        // Regression: the scan loop stopped one byte early, so a `#` on the
+        // final byte of a line was never treated as a comment start.
+        let f = MinimalFilter;
+        let out = f.apply_path(Path::new("script.sh"), "echo hi #\n");
+        assert_eq!(out, "echo hi\n");
+    }
+
+    #[test]
+    fn rust_lifetime_does_not_hide_line_comment() {
+        // `'a` is a lifetime, not a string opener; the `//` comment must still
+        // be found on .rs files.
+        let f = MinimalFilter;
+        let input = "fn f<'a>(x: &'a str) -> &'a str { x } // trailing\n";
+        let out = f.apply_path(Path::new("lib.rs"), input);
+        assert!(!out.contains("trailing"));
+        assert!(out.contains("'a"));
+    }
+
+    #[test]
+    fn single_quoted_string_still_hides_comment_marker() {
+        // Python `'…'` strings are real; a `#` inside must not start a comment.
+        let f = MinimalFilter;
+        let input = "x = 'a # b'\n";
+        let out = f.apply_path(Path::new("mod.py"), input);
+        assert_eq!(out, input);
     }
 }

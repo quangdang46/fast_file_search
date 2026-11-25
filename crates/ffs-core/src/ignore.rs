@@ -52,18 +52,68 @@ pub(crate) fn non_git_repo_overrides(base_path: &Path) -> Option<ignore::overrid
     builder.build().ok()
 }
 
+/// True when `path` contains one of the ignored directory patterns as a
+/// run of whole path components. Component-wise matching (instead of the
+/// old substring `contains`) avoids false positives like `myvenv/` or
+/// `targetstuff/` that merely contain an ignored name as a substring.
 pub(crate) fn is_non_code_directory(path: &Path) -> bool {
-    let path_str = path.as_os_str().to_str().unwrap_or("");
+    let components: Vec<&str> = path
+        .components()
+        .filter_map(|c| c.as_os_str().to_str())
+        .collect();
     NON_GIT_IGNORED_DIRS
         .iter()
         .chain(PLATFORM_IGNORED_DIRS)
         .any(|&dir| {
-            #[cfg(target_os = "windows")]
-            let dir = dir.replace('/', std::path::MAIN_SEPARATOR_STR);
-            #[cfg(target_os = "windows")]
-            return path_str.contains(dir.as_str());
-
-            #[cfg(not(target_os = "windows"))]
-            path_str.contains(dir)
+            let dir_components: Vec<&str> = dir.split('/').collect();
+            components
+                .windows(dir_components.len())
+                .any(|window| window == dir_components.as_slice())
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn matches_ignored_dir_names_on_component_boundaries() {
+        assert!(is_non_code_directory(Path::new(
+            "/repo/node_modules/pkg/index.js"
+        )));
+        assert!(is_non_code_directory(Path::new(
+            "/repo/src/__pycache__/x.pyc"
+        )));
+        assert!(is_non_code_directory(Path::new("/repo/.venv/bin/python")));
+        assert!(is_non_code_directory(Path::new(
+            "/repo/foo/target/debug/build.rs"
+        )));
+        assert!(is_non_code_directory(Path::new("target/release/app")));
+    }
+
+    #[test]
+    fn rejects_substring_false_positives() {
+        // Names that merely *contain* an ignored dir as a substring must
+        // not be skipped — the old `path_str.contains(dir)` matched these.
+        assert!(!is_non_code_directory(Path::new("/repo/myvenv/tool.rs")));
+        assert!(!is_non_code_directory(Path::new("/repo/venv_extra/x.rs")));
+        assert!(!is_non_code_directory(Path::new(
+            "/repo/node_modules_backup/x.rs"
+        )));
+        assert!(!is_non_code_directory(Path::new(
+            "/repo/targetstuff/debug/x.rs"
+        )));
+        assert!(!is_non_code_directory(Path::new("/repo/src/main.rs")));
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn matches_platform_ignored_dirs() {
+        assert!(is_non_code_directory(Path::new(
+            "/Users/x/Library/Caches/foo"
+        )));
+        assert!(!is_non_code_directory(Path::new(
+            "/Users/x/Library/MyCaches/foo"
+        )));
+    }
 }

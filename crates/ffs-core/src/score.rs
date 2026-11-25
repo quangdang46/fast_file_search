@@ -91,9 +91,8 @@ fn match_fuzzy_parts(
         return first_part_matches;
     }
 
-    let total_parts = valid_parts.len() as u32;
     let mut matches = first_part_matches;
-    for part in valid_parts[1..].iter() {
+    for (round, part) in valid_parts[1..].iter().enumerate() {
         let mut part_options = *options;
         part_options.max_typos = options.max_typos.map(|t| t.min(part.len() as u16));
 
@@ -112,16 +111,23 @@ fn match_fuzzy_parts(
         );
 
         if sub_matches.is_empty() {
-            return vec![]; // break early! 
+            return vec![]; // break early!
         }
 
-        // Map sub_matches back to original indices, average scores across all parts.
+        // Map sub_matches back to original indices, average scores across all
+        // parts. `prev.score` is the mean of the `round + 1` parts seen so
+        // far — rescale it back to a sum before folding in this part's
+        // score, otherwise every extra part drags the average toward 0.
+        let prev_count = (round + 1) as u32;
+        let total_count = prev_count + 1;
         matches = sub_matches
             .into_iter()
             .map(|sm| {
                 let prev = &matches[sm.index as usize];
-                let sum = (prev.score as u32).saturating_add(sm.score as u32);
-                let avg = sum / total_parts;
+                let sum = (prev.score as u32)
+                    .saturating_mul(prev_count)
+                    .saturating_add(sm.score as u32);
+                let avg = sum / total_count;
 
                 neo_frizbee::Match {
                     index: prev.index,
@@ -216,8 +222,7 @@ fn match_fuzzy_parts_dirs(
     }
 
     let mut matches = first_part_matches;
-    let total_parts = valid_parts.len() as u32;
-    for part in valid_parts[1..].iter() {
+    for (round, part) in valid_parts[1..].iter().enumerate() {
         let mut part_options = *options;
         part_options.max_typos = options.max_typos.map(|t| t.min(part.len() as u16));
 
@@ -239,13 +244,18 @@ fn match_fuzzy_parts_dirs(
             return vec![];
         }
 
-        // Map sub_matches back to original indices, average scores across all parts.
+        // Same running-mean fix as the file twin: rescale `prev.score`
+        // (mean of `round + 1` parts) back to a sum before averaging.
+        let prev_count = (round + 1) as u32;
+        let total_count = prev_count + 1;
         matches = sub_matches
             .into_iter()
             .map(|sm| {
                 let prev = &matches[sm.index as usize];
-                let sum = (prev.score as u32).saturating_add(sm.score as u32);
-                let avg = sum / total_parts;
+                let sum = (prev.score as u32)
+                    .saturating_mul(prev_count)
+                    .saturating_add(sm.score as u32);
+                let avg = sum / total_count;
 
                 neo_frizbee::Match {
                     index: prev.index,
@@ -361,7 +371,9 @@ pub(crate) fn fuzzy_match_and_score_dirs<'a>(
 
             // Dirname bonus: if the match is in the last path segment.
             let last_seg_offset = dir.last_segment_offset();
-            let match_start_approx = path_match.end_col.saturating_sub(main_needle_len - 1);
+            let match_start_approx = path_match
+                .end_col
+                .saturating_sub(main_needle_len.saturating_sub(1));
             let is_dirname_match = match_start_approx >= last_seg_offset;
 
             dir.write_dir_name(arena, &mut dirname_buf);
@@ -465,10 +477,15 @@ fn sort_and_paginate_dirs<'a>(
 
     sort_with_buffer(&mut results, |a, b| b.1.total.cmp(&a.1.total));
 
-    if results.len() > limit {
-        let page_end = std::cmp::min(offset + limit, results.len());
-        let page_size = page_end - offset;
-        results.drain(0..offset);
+    // Slice the page whenever offset>0 or the page is smaller than the
+    // result set. The old `results.len() > limit` guard skipped slicing
+    // entirely when `limit >= results.len()` (e.g. limit==0 → total),
+    // silently returning items before `offset`.
+    if offset > 0 || results.len() > limit {
+        let page_end = std::cmp::min(offset.saturating_add(limit), results.len());
+        let page_start = offset.min(results.len());
+        let page_size = page_end.saturating_sub(page_start);
+        results.drain(..page_start);
         results.truncate(page_size);
     }
 
@@ -522,6 +539,20 @@ fn match_and_score_in_arena<'a>(
     #[cfg(windows)]
     let fuzzy_parts: &[&str] = fuzzy_parts_refs.as_deref().unwrap_or(fuzzy_parts);
 
+    // Mirror the >=2-char filter inside `match_fuzzy_parts`: bonuses and
+    // the filename fallback must key off the same needle, otherwise a
+    // 0/1-char first part underflows `main_needle_len - 1` and can divide
+    // by zero in the filename-quality scaling below.
+    let valid_parts: Vec<&str> = fuzzy_parts
+        .iter()
+        .copied()
+        .filter(|p| p.len() >= 2)
+        .collect();
+    let Some(&main_part) = valid_parts.first() else {
+        // `match_fuzzy_parts` yields no matches for an all-short query.
+        return vec![];
+    };
+
     debug_assert!(!fuzzy_parts.is_empty());
     let has_uppercase = fuzzy_parts
         .iter()
@@ -551,7 +582,7 @@ fn match_and_score_in_arena<'a>(
         arena,
     );
 
-    let main_needle = fuzzy_parts[0].as_bytes(); // safe
+    let main_needle = main_part.as_bytes();
     let main_needle_len = main_needle.len() as u16;
 
     let mut fallback_indices: Vec<u32> = Vec::new();
@@ -564,7 +595,9 @@ fn match_and_score_in_arena<'a>(
         for (i, path_match) in path_matches.iter().enumerate() {
             let file = working_files.index(path_match.index as usize);
             let filename_start = file.filename_offset_in_relative_path() as u16;
-            let match_start_approx = path_match.end_col.saturating_sub(main_needle_len - 1);
+            let match_start_approx = path_match
+                .end_col
+                .saturating_sub(main_needle_len.saturating_sub(1));
 
             if match_start_approx < filename_start {
                 fallback_indices.push(i as u32);
@@ -576,7 +609,7 @@ fn match_and_score_in_arena<'a>(
             vec![]
         } else {
             let mut matches = neo_frizbee::match_list_parallel(
-                fuzzy_parts[0],
+                main_part,
                 &fallback_filenames,
                 &options,
                 if path_matches.len() > 4096 {
@@ -623,7 +656,9 @@ fn match_and_score_in_arena<'a>(
             };
 
             let filename_start = file.filename_offset_in_relative_path() as u16;
-            let match_start_approx = path_match.end_col.saturating_sub(main_needle_len - 1);
+            let match_start_approx = path_match
+                .end_col
+                .saturating_sub(main_needle_len.saturating_sub(1));
 
             let end_col_filename_match = match_start_approx >= filename_start;
             let simd_filename_match = if !end_col_filename_match {
@@ -928,12 +963,15 @@ fn sort_and_paginate<'a>(
             .then_with(|| b.0.modified.cmp(&a.0.modified))
     });
 
-    // in the best scenario truncation happened in the select_nth step
-    if results.len() > limit {
-        let page_end = std::cmp::min(offset + limit, results.len());
-        let page_size = page_end - offset;
-
-        results.drain(0..offset);
+    // Slice the page whenever offset>0 or the page is smaller than the
+    // result set — same fix as `sort_and_paginate_dirs`: `limit >=
+    // results.len()` (incl. limit==0 → total) used to skip the slice and
+    // return the wrong window.
+    if offset > 0 || results.len() > limit {
+        let page_end = std::cmp::min(offset.saturating_add(limit), results.len());
+        let page_start = offset.min(results.len());
+        let page_size = page_end.saturating_sub(page_start);
+        results.drain(..page_start);
         results.truncate(page_size);
     }
 
@@ -1141,6 +1179,98 @@ mod tests {
         assert_eq!(items[0].relative_path(arena), "file2.rs");
         assert_eq!(items[1].relative_path(arena), "file1.rs");
         assert_eq!(items[2].relative_path(arena), "file3.rs");
+    }
+
+    fn test_context<'a>(
+        query: &'a ffs_query_parser::FfsQuery<'a>,
+        offset: usize,
+        limit: usize,
+    ) -> ScoringContext<'a> {
+        ScoringContext {
+            query,
+            max_threads: 1,
+            max_typos: 2,
+            current_file: None,
+            last_same_query_match: None,
+            project_path: None,
+            combo_boost_score_multiplier: 100,
+            min_combo_count: 3,
+            pagination: PaginationArgs { offset, limit },
+        }
+    }
+
+    /// Regression: `limit >= results.len()` (incl. limit==0 → total) used to
+    /// skip the page slice entirely, so `offset` was ignored and the head of
+    /// the ranking was returned instead of the requested window.
+    #[test]
+    fn test_pagination_offset_with_unlimited_limit() {
+        let (test_data, _arena) = make_test_files(&[
+            ("a.rs", 500, 1),
+            ("b.rs", 400, 2),
+            ("c.rs", 300, 3),
+            ("d.rs", 200, 4),
+            ("e.rs", 100, 5),
+        ]);
+        let results: Vec<(&FileItem, Score)> = test_data
+            .iter()
+            .map(|(file, score)| (file, score.clone()))
+            .collect();
+
+        let parser = QueryParser::default();
+        let query = parser.parse("test");
+
+        // limit=0 means "no limit" → resolves to total_matched (5), which is
+        // >= results.len(), so the old `results.len() > limit` guard skipped
+        // the offset drain and returned all 5 items.
+        let ctx = test_context(&query, 2, 0);
+        let (items, scores, total) = sort_and_paginate(results.clone(), &ctx);
+        assert_eq!(total, 5);
+        assert_eq!(scores.len(), 3, "offset=2 of 5 → items 3..=5");
+        assert_eq!(scores[0].total, 300);
+        assert_eq!(items[0].relative_path(_arena), "c.rs");
+
+        // Explicit limit larger than the result set hits the same path.
+        let ctx = test_context(&query, 1, 100);
+        let (_items, scores, _) = sort_and_paginate(results, &ctx);
+        assert_eq!(scores.len(), 4, "offset=1 → items 2..=5");
+        assert_eq!(scores[0].total, 400);
+    }
+
+    /// Same pagination bug in the directory twin.
+    #[test]
+    fn test_dir_pagination_offset_with_unlimited_limit() {
+        let mut builder = crate::simd_path::ChunkedPathStoreBuilder::new(5);
+        let dirs: Vec<DirItem> = ["a/", "b/", "c/", "d/", "e/"]
+            .iter()
+            .map(|d| DirItem::new(builder.add_dir_immediate(d), 0))
+            .collect();
+        let store = builder.finish();
+        let arena = store.as_arena_ptr();
+
+        let results: Vec<(&DirItem, Score)> = dirs
+            .iter()
+            .enumerate()
+            .map(|(i, d)| {
+                (
+                    d,
+                    Score {
+                        total: 500 - (i as i32) * 100,
+                        match_type: "test",
+                        ..Default::default()
+                    },
+                )
+            })
+            .collect();
+
+        let parser = QueryParser::default();
+        let query = parser.parse("test");
+        let ctx = test_context(&query, 2, 0);
+        let (items, scores, total) = sort_and_paginate_dirs(results, &ctx);
+        assert_eq!(total, 5);
+        assert_eq!(scores.len(), 3);
+        assert_eq!(scores[0].total, 300);
+        assert_eq!(items[0].relative_path(arena), "c/");
+        std::mem::forget(store);
     }
 }
 

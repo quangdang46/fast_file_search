@@ -5,7 +5,7 @@ use tree_sitter::{Language, Node};
 
 use crate::treesitter::{
     elixir_arguments, extract_definition_name, extract_elixir_definition_name, find_iife_function,
-    is_elixir_definition, js_function_context_name, node_text_simple,
+    is_elixir_definition, js_function_context_name,
 };
 use crate::types::{Lang, OutlineEntry, OutlineKind};
 use crate::verse_spans::{verse_repair_end_line, verse_skip_spurious_definition};
@@ -346,7 +346,6 @@ fn extract_signature(node: Node, lines: &[&str]) -> Option<String> {
             return Some(crate::types::truncate_str(trimmed, 120).to_string());
         }
     }
-    let _ = node_text_simple(node, lines);
     None
 }
 

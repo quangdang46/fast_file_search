@@ -54,6 +54,13 @@ pub(crate) struct ScanSignals {
     /// DO NOT set or clear this manually — it is managed exclusively by the
     /// PostScanSnapshot lifecycle.
     pub(crate) post_scan_indexing_active: Arc<AtomicBool>,
+    /// Set once `scanning` flips false and cleared when the post-scan pass
+    /// (git/frecency, warmup, bigram) finishes. Without it a rescan could
+    /// pass `ScanJob::new_rescan` in the gap before `post_scan_snapshot`
+    /// arms `post_scan_indexing_active`, commit a new `sync_data` mid
+    /// post-scan, and silently invalidate the cloned file list / bigram
+    /// indices being built.
+    pub(crate) post_scan_pending: Arc<AtomicBool>,
 }
 
 /// Which optional phases a scan should run.
@@ -98,6 +105,7 @@ impl ScanJob {
                 .signals
                 .post_scan_indexing_active
                 .load(Ordering::Acquire)
+            || picker.signals.post_scan_pending.load(Ordering::Acquire)
         {
             return Ok(None);
         }
@@ -212,7 +220,12 @@ impl ScanJob {
 
         // Files are now searchable — flip the scan signal *early* so
         // UI progress polls see the picker as "ready" while we run the
-        // optional post-scan steps in the background.
+        // optional post-scan steps in the background. Arm
+        // `post_scan_pending` FIRST: `scanning=false` alone would let a
+        // new `ScanJob::new_rescan` slip in and `commit_new_sync` while
+        // post-scan is still cloning/indexing the old file list.
+        signals.post_scan_pending.store(true, Ordering::Release);
+        let post_scan_pending = PostScanPendingGuard::new(&signals);
         signals.scanning.store(false, Ordering::Relaxed);
 
         // in case we do a rescan, we have to resubscribe a watcher to the new set of directories
@@ -262,6 +275,10 @@ impl ScanJob {
         {
             Self::run_post_scan(&shared_picker, &signals, &config);
         }
+
+        // Post-scan is done — release the rescan gate BEFORE draining
+        // `rescan_pending` so the follow-up `new_rescan` isn't rejected.
+        drop(post_scan_pending);
 
         // 6. Drain any rescan that arrived while we were busy.
         //
@@ -402,6 +419,26 @@ impl Drop for ScanningGuard<'_> {
     }
 }
 
+/// RAII clearer for `post_scan_pending` — guarantees the rescan gate is
+/// released even if a post-scan step panics.
+struct PostScanPendingGuard<'a> {
+    signals: &'a ScanSignals,
+}
+
+impl<'a> PostScanPendingGuard<'a> {
+    fn new(signals: &'a ScanSignals) -> Self {
+        Self { signals }
+    }
+}
+
+impl Drop for PostScanPendingGuard<'_> {
+    fn drop(&mut self) {
+        self.signals
+            .post_scan_pending
+            .store(false, Ordering::Release);
+    }
+}
+
 /// If the scan encounters new directories created we have to add them to the watch list
 /// this is fine because the watcher does deduplicate the entries and doesn't add a lot of
 /// garbage notify watchers / fs events streams
@@ -497,7 +534,10 @@ fn apply_git_status_and_frecency(
     if let Ok(mut guard) = shared_picker.write()
         && let Some(picker) = guard.as_mut()
     {
-        picker.apply_scan_updates(&updates);
+        // Revalidate against the count the updates were computed from —
+        // watcher dir-deletes used to compact the base vec mid-pass and
+        // shift every index the updates refer to.
+        picker.apply_scan_updates(&updates, files.len());
     }
 
     info!(

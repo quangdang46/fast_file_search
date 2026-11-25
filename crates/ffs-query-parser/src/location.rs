@@ -30,6 +30,11 @@ fn parse_number_pair(location: &str, split_char: char) -> Option<(i32, i32)> {
     let start = start_str.parse::<i32>().ok()?;
     let end = end_str.parse::<i32>().ok()?;
 
+    // Lines and columns are 1-based; reject 0 and negatives.
+    if start <= 0 || end <= 0 {
+        return None;
+    }
+
     Some((start, end))
 }
 
@@ -52,6 +57,10 @@ fn parse_column_range(start_part: &str, end_part: &str) -> Option<Location> {
     let line = line_str.parse::<i32>().ok()?;
     let start_col = start_col_str.parse::<i32>().ok()?;
     let end_col = end_part.parse::<i32>().ok()?;
+
+    if line <= 0 || start_col <= 0 || end_col <= 0 {
+        return None;
+    }
 
     if end_col < start_col {
         return Some(Location::Line(line));
@@ -113,6 +122,10 @@ fn try_parse_column_position(location: &str) -> Option<Location> {
     let line = line_str.parse::<i32>().ok()?;
     let col = col_str.parse::<i32>().ok()?;
 
+    if line <= 0 || col <= 0 {
+        return None;
+    }
+
     Some(Location::Position { line, col })
 }
 
@@ -128,7 +141,9 @@ fn parse_column_location(query: &str) -> Option<(&str, Location)> {
         return Some((file_path, position_location));
     }
 
-    if let Ok(line_location) = location_part.parse::<i32>() {
+    if let Ok(line_location) = location_part.parse::<i32>()
+        && line_location > 0
+    {
         return Some((file_path, Location::Line(line_location)));
     }
 
@@ -143,7 +158,9 @@ fn parse_vstudio_location(query: &str) -> Option<(&str, Location)> {
     let (file_path, location_with_paren) = query.rsplit_once('(')?;
     let location = location_with_paren.trim_end_matches(')');
 
-    if let Ok(line) = location.parse::<i32>() {
+    if let Ok(line) = location.parse::<i32>()
+        && line > 0
+    {
         return Some((file_path, Location::Line(line)));
     }
 
@@ -261,5 +278,32 @@ mod tests {
         );
         assert_eq!(parse_location("file:-"), ("file", None));
         assert_eq!(parse_location("file("), ("file", None));
+    }
+
+    #[test]
+    fn non_positive_locations_rejected() {
+        // Lines and columns are 1-based; 0 and negatives are not locations.
+        for query in [
+            "file:0",
+            "file:-3",
+            "file:0:4",
+            "file:12:0",
+            "file:12:-1",
+            "file:0-5",
+            "file:5-0",
+            "file:12:4-0",
+            "file(0)",
+            "file(12,0)",
+        ] {
+            let (rest, loc) = parse_location(query);
+            assert_eq!(loc, None, "{query:?} should not parse as a location");
+            assert_eq!(rest, query, "{query:?} should be left untouched");
+        }
+        // Sanity: valid locations still parse.
+        assert_eq!(parse_location("file:1"), ("file", Some(Location::Line(1))));
+        assert_eq!(
+            parse_location("file:1:1"),
+            ("file", Some(Location::Position { line: 1, col: 1 }))
+        );
     }
 }

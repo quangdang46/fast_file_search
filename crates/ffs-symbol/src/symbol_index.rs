@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use dashmap::mapref::entry::Entry;
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use tree_sitter::Node;
@@ -13,7 +14,7 @@ use tree_sitter::Node;
 use crate::lang::detect_file_type;
 use crate::outline::outline_language;
 use crate::treesitter::{
-    definition_weight, extract_definition_name, extract_elixir_definition_name,
+    definition_weight, extract_definition_names, extract_elixir_definition_name,
     is_elixir_definition, DEFINITION_KINDS,
 };
 use crate::types::{FileType, Lang};
@@ -128,6 +129,9 @@ impl SymbolIndex {
         max_results: usize,
     ) -> Vec<(String, SymbolLocation)> {
         let mut out = Vec::new();
+        if max_results == 0 {
+            return out;
+        }
         'outer: for entry in self.map.iter() {
             if entry.key().starts_with(prefix) {
                 for loc in entry.value().iter() {
@@ -153,6 +157,9 @@ impl SymbolIndex {
     #[must_use]
     pub fn names_limited(&self, max_results: usize) -> Vec<String> {
         let mut out = Vec::new();
+        if max_results == 0 {
+            return out;
+        }
         for entry in self.map.iter() {
             out.push(entry.key().clone());
             if out.len() >= max_results {
@@ -176,6 +183,9 @@ impl SymbolIndex {
         max_results: usize,
     ) -> Vec<(String, SymbolLocation)> {
         let mut out = Vec::new();
+        if max_results == 0 {
+            return out;
+        }
         'outer: for entry in self.map.iter() {
             if entry.key().contains(needle) {
                 for loc in entry.value().iter() {
@@ -310,18 +320,6 @@ impl SymbolIndex {
     /// Extract symbol definitions from a file's content and add them to the index.
     /// Skips re-indexing if mtime matches a previously seen entry.
     pub fn index_file(&self, path: &Path, mtime: SystemTime, content: &str) -> usize {
-        if let Some(prev) = self.files.get(path) {
-            if *prev == mtime {
-                return 0;
-            }
-        }
-
-        if let Some(prev_mtime) = self.files.insert(path.to_path_buf(), mtime) {
-            if prev_mtime != mtime {
-                self.remove_path(path);
-            }
-        }
-
         let lang = match detect_file_type(path) {
             FileType::Code(l) => l,
             _ => return 0,
@@ -331,9 +329,35 @@ impl SymbolIndex {
             return 0;
         };
 
+        // Parse before claiming the path so failures leave no `files` entry —
+        // `files` then only tracks indexed files and the `files_indexed`
+        // recount in `drop_files` stays consistent.
         let Some(tree) = crate::treesitter::parse_with_language(&language, content) else {
             return 0;
         };
+
+        // Atomically check-and-set the mtime and hold the shard entry across
+        // the whole update: a concurrent `index_file` on the same path either
+        // sees the fresh mtime and skips, or waits — never double-indexes.
+        let mut stale = false;
+        let mut new_file = false;
+        let _files_guard = match self.files.entry(path.to_path_buf()) {
+            Entry::Occupied(mut e) => {
+                if *e.get() == mtime {
+                    return 0;
+                }
+                e.insert(mtime);
+                stale = true;
+                e.into_ref()
+            }
+            Entry::Vacant(e) => {
+                new_file = true;
+                e.insert(mtime)
+            }
+        };
+        if stale {
+            self.remove_path(path);
+        }
 
         let lines: Vec<&str> = content.lines().collect();
         let root = tree.root_node();
@@ -344,7 +368,11 @@ impl SymbolIndex {
             count += 1;
         });
 
-        self.files_indexed.fetch_add(1, Ordering::Relaxed);
+        // `files_indexed` counts distinct files (matching `files.len()`),
+        // so re-indexing an existing path does not inflate it.
+        if new_file {
+            self.files_indexed.fetch_add(1, Ordering::Relaxed);
+        }
         self.symbols_indexed.fetch_add(count, Ordering::Relaxed);
         count
     }
@@ -409,22 +437,34 @@ fn collect_definitions(
         } else if DEFINITION_KINDS.contains(&n.kind()) {
             if lang == Lang::Verse && verse_skip_spurious_definition(n, lines) {
                 // fall through to children
-            } else if let Some(name) = extract_definition_name(n, lines) {
-                let start_line = n.start_position().row as u32 + 1;
-                let ast_end = n.end_position().row as u32 + 1;
-                let end_line = if lang == Lang::Verse {
-                    verse_repair_end_line(n.kind(), start_line, ast_end, lines)
-                } else {
-                    ast_end
-                };
-                let loc = SymbolLocation {
-                    path: path.to_path_buf(),
-                    line: start_line,
-                    end_line,
-                    kind: n.kind().to_string(),
-                    weight: definition_weight(n.kind()),
-                };
-                out(name, loc);
+            } else {
+                // `export_statement`/`decorated_definition` are pure wrappers:
+                // their name is extracted from a definition child that is
+                // itself visited below, so emitting here would duplicate it.
+                let is_redundant_wrapper =
+                    matches!(n.kind(), "export_statement" | "decorated_definition")
+                        && has_definition_child(n);
+                if !is_redundant_wrapper {
+                    let start_line = n.start_position().row as u32 + 1;
+                    let ast_end = n.end_position().row as u32 + 1;
+                    let end_line = if lang == Lang::Verse {
+                        verse_repair_end_line(n.kind(), start_line, ast_end, lines)
+                    } else {
+                        ast_end
+                    };
+                    let weight = definition_weight(n.kind());
+                    let kind = n.kind().to_string();
+                    for name in extract_definition_names(n, lines) {
+                        let loc = SymbolLocation {
+                            path: path.to_path_buf(),
+                            line: start_line,
+                            end_line,
+                            kind: kind.clone(),
+                            weight,
+                        };
+                        out(name, loc);
+                    }
+                }
             }
         }
 
@@ -437,6 +477,17 @@ fn collect_definitions(
             }
         }
     }
+}
+
+/// True when `node` has a direct child whose kind is itself a definition —
+/// used to detect wrapper nodes (`export_statement`, `decorated_definition`)
+/// whose symbol will be emitted when the child is visited.
+fn has_definition_child(node: Node<'_>) -> bool {
+    let mut cursor = node.walk();
+    let found = node
+        .children(&mut cursor)
+        .any(|c| DEFINITION_KINDS.contains(&c.kind()));
+    found
 }
 
 #[cfg(test)]
@@ -570,6 +621,78 @@ mod tests {
             "should stop before sibling OnBegin, got end_line {}",
             hits[0].end_line
         );
+    }
+
+    #[test]
+    fn export_statement_does_not_duplicate_inner_definition() {
+        let f = touch_file("export function foo() {}\n", "ts");
+        let idx = SymbolIndex::new();
+        let mtime = std::fs::metadata(f.path()).unwrap().modified().unwrap();
+        idx.index_file(f.path(), mtime, &std::fs::read_to_string(f.path()).unwrap());
+        assert_eq!(
+            idx.lookup_exact("foo").len(),
+            1,
+            "export_statement wrapper + inner def must not double-emit"
+        );
+    }
+
+    #[test]
+    fn decorated_definition_does_not_duplicate_inner_definition() {
+        let f = touch_file("@decorator\ndef foo():\n    pass\n", "py");
+        let idx = SymbolIndex::new();
+        let mtime = std::fs::metadata(f.path()).unwrap().modified().unwrap();
+        idx.index_file(f.path(), mtime, &std::fs::read_to_string(f.path()).unwrap());
+        assert_eq!(idx.lookup_exact("foo").len(), 1);
+    }
+
+    #[test]
+    fn variable_declaration_indexes_all_declarators() {
+        let f = touch_file("const alpha = 1, beta = 2, gamma = 3;\n", "js");
+        let idx = SymbolIndex::new();
+        let mtime = std::fs::metadata(f.path()).unwrap().modified().unwrap();
+        idx.index_file(f.path(), mtime, &std::fs::read_to_string(f.path()).unwrap());
+        for name in ["alpha", "beta", "gamma"] {
+            assert_eq!(idx.lookup_exact(name).len(), 1, "missing {name}");
+        }
+    }
+
+    #[test]
+    fn limited_lookups_honor_zero_max_results() {
+        let f = touch_file("fn alpha() {}\nfn alphabet() {}\n", "rs");
+        let idx = SymbolIndex::new();
+        let mtime = std::fs::metadata(f.path()).unwrap().modified().unwrap();
+        idx.index_file(f.path(), mtime, &std::fs::read_to_string(f.path()).unwrap());
+
+        assert!(idx.lookup_prefix_limited("alpha", 0).is_empty());
+        assert!(idx.lookup_substring_limited("alpha", 0).is_empty());
+        assert!(idx.names_limited(0).is_empty());
+        assert_eq!(idx.lookup_prefix_limited("alpha", 1).len(), 1);
+        assert_eq!(idx.names_limited(1).len(), 1);
+    }
+
+    #[test]
+    fn non_code_file_leaves_no_files_entry() {
+        let f = touch_file("just some text\n", "txt");
+        let idx = SymbolIndex::new();
+        let mtime = std::fs::metadata(f.path()).unwrap().modified().unwrap();
+        let n = idx.index_file(f.path(), mtime, &std::fs::read_to_string(f.path()).unwrap());
+        assert_eq!(n, 0);
+        assert_eq!(idx.files_indexed(), 0);
+        assert!(idx.indexed_paths().is_empty());
+        assert!(idx.mtime_for(f.path()).is_none());
+    }
+
+    #[test]
+    fn reindex_with_new_mtime_replaces_symbols() {
+        let f = touch_file("fn old_name() {}\n", "rs");
+        let idx = SymbolIndex::new();
+        let mtime1 = std::fs::metadata(f.path()).unwrap().modified().unwrap();
+        idx.index_file(f.path(), mtime1, "fn old_name() {}\n");
+        let mtime2 = mtime1 + Duration::from_secs(1);
+        idx.index_file(f.path(), mtime2, "fn new_name() {}\n");
+        assert!(idx.lookup_exact("old_name").is_empty());
+        assert_eq!(idx.lookup_exact("new_name").len(), 1);
+        assert_eq!(idx.files_indexed(), 1);
     }
 
     #[test]
