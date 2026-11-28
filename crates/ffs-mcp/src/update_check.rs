@@ -58,7 +58,7 @@ fn compare_versions(current_version: &str, release_tag: &str) -> String {
 
     // Only claim an update when the tag is strictly newer — plain string
     // inequality used to advertise "updates" pointing at older releases.
-    // Unparseable versions fall back to the old not-equal behaviour.
+    // Unparsable versions fall back to the old not-equal behaviour.
     if let (Some(cur), Some(new)) = (version_tuple(current_version), version_tuple(tag_version))
         && cur >= new
     {
@@ -149,7 +149,7 @@ mod tests {
     }
 
     #[test]
-    fn unparseable_versions_fall_back_to_inequality() {
+    fn unparsable_versions_fall_back_to_inequality() {
         // Weird tags keep the old behaviour rather than crashing the check.
         let notice = compare_versions("0.10.1", "nightly-build");
         assert!(notice.contains("0.10.1 -> nightly-build"));

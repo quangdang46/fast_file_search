@@ -10,6 +10,7 @@ use notify_debouncer_full::{DebounceEventResult, DebouncedEvent, NoCache, new_de
 use parking_lot::Mutex;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::time::Duration;
 use tracing::{Level, debug, error, info, warn};
@@ -22,6 +23,7 @@ pub struct BackgroundWatcher {
     debouncer: Arc<Mutex<Option<Debouncer>>>,
     watch_tx: Option<mpsc::Sender<PathBuf>>,
     owner_thread: Option<std::thread::JoinHandle<()>>,
+    owner_shutdown: Arc<AtomicBool>,
 }
 
 const DEBOUNCE_TIMEOUT: Duration = Duration::from_millis(50);
@@ -109,10 +111,35 @@ impl BackgroundWatcher {
         #[cfg(target_os = "linux")]
         let owner_debouncer = Arc::clone(&debouncer);
 
+        let owner_shutdown = Arc::new(AtomicBool::new(false));
+        let owner_shutdown_thread = Arc::clone(&owner_shutdown);
         let owner_thread = std::thread::Builder::new()
             .name("ffs-watcher-own".into())
             .spawn(move || {
-                while let Ok(dir) = watch_rx.recv() {
+                loop {
+                    if owner_shutdown_thread.load(Ordering::Relaxed) {
+                        break;
+                    }
+
+                    let dir = match watch_rx.recv_timeout(Duration::from_millis(50)) {
+                        Ok(dir) => dir,
+                        Err(mpsc::RecvTimeoutError::Timeout) => {
+                            // `stop()` detaches this thread, so shutdown has to
+                            // be observable without joining the handle.
+                            if owner_shutdown_thread.load(Ordering::Relaxed)
+                                || owner_weak_picker.upgrade().is_none()
+                            {
+                                break;
+                            }
+                            continue;
+                        }
+                        Err(mpsc::RecvTimeoutError::Disconnected) => break,
+                    };
+
+                    if owner_shutdown_thread.load(Ordering::Relaxed) {
+                        break;
+                    }
+
                     // if the picker is dropped we do need to exit the loop
                     let Some(strong_picker) = owner_weak_picker.upgrade() else {
                         break;
@@ -165,6 +192,7 @@ impl BackgroundWatcher {
             debouncer,
             watch_tx: Some(watch_tx),
             owner_thread: Some(owner_thread),
+            owner_shutdown,
         })
     }
 
@@ -346,9 +374,9 @@ impl BackgroundWatcher {
     /// holds that lock (e.g. `stop_background_monitor` under a
     /// `shared_picker.write()` guard). Instead we:
     ///
-    ///   * drop the `watch_tx` Sender — the owner thread's
-    ///     `watch_rx.recv()` returns `Err` and the thread exits at
-    ///     its next `recv`.
+    ///   * set `owner_shutdown` — the owner thread checks it on every
+    ///     recv timeout and exits even though it still holds a Sender clone.
+    ///   * drop the `watch_tx` Sender so no new directories are queued.
     ///   * call `debouncer.stop_nonblocking()` — signals the debouncer
     ///     event loop to exit on its next tick and drops the watcher,
     ///     closing the FSEvent / inotify / ReadDirectoryChangesW stream.
@@ -357,6 +385,7 @@ impl BackgroundWatcher {
     /// In-flight handler invocations finish on their own (at most one
     /// more batch) once the caller releases any locks they hold.
     pub fn stop(&mut self) {
+        self.owner_shutdown.store(true, Ordering::Relaxed);
         self.watch_tx.take();
         if let Some(debouncer) = self.debouncer.lock().take() {
             debouncer.stop_nonblocking();
@@ -369,7 +398,7 @@ impl BackgroundWatcher {
 
     /// Queue a non-recursive watch registration on `dir`.
     ///
-    /// The owner thread is always blocked on `watch_rx.recv()`, so
+    /// The owner thread waits on `watch_rx` with a short timeout, so
     /// the `send()` here wakes it immediately via the channel's
     /// condvar — no external unpark needed.
     ///

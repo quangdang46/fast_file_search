@@ -1736,8 +1736,10 @@ impl FilePicker {
             if relative_dir.is_empty() {
                 dir_prefixes.push(String::new());
             } else {
-                // Stored relative paths are '/'-canonical on every platform.
-                dir_prefixes.push(format!("{relative_dir}/"));
+                // Stored relative paths use MAIN_SEPARATOR on every platform.
+                let mut prefix = relative_dir;
+                prefix.push(std::path::MAIN_SEPARATOR);
+                dir_prefixes.push(prefix);
             }
         }
 
